@@ -315,7 +315,7 @@ INSERT INTO company_sources (
     'micron',
     'eightfold',
     'careers.micron.com',
-    'https://careers.micron.com/careers',
+    'https://careers.micron.com/careers/sitemap.xml?domain=micron.com',
     '{"career_domain":"careers.micron.com"}',
     1,
     'pending'
@@ -345,7 +345,7 @@ INSERT INTO company_sources (
     'qualcomm',
     'eightfold',
     'careers.qualcomm.com',
-    'https://careers.qualcomm.com/careers',
+    'https://careers.qualcomm.com/careers/sitemap.xml?domain=qualcomm.com',
     '{"career_domain":"careers.qualcomm.com"}',
     1,
     'pending'

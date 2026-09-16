@@ -15,27 +15,19 @@ company_key = "amd"
 provider = "jsearch"
 employer_aliases = ["AMD", "Advanced Micro Devices"]
 reason = "iCIMS returned 405 Human Verification for search and sitemap paths."
-
-[[company_fallbacks]]
-company_key = "micron"
-provider = "jsearch"
-employer_aliases = ["Micron", "Micron Technology"]
-reason = "Eightfold app shell downloads but exposes no structured job list; public apply-v2 guesses returned 404/403."
-
 [[company_fallbacks]]
 company_key = "microsoft"
 provider = "jsearch"
 employer_aliases = ["Microsoft"]
 reason = "Careers site redirects to an Eightfold-style app with reCAPTCHA; public GCS API guesses returned 404."
-
-[[company_fallbacks]]
-company_key = "qualcomm"
-provider = "jsearch"
-employer_aliases = ["Qualcomm"]
-reason = "Eightfold app shell downloads but exposes no structured job list; public apply-v2 guesses returned 404/403."
-
 [[company_fallbacks]]
 company_key = "rambus"
 provider = "jsearch"
-employer_aliases = ["Rambus"]
+employer_aliases = ["Rambus", "Rambus.com"]
 reason = "iCIMS returned 405 Human Verification for search and sitemap paths."
+
+[[company_fallbacks]]
+company_key = "ventana_micro"
+provider = "jsearch"
+employer_aliases = ["Ventana Micro Systems"]
+reason = "Jobvite tenant no longer exists; jobs.jobvite.com/ventanamicro redirects to Jobvite support with ?invalid=1 and ventanamicro.com does not respond."

@@ -25,7 +25,6 @@ except ImportError:
 
 from .validate_sources import Source, request_for, json_items
 from .paths import ROOT, CONFIG, DB, RUNS
-from .query_catalog import load_queries
 from .jsearch_access import RequestGuard, QuotaExhausted, load_credentials
 
 FIELDS = ['company_key', 'company_name', 'provider_key', 'title', 'location', 'url', 'source_job_id', 'posted_at', 'raw']
@@ -64,7 +63,14 @@ def location_text(value):
     if isinstance(value, dict):
         if 'address' in value:
             return location_text(value['address'])
-        return ', '.join(str(value[k]) for k in ['name', 'city', 'region', 'country', 'addressLocality', 'addressRegion', 'addressCountry'] if value.get(k))
+        parts = []
+        for k in ['name', 'city', 'region', 'country', 'addressLocality', 'addressRegion', 'addressCountry']:
+            v = value.get(k)
+            if not v:
+                continue
+            # schema.org allows nested objects here, e.g. addressCountry as a Country.
+            parts.append(location_text(v) if isinstance(v, (dict, list)) else str(v))
+        return ', '.join(filter(None, parts))
     return str(value or '')
 
 
@@ -292,6 +298,8 @@ class Collector:
         if not root.tag.endswith('urlset'):
             raise ValueError('Expected a job URL sitemap')
         urls = [e.text for e in root.iter() if e.tag.endswith('}loc') or e.tag == 'loc']
+        if self.source.provider_key == 'eightfold':
+            urls = [u for u in urls if u and '/job/' in u]
         errors = []
         for url in urls[:self.args.max_jobs]:
             try:
@@ -337,7 +345,7 @@ class Collector:
                 self.source = replace(self.source, provider_key='oracle_cloud', fields={'api_domain': urlsplit(base['data-apibaseurl']).netloc, 'site': base['data-sitenumber']})
             if self.source.provider_key in JSON_PROVIDERS:
                 return self.collect_json()
-            if self.source.provider_key in {'akeana_careers', 'renesas_careers'}:
+            if self.source.provider_key in {'akeana_careers', 'renesas_careers', 'eightfold'}:
                 return self.collect_sitemap()
             return self.collect_html()
         except Exception as exc:
@@ -359,7 +367,7 @@ def employer_matches(name, aliases):
     return bool(name) and employer_normalize(name) in {employer_normalize(a) for a in aliases}
 
 
-def fallback(source, aliases, args, budget, search, queries):
+def fallback(source, aliases, args, budget, search):
     key = os.getenv('JSEARCH_API_KEY')
     if not key:
         return [], 'missing_credentials', 'Set JSEARCH_API_KEY; JSearch was not called'
@@ -367,15 +375,16 @@ def fallback(source, aliases, args, budget, search, queries):
     conn = search['connection']
     headers = {conn['auth_header']: key}
     guard = getattr(args, 'jsearch_guard', None) or RequestGuard()
+    names = [n for n in dict.fromkeys(list(aliases) + [source.company_name]) if n]
+    names = names[:args.fallback_queries]
     with requests.Session() as session:
-        for query in queries[:args.fallback_queries]:
+        for text in names:
             if budget[0] <= 0:
                 return rows, 'partial', 'JSearch per-run request budget exhausted'
-            text = f'{aliases[0]} {query["keyword"]} in {query.get("location", "United States")}'
             url = search['endpoint_template'].format(query=quote(text, safe=''), page=1)
-            url = query_url(url, country=query.get('country', 'us'))
+            url = query_url(url, country='us')
             try:
-                r = guard.get(session, url, headers=headers, timeout=args.timeout)
+                r = guard.get(session, url, headers=headers, timeout=args.jsearch_timeout)
                 budget[0] -= 1
                 if r.status_code in {401, 403, 429}:
                     budget[0] = 0
@@ -403,9 +412,10 @@ def fallback(source, aliases, args, budget, search, queries):
             except QuotaExhausted as exc:
                 return rows, 'quota_exhausted', str(exc)
             except (requests.RequestException, ValueError) as exc:
-                budget[0] = 0
+                if not isinstance(exc, requests.Timeout):
+                    budget[0] = 0
                 return rows, 'partial' if rows else 'failed', f'JSearch {type(exc).__name__}' + (f' HTTP {exc.response.status_code}' if isinstance(exc, requests.HTTPError) and exc.response is not None else '') + '; check credentials, quota and connectivity'
-    return rows, 'query_limited', f'First page of {min(args.fallback_queries, len(queries))} role queries; {rejected} employer mismatches rejected'
+    return rows, 'query_limited', f'First page of {len(names)} employer-name queries; {rejected} employer mismatches rejected'
 
 
 def write_csv(path, rows, fields):
@@ -428,8 +438,10 @@ def main():
     p.add_argument('--delay', type=float, default=0.15)
     p.add_argument('--fallback-queries', type=int, default=1)
     p.add_argument('--jsearch-budget', type=int, default=30)
+    p.add_argument('--jsearch-timeout', type=float, default=90,
+                   help='JSearch read timeout; its Google-for-Jobs backend routinely needs 30-60s')
     args = p.parse_args()
-    if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.delay < 0:
+    if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.delay < 0:
         p.error('Caps and timeout must be positive; delay and budget must be nonnegative')
     load_credentials()
     sources = load_sources(args.db)
@@ -438,7 +450,6 @@ def main():
         if unknown:
             p.error(f'Unknown company keys: {sorted(unknown)}')
         sources = [s for s in sources if s.company_key in args.company]
-    queries = load_queries(args.db)
     discovery = config('discovery_queries.toml')
     fallbacks = {r['company_key']: r for r in discovery['company_fallbacks']}
     search = config('sources_search.toml')['search']['jsearch']
@@ -466,7 +477,7 @@ def main():
             fs, fr = '', ''
             if status in {'fallback', 'failed', 'partial'}:
                 aliases = fallbacks.get(source.company_key, {}).get('employer_aliases', [source.company_name])
-                more, fs, fr = fallback(source, aliases, args, budget, search, queries)
+                more, fs, fr = fallback(source, aliases, args, budget, search)
                 urls = {row['url'] for row in rows}
                 rows.extend(row for row in more if row['url'] not in urls)
             jobs.extend(rows)

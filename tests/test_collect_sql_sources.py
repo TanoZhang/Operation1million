@@ -15,7 +15,7 @@ class CollectionTests(unittest.TestCase):
     def source(self):
         return Source('test', 'company_sources', 'sample', 'Sample Inc.', 'workday', 'https://sample.wd1.myworkdayjobs.com/External', {'tenant':'sample','site':'External','workday_host':'wd1'})
     def args(self):
-        return argparse.Namespace(max_jobs=100,max_pages=10,delay=0,timeout=1,fallback_queries=1)
+        return argparse.Namespace(max_jobs=100,max_pages=10,delay=0,timeout=1,jsearch_timeout=1,fallback_queries=1)
     def test_pagination_and_relative_dates(self):
         c = Collector(self.source(),self.args()); offsets=[]
         def fetch(url,method,payload):
@@ -70,7 +70,7 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(c.run(),('complete',''))
     def test_missing_key_no_network(self):
         with patch.dict('os.environ',{},clear=True),patch('requests.Session.get') as get:
-            rows,status,_=fallback(self.source(),['Sample'],self.args(),[30],config('sources_search.toml')['search']['jsearch'],[{'keyword':'engineer'}])
+            rows,status,_=fallback(self.source(),['Sample'],self.args(),[30],config('sources_search.toml')['search']['jsearch'])
             self.assertEqual((rows,status),([],'missing_credentials'));get.assert_not_called()
 
     def test_jsearch_v2_nested_jobs_and_employer_filter(self):
@@ -81,13 +81,14 @@ class CollectionTests(unittest.TestCase):
         response.json.return_value = {'status': 'OK', 'data': {'jobs': [job, dict(job, job_id='456', employer_name='Sample Staffing')], 'cursor': 'next-page'}}
         args.jsearch_guard.get.return_value = response
         with patch.dict('os.environ', {'JSEARCH_API_KEY': 'test-placeholder'}):
-            rows, status, reason = fallback(self.source(), ['Sample'], args, [1], config('sources_search.toml')['search']['jsearch'], [{'keyword': 'hardware engineer'}])
+            rows, status, reason = fallback(self.source(), ['Sample'], args, [1], config('sources_search.toml')['search']['jsearch'])
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['source_job_id'], '123')
         self.assertEqual(status, 'query_limited')
         self.assertIn('1 employer mismatches', reason)
         call = args.jsearch_guard.get.call_args
         self.assertIn('num_pages=1', call.args[1])
+        self.assertIn('query=Sample&', call.args[1])  # employer name, not a role keyword
         self.assertEqual(call.kwargs['headers'], {'X-API-Key': 'test-placeholder'})
 
 if __name__=='__main__':unittest.main()
