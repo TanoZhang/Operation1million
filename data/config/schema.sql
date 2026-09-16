@@ -70,7 +70,6 @@ INSERT INTO companies (company_key, name)
 VALUES
     ('achronix', 'Achronix Semiconductor Corporation'),
     ('amd', 'Advanced Micro Devices, Inc.'),
-    ('advantest', 'Advantest Corporation'),
     ('akeana', 'Akeana Inc.'),
     ('altera', 'Altera Corporation'),
     ('amazon', 'Amazon.com, Inc.'),
@@ -93,7 +92,6 @@ VALUES
     ('lightmatter', 'Lightmatter, Inc.'),
     ('marvell', 'Marvell Technology, Inc.'),
     ('matx', 'MATX'),
-    ('maxlinear', 'MaxLinear, Inc.'),
     ('microchip_technology', 'Microchip Technology Incorporated'),
     ('micron', 'Micron Technology, Inc.'),
     ('microsoft', 'Microsoft Corporation'),
@@ -101,7 +99,6 @@ VALUES
     ('nokia', 'Nokia of America Corporation'),
     ('nxp', 'NXP USA, Inc.'),
     ('nvidia', 'NVIDIA'),
-    ('omnivision', 'OMNIVISION Technologies, Inc.'),
     ('onsemi', 'onsemi'),
     ('psiquantum', 'PsiQuantum Corp.'),
     ('qualcomm', 'QUALCOMM Incorporated'),
@@ -129,7 +126,10 @@ WHERE company_key IN (
     'bytedance',
     'mediatek',
     'meta',
-    'tesla'
+    'tesla',
+    'advantest',
+    'maxlinear',
+    'omnivision'
 );
 
 DELETE FROM company_sources
@@ -157,16 +157,6 @@ INSERT INTO company_sources (
     'careers-amd',
     'https://careers-amd.icims.com/jobs/search?ss=1',
     '{"portal_subdomain":"careers-amd"}',
-    1,
-    'pending'
-),
-(
-    'adp:advantestcareers',
-    'advantest',
-    'adp',
-    'advantestcareers',
-    'https://myjobs.adp.com/advantestcareers?__tx_annotation=false&c=2168307&d=External&sor=adprm&recruitment_country=us',
-    '{"career_site":"advantestcareers","client_id":"2168307","display":"External","source":"adprm","recruitment_country":"us"}',
     1,
     'pending'
 ),
@@ -349,16 +339,6 @@ INSERT INTO company_sources (
     '{"job_board_name":"matx"}',
     1,
     'verified'
-),
-(
-    'icims:careersus-maxlinear',
-    'maxlinear',
-    'icims',
-    'careersus-maxlinear',
-    'https://careersus-maxlinear.icims.com/jobs/search?ss=1',
-    '{"portal_subdomain":"careersus-maxlinear"}',
-    1,
-    'pending'
 ),
 (
     'workday:microchiphr:External',
@@ -656,19 +636,6 @@ INSERT INTO company_direct_sources (
     'query',
     'location',
     '{"career_domain":"apply.careers.microsoft.com","start":"0"}',
-    1,
-    'pending'
-),
-(
-    'omnivision_careers:omnivision',
-    'omnivision',
-    'omnivision_careers',
-    'www.ovt.com',
-    'https://www.ovt.com/company/job-openings/',
-    'https://www.ovt.com/company/job-openings/',
-    NULL,
-    NULL,
-    '{"career_domain":"www.ovt.com","path":"company/job-openings"}',
     1,
     'pending'
 ),

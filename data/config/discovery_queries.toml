@@ -17,22 +17,10 @@ employer_aliases = ["AMD", "Advanced Micro Devices"]
 reason = "iCIMS returned 405 Human Verification for search and sitemap paths."
 
 [[company_fallbacks]]
-company_key = "advantest"
-provider = "jsearch"
-employer_aliases = ["Advantest"]
-reason = "ADP shell downloaded but exposed no job list without client-side app execution."
-
-[[company_fallbacks]]
 company_key = "infineon"
 provider = "jsearch"
 employer_aliases = ["Infineon"]
 reason = "Eightfold app shell downloads but exposes no structured job list; public apply-v2 guesses returned 404/403."
-
-[[company_fallbacks]]
-company_key = "maxlinear"
-provider = "jsearch"
-employer_aliases = ["MaxLinear"]
-reason = "iCIMS returned 405 Human Verification for search and sitemap paths."
 
 [[company_fallbacks]]
 company_key = "micron"
@@ -45,12 +33,6 @@ company_key = "microsoft"
 provider = "jsearch"
 employer_aliases = ["Microsoft"]
 reason = "Careers site redirects to an Eightfold-style app with reCAPTCHA; public GCS API guesses returned 404."
-
-[[company_fallbacks]]
-company_key = "omnivision"
-provider = "jsearch"
-employer_aliases = ["OMNIVISION", "OmniVision"]
-reason = "Direct page is unstable under bot checks and public sitemap exposes only careers/job-openings pages, not job detail URLs."
 
 [[company_fallbacks]]
 company_key = "qualcomm"

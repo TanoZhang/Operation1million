@@ -48,7 +48,6 @@ def probes() -> list[Probe]:
 
     for sub, company in [
         ("careers-amd", "amd"),
-        ("careersus-maxlinear", "maxlinear"),
         ("careers-rambus", "rambus"),
     ]:
         base = f"https://{sub}.icims.com"
@@ -142,18 +141,12 @@ def probes() -> list[Probe]:
             Probe("renesas", "renesas_careers", "renesas_services_search_guess", "GET", "https://jobs.renesas.com/services/search/jobs?locale=en_US&sortBy=postedDate&limit=20&offset=0"),
             Probe("renesas", "renesas_careers", "renesas_sitemap", "GET", "https://jobs.renesas.com/sitemap.xml"),
             Probe("renesas", "renesas_careers", "renesas_vacancies_sitemap", "GET", "https://jobs.renesas.com/vacanciessitemap.xml"),
-            Probe("advantest", "adp", "adp_original", "GET", "https://myjobs.adp.com/advantestcareers?__tx_annotation=false&c=2168307&d=External&sor=adprm&recruitment_country=us"),
-            Probe("advantest", "adp", "adp_job_listing_guess", "GET", "https://myjobs.adp.com/advantestcareers/cx/job-listing"),
             Probe("achronix", "achronix_careers", "achronix_sitemap", "GET", "https://www.achronix.com/sitemap.xml"),
             Probe("achronix", "achronix_careers", "achronix_careers_sitemap_guess", "GET", "https://www.achronix.com/company/careers/sitemap.xml"),
             Probe("achronix", "achronix_careers", "achronix_wp_search", "GET", "https://www.achronix.com/wp-json/wp/v2/search?search=careers"),
             Probe("akeana", "akeana_careers", "akeana_sitemap", "GET", "https://www.akeana.com/sitemap.xml"),
             Probe("akeana", "akeana_careers", "akeana_wp_search", "GET", "https://www.akeana.com/wp-json/wp/v2/search?search=jobs"),
             Probe("akeana", "akeana_careers", "akeana_elementor_jobs", "GET", "https://www.akeana.com/?elementor_library=jobs"),
-            Probe("omnivision", "omnivision_careers", "ovt_sitemap", "GET", "https://www.ovt.com/sitemap.xml"),
-            Probe("omnivision", "omnivision_careers", "ovt_page_sitemap", "GET", "https://www.ovt.com/page-sitemap.xml"),
-            Probe("omnivision", "omnivision_careers", "ovt_post_sitemap", "GET", "https://www.ovt.com/post-sitemap.xml"),
-            Probe("omnivision", "omnivision_careers", "ovt_wp_search", "GET", "https://www.ovt.com/wp-json/wp/v2/search?search=job"),
         ]
     )
     return rows

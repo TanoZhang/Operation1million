@@ -60,7 +60,7 @@ Sitemaps: Akeana and Renesas, with public detail-page enrichment. A source with
 an extractor can still fail when the remote site blocks access or redirects to
 a product homepage. Such failures are reported rather than counted as zero jobs.
 
-The nine configured company fallbacks skip direct challenge pages. New direct
+The six configured company fallbacks skip direct challenge pages. New direct
 failures and incomplete sources also attempt JSearch. No challenge solving,
 browser impersonation, disabled TLS verification, or CAPTCHA bypass is used.
 
