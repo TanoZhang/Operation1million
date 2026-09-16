@@ -46,8 +46,13 @@ class CollectionTests(unittest.TestCase):
         con=sqlite3.connect(':memory:');sql=(CONFIG/'schema.sql').read_text(encoding='utf-8')
         con.executescript(sql);con.executescript(sql)
         keys={r[0] for r in con.execute('select company_key from companies')}
-        self.assertEqual(len(keys),49)
-        self.assertFalse(keys & {'ampere_computing','bytedance','mediatek','meta','tesla','advantest','maxlinear','omnivision'})
+        self.assertEqual(len(keys),39)
+        self.assertFalse(keys & {
+            'ampere_computing', 'bytedance', 'mediatek', 'meta', 'tesla',
+            'advantest', 'maxlinear', 'omnivision', 'infineon', 'achronix',
+            'nexperia', 'nokia', 'semtech', 'onsemi', 'akeana',
+            'microchip_technology', 'psiquantum', 'analog_devices',
+        })
         self.assertEqual(con.execute('pragma foreign_key_check').fetchall(),[])
     def test_oracle_jobs_subdomain_is_preserved(self):
         source=replace(self.source(),provider_key='oracle_cloud',access_url='https://jobs.nokia.com/en/sites/CX_1/jobs?mode=location')

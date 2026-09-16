@@ -17,12 +17,6 @@ employer_aliases = ["AMD", "Advanced Micro Devices"]
 reason = "iCIMS returned 405 Human Verification for search and sitemap paths."
 
 [[company_fallbacks]]
-company_key = "infineon"
-provider = "jsearch"
-employer_aliases = ["Infineon"]
-reason = "Eightfold app shell downloads but exposes no structured job list; public apply-v2 guesses returned 404/403."
-
-[[company_fallbacks]]
 company_key = "micron"
 provider = "jsearch"
 employer_aliases = ["Micron", "Micron Technology"]

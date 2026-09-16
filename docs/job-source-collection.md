@@ -16,7 +16,7 @@ The Windows Store `python` alias is not a usable interpreter on this machine.
 
 The collector reads enabled sources from SQLite in read-only mode. It does not
 execute `schema.sql` or change company/source data. The schema can rebuild the
-52-company source catalog in a fresh database. Existing richer company metadata
+39-company source catalog in a fresh database. Existing richer company metadata
 in the supplied SQLite file is preserved.
 
 ## Outputs
@@ -52,15 +52,15 @@ JSON connectors: Workday, Greenhouse, Ashby, Oracle Cloud, SmartRecruiters,
 Cisco Phenom, Amazon search, and HiBob public job ads. Texas Instruments' Oracle
 API origin is read from the public career-page base tag.
 
-HTML connectors: Achronix, Apple, Google, TalentBrew (Arm and the current
+HTML connectors: Apple, Google, TalentBrew (Arm and the current
 Synopsys site), Jobs2Web (Celestica and Teradyne), Jobvite, TSMC/Avature, and
 Uplers company job cards. JSON-LD JobPosting extraction is shared.
 
-Sitemaps: Akeana and Renesas, with public detail-page enrichment. A source with
+Sitemaps: Renesas, with public detail-page enrichment. A source with
 an extractor can still fail when the remote site blocks access or redirects to
 a product homepage. Such failures are reported rather than counted as zero jobs.
 
-The six configured company fallbacks skip direct challenge pages. New direct
+The five configured company fallbacks skip direct challenge pages. New direct
 failures and incomplete sources also attempt JSearch. No challenge solving,
 browser impersonation, disabled TLS verification, or CAPTCHA bypass is used.
 

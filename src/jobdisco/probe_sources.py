@@ -32,7 +32,6 @@ def probes() -> list[Probe]:
     rows: list[Probe] = []
 
     for domain, company in [
-        ("jobs.infineon.com", "infineon"),
         ("careers.micron.com", "micron"),
         ("careers.qualcomm.com", "qualcomm"),
     ]:
@@ -141,12 +140,6 @@ def probes() -> list[Probe]:
             Probe("renesas", "renesas_careers", "renesas_services_search_guess", "GET", "https://jobs.renesas.com/services/search/jobs?locale=en_US&sortBy=postedDate&limit=20&offset=0"),
             Probe("renesas", "renesas_careers", "renesas_sitemap", "GET", "https://jobs.renesas.com/sitemap.xml"),
             Probe("renesas", "renesas_careers", "renesas_vacancies_sitemap", "GET", "https://jobs.renesas.com/vacanciessitemap.xml"),
-            Probe("achronix", "achronix_careers", "achronix_sitemap", "GET", "https://www.achronix.com/sitemap.xml"),
-            Probe("achronix", "achronix_careers", "achronix_careers_sitemap_guess", "GET", "https://www.achronix.com/company/careers/sitemap.xml"),
-            Probe("achronix", "achronix_careers", "achronix_wp_search", "GET", "https://www.achronix.com/wp-json/wp/v2/search?search=careers"),
-            Probe("akeana", "akeana_careers", "akeana_sitemap", "GET", "https://www.akeana.com/sitemap.xml"),
-            Probe("akeana", "akeana_careers", "akeana_wp_search", "GET", "https://www.akeana.com/wp-json/wp/v2/search?search=jobs"),
-            Probe("akeana", "akeana_careers", "akeana_elementor_jobs", "GET", "https://www.akeana.com/?elementor_library=jobs"),
         ]
     )
     return rows

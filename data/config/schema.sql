@@ -68,13 +68,10 @@ WHERE s.enabled = 1;
 
 INSERT INTO companies (company_key, name)
 VALUES
-    ('achronix', 'Achronix Semiconductor Corporation'),
     ('amd', 'Advanced Micro Devices, Inc.'),
-    ('akeana', 'Akeana Inc.'),
     ('altera', 'Altera Corporation'),
     ('amazon', 'Amazon.com, Inc.'),
     ('ambarella', 'Ambarella, Inc.'),
-    ('analog_devices', 'Analog Devices, Inc.'),
     ('apple', 'Apple Inc.'),
     ('arm', 'Arm, Inc.'),
     ('astera_labs', 'Astera Labs, Inc.'),
@@ -86,28 +83,21 @@ VALUES
     ('credo_technology', 'Credo Technology Group Holding Ltd'),
     ('etched', 'Etched.ai, Inc.'),
     ('google', 'Google LLC'),
-    ('infineon', 'Infineon Technologies Americas Corp.'),
     ('intel', 'Intel Corporation'),
     ('lattice_semiconductor', 'Lattice Semiconductor Corporation'),
     ('lightmatter', 'Lightmatter, Inc.'),
     ('marvell', 'Marvell Technology, Inc.'),
     ('matx', 'MATX'),
-    ('microchip_technology', 'Microchip Technology Incorporated'),
     ('micron', 'Micron Technology, Inc.'),
     ('microsoft', 'Microsoft Corporation'),
-    ('nexperia', 'Nexperia USA Inc.'),
-    ('nokia', 'Nokia of America Corporation'),
     ('nxp', 'NXP USA, Inc.'),
     ('nvidia', 'NVIDIA'),
-    ('onsemi', 'onsemi'),
-    ('psiquantum', 'PsiQuantum Corp.'),
     ('qualcomm', 'QUALCOMM Incorporated'),
     ('rambus', 'Rambus Inc.'),
     ('renesas', 'Renesas Electronics America, Inc.'),
     ('rivos', 'Rivos Inc.'),
     ('samsung_semiconductor', 'Samsung Semiconductor, Inc.'),
     ('sandisk', 'SanDisk'),
-    ('semtech', 'Semtech Corporation'),
     ('sifive', 'SiFive, Inc.'),
     ('silicon_labs', 'Silicon Laboratories Inc.'),
     ('sk_hynix_america', 'SK hynix America Inc.'),
@@ -129,7 +119,17 @@ WHERE company_key IN (
     'tesla',
     'advantest',
     'maxlinear',
-    'omnivision'
+    'omnivision',
+    'infineon',
+    'achronix',
+    'nexperia',
+    'nokia',
+    'semtech',
+    'onsemi',
+    'akeana',
+    'microchip_technology',
+    'psiquantum',
+    'analog_devices'
 );
 
 DELETE FROM company_sources
@@ -177,16 +177,6 @@ INSERT INTO company_sources (
     'Ambarella',
     'https://ambarella.wd108.myworkdayjobs.com/Ambarella',
     '{"tenant":"ambarella","workday_host":"wd108","site":"Ambarella"}',
-    1,
-    'verified'
-),
-(
-    'workday:analogdevices:External',
-    'analog_devices',
-    'workday',
-    'External',
-    'https://analogdevices.wd1.myworkdayjobs.com/External',
-    '{"tenant":"analogdevices","workday_host":"wd1","site":"External"}',
     1,
     'verified'
 ),
@@ -281,16 +271,6 @@ INSERT INTO company_sources (
     'verified'
 ),
 (
-    'eightfold:jobs.infineon.com',
-    'infineon',
-    'eightfold',
-    'jobs.infineon.com',
-    'https://jobs.infineon.com/careers',
-    '{"career_domain":"jobs.infineon.com"}',
-    1,
-    'pending'
-),
-(
     'workday:intel:External',
     'intel',
     'workday',
@@ -341,16 +321,6 @@ INSERT INTO company_sources (
     'verified'
 ),
 (
-    'workday:microchiphr:External',
-    'microchip_technology',
-    'workday',
-    'External',
-    'https://wd5.myworkdaysite.com/recruiting/microchiphr/External',
-    '{"tenant":"microchiphr","workday_host":"wd5","site":"External","path_style":"recruiting"}',
-    1,
-    'verified'
-),
-(
     'eightfold:careers.micron.com',
     'micron',
     'eightfold',
@@ -359,26 +329,6 @@ INSERT INTO company_sources (
     '{"career_domain":"careers.micron.com"}',
     1,
     'pending'
-),
-(
-    'workday:nexperia:careers',
-    'nexperia',
-    'workday',
-    'careers',
-    'https://nexperia.wd3.myworkdayjobs.com/careers',
-    '{"tenant":"nexperia","workday_host":"wd3","site":"careers"}',
-    1,
-    'verified'
-),
-(
-    'oracle_cloud:jobs.nokia.com:CX_1',
-    'nokia',
-    'oracle_cloud',
-    'CX_1',
-    'https://jobs.nokia.com/en/sites/CX_1/jobs?mode=location',
-    '{"career_domain":"jobs.nokia.com","api_domain":"fa-evmr-saasfaprod1.fa.ocs.oraclecloud.com","locale":"en","site":"CX_1","mode":"location"}',
-    1,
-    'verified'
 ),
 (
     'workday:nxp:careers',
@@ -397,26 +347,6 @@ INSERT INTO company_sources (
     'NVIDIAExternalCareerSite',
     'https://nvidia.wd5.myworkdayjobs.com/en-US/NVIDIAExternalCareerSite',
     '{"tenant":"nvidia","workday_host":"wd5","site":"NVIDIAExternalCareerSite","locale":"en-US"}',
-    1,
-    'verified'
-),
-(
-    'oracle_cloud:hctz.fa.us2.oraclecloud.com:CX_1001',
-    'onsemi',
-    'oracle_cloud',
-    'CX_1001',
-    'https://hctz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs?mode=location',
-    '{"career_domain":"hctz.fa.us2.oraclecloud.com","api_domain":"hctz.fa.us2.oraclecloud.com","path_prefix":"hcmUI/CandidateExperience","locale":"en","site":"CX_1001","mode":"location"}',
-    1,
-    'verified'
-),
-(
-    'greenhouse:psiquantum',
-    'psiquantum',
-    'greenhouse',
-    'psiquantum',
-    'https://boards-api.greenhouse.io/v1/boards/psiquantum/jobs',
-    '{"board_token":"psiquantum"}',
     1,
     'verified'
 ),
@@ -457,16 +387,6 @@ INSERT INTO company_sources (
     'Sandisk',
     'https://api.smartrecruiters.com/v1/companies/Sandisk/postings',
     '{"company_slug":"Sandisk"}',
-    1,
-    'verified'
-),
-(
-    'workday:semtech:SemtechCareers',
-    'semtech',
-    'workday',
-    'SemtechCareers',
-    'https://semtech.wd1.myworkdayjobs.com/SemtechCareers',
-    '{"tenant":"semtech","workday_host":"wd1","site":"SemtechCareers"}',
     1,
     'verified'
 ),
@@ -562,32 +482,6 @@ INSERT INTO company_direct_sources (
     enabled,
     status
 ) VALUES (
-    'achronix_careers:achronix',
-    'achronix',
-    'achronix_careers',
-    'www.achronix.com',
-    'https://www.achronix.com/company/careers',
-    'https://www.achronix.com/company/careers',
-    NULL,
-    NULL,
-    '{"career_domain":"www.achronix.com","path":"company/careers"}',
-    1,
-    'pending'
-),
-(
-    'akeana_careers:akeana',
-    'akeana',
-    'akeana_careers',
-    'www.akeana.com',
-    'https://www.akeana.com/wp-sitemap-posts-awsm_job_openings-1.xml',
-    'https://www.akeana.com/wp-sitemap-posts-awsm_job_openings-1.xml',
-    NULL,
-    NULL,
-    '{"career_domain":"www.akeana.com","path":"wp-sitemap-posts-awsm_job_openings-1.xml"}',
-    1,
-    'pending'
-),
-(
     'amazon_jobs:amazon',
     'amazon',
     'amazon_jobs',
