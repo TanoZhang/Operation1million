@@ -9,17 +9,6 @@ exclude_terms = ["clearance", "TS/SCI", "secret clearance"]
 
 # Direct source fallbacks: do not bypass CAPTCHA/Human Verification. Combine each
 # employer alias with the tiered keyword queries above and send through JSearch.
-
-[[company_fallbacks]]
-company_key = "amd"
-provider = "jsearch"
-employer_aliases = ["AMD", "Advanced Micro Devices"]
-reason = "iCIMS returned 405 Human Verification for search and sitemap paths."
-[[company_fallbacks]]
-company_key = "microsoft"
-provider = "jsearch"
-employer_aliases = ["Microsoft"]
-reason = "Careers site redirects to an Eightfold-style app with reCAPTCHA; public GCS API guesses returned 404."
 [[company_fallbacks]]
 company_key = "rambus"
 provider = "jsearch"

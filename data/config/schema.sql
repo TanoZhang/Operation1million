@@ -155,7 +155,7 @@ INSERT INTO company_sources (
     'amd',
     'icims',
     'careers-amd',
-    'https://careers-amd.icims.com/jobs/search?ss=1',
+    'https://careers.amd.com/api/jobs?sortBy=relevance&descending=false&internal=false',
     '{"portal_subdomain":"careers-amd"}',
     1,
     'pending'
@@ -315,7 +315,7 @@ INSERT INTO company_sources (
     'micron',
     'eightfold',
     'careers.micron.com',
-    'https://careers.micron.com/careers/sitemap.xml?domain=micron.com',
+    'https://careers.micron.com/api/pcsx/search?domain=micron.com&query=&location=',
     '{"career_domain":"careers.micron.com"}',
     1,
     'pending'
@@ -345,7 +345,7 @@ INSERT INTO company_sources (
     'qualcomm',
     'eightfold',
     'careers.qualcomm.com',
-    'https://careers.qualcomm.com/careers/sitemap.xml?domain=qualcomm.com',
+    'https://careers.qualcomm.com/api/pcsx/search?domain=qualcomm.com&query=&location=',
     '{"career_domain":"careers.qualcomm.com"}',
     1,
     'pending'
@@ -513,9 +513,9 @@ INSERT INTO company_direct_sources (
 (
     'microsoft_careers:microsoft',
     'microsoft',
-    'microsoft_careers',
+    'eightfold',
     'apply.careers.microsoft.com',
-    'https://apply.careers.microsoft.com/careers?query=&location=&start=0',
+    'https://apply.careers.microsoft.com/api/pcsx/search?domain=microsoft.com&query=&location=',
     'https://apply.careers.microsoft.com/careers?query={keyword}&location={location}&start={start}',
     'query',
     'location',

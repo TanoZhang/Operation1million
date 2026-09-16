@@ -156,6 +156,16 @@ def json_items(provider: str, data: Any) -> list[Any]:
         items = data.get("items") or []
         if items and isinstance(items[0], dict):
             return items[0].get("requisitionList") or []
+    if provider == "amd_careers":
+        if not isinstance(data, dict):
+            return []
+        # Each row wraps its fields in a nested "data" object.
+        return [j.get("data") or j for j in data.get("jobs") or [] if isinstance(j, dict)]
+    if provider == "eightfold":
+        if not isinstance(data, dict):
+            return []
+        payload = data.get("data")
+        return payload.get("positions") or [] if isinstance(payload, dict) else []
     if provider == "phenom":
         if not isinstance(data, dict):
             return []

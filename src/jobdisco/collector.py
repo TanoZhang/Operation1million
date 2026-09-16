@@ -28,7 +28,7 @@ from .paths import ROOT, CONFIG, DB, RUNS
 from .jsearch_access import RequestGuard, QuotaExhausted, load_credentials
 
 FIELDS = ['company_key', 'company_name', 'provider_key', 'title', 'location', 'url', 'source_job_id', 'posted_at', 'raw']
-JSON_PROVIDERS = {'workday', 'greenhouse', 'ashby', 'oracle_cloud', 'smartrecruiters', 'phenom', 'amazon_jobs'}
+JSON_PROVIDERS = {'workday', 'greenhouse', 'ashby', 'oracle_cloud', 'smartrecruiters', 'phenom', 'amazon_jobs', 'eightfold', 'amd_careers'}
 
 
 def config(name):
@@ -95,6 +95,18 @@ def normalize(source, item):
         posted = item.get('releasedDate')
     elif p == 'phenom':
         url = url or f"https://{source.fields['career_domain']}/global/en/job/{ident}"
+    elif p == 'amd_careers':
+        # apply_url points at the iCIMS login wall; the public posting is on careers.amd.com.
+        url = f"https://careers.amd.com/careers-home/jobs/{item.get('req_id') or item.get('slug')}"
+        ident = item.get('req_id') or item.get('slug')
+        location = item.get('full_location') or ', '.join(filter(None, [item.get('city'), item.get('state'), item.get('country')]))
+        posted = item.get('posted_date') or item.get('create_date')
+    elif p == 'eightfold':
+        # positionUrl is site-relative; postedTs is a Unix timestamp.
+        url = urljoin(source.access_url, item.get('positionUrl') or '')
+        location = item.get('locations') or item.get('standardizedLocations')
+        ts = item.get('postedTs') or item.get('creationTs')
+        posted = datetime.fromtimestamp(ts, timezone.utc).isoformat() if isinstance(ts, (int, float)) else None
     elif p == 'amazon_jobs':
         ident = item.get('id_icims') or ident
         url = urljoin('https://www.amazon.jobs', item.get('job_path') or url) if item.get('job_path') or url else None
@@ -170,8 +182,19 @@ class Collector:
     def fetch(self, url, method='GET', payload=None):
         if self.requests:
             time.sleep(self.args.delay)
-        self.requests += 1
-        r = self.session.request(method, url, json=payload, timeout=self.args.timeout)
+        # Some boards throttle by IP rather than blocking; back off and retry so a
+        # burst does not look like abuse and cost us the whole source.
+        for attempt in range(self.args.retries + 1):
+            self.requests += 1
+            r = self.session.request(method, url, json=payload, timeout=self.args.timeout)
+            if r.status_code not in {429, 503} or attempt == self.args.retries:
+                break
+            wait = r.headers.get('Retry-After')
+            try:
+                wait = float(wait)
+            except (TypeError, ValueError):
+                wait = self.args.delay * 4 * (attempt + 1)
+            time.sleep(min(wait, 30))
         r.raise_for_status()
         if 'json' not in r.headers.get('content-type', '') and 'xml' not in r.headers.get('content-type', ''):
             soup = BeautifulSoup(r.text, 'html.parser')
@@ -213,9 +236,13 @@ class Collector:
                 target = query_url(url, offset=offset, limit=100)
             elif p == 'amazon_jobs':
                 target = f'https://www.amazon.jobs/en/search.json?offset={offset}&result_limit=100&sort=recent'
+            elif p == 'eightfold':
+                target = query_url(url, start=offset, num=10)
+            elif p == 'amd_careers':
+                target = query_url(url, page=page + 1)
             data = self.fetch(target, method, payload).json()
             items = data.get('jobs', []) if p == 'amazon_jobs' else json_items(p, data)
-            expected = {'workday': 'jobPostings', 'greenhouse': 'jobs', 'ashby': 'jobs', 'smartrecruiters': 'content', 'oracle_cloud': 'items', 'phenom': 'refineSearch', 'amazon_jobs': 'jobs'}[p]
+            expected = {'workday': 'jobPostings', 'greenhouse': 'jobs', 'ashby': 'jobs', 'smartrecruiters': 'content', 'oracle_cloud': 'items', 'phenom': 'refineSearch', 'amazon_jobs': 'jobs', 'eightfold': 'data', 'amd_careers': 'jobs'}[p]
             if not isinstance(data, dict) or expected not in data:
                 raise ValueError(f'Unexpected {p} JSON schema')
             if p == 'phenom' and (data['refineSearch'].get('status') != 200 or not isinstance(data['refineSearch'].get('data', {}).get('jobs'), list)):
@@ -231,6 +258,10 @@ class Collector:
                 total = (data.get('items') or [{}])[0].get('TotalJobsCount')
             if p == 'phenom':
                 total = data.get('refineSearch', {}).get('totalHits')
+            if p == 'eightfold':
+                total = (data.get('data') or {}).get('count')
+            if p == 'amd_careers':
+                total = data.get('totalCount') or data.get('count')
             if p in {'greenhouse', 'ashby'}:
                 return ('partial', 'Job cap reached') if len(items) > self.args.max_jobs else ('complete', '')
             if isinstance(total, (int, float)) and offset >= total:
@@ -298,8 +329,6 @@ class Collector:
         if not root.tag.endswith('urlset'):
             raise ValueError('Expected a job URL sitemap')
         urls = [e.text for e in root.iter() if e.tag.endswith('}loc') or e.tag == 'loc']
-        if self.source.provider_key == 'eightfold':
-            urls = [u for u in urls if u and '/job/' in u]
         errors = []
         for url in urls[:self.args.max_jobs]:
             try:
@@ -345,7 +374,7 @@ class Collector:
                 self.source = replace(self.source, provider_key='oracle_cloud', fields={'api_domain': urlsplit(base['data-apibaseurl']).netloc, 'site': base['data-sitenumber']})
             if self.source.provider_key in JSON_PROVIDERS:
                 return self.collect_json()
-            if self.source.provider_key in {'akeana_careers', 'renesas_careers', 'eightfold'}:
+            if self.source.provider_key in {'akeana_careers', 'renesas_careers'}:
                 return self.collect_sitemap()
             return self.collect_html()
         except Exception as exc:
@@ -403,9 +432,9 @@ def fallback(source, aliases, args, budget, search):
                         continue
                     ident = item.get('job_id')
                     url = item.get('job_apply_link') or item.get('job_google_link')
-                    if not ident or not url or not item.get('job_title') or ident in seen:
+                    if not ident or not url or not item.get('job_title') or url in seen:
                         continue
-                    seen.add(ident)
+                    seen.add(url)
                     row = normalize(replace(source, provider_key='jsearch'), {'title': item['job_title'], 'url': url, 'id': ident, 'location': ', '.join(filter(None, [item.get('job_city'), item.get('job_state'), item.get('job_country')])), 'posted_at': item.get('job_posted_at_datetime_utc')})
                     row['raw'] = item
                     rows.append(row)
@@ -436,12 +465,13 @@ def main():
     p.add_argument('--workers', type=int, default=4)
     p.add_argument('--timeout', type=float, default=25)
     p.add_argument('--delay', type=float, default=0.15)
+    p.add_argument('--retries', type=int, default=3, help='Retries for 429/503 throttling responses')
     p.add_argument('--fallback-queries', type=int, default=1)
     p.add_argument('--jsearch-budget', type=int, default=30)
     p.add_argument('--jsearch-timeout', type=float, default=90,
                    help='JSearch read timeout; its Google-for-Jobs backend routinely needs 30-60s')
     args = p.parse_args()
-    if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.delay < 0:
+    if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.delay < 0 or args.retries < 0:
         p.error('Caps and timeout must be positive; delay and budget must be nonnegative')
     load_credentials()
     sources = load_sources(args.db)
@@ -475,7 +505,11 @@ def main():
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         for source, rows, status, reason, count in pool.map(direct, sources):
             fs, fr = '', ''
-            if status in {'fallback', 'failed', 'partial'}:
+            # Paid search is for boards we cannot read, not for boards this run
+            # merely truncated. 'partial' usually means a cap was reached, and
+            # spending a request per capped company exhausts the daily quota
+            # before the genuinely blocked companies are reached.
+            if status == 'fallback' or not rows:
                 aliases = fallbacks.get(source.company_key, {}).get('employer_aliases', [source.company_name])
                 more, fs, fr = fallback(source, aliases, args, budget, search)
                 urls = {row['url'] for row in rows}
