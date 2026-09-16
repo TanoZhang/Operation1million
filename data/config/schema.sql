@@ -104,7 +104,6 @@ VALUES
     ('tenstorrent', 'Tenstorrent Inc.'),
     ('teradyne', 'Teradyne, Inc.'),
     ('texas_instruments', 'Texas Instruments Incorporated'),
-    ('tsmc', 'Taiwan Semiconductor Manufacturing Company Limited'),
     ('ventana_micro', 'Ventana Micro Systems Inc.')
 ON CONFLICT(company_key) DO UPDATE SET
     name = excluded.name;
@@ -129,7 +128,8 @@ WHERE company_key IN (
     'microchip_technology',
     'psiquantum',
     'analog_devices',
-    'celestica'
+    'celestica',
+    'tsmc'
 );
 
 DELETE FROM company_sources
@@ -559,19 +559,6 @@ INSERT INTO company_direct_sources (
     NULL,
     NULL,
     '{"career_domain":"careers.ti.com","locale":"en","site":"CX","mode":"location"}',
-    1,
-    'pending'
-),
-(
-    'tsmc_careers:tsmc',
-    'tsmc',
-    'tsmc_careers',
-    'careers.tsmc.com',
-    'https://careers.tsmc.com/en_US/careers/SearchJobs',
-    'https://careers.tsmc.com/en_US/careers/SearchJobs',
-    NULL,
-    NULL,
-    '{"career_domain":"careers.tsmc.com","locale":"en_US","path":"careers/SearchJobs"}',
     1,
     'pending'
 )
