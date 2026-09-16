@@ -1,0 +1,26 @@
+# Local runtime and credentials
+.venv/
+.agents/
+__pycache__/
+*.pyc
+*.egg-info/
+.env
+.env.*
+!.env.example
+.openai_api_key
+.claude/settings.local.json
+
+# Reproducible collection data and research downloads
+job seekers/inspection/
+job seekers/collection*/
+job-source-handoff-*.zip
+
+# Persistent local quota ledger
+.local/
+
+# Generated discovery runs and research captures
+/runs/*
+!/runs/
+!/runs/latest.json
+/research/inspection_artifacts/
+/archive/

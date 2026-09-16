@@ -1,0 +1,918 @@
+# Reusable ATS connector definitions for complete company-board discovery.
+# ATS connectors never use discovery queries. Each company instance is fetched
+# as a complete public board, subject to provider pagination and local caps.
+
+version = 13
+
+[defaults]
+query_mode = "company_board"
+sends_keywords = false
+fetch_each_source_instance_once_per_run = true
+collect_full_description = false
+max_items_per_response = 1000
+
+[ats.greenhouse]
+name = "Greenhouse Job Board API"
+access_method = "public_job_board_api"
+auth = "none_for_get"
+endpoint_template = "https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs"
+required_instance_fields = ["board_token"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "single_request_local_cap"
+title_field = "title"
+link_field = "absolute_url"
+source_job_id_field = "id"
+docs_url = "https://developers.greenhouse.io/job-board.html"
+risk_tier = "low"
+readiness_status = "ready"
+
+[ats.greenhouse.connection]
+http_method = "GET"
+accept = "application/json"
+response_items_path = "jobs"
+auth_location = "none"
+
+[ats.greenhouse.capabilities]
+supports_request_row_limit = false
+supports_pagination = false
+
+[ats.greenhouse.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.greenhouse.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.hibob]
+name = "HiBob Careers"
+access_method = "public_company_site"
+auth = "none"
+endpoint_template = "https://{subdomain}.careers.hibob.com/jobs"
+required_instance_fields = ["subdomain"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.hibob.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+
+[ats.hibob.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.hibob.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.hibob.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.lever]
+name = "Lever Postings API"
+access_method = "public_postings_api"
+auth = "none_for_get"
+endpoint_template = "https://api.lever.co/v0/postings/{site}?mode=json"
+required_instance_fields = ["site"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "single_request_local_cap"
+title_field = "text"
+link_field = "hostedUrl"
+source_job_id_field = "id"
+docs_url = "https://github.com/lever/postings-api"
+risk_tier = "low"
+readiness_status = "ready"
+
+[ats.lever.connection]
+http_method = "GET"
+accept = "application/json"
+response_items_path = "$"
+auth_location = "none"
+
+[ats.lever.capabilities]
+supports_request_row_limit = false
+supports_pagination = false
+
+[ats.lever.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.lever.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.ashby]
+name = "Ashby Job Postings API"
+access_method = "public_job_postings_api"
+auth = "none_for_get"
+endpoint_template = "https://api.ashbyhq.com/posting-api/job-board/{job_board_name}?includeCompensation=false"
+required_instance_fields = ["job_board_name"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "single_request_local_cap"
+title_field = "title"
+link_field = "jobUrl"
+source_job_id_field = "jobUrl"
+docs_url = "https://developers.ashbyhq.com/docs/public-job-posting-api"
+risk_tier = "low"
+readiness_status = "ready"
+
+[ats.ashby.connection]
+http_method = "GET"
+accept = "application/json"
+response_items_path = "jobs"
+auth_location = "none"
+
+[ats.ashby.capabilities]
+supports_request_row_limit = false
+supports_pagination = false
+
+[ats.ashby.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.ashby.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.avature]
+name = "Avature Career Site"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://{career_domain}/{search_path}"
+required_instance_fields = ["career_domain", "search_path"]
+optional_instance_fields = ["application_domain"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.avature.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Some Avature-backed sites expose listings on a company careers domain while application/login URLs use the tenant avature.net domain."
+
+[ats.avature.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.avature.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.avature.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.adp]
+name = "ADP Recruiting Career Center"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://myjobs.adp.com/{career_site}"
+required_instance_fields = ["career_site"]
+optional_instance_fields = ["client_id", "display", "source", "recruitment_country"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.adp.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Public ADP career centers are accessible by myjobs.adp.com career_site path, with optional query parameters for client and country."
+
+[ats.adp.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.adp.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.adp.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.achronix_careers]
+name = "Achronix Careers"
+access_method = "public_company_career_site"
+auth = "none"
+endpoint_template = "https://www.achronix.com/company/careers"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "ready"
+
+[ats.achronix_careers.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Achronix lists job rows directly on its careers page with /job/ detail links."
+
+[ats.achronix_careers.capabilities]
+supports_request_row_limit = false
+supports_pagination = false
+
+[ats.achronix_careers.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.achronix_careers.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.akeana_careers]
+name = "Akeana Careers"
+access_method = "public_company_career_site"
+auth = "none"
+endpoint_template = "https://www.akeana.com/wp-sitemap-posts-awsm_job_openings-1.xml"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "sitemap_xml"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "low"
+readiness_status = "ready"
+
+[ats.akeana_careers.connection]
+http_method = "GET"
+accept = "application/xml"
+response_items_path = "urlset.url"
+auth_location = "none"
+notes = "Akeana exposes AWSM job opening URLs through a public WordPress sitemap."
+
+[ats.akeana_careers.capabilities]
+supports_request_row_limit = false
+supports_pagination = false
+
+[ats.akeana_careers.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.akeana_careers.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.amazon_jobs]
+name = "Amazon Jobs"
+access_method = "public_company_career_site"
+auth = "none"
+endpoint_template = "https://www.amazon.jobs/{locale}/search?base_query={base_query}&loc_query={loc_query}"
+required_instance_fields = ["locale"]
+optional_instance_fields = ["base_query", "loc_query"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.amazon_jobs.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Amazon's public company career site is not a reusable third-party ATS. Job extraction is site-specific."
+
+[ats.amazon_jobs.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.amazon_jobs.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.amazon_jobs.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.apple_jobs]
+name = "Apple Jobs"
+access_method = "public_company_career_site"
+auth = "none"
+endpoint_template = "https://jobs.apple.com/{locale}/search?location={location}"
+required_instance_fields = ["locale"]
+optional_instance_fields = ["location"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "ready"
+
+[ats.apple_jobs.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Apple search result HTML includes job detail links and titles; do not treat a recaptcha script reference as a block page."
+
+[ats.apple_jobs.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.apple_jobs.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.apple_jobs.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.bytedance_careers]
+name = "ByteDance Careers"
+access_method = "public_company_career_site"
+auth = "none"
+endpoint_template = "https://joinbytedance.com/search"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = ["apply_domain"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.bytedance_careers.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "ByteDance uses its own public careers site on joinbytedance.com with apply flows on jobs.bytedance.com."
+
+[ats.bytedance_careers.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.bytedance_careers.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.bytedance_careers.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.tesla_jobs]
+name = "Tesla Careers"
+access_method = "public_company_career_site"
+auth = "none"
+endpoint_template = "https://www.tesla.com/careers/search/?site={site}"
+required_instance_fields = ["site"]
+optional_instance_fields = ["query"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.tesla_jobs.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+
+[ats.tesla_jobs.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.tesla_jobs.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.tesla_jobs.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.tsmc_careers]
+name = "TSMC Careers"
+access_method = "public_company_career_site"
+auth = "none"
+endpoint_template = "https://careers.tsmc.com/{locale}/careers/SearchJobs"
+required_instance_fields = ["career_domain", "locale"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.tsmc_careers.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "TSMC careers page returns 403 to simple scripted requests during source identification; keep as pending until browser/API testing identifies a stable endpoint."
+
+[ats.tsmc_careers.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.tsmc_careers.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.tsmc_careers.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.talentbrew]
+name = "TalentBrew Career Site"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://{career_domain}/{search_path}"
+required_instance_fields = ["career_domain", "search_path"]
+optional_instance_fields = ["cname"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.talentbrew.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+
+[ats.talentbrew.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.talentbrew.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.talentbrew.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.phenom]
+name = "Phenom Career Site"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://{career_domain}/widgets"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = ["locale_path", "locale", "cname"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_json_post"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "ready"
+
+[ats.phenom.connection]
+http_method = "POST"
+accept = "application/json"
+response_items_path = "refineSearch.data.jobs"
+auth_location = "none"
+notes = "Phenom search pages can expose jobs through POST /widgets with ddoKey=refineSearch."
+
+[ats.phenom.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.phenom.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.phenom.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.renesas_careers]
+name = "Renesas Careers"
+access_method = "public_company_career_sitemap"
+auth = "none"
+endpoint_template = "https://jobs.renesas.com/vacanciessitemap.xml"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = ["path"]
+required_secret_fields = []
+fetch_strategy = "sitemap_xml"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "low"
+readiness_status = "ready"
+
+[ats.renesas_careers.connection]
+http_method = "GET"
+accept = "application/xml"
+response_items_path = "urlset.url"
+auth_location = "none"
+notes = "Renesas publishes job detail URLs in vacanciessitemap.xml."
+
+[ats.renesas_careers.capabilities]
+supports_request_row_limit = false
+supports_pagination = false
+
+[ats.renesas_careers.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.renesas_careers.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.icims]
+name = "iCIMS Career Portal"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://{portal_subdomain}.icims.com/jobs/search?ss=1"
+required_instance_fields = ["portal_subdomain"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.icims.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Public iCIMS career portals are accessible by portal subdomain, but job extraction is HTML/provider-specific rather than a shared JSON board API."
+
+[ats.icims.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.icims.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.icims.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.ttc_portals]
+name = "TTC Portals Career Site"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://{career_domain}/search/jobs?q={query}&location={location}"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = ["query", "location", "cname"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.ttc_portals.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Career domain CNAME resolves to lb.ttcportals.com. Job extraction is HTML/provider-specific."
+
+[ats.ttc_portals.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.ttc_portals.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.ttc_portals.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.jobs2web]
+name = "SAP SuccessFactors Jobs2Web"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://{career_domain}/search/?createNewAlert=false&q={query}&locationsearch={location}"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = ["query", "location", "cname"]
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.jobs2web.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+
+[ats.jobs2web.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.jobs2web.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.jobs2web.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.jobvite]
+name = "Jobvite Career Site"
+access_method = "public_company_site"
+auth = "none"
+endpoint_template = "https://jobs.jobvite.com/{company_slug}/"
+required_instance_fields = ["company_slug"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.jobvite.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+
+[ats.jobvite.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.jobvite.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.jobvite.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.oracle_cloud]
+name = "Oracle Cloud Recruiting CE API"
+access_method = "public_requisition_api"
+auth = "none"
+endpoint_template = "https://{api_domain}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
+required_instance_fields = ["api_domain", "site"]
+optional_instance_fields = ["career_domain", "locale", "mode", "path_prefix"]
+required_secret_fields = []
+fetch_strategy = "provider_pagination"
+title_field = "Title"
+link_field = "provider_specific"
+source_job_id_field = "Id"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "ready"
+
+[ats.oracle_cloud.connection]
+http_method = "GET"
+accept = "application/json"
+response_items_path = "items[0].requisitionList"
+auth_location = "none"
+notes = "Use query params onlyData=true, expand=requisitionList, and finder=findReqs;siteNumber={site},facetsList=LOCATIONS;WORK_LOCATIONS;TITLES;CATEGORIES;ORGANIZATIONS;POSTING_DATES,limit={limit},offset={offset},sortBy=POSTING_DATES_DESC."
+
+[ats.oracle_cloud.capabilities]
+supports_request_row_limit = true
+supports_pagination = true
+
+[ats.oracle_cloud.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.oracle_cloud.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.eightfold]
+name = "Eightfold Career Site"
+access_method = "public_career_portal"
+auth = "none"
+endpoint_template = "https://{career_domain}/careers"
+required_instance_fields = ["career_domain"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.eightfold.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+
+[ats.eightfold.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.eightfold.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.eightfold.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.smartrecruiters]
+name = "SmartRecruiters Public Postings API"
+access_method = "public_postings_api"
+auth = "none"
+endpoint_template = "https://api.smartrecruiters.com/v1/companies/{company_slug}/postings"
+required_instance_fields = ["company_slug"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_pagination"
+title_field = "name"
+link_field = "ref"
+source_job_id_field = "id"
+docs_url = "https://developers.smartrecruiters.com/docs/posting-api"
+risk_tier = "low"
+readiness_status = "ready"
+
+[ats.smartrecruiters.connection]
+http_method = "GET"
+accept = "application/json"
+response_items_path = "content"
+auth_location = "none"
+
+[ats.smartrecruiters.capabilities]
+supports_request_row_limit = true
+supports_pagination = true
+
+[ats.smartrecruiters.limits.requests]
+scope = "board_instance"
+requests_per_second = 10
+concurrent_requests = 8
+
+[ats.smartrecruiters.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.uplers_company_profile]
+name = "Uplers Company Profile"
+access_method = "public_job_board_profile"
+auth = "none"
+endpoint_template = "https://www.uplers.com/company/{company_slug}-{company_id}"
+required_instance_fields = ["company_slug", "company_id"]
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_specific_html"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "source_identified_extractor_needed"
+
+[ats.uplers_company_profile.connection]
+http_method = "GET"
+accept = "text/html"
+response_items_path = "provider_specific"
+auth_location = "none"
+notes = "Uplers is a third-party job marketplace/profile page, not the company's own ATS."
+
+[ats.uplers_company_profile.capabilities]
+supports_request_row_limit = false
+supports_pagination = false
+
+[ats.uplers_company_profile.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.uplers_company_profile.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.workable]
+name = "Workable Jobs API"
+access_method = "account_api"
+auth = "token_with_r_jobs_scope"
+endpoint_template = "https://{subdomain}.workable.com/spi/v3/jobs"
+required_instance_fields = ["subdomain"]
+optional_instance_fields = []
+required_secret_fields = ["api_token"]
+fetch_strategy = "provider_pagination"
+title_field = "provider_specific"
+link_field = "provider_specific"
+source_job_id_field = "provider_specific"
+docs_url = "https://workable.readme.io/reference/jobs"
+risk_tier = "low"
+readiness_status = "provider_account_required"
+
+[ats.workable.connection]
+http_method = "GET"
+accept = "application/json"
+response_items_path = "jobs"
+auth_location = "header"
+auth_header = "Authorization"
+auth_scheme = "Bearer"
+
+[ats.workable.capabilities]
+supports_request_row_limit = true
+supports_pagination = true
+
+[ats.workable.limits.requests]
+scope = "provider_account"
+concurrent_requests = 1
+
+[ats.workable.limits.request_capacity]
+scope = "request"
+rows_per_request = 50
+
+[ats.workable.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+[ats.workday]
+name = "Workday CXS Jobs API"
+access_method = "public_cxs_api"
+auth = "none"
+endpoint_template = "{access_url_origin}/wday/cxs/{tenant}/{site}/jobs"
+required_instance_fields = ["tenant", "workday_host", "site"]
+optional_instance_fields = ["locale", "path_style"]
+required_secret_fields = []
+fetch_strategy = "provider_pagination"
+title_field = "title"
+link_field = "externalPath"
+source_job_id_field = "bulletFields[0]"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "ready"
+
+[ats.workday.connection]
+http_method = "POST"
+accept = "application/json"
+response_items_path = "jobPostings"
+auth_location = "none"
+notes = "POST JSON body: {\"appliedFacets\":{},\"limit\":N,\"offset\":M,\"searchText\":\"\"}. Build the API origin from access_url, then append /wday/cxs/{tenant}/{site}/jobs."
+
+[ats.workday.capabilities]
+supports_request_row_limit = true
+supports_pagination = true
+
+[ats.workday.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+
+[ats.workday.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000

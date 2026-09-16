@@ -1,0 +1,85 @@
+# Public feeds that return a broad current job collection without auth.
+# Role: fill coverage gaps outside the curated company schema (startups, non-listed
+# employers). Feeds are fetched once per discovery run and capped locally.
+# All endpoints verified working 2026-07-11. Removed: remotive (41 jobs, 24h-delayed,
+# restrictive TOS), arbeitnow (Germany/Europe only), hiring.cafe (API blocks scripts); himalayas/remoteok/jobicy (remote-software boards, low EE density — dropped per user decision 2026-07-11).
+
+version = 4
+
+[schedule]
+target_runs_per_day = 2
+
+[quota_policy.requests]
+missing_requests_per_day = 3
+disabled_requests_per_day = 0
+request_budget_ratio = 1.0
+
+[defaults]
+query_mode = "feed"
+fetch_strategy = "single_request_local_cap"
+sends_keywords = false
+max_items_per_response = 200
+collect_full_description = false
+readiness_status = "ready"
+http_method = "GET"
+accept = "application/json"
+
+# Monthly "Who is hiring?" thread via Algolia API. Best startup coverage (incl. hardware).
+# Two requests: find latest thread, then pull comments. Keep only TOP-LEVEL comments
+# (parent_id == story id) — replies are discussion, not job posts. Filter locally.
+# Verified: July 2026 thread id 48747976, 404 posts.
+[feeds.hn_whoishiring]
+name = "Hacker News Who is Hiring (Algolia)"
+access_method = "public_jobs_api"
+auth = "none"
+endpoint = "https://hn.algolia.com/api/v1/search_by_date?query=%22Ask%20HN%3A%20Who%20is%20hiring%3F%22&tags=story&hitsPerPage=1"
+comments_endpoint_template = "https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_{story_id}&hitsPerPage=1000"
+fetch_strategy = "two_step_thread_then_comments"
+response_items_path = "hits"
+title_field = "comment_text"
+link_field = "objectID"
+link_template = "https://news.ycombinator.com/item?id={objectID}"
+source_job_id_field = "objectID"
+docs_url = "https://hn.algolia.com/api"
+supports_keyword_parameters = false
+use_keyword_parameters = false
+risk_tier = "low"
+
+[feeds.hn_whoishiring.limits.requests]
+scope = "provider_global"
+requests_per_day = 6
+concurrent_requests = 1
+
+[feeds.hn_whoishiring.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 1000
+
+# ~410k total jobs; category pre-filter targets EE roles (verified: Electrical Engineer,
+# Starlink PCB, Power Systems Avionics — 8013 matches). 20/page, newest first — MUST
+# rotate {page} across requests or every fetch returns the same 20 items.
+[feeds.themuse_engineering]
+name = "The Muse Public API (Science and Engineering)"
+access_method = "public_jobs_api"
+auth = "none"
+endpoint_template = "https://www.themuse.com/api/public/jobs?page={page}&category=Science%20and%20Engineering"
+fetch_strategy = "paginated_query"
+pagination_param = "page"
+pagination_start = 1
+pages_per_run = 4
+response_items_path = "results"
+title_field = "name"
+link_field = "refs.landing_page"
+source_job_id_field = "id"
+docs_url = "https://www.themuse.com/developers/api/v2"
+supports_keyword_parameters = false
+use_keyword_parameters = false
+risk_tier = "low"
+
+[feeds.themuse_engineering.limits.requests]
+scope = "provider_global"
+requests_per_day = 12
+concurrent_requests = 1
+
+[feeds.themuse_engineering.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 20

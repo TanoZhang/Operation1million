@@ -1,0 +1,82 @@
+# Paid cross-company sources. Strategy: two providers cover everything —
+#   fantastic_jobs = blanket (pulls directly from ATS feeds + job boards, hourly delta)
+#   jsearch        = gap-filler (Google for Jobs; reaches the five unscrapable companies)
+# Discovery keywords are stored in the SQLite search_queries table. Local dedupe
+# belongs to the job record storage layer.
+# Removed as redundant once the two paid plans are active: adzuna, jooble
+# (also earlier: reed UK-only, careerjet low-quality, linkedin out of scope, usajobs per user).
+
+version = 4
+
+[schedule]
+fantastic_jobs_runs_per_day = 24
+jsearch_runs_per_day = 2
+
+[defaults]
+readiness_status = "api_key_pending_user"
+http_method = "GET"
+accept = "application/json"
+collect_full_description = false
+
+# Two source families: active-ats (54 ATS platforms / 200k+ career sites, ~3M jobs/mo)
+# and active-jb (LinkedIn + Wellfound + Y Combinator boards, ~10M jobs/mo) — so LinkedIn
+# is covered indirectly, and the five unscrapable companies surface via their LinkedIn posts.
+# BILLING IS PER JOB, NOT PER REQUEST: $95/mo = 20,000 jobs (~660/day). The title_filter
+# below is what keeps volume inside quota — never fetch unfiltered US-wide.
+# Before purchase: use the free job-count endpoint + 7-day trial to size the filter.
+# time_frame=1h requires hourly polling; if running less often use the 24h endpoint.
+[search.fantastic_jobs]
+name = "Fantastic.jobs Active Jobs DB (RapidAPI)"
+access_method = "rapidapi_search_api"
+auth = "rapidapi_key_header"
+endpoint_template_ats = "https://active-jobs-db.p.rapidapi.com/active-ats-1h?location_filter=%22United%20States%22&title_filter={title_filter}&limit=100&offset={offset}"
+endpoint_template_jb = "https://active-jobs-db.p.rapidapi.com/active-jb-1h?location_filter=%22United%20States%22&title_filter={title_filter}&limit=100&offset={offset}"
+title_filter = "electrical OR hardware OR ASIC OR RTL OR FPGA OR SoC OR analog OR mixed-signal OR verification OR silicon OR PCB OR RF"
+required_config = ["rapidapi_key"]
+response_items_path = "$"
+title_field = "title"
+link_field = "url"
+source_job_id_field = "id"
+docs_url = "https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/active-jobs-db"
+risk_tier = "low"
+notes = "Field names unverified until subscribed — confirm response shape with first real call."
+
+[search.fantastic_jobs.limits.requests]
+scope = "provider_account"
+requests_per_day = 48
+concurrent_requests = 1
+
+[search.fantastic_jobs.limits.request_capacity]
+scope = "request"
+rows_per_request = 100
+
+# $25/mo plan. 10-15 rotating queries, twice daily: company-name fallback queries
+# for direct sources blocked by CAPTCHA/Human Verification + 8-10 core EE keywords.
+# date_posted=3days gives overlap insurance; duplicates die at local dedupe.
+[search.jsearch]
+name = "JSearch (OpenWeb Ninja direct)"
+access_method = "direct_search_api"
+auth = "api_key_header"
+endpoint_template = "https://api.openwebninja.com/jsearch/search-v2?query={query}&num_pages=1&country=us&date_posted=3days"
+required_config = ["JSEARCH_API_KEY"]
+response_items_path = "data.jobs"
+title_field = "job_title"
+link_field = "job_apply_link"
+link_fallback_fields = ["job_apply_link", "job_google_link"]
+apply_links_path = "apply_options"
+source_job_id_field = "job_id"
+employer_field = "employer_name"
+docs_url = "https://www.openwebninja.com/api/jsearch"
+risk_tier = "low"
+
+[search.jsearch.connection]
+auth_header = "X-API-Key"
+
+[search.jsearch.limits.requests]
+scope = "provider_account"
+requests_per_day = 30
+concurrent_requests = 1
+
+[search.jsearch.limits.request_capacity]
+scope = "request"
+rows_per_request = 10
