@@ -16,7 +16,7 @@ The Windows Store `python` alias is not a usable interpreter on this machine.
 
 The collector reads enabled sources from SQLite in read-only mode. It does not
 execute `schema.sql` or change company/source data. The schema can rebuild the
-39-company source catalog in a fresh database. Existing richer company metadata
+38-company source catalog in a fresh database. Existing richer company metadata
 in the supplied SQLite file is preserved.
 
 ## Outputs
@@ -53,7 +53,7 @@ Cisco Phenom, Amazon search, and HiBob public job ads. Texas Instruments' Oracle
 API origin is read from the public career-page base tag.
 
 HTML connectors: Apple, Google, TalentBrew (Arm and the current
-Synopsys site), Jobs2Web (Celestica and Teradyne), Jobvite, TSMC/Avature, and
+Synopsys site), Jobs2Web (Teradyne), Jobvite, TSMC/Avature, and
 Uplers company job cards. JSON-LD JobPosting extraction is shared.
 
 Sitemaps: Renesas, with public detail-page enrichment. A source with

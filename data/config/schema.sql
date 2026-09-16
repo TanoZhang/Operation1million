@@ -78,7 +78,6 @@ VALUES
     ('broadcom', 'Broadcom Inc.'),
     ('cadence', 'Cadence Design Systems, Inc.'),
     ('cerebras', 'Cerebras Systems Inc.'),
-    ('celestica', 'Celestica Inc.'),
     ('cisco', 'Cisco Systems, Inc.'),
     ('credo_technology', 'Credo Technology Group Holding Ltd'),
     ('etched', 'Etched.ai, Inc.'),
@@ -129,7 +128,8 @@ WHERE company_key IN (
     'akeana',
     'microchip_technology',
     'psiquantum',
-    'analog_devices'
+    'analog_devices',
+    'celestica'
 );
 
 DELETE FROM company_sources
@@ -229,16 +229,6 @@ INSERT INTO company_sources (
     '{"job_board_name":"cerebras"}',
     1,
     'verified'
-),
-(
-    'jobs2web:careers.celestica.com',
-    'celestica',
-    'jobs2web',
-    'careers.celestica.com',
-    'https://careers.celestica.com/search/?createNewAlert=false&q=&locationsearch=',
-    '{"career_domain":"careers.celestica.com","query":"","location":"","cname":"celestica.jobs2web.com"}',
-    1,
-    'pending'
 ),
 (
     'phenom:careers.cisco.com',
