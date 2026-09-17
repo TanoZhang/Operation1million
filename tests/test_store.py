@@ -291,3 +291,98 @@ class EarlyStopTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ClosingGuardTests(unittest.TestCase):
+    """What may retire a posting.
+
+    Closing is the destructive direction: a wrong closure hides a live job from
+    the person using this. Each guard here corresponds to a pass that did not, or
+    could not, see the whole board.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+        self.db = store.connect(self.db_path)
+        self.addCleanup(self.db.close)
+        store.record_source(self.db, SOURCE, [row('https://x/1'), row('https://x/2')],
+                            'complete', 'full', 2)
+
+    def open_count(self):
+        return self.db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL').fetchone()[0]
+
+    def test_early_stop_pass_never_closes(self):
+        # 'since' reads only postings newer than the last pass and stops; on a quiet
+        # day that is zero rows, which says nothing about what is still listed.
+        delta = store.record_source(self.db, SOURCE, [], 'complete', 'since', 1)
+        self.assertEqual(delta['closed'], 0)
+        self.assertEqual(self.open_count(), 2)
+
+
+    def test_search_results_never_close(self):
+        # Paid search returns a slice of one query, not a company's board.
+        jsearch = replace(SOURCE, provider_key='jsearch')
+        delta = store.record_source(self.db, jsearch, [row('https://x/9')],
+                                    'complete', 'full', 1)
+        self.assertEqual(delta['closed'], 0)
+        self.assertEqual(self.open_count(), 3)
+
+    def test_a_full_enumeration_still_closes_what_vanished(self):
+        delta = store.record_source(self.db, SOURCE, [row('https://x/1')],
+                                    'complete', 'full', 1)
+        self.assertEqual(delta['closed'], 1)
+        self.assertEqual(self.open_count(), 1)
+
+
+class EmptyBoardTests(unittest.TestCase):
+    """An empty listing is only trusted when the board confirms it.
+
+    'complete' is what permits the store to retire a company's whole inventory, so
+    a blank first page must not claim it on its own: that is also what a board
+    looks like mid-deploy, or after a schema change we failed to parse.
+    """
+
+    def collector(self, provider='greenhouse', url='https://boards-api.greenhouse.io/v1/boards/x/jobs'):
+        args = Namespace(max_jobs=1000, max_pages=5, delay=0, timeout=1, retries=0,
+                         source_state=Path(tempfile.gettempdir()) / 'unused_pauses.sqlite')
+        c = Collector(replace(SOURCE, provider_key=provider, access_url=url), args)
+        c.session.request = Mock()
+        self.addCleanup(c.session.close)
+        return c
+
+    def response(self, data):
+        r = Mock(status_code=200, text='', headers={'content-type': 'application/json'})
+        r.json.return_value = data
+        return r
+
+    def test_blank_first_page_without_a_count_is_not_complete(self):
+        c = self.collector()
+        c.session.request.return_value = self.response({'jobs': []})
+        with patch('jobdisco.collector.time.sleep'):
+            status, reason = c.run()
+        self.assertEqual(status, 'partial')
+        self.assertIn('no count', reason)
+        self.assertEqual(c.jobs, [])
+
+    def test_a_board_reporting_zero_is_believed(self):
+        c = self.collector('eightfold', 'https://careers.x.com/api/pcsx/search?domain=x.com')
+        c.session.request.return_value = self.response({'data': {'positions': [], 'count': 0}})
+        with patch('jobdisco.collector.time.sleep'):
+            self.assertEqual(c.run(), ('complete', ''))
+
+    def test_a_blank_later_page_just_ends_pagination(self):
+        c = self.collector('eightfold', 'https://careers.x.com/api/pcsx/search?domain=x.com')
+        position = {'id': '1', 'name': 'Engineer', 'positionUrl': '/careers/job/1'}
+        c.session.request.side_effect = [
+            self.response({'data': {'positions': [position], 'count': 99}}),
+            self.response({'data': {'positions': [], 'count': 99}}),
+        ]
+        with patch('jobdisco.collector.time.sleep'):
+            self.assertEqual(c.run(), ('complete', ''))
+        self.assertEqual(len(c.jobs), 1)

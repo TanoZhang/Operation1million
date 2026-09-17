@@ -160,6 +160,21 @@ def jsonld(soup):
             continue
 
 
+def reported_total(provider, data):
+    """The posting count the provider states for the whole board, if it states one."""
+    if not isinstance(data, dict):
+        return None
+    if provider == 'oracle_cloud':
+        return (data.get('items') or [{}])[0].get('TotalJobsCount')
+    if provider == 'phenom':
+        return (data.get('refineSearch') or {}).get('totalHits')
+    if provider == 'eightfold':
+        return (data.get('data') or {}).get('count')
+    if provider == 'amd_careers':
+        return data.get('totalCount') or data.get('count')
+    return data.get('total') or data.get('totalFound') or data.get('hits')
+
+
 def html_items(text, base, provider):
     soup = BeautifulSoup(text, 'html.parser')
     structured = list(jsonld(soup))
@@ -296,7 +311,15 @@ class Collector:
             if p == 'oracle_cloud' and data['items'] and not isinstance(data['items'][0].get('requisitionList'), list):
                 raise ValueError('Oracle requisitionList missing from response')
             if not items:
-                return 'complete', ''
+                if page:
+                    return 'complete', ''
+                # A board that lists nothing on its first page looks the same as one
+                # that failed to render, and 'complete' is what lets the store retire
+                # every posting the company has. Take a blank at face value only when
+                # the board also states a count of zero.
+                if reported_total(p, data) == 0:
+                    return 'complete', ''
+                return 'partial', 'First page listed no postings and no count was reported'
             if self.strategy == 'since' and self.watermark and p == 'eightfold':
                 fresh = [i for i in items
                          if not isinstance(i.get('postedTs'), (int, float))
@@ -308,15 +331,7 @@ class Collector:
                 continue
             added = self.add(items)
             offset += len(items)
-            total = data.get('total') or data.get('totalFound') or data.get('hits')
-            if p == 'oracle_cloud':
-                total = (data.get('items') or [{}])[0].get('TotalJobsCount')
-            if p == 'phenom':
-                total = data.get('refineSearch', {}).get('totalHits')
-            if p == 'eightfold':
-                total = (data.get('data') or {}).get('count')
-            if p == 'amd_careers':
-                total = data.get('totalCount') or data.get('count')
+            total = reported_total(p, data)
             if p in {'greenhouse', 'ashby'}:
                 return ('partial', 'Job cap reached') if len(items) > self.args.max_jobs else ('complete', '')
             if isinstance(total, (int, float)) and offset >= total:

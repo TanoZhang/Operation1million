@@ -198,7 +198,11 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             [stamp, *chunk])
     closed_urls = []
     if status == 'complete' and strategy != 'since' and source.provider_key != 'jsearch':
-        placeholders = ','.join('?' * len(live)) or "''"
+        # An enumerated board that now lists nothing has genuinely emptied, so its
+        # own provider's postings close. Whether an empty response really means
+        # that is decided by the collector, which can tell a first-page blank from
+        # the end of pagination; here 'complete' is taken at its word.
+        placeholders = ','.join('?' * len(live)) or "''" 
         closed_urls = [r[0] for r in db.execute(
             f'''SELECT url FROM jobs WHERE company_key=? AND provider_key=? AND closed_at IS NULL
                 AND url NOT IN ({placeholders})''', [source.company_key, source.provider_key, *live])]
