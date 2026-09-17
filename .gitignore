@@ -10,17 +10,10 @@ __pycache__/
 .openai_api_key
 .claude/settings.local.json
 
-# Reproducible collection data and research downloads
-job seekers/inspection/
-job seekers/collection*/
-job-source-handoff-*.zip
-
 # Persistent local quota ledger
 .local/
 
-# Generated discovery runs and research captures
+# Generated discovery runs
 /runs/*
 !/runs/
 !/runs/latest.json
-/research/inspection_artifacts/
-/archive/

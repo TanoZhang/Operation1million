@@ -12,7 +12,6 @@ from unittest.mock import Mock, patch
 
 from jobdisco.collection_policy import retry_after_seconds
 from jobdisco.collector import Collector, Source, main
-from jobdisco import probe_sources
 from jobdisco.validate_sources import validate
 
 
@@ -148,7 +147,7 @@ class CollectionPolicyTests(unittest.TestCase):
     def test_paid_search_is_disabled_by_default_and_empty_boards_do_not_trigger_it(self):
         for options, status in [([], 'failed'), (['--jsearch-budget', '1'], 'complete'), (['--jsearch-budget', '1'], 'paused')]:
             with self.subTest(options=options, status=status):
-                argv = ['job-collect', '--output', self.temp.name] + options
+                argv = ['job-collect', '--output', self.temp.name, '--no-store'] + options
                 with patch('sys.argv', argv), patch('jobdisco.collector.load_credentials'), \
                      patch('jobdisco.collector.load_sources', return_value=[self.source]), \
                      patch('jobdisco.collector.RequestGuard') as guard, \
@@ -157,12 +156,6 @@ class CollectionPolicyTests(unittest.TestCase):
                     guard.return_value.attempts = 0
                     main()
                     fallback.assert_not_called()
-
-    def test_legacy_probe_command_does_not_send_requests(self):
-        with patch('requests.Session') as session, patch('builtins.print'):
-            self.assertEqual(probe_sources.main(), 2)
-        session.assert_not_called()
-
 
 if __name__ == '__main__':
     unittest.main()

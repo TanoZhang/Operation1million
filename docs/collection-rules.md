@@ -61,8 +61,8 @@ worker count is one, and selecting Microsoft forces one worker for the run.
 Cooldowns live in `.local/source_access.sqlite` and survive restarts; this is
 operational state, separate from the job catalog. This file does not coordinate
 in-flight requests between independent processes, so do not overlap processes.
-The validator honors the same cooldowns. Legacy bulk endpoint guessing via
-`job-probe-failed-sources` is disabled; its old definitions are historical only.
+The validator honors the same cooldowns. Obsolete bulk endpoint guessing is not
+part of the project.
 
 Defaults are 400 pages, 10,000 records per source, 25 seconds per direct request,
 and 90 seconds for JSearch. Caps are limits, not completeness claims. A 400-page

@@ -11,6 +11,7 @@ import time
 import unicodedata
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing, nullcontext
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,7 @@ from .validate_sources import Source, request_for, json_items
 from .paths import ROOT, CONFIG, DB, RUNS
 from .jsearch_access import RequestGuard, QuotaExhausted, load_credentials
 from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, STATE as SOURCE_STATE
+from . import store
 
 FIELDS = ['company_key', 'company_name', 'provider_key', 'title', 'location', 'url', 'source_job_id', 'posted_at', 'raw']
 JSON_PROVIDERS = {'workday', 'greenhouse', 'ashby', 'oracle_cloud', 'smartrecruiters', 'phenom', 'amazon_jobs', 'eightfold', 'amd_careers'}
@@ -75,6 +77,20 @@ def location_text(value):
     return str(value or '')
 
 
+POSTED_FORMATS = ['%b %d, %Y', '%B %d, %Y', '%m/%d/%Y', '%Y-%m-%d', '%d %b %Y']
+
+
+def posted_from_text(text):
+    """Absolute posting date printed in a board row, or None for relative phrasing."""
+    cleaned = re.sub(r'(?i)^\s*(posted|date posted)\s*:?\s*', '', str(text or '')).strip()
+    for fmt in POSTED_FORMATS:
+        try:
+            return datetime.strptime(cleaned, fmt).replace(tzinfo=timezone.utc).isoformat()
+        except ValueError:
+            continue
+    return None
+
+
 def normalize(source, item):
     p = source.provider_key
     title = item.get('title') or item.get('Title') or item.get('jobTitle') or item.get('name')
@@ -82,6 +98,11 @@ def normalize(source, item):
     url = item.get('absolute_url') or item.get('jobUrl') or item.get('url') or item.get('detail_url')
     location = item.get('location') or item.get('locationsText') or item.get('PrimaryLocation') or item.get('jobLocation') or item.get('cityState')
     posted = item.get('datePosted') or item.get('publishedAt') or item.get('PostedDate') or item.get('posted_at') or item.get('postedDate')
+    if not posted and item.get('posted_text'):
+        posted = posted_from_text(item['posted_text'])
+    if not posted and p == 'greenhouse':
+        # first_published is the original posting; updated_at only tracks edits.
+        posted = item.get('first_published') or item.get('updated_at')
     if p == 'workday':
         url = source.access_url.rstrip('/') + '/' + item.get('externalPath', '').lstrip('/')
         ident = item.get('externalPath', '').rsplit('_', 1)[-1] or None
@@ -167,7 +188,8 @@ def html_items(text, base, provider):
             if not title or title.lower() in {'see full role description', "where we're hiring", 'apply', 'apply now'}:
                 continue
             loc = row.select_one('[class*=location], [class*=Location]')
-            items.append({'title': title, 'url': urljoin(base, href), 'location': loc.get_text(' ', strip=True) if loc else None, 'source_job_id': urlsplit(href).path.rstrip('/').split('/')[-1], 'html': str(row)})
+            d = row.select_one('[class*=posted-date], [class*=date-posted]')
+            items.append({'title': title, 'url': urljoin(base, href), 'location': loc.get_text(' ', strip=True) if loc else None, 'source_job_id': urlsplit(href).path.rstrip('/').split('/')[-1], 'posted_text': d.get_text(' ', strip=True) if d else None, 'html': str(row)})
     return items, soup
 
 
@@ -179,6 +201,14 @@ class Collector:
         self.jobs, self.seen = [], set()
         self.rejected = []
         self.requests = 0
+        # Set by main() from the stored per-source state; 'full' until a source
+        # has one complete pass behind it.
+        self.strategy, self.watermark = 'full', None
+        self.etag = self.last_modified = None
+        # Postings we already hold, and everything the board advertised this pass.
+        # They differ when a per-posting fetch is skipped, and closing must use
+        # the advertised set rather than what we downloaded.
+        self.known, self.listed = set(), None
         self.policy = SourcePolicy(source, args.delay, getattr(args, 'source_state', SOURCE_STATE))
 
     def fetch(self, url, method='GET', payload=None):
@@ -190,6 +220,9 @@ class Collector:
             self.policy.check()
             self.requests += 1
             r = self.session.request(method, url, json=payload, timeout=self.args.timeout)
+            if self.etag is None and r.status_code == 200:
+                self.etag = r.headers.get('ETag')
+                self.last_modified = r.headers.get('Last-Modified')
             server_wait = retry_after_seconds(r.headers.get('Retry-After'))
             if r.status_code == 429:
                 r.close()
@@ -262,6 +295,15 @@ class Collector:
                 raise ValueError('Oracle requisitionList missing from response')
             if not items:
                 return 'complete', ''
+            if self.strategy == 'since' and self.watermark and p == 'eightfold':
+                fresh = [i for i in items
+                         if not isinstance(i.get('postedTs'), (int, float))
+                         or datetime.fromtimestamp(i['postedTs'], timezone.utc).isoformat() > self.watermark]
+                self.add(fresh)
+                if len(fresh) < len(items):
+                    return 'complete', ''
+                offset += len(items)
+                continue
             added = self.add(items)
             offset += len(items)
             total = data.get('total') or data.get('totalFound') or data.get('hits')
@@ -339,9 +381,28 @@ class Collector:
         root = ET.fromstring(r.content)
         if not root.tag.endswith('urlset'):
             raise ValueError('Expected a job URL sitemap')
-        urls = [e.text for e in root.iter() if e.tag.endswith('}loc') or e.tag == 'loc']
+        urls = []
+        for entry in root:
+            loc = mod = None
+            for child in entry:
+                if child.tag.endswith('loc'):
+                    loc = child.text
+                elif child.tag.endswith('lastmod'):
+                    mod = child.text
+            if loc:
+                urls.append((loc, mod))
+        # Every advertised URL is still live even where the detail fetch is skipped.
+        self.listed = {u for u, _ in urls}
+        if self.strategy == 'lastmod' and self.watermark:
+            # A page whose lastmod predates our last complete pass cannot have
+            # changed; entries without a lastmod are always refetched.
+            urls = [(u, m) for u, m in urls if not m or m > self.watermark]
+        # A posting already stored costs a request to re-read and rarely changes,
+        # so spend requests only on ones we have never fetched.
+        skipped = sum(1 for u, _ in urls if u in self.known)
+        urls = [(u, m) for u, m in urls if u not in self.known]
         errors = []
-        for url in urls[:self.args.max_jobs]:
+        for url, lastmod in urls[:self.args.max_jobs]:
             try:
                 detail = self.fetch(url)
                 soup = BeautifulSoup(detail.text, 'html.parser')
@@ -353,6 +414,8 @@ class Collector:
                     items = [{'title': h.get_text(' ', strip=True), 'url': url}]
                 for item in items:
                     item.setdefault('url', url)
+                    if lastmod:
+                        item.setdefault('lastmod', lastmod)
                 self.add(items)
             except (requests.RequestException, ValueError) as exc:
                 errors.append(f'{url}: {type(exc).__name__}: {exc}')
@@ -362,10 +425,18 @@ class Collector:
             return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
         if len(urls) > self.args.max_jobs:
             return 'partial', 'Job cap reached; increase --max-jobs'
-        return 'complete', ''
+        return 'complete', (f'{skipped} already stored, not refetched' if skipped else '')
 
     def run(self):
         try:
+            if self.strategy == 'conditional' and self.watermark:
+                # One cheap probe. A 304 ends the source here; anything else means
+                # the board moved and the normal pass below reads it properly.
+                self.session.headers['If-None-Match'] = self.watermark
+                probe = self.fetch(request_for(self.source)[0])
+                self.session.headers.pop('If-None-Match', None)
+                if probe.status_code == 304:
+                    return 'unchanged', ''
             if self.source.provider_key == 'hibob':
                 self.session.headers['companyIdentifier'] = self.source.fields['subdomain']
                 data = self.fetch(urljoin(self.source.access_url, '/api/job-ad')).json()
@@ -478,6 +549,7 @@ def main():
     p.add_argument('--workers', type=int, default=1)
     p.add_argument('--timeout', type=float, default=25)
     p.add_argument('--delay', type=float, default=1.0, help='Minimum delay; Eightfold uses at least 2.5s and Microsoft 3s')
+    p.add_argument('--no-store', dest='store', action='store_false', help='Write run files only; leave the job store untouched')
     p.add_argument('--retries', type=int, default=3, help='Retries for 503 only; 429 pauses the source immediately')
     p.add_argument('--fallback-queries', type=int, default=1)
     p.add_argument('--jsearch-budget', type=int, default=0, help='Paid fallback attempts; disabled by default')
@@ -500,6 +572,12 @@ def main():
     fallbacks = {r['company_key']: r for r in discovery.get('company_fallbacks', [])}
     search = config('sources_search.toml')['search']['jsearch']
     budget = [min(args.jsearch_budget, search['limits']['requests']['requests_per_day'])]
+    source_state = store.load_state(args.db) if args.store else {}
+    known_by_company = None
+    if args.store:
+        with closing(store.connect(args.db)) as probe:
+            known_by_company = {s.company_key: store.known_urls(probe, s.company_key)
+                                for s in sources if s.provider_key in store.LASTMOD_SITEMAP}
     request_guard = RequestGuard()
     args.jsearch_guard = request_guard
     if args.output is None:
@@ -507,6 +585,9 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     def direct(source):
         c = Collector(source, args)
+        c.strategy, c.watermark = store.plan(source, source_state)
+        if source.provider_key in store.LASTMOD_SITEMAP and known_by_company is not None:
+            c.known = known_by_company.get(source.company_key, set())
         if source.company_key in fallbacks:
             status, reason = 'fallback', fallbacks[source.company_key]['reason']
         else:
@@ -516,22 +597,60 @@ def main():
                 reason = f'{len(c.rejected)} malformed records rejected. ' + reason
                 (args.output/(source.company_key + '_rejected.json')).write_text(json.dumps(c.rejected, ensure_ascii=True), encoding='utf-8')
         print(f'{source.company_key}: {len(c.jobs)} jobs, {status}', flush=True)
-        return source, c.jobs, status, reason, c.requests
+        return source, c.jobs, status, reason, c.requests, c
     jobs, reports = [], []
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        for source, rows, status, reason, count in pool.map(direct, sources):
-            fs, fr = '', ''
-            # Paid search is for boards we cannot read, not for boards this run
-            # merely truncated. 'partial' usually means a cap was reached, and
-            # spending a request per capped company exhausts the daily quota
-            # before the genuinely blocked companies are reached.
-            if budget[0] > 0 and (status == 'fallback' or (status == 'failed' and not rows)):
-                aliases = fallbacks.get(source.company_key, {}).get('employer_aliases', [source.company_name])
-                more, fs, fr = fallback(source, aliases, args, budget, search)
-                urls = {row['url'] for row in rows}
-                rows.extend(row for row in more if row['url'] not in urls)
-            jobs.extend(rows)
-            reports.append({'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': fs, 'next_step': '; '.join(filter(None, [reason if status != 'complete' else '', fr])) or 'None'})
+    run_id = args.output.name
+    totals = {'seen': 0, 'new': 0, 'closed': 0}
+
+    def persist(db, source, rows, status, count, c):
+        """Commit one source as soon as it finishes.
+
+        Holding a whole run in memory and writing at the end means an
+        interruption loses every board already downloaded, and leaves no record
+        of which postings were seen. Each source is committed on its own so
+        progress is durable and queryable while the run continues.
+        """
+        if db is None:
+            return
+        strategy = getattr(c, 'strategy', 'full')
+        kwargs = {'etag': getattr(c, 'etag', None),
+                  'last_modified': getattr(c, 'last_modified', None)}
+        if status == 'unchanged':
+            delta = store.touch_source(db, source, strategy, count, **kwargs)
+        else:
+            delta = store.record_source(db, source, rows, status, strategy, count,
+                                        listed=getattr(c, 'listed', None), **kwargs)
+        db.commit()
+        for key in totals:
+            totals[key] += delta[key]
+        print(f"  stored {source.company_key}: +{delta['new']} new, "
+              f"-{delta['closed']} closed, {delta['seen']} seen", flush=True)
+
+    with closing(store.connect(args.db)) if args.store else nullcontext() as db:
+        if db is not None:
+            store.start_run(db, run_id)
+            db.commit()
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            for source, rows, status, reason, count, c in pool.map(direct, sources):
+                fs, fr = '', ''
+                # Paid search is for boards we cannot read, not for boards this run
+                # merely truncated. 'partial' usually means a cap was reached, and
+                # spending a request per capped company exhausts the daily quota
+                # before the genuinely blocked companies are reached.
+                if budget[0] > 0 and (status == 'fallback' or (status == 'failed' and not rows)):
+                    aliases = fallbacks.get(source.company_key, {}).get('employer_aliases', [source.company_name])
+                    more, fs, fr = fallback(source, aliases, args, budget, search)
+                    urls = {row['url'] for row in rows}
+                    rows.extend(row for row in more if row['url'] not in urls)
+                jobs.extend(rows)
+                persist(db, source, rows, status, count, c)
+                reports.append({'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': fs, 'next_step': '; '.join(filter(None, [reason if status != 'complete' else '', fr])) or 'None'})
+        if db is not None:
+            store.finish_run(db, run_id, len(reports), totals['seen'], totals['new'],
+                             totals['closed'], sum(r['requests'] for r in reports))
+            db.commit()
+            print(f"store: {totals['new']} new, {totals['closed']} closed, "
+                  f"{totals['seen']} seen", flush=True)
     jobs.sort(key=lambda r: (r['company_key'], r['url']))
     with (args.output/'jobs.jsonl').open('w', encoding='utf-8') as f:
         for row in jobs:

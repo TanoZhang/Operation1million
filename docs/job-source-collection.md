@@ -148,17 +148,18 @@ header containing the public tenant subdomain. No private account or login is us
 The implementation was written locally from provider response shapes and public
 page markup; no third-party scraper source code was copied.
 
-`research/recover_hard_sources.py` is historical research for removed companies.
-It is not called by the active collection pipeline.
+The old hard-source recovery script and its attribution notes were deleted after
+the company list was finalized. They are not part of the active collection
+pipeline.
 
 ## Repository layout
 
 `src/jobdisco/` is the installable package and `tests/` contains its tests.
 `data/config/` contains source configuration and schema, `data/raw/` contains
-research inputs and validation reports, and `data/db/` contains the SQLite
-catalog. Generated run directories live under `runs/`; the large run files are
-ignored by Git. Research captures and the historical handoff are outside the
-active data path.
+source validation reports, and `data/db/` contains the SQLite catalog. Generated
+run directories live under `runs/`; the large run files are ignored by Git.
+Historical company-selection and endpoint experiments were removed from the
+active tree after the company list was finalized.
 
 ## Direct API integration check - 2026-09-16
 

@@ -4,8 +4,12 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import math
 from pathlib import Path
+import re
 import sqlite3
 import time
+from urllib.parse import urlsplit
+
+import requests
 
 from .paths import ROOT
 
@@ -16,11 +20,43 @@ class SourcePaused(Exception):
     """Stop this source for the run; a later run must honor its cooldown."""
 
 
+_ROBOTS_DELAY: dict[str, float | None] = {}
+
+
+def robots_delay(url, timeout=15):
+    """Crawl-delay the host declares for us, cached per host.
+
+    Read directly rather than through urllib.robotparser: that parser applies
+    rules in file order instead of longest-match, so a site that says
+    "Disallow: / " and then "Allow: /api/pcsx" reads as a blanket refusal when
+    it is in fact granting the path. Crawl-delay is what we need here, and an
+    unreachable robots.txt simply leaves the configured minimum in place.
+    """
+    host = urlsplit(url).netloc
+    if host in _ROBOTS_DELAY:
+        return _ROBOTS_DELAY[host]
+    delay = None
+    try:
+        r = requests.get(f'https://{host}/robots.txt', timeout=timeout,
+                         headers={'User-Agent': 'JobSourceCollector/1.0'})
+        if r.status_code == 200:
+            for value in re.findall(r'(?im)^\s*crawl-delay:\s*(\S+)', r.text):
+                try:
+                    delay = max(delay or 0.0, float(value))
+                except ValueError:
+                    continue
+    except requests.RequestException:
+        delay = None
+    _ROBOTS_DELAY[host] = delay
+    return delay
+
+
 def request_interval(source, requested):
     minimum = 3.0 if source.company_key == 'microsoft' else (
         2.5 if source.provider_key == 'eightfold' else 1.0
     )
-    return max(minimum, requested)
+    # A declared Crawl-delay is the host's own stated limit; never go below it.
+    return max(minimum, requested, robots_delay(source.access_url) or 0.0)
 
 
 def retry_after_seconds(value, now=None):

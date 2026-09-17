@@ -1,0 +1,207 @@
+"""Job store and incremental strategy selection.
+
+The incremental paths decide what a run is allowed to skip, so a bug here loses
+postings silently. Each strategy is covered together with the rule that only a
+complete pass may retire a posting.
+"""
+import sqlite3
+import tempfile
+import unittest
+from argparse import Namespace
+from contextlib import closing
+from dataclasses import replace
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+from jobdisco import store
+from jobdisco.collector import Collector
+from jobdisco.validate_sources import Source
+
+SOURCE = Source('ashby:matx', 'company_sources', 'matx', 'MatX', 'ashby',
+                'https://api.ashbyhq.com/posting-api/job-board/matx', {})
+
+
+def row(url, title='Engineer', posted=None, raw=None):
+    return {'company_key': 'matx', 'company_name': 'MatX', 'provider_key': 'ashby',
+            'title': title, 'location': 'Mountain View', 'url': url,
+            'source_job_id': url.rsplit('/', 1)[-1], 'posted_at': posted,
+            'raw': raw if raw is not None else {'id': url}}
+
+
+class StoreTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+
+    def open_db(self):
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        return db
+
+    def test_first_pass_is_a_full_download_for_every_source(self):
+        self.assertEqual(store.plan(SOURCE, {}), ('full', None))
+        # A pass that did not complete must not become an incremental watermark.
+        self.assertEqual(
+            store.plan(SOURCE, {'ashby:matx': {'last_success_at': None, 'etag': 'W/"x"'}}),
+            ('full', None))
+
+    def test_strategy_follows_what_the_board_supports(self):
+        done = {'last_success_at': '2026-09-16T00:00:00+00:00'}
+        self.assertEqual(store.plan(SOURCE, {'ashby:matx': dict(done, etag='W/"x"')}),
+                         ('conditional', 'W/"x"'))
+        eightfold = replace(SOURCE, source_id='ef:q', provider_key='eightfold')
+        self.assertEqual(store.plan(eightfold, {'ef:q': done})[0], 'since')
+        sitemap = replace(SOURCE, source_id='rn', provider_key='renesas_careers')
+        self.assertEqual(store.plan(sitemap, {'rn': done})[0], 'lastmod')
+        # An unrecognised board is read in full rather than guessed at.
+        self.assertEqual(store.plan(replace(SOURCE, provider_key='workday'),
+                                    {'ashby:matx': done})[0], 'full')
+
+    def test_new_then_unchanged_then_closed(self):
+        db = self.open_db()
+        first = store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
+                                    'complete', 'full', 2)
+        self.assertEqual((first['seen'], first['new'], first['closed']), (2, 2, 0))
+        again = store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
+                                    'complete', 'full', 2)
+        self.assertEqual((again['seen'], again['new'], again['closed']), (2, 0, 0))
+        gone = store.record_source(db, SOURCE, [row('https://x/1')], 'complete', 'full', 1)
+        self.assertEqual((gone['new'], gone['closed']), (0, 1))
+        self.assertIsNotNone(
+            db.execute("SELECT closed_at FROM jobs WHERE url='https://x/2'").fetchone()[0])
+        # first_seen records when we observed it, and survives later passes.
+        seen = db.execute("SELECT first_seen, last_seen FROM jobs WHERE url='https://x/1'").fetchone()
+        self.assertLess(seen['first_seen'], seen['last_seen'])
+
+    def test_incomplete_pass_never_closes_a_posting(self):
+        db = self.open_db()
+        store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
+                            'complete', 'full', 2)
+        first_success = db.execute('SELECT last_success_at FROM source_state').fetchone()[0]
+        for status in ('partial', 'failed', 'paused', 'fallback'):
+            with self.subTest(status=status):
+                delta = store.record_source(db, SOURCE, [row('https://x/1')], status, 'full', 1)
+                self.assertEqual(delta['closed'], 0)
+                self.assertIsNone(db.execute(
+                    "SELECT closed_at FROM jobs WHERE url='https://x/2'").fetchone()[0])
+        # The watermark still points at the one complete pass, not at these.
+        state = dict(db.execute('SELECT last_success_at, last_status FROM source_state').fetchone())
+        self.assertEqual(state['last_status'], 'fallback')
+        self.assertEqual(state['last_success_at'], first_success)
+
+    def test_skipping_a_fetch_does_not_retire_a_listed_posting(self):
+        db = self.open_db()
+        store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
+                            'complete', 'full', 2)
+        self.assertEqual(store.known_urls(db, 'matx'), {'https://x/1', 'https://x/2'})
+        # The board still lists both, but only the new one was downloaded.
+        delta = store.record_source(db, SOURCE, [row('https://x/3')], 'complete', 'lastmod', 1,
+                                    listed={'https://x/1', 'https://x/2', 'https://x/3'})
+        self.assertEqual((delta['new'], delta['closed']), (1, 0))
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL')
+                         .fetchone()[0], 3)
+        # Skipped-but-listed postings still count as seen this pass.
+        self.assertEqual(len({r[0] for r in db.execute('SELECT last_seen FROM jobs')}), 1)
+        # Dropping out of the listing is what closes a posting.
+        gone = store.record_source(db, SOURCE, [], 'complete', 'lastmod', 1,
+                                   listed={'https://x/3'})
+        self.assertEqual(gone['closed'], 2)
+
+    def test_unchanged_board_refreshes_without_closing(self):
+        db = self.open_db()
+        store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
+                            'complete', 'full', 2, etag='W/"one"')
+        before = db.execute('SELECT MAX(last_seen) FROM jobs').fetchone()[0]
+        delta = store.touch_source(db, SOURCE, 'conditional', 1)
+        self.assertEqual((delta['seen'], delta['new'], delta['closed']), (2, 0, 0))
+        self.assertGreater(db.execute('SELECT MIN(last_seen) FROM jobs').fetchone()[0], before)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL')
+                         .fetchone()[0], 2)
+        # A 304 carries no validator of its own, so the stored one is kept.
+        self.assertEqual(db.execute('SELECT etag FROM source_state').fetchone()[0], 'W/"one"')
+
+    def test_relative_and_lastmod_values_are_kept_verbatim(self):
+        db = self.open_db()
+        store.record_source(db, SOURCE, [
+            row('https://x/1', raw={'postedOn': 'Posted 7 Days Ago'}),
+            row('https://x/2', raw={'lastmod': '2026-09-16T07:05:26Z'}),
+        ], 'complete', 'full', 1)
+        kept = dict(db.execute(
+            "SELECT posted_relative, posted_at FROM jobs WHERE url='https://x/1'").fetchone())
+        self.assertEqual(kept['posted_relative'], 'Posted 7 Days Ago')
+        # A relative phrase is never promoted into an absolute timestamp.
+        self.assertIsNone(kept['posted_at'])
+        self.assertEqual(db.execute("SELECT lastmod FROM jobs WHERE url='https://x/2'")
+                         .fetchone()[0], '2026-09-16T07:05:26Z')
+
+
+class EarlyStopTests(unittest.TestCase):
+    def collector(self, source, strategy, watermark):
+        args = Namespace(max_jobs=1000, max_pages=10, delay=0, timeout=1, retries=0,
+                         source_state=Path(tempfile.gettempdir()) / 'unused_pauses.sqlite')
+        c = Collector(source, args)
+        c.session.request = Mock()
+        self.addCleanup(c.session.close)
+        c.strategy, c.watermark = strategy, watermark
+        return c
+
+    def response(self, data=None, status=200):
+        r = Mock(status_code=status, text='',
+                 headers={'content-type': 'application/json'})
+        r.json.return_value = data or {}
+        return r
+
+    def position(self, ident, ts):
+        return {'id': ident, 'name': 'Engineer', 'positionUrl': f'/careers/job/{ident}',
+                'postedTs': ts, 'locations': ['San Diego']}
+
+    def test_eightfold_stops_at_the_watermark_and_keeps_newer_rows(self):
+        source = Source('ef:q', 'company_sources', 'qualcomm', 'Qualcomm', 'eightfold',
+                        'https://careers.qualcomm.com/api/pcsx/search?domain=qualcomm.com', {})
+        # 1789516800 is newer than the watermark; 1600000000 is far older.
+        c = self.collector(source, 'since', '2026-09-01T00:00:00+00:00')
+        c.session.request.side_effect = [
+            self.response({'data': {'count': 40, 'positions': [
+                self.position('1', 1789516800), self.position('2', 1789516800)]}}),
+            self.response({'data': {'count': 40, 'positions': [
+                self.position('3', 1789516800), self.position('4', 1600000000)]}}),
+            self.response({'data': {'count': 40, 'positions': [
+                self.position('5', 1600000000)]}}),
+        ]
+        with patch('jobdisco.collector.time.sleep'):
+            status, _ = c.run()
+        self.assertEqual(status, 'complete')
+        # Stopped on the page that crossed the watermark; page 3 was never requested.
+        self.assertEqual(c.session.request.call_count, 2)
+        self.assertEqual([j['source_job_id'] for j in c.jobs], ['1', '2', '3'])
+
+    def test_full_strategy_reads_every_page(self):
+        source = Source('ef:q', 'company_sources', 'qualcomm', 'Qualcomm', 'eightfold',
+                        'https://careers.qualcomm.com/api/pcsx/search?domain=qualcomm.com', {})
+        c = self.collector(source, 'full', None)
+        c.session.request.side_effect = [
+            self.response({'data': {'count': 3, 'positions': [
+                self.position('1', 1789516800), self.position('2', 1600000000)]}}),
+            self.response({'data': {'count': 3, 'positions': [self.position('3', 1600000000)]}}),
+        ]
+        with patch('jobdisco.collector.time.sleep'):
+            c.run()
+        self.assertEqual(len(c.jobs), 3)
+
+    def test_conditional_probe_short_circuits_on_304(self):
+        c = self.collector(SOURCE, 'conditional', 'W/"stored"')
+        c.session.request.return_value = self.response(status=304)
+        with patch('jobdisco.collector.time.sleep'):
+            self.assertEqual(c.run(), ('unchanged', ''))
+        self.assertEqual(c.session.request.call_count, 1)
+        self.assertEqual(c.jobs, [])
+        self.assertNotIn('If-None-Match', c.session.headers)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -19,7 +19,6 @@ research = ["curl-cffi>=0.15.0"]
 [project.scripts]
 job-collect = "jobdisco.collector:main_cli"
 job-validate-sources = "jobdisco.validate_sources:main"
-job-probe-failed-sources = "jobdisco.probe_sources:main"
 job-queries = "jobdisco.query_catalog:main"
 
 [tool.setuptools.packages.find]
