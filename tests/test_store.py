@@ -4,6 +4,7 @@ The incremental paths decide what a run is allowed to skip, so a bug here loses
 postings silently. Each strategy is covered together with the rule that only a
 complete pass may retire a posting.
 """
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -138,6 +139,91 @@ class StoreTests(unittest.TestCase):
         self.assertIsNone(kept['posted_at'])
         self.assertEqual(db.execute("SELECT lastmod FROM jobs WHERE url='https://x/2'")
                          .fetchone()[0], '2026-09-16T07:05:26Z')
+
+
+class LogRoundTripTests(unittest.TestCase):
+    """The log is what survives between runs, so replaying it must restore the store.
+
+    A scheduled runner starts with no database at all. If a replay lost or altered
+    a posting, every run would rediscover it as new and the incremental strategies
+    would be built on a false baseline.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+        self.log = Path(self.dir.name) / 'store'
+        patcher = patch.object(store, 'LOG', self.log)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def read_day(self):
+        import gzip
+        path = next(iter((self.log / 'runs').glob('*.ndjson.gz')))
+        with gzip.open(path, 'rt', encoding='utf-8') as f:
+            return [l for l in f.read().splitlines() if l.strip()]
+
+    def snapshot(self, path):
+        with closing(store.connect(path)) as db:
+            return [tuple(r) for r in db.execute(
+                'SELECT url, company_key, title, location, posted_at, posted_relative,'
+                ' lastmod, first_seen, closed_at FROM jobs ORDER BY url')]
+
+    def test_replaying_the_log_restores_every_posting_and_closure(self):
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        first = store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
+                                    'complete', 'full', 2)
+        store.append_log(db, first['new_urls'], first['closed_urls'], first['stamp'])
+        gone = store.record_source(db, SOURCE, [row('https://x/1')], 'complete', 'full', 1)
+        store.append_log(db, gone['new_urls'], gone['closed_urls'], gone['stamp'])
+        store.export_state(db)
+        db.commit()
+        expected = self.snapshot(self.db_path)
+        self.assertEqual(len(expected), 2)
+
+        # A fresh runner: the catalog exists, the collected data does not.
+        fresh = Path(self.dir.name) / 'fresh.sqlite'
+        with closing(sqlite3.connect(fresh)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            blank.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        counts = store.rebuild(fresh)
+        self.assertEqual(counts, {'jobs': 2, 'events': 1, 'sources': 1})
+        self.assertEqual(self.snapshot(fresh), expected)
+
+    def test_log_keeps_the_whole_posting_and_drops_only_noise(self):
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        raw = {'id': 'abc', 'department': 'Hardware', 'employmentType': 'FULL_TIME',
+               # Worth keeping however long it is: this is the job.
+               'descriptionPlain': 'x' * 12000, 'requirements': 'r' * 4000,
+               'salary_min_value': 180000, 'payTransparencyMaxSalary': 240000,
+               # Says nothing about the job.
+               'descriptionHtml': '<p>' + 'x' * 12000 + '</p>', 'benefits': 'y' * 900,
+               'employer_logo': 'https://cdn/logo.png', 'employer_reviews': 4.2,
+               'meta_data': {'icims': {'jps_is_public': True}}, 'solrScore': 0.8,
+               'html': '<tr>row markup</tr>'}
+        delta = store.record_source(db, SOURCE, [row('https://x/1', raw=raw)],
+                                    'complete', 'full', 1)
+        store.append_log(db, delta['new_urls'], delta['closed_urls'], delta['stamp'])
+        logged = json.loads(self.read_day()[0])['raw']
+        # The description survives at full length; a length rule would have cut it.
+        self.assertEqual(len(logged['descriptionPlain']), 12000)
+        self.assertEqual(len(logged['requirements']), 4000)
+        self.assertEqual(logged['salary_min_value'], 180000)
+        self.assertEqual(logged['payTransparencyMaxSalary'], 240000)
+        self.assertEqual(logged['department'], 'Hardware')
+        for noise in ('descriptionHtml', 'benefits', 'employer_logo', 'employer_reviews',
+                      'meta_data', 'solrScore', 'html'):
+            self.assertNotIn(noise, logged)
+        # An uncatalogued field is kept rather than silently dropped.
+        self.assertEqual(store.slim({'someNewProviderField': 'v'}),
+                         {'someNewProviderField': 'v'})
 
 
 class EarlyStopTests(unittest.TestCase):

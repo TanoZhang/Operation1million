@@ -620,8 +620,9 @@ def main():
         else:
             delta = store.record_source(db, source, rows, status, strategy, count,
                                         listed=getattr(c, 'listed', None), **kwargs)
+        store.append_log(db, delta['new_urls'], delta['closed_urls'], delta['stamp'])
         db.commit()
-        for key in totals:
+        for key in ('seen', 'new', 'closed'):
             totals[key] += delta[key]
         print(f"  stored {source.company_key}: +{delta['new']} new, "
               f"-{delta['closed']} closed, {delta['seen']} seen", flush=True)
@@ -648,7 +649,11 @@ def main():
         if db is not None:
             store.finish_run(db, run_id, len(reports), totals['seen'], totals['new'],
                              totals['closed'], sum(r['requests'] for r in reports))
+            store.export_state(db)
+            manifest = store.write_manifest(db, store.now(), reports)
             db.commit()
+            print('manifest: %s records=%s sha256=%s' % (
+                manifest['run_date'], manifest['records'], (manifest['sha256'] or '-')[:12]), flush=True)
             print(f"store: {totals['new']} new, {totals['closed']} closed, "
                   f"{totals['seen']} seen", flush=True)
     jobs.sort(key=lambda r: (r['company_key'], r['url']))

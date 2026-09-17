@@ -17,3 +17,13 @@ __pycache__/
 /runs/*
 !/runs/
 !/runs/latest.json
+
+# Derived database. Rebuilt in ~2s by `job-store --bootstrap` from schema.sql,
+# migrations and the committed run log, so no binary belongs in Git.
+/data/db/*.sqlite
+/data/db/*.sqlite-shm
+/data/db/*.sqlite-wal
+
+# Collected data lives in the private companion repository, reached through
+# JOBDISCO_STORE. This path is only the default for a single-machine setup.
+/data/store/

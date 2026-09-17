@@ -5,13 +5,16 @@ so the incremental strategies here all key off `source_state`. That table is
 empty before the first run, which makes the first pass a full download of every
 board without needing a separate mode.
 """
+import gzip
+import hashlib
 import json
+import os
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .paths import CONFIG, DB, ROOT
+from .paths import CONFIG, DATA, DB, ROOT
 
 MIGRATION = CONFIG / 'migrations/002_job_store.sql'
 
@@ -204,7 +207,218 @@ def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
                requests=?, note=? WHERE source_id=?""",
         (etag, last_modified, stamp, stamp, strategy, seen, requests, note,
          source.source_id))
-    return {'seen': seen, 'new': 0, 'closed': 0}
+    return {'seen': seen, 'new': 0, 'closed': 0,
+            'new_urls': [], 'closed_urls': [], 'stamp': stamp}
+
+
+# The durable log may live in a separate (private) data repository checkout.
+LOG = Path(os.environ.get('JOBDISCO_STORE') or DATA / 'store')
+# Job descriptions, requirements and pay are the point of collecting at all, so they
+# are kept in full. What goes is what carries no information about the job: branding
+# assets, employer ratings, the provider's own relevance scoring and parser output,
+# duplicate renderings of a description we already keep, and the row markup we
+# scraped the normalized fields out of.
+DROP_FIELDS = {
+    # Branding and employer reputation.
+    'employer_logo', 'hiring_organization_logo', 'logo', 'employer_reviews',
+    'review_count', 'reviews', 'rating', 'stars',
+    # Provider-internal scoring, parser output, compliance and UI metadata.
+    'meta_data', 'metadata', 'data_compliance', 'ml_job_parser', 'ml_skills',
+    'bulletFields', 'sectionLabels', 'solrScore', 'isHot', 'job_uid', 'uuid',
+    'savedSearchMetadata', 'resultsMetaData', 'debug',
+    # Benefits blurbs: marketing copy, identical across a company's postings.
+    'benefits', 'jobBenefits', 'job_benefits', 'job_benefits_strings',
+    # Duplicate or truncated renderings of a description we keep in full.
+    'descriptionHtml', 'jobDescriptionHtml', 'descriptionTeaser', 'description_short',
+    # The scraped row markup; normalize() already took the fields out of it.
+    'html',
+}
+LOG_FIELDS = ['url', 'company_key', 'provider_key', 'title', 'location', 'source_job_id',
+              'posted_at', 'posted_relative', 'lastmod', 'first_seen', 'raw']
+
+
+def slim(raw):
+    """Drop fields that say nothing about the job, keeping everything else in full.
+
+    Deliberately name-based rather than size-based: the description and the
+    requirements are long precisely because they are the content worth having, and
+    a length rule throws them away. Anything not named here survives, so a field
+    from a provider we have not catalogued is kept rather than silently lost.
+    """
+    if not isinstance(raw, dict):
+        return raw
+    return {k: v for k, v in raw.items() if k not in DROP_FIELDS}
+
+
+def daily_log(stamp):
+    """One immutable gzipped file per collection day.
+
+    Gzip is right here precisely because the file stops changing once the day ends:
+    there is no later revision for Git to delta against, and the content compresses
+    9x. An append-only file that got rewritten daily would be the opposite case.
+    """
+    return LOG / 'runs' / f'{stamp[:10]}.ndjson.gz'
+
+
+def manifest_path(stamp):
+    return LOG / 'manifests' / f'{stamp[:10]}.json'
+
+
+def append_log(db, urls, closed_urls, stamp):
+    """Append this pass's discoveries and closures to the day's durable file.
+
+    The log, not the SQLite file, is what persists between runs: a binary database
+    committed daily would store a full copy per commit, while a day's text file is
+    written once and reviewable in a diff.
+    """
+    path = daily_log(stamp)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not urls and not closed_urls:
+        return
+    # Gzip members concatenate, so a run can append per source and still read back
+    # as one stream.
+    with gzip.open(path, 'at', encoding='utf-8') as f:
+        for start in range(0, len(urls), 400):
+            chunk = urls[start:start + 400]
+            for row in db.execute(
+                    'SELECT %s FROM jobs WHERE url IN (%s)'
+                    % (','.join(LOG_FIELDS), ','.join('?' * len(chunk))), chunk):
+                record = dict(row, type='job')
+                record['raw'] = slim(json.loads(record['raw'] or 'null'))
+                f.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + '\n')
+        for url in closed_urls:
+            f.write(json.dumps({'type': 'closed', 'url': url, 'at': stamp},
+                               ensure_ascii=True, sort_keys=True) + '\n')
+
+
+def write_manifest(db, stamp, reports):
+    """Record what the day collected, and checksum the file that holds it.
+
+    The digest is what later tells you a day's data is the data that was collected,
+    not something edited or truncated afterwards.
+    """
+    path = daily_log(stamp)
+    manifest_path(stamp).parent.mkdir(parents=True, exist_ok=True)
+    digest = records = None
+    if path.is_file():
+        sha = hashlib.sha256()
+        with path.open('rb') as f:
+            for block in iter(lambda: f.read(1 << 20), b''):
+                sha.update(block)
+        digest = sha.hexdigest()
+        with gzip.open(path, 'rt', encoding='utf-8') as f:
+            records = sum(1 for line in f if line.strip())
+    manifest = {
+        'run_date': stamp[:10],
+        'collected_at': stamp,
+        'records': records,
+        'sources_completed': sum(1 for r in reports if r['direct_status'] == 'complete'),
+        'sources_unchanged': sum(1 for r in reports if r['direct_status'] == 'unchanged'),
+        'sources_incomplete': sum(1 for r in reports
+                                  if r['direct_status'] in {'partial', 'fallback'}),
+        'sources_failed': sum(1 for r in reports
+                              if r['direct_status'] in {'failed', 'paused'}),
+        'requests': sum(r['requests'] for r in reports),
+        'open_jobs': db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL').fetchone()[0],
+        'file': str(path.relative_to(LOG)).replace('\\', '/') if path.is_file() else None,
+        'sha256': digest,
+    }
+    manifest_path(stamp).write_text(
+        json.dumps(manifest, ensure_ascii=True, indent=1, sort_keys=True) + '\n',
+        encoding='utf-8')
+    return manifest
+
+
+def verify(stamp=None):
+    """Check each day's file against the digest recorded in its manifest."""
+    results = []
+    for path in sorted((LOG / 'manifests').glob('*.json')):
+        manifest = json.loads(path.read_text(encoding='utf-8'))
+        if stamp and manifest['run_date'] != stamp[:10]:
+            continue
+        data = LOG / (manifest.get('file') or '')
+        if not manifest.get('sha256') or not data.is_file():
+            results.append((manifest['run_date'], 'missing'))
+            continue
+        sha = hashlib.sha256()
+        with data.open('rb') as f:
+            for block in iter(lambda: f.read(1 << 20), b''):
+                sha.update(block)
+        results.append((manifest['run_date'],
+                        'ok' if sha.hexdigest() == manifest['sha256'] else 'MISMATCH'))
+    return results
+
+
+def export_state(db):
+    """Per-source incremental state as small readable JSON beside the log."""
+    LOG.mkdir(parents=True, exist_ok=True)
+    rows = [dict(r) for r in db.execute('SELECT * FROM source_state ORDER BY source_id')]
+    (LOG / 'source_state.json').write_text(
+        json.dumps(rows, ensure_ascii=True, indent=1, sort_keys=True) + '\n', encoding='utf-8')
+
+
+def bootstrap(path=DB):
+    """Build the whole database from versioned text, for a runner that has none.
+
+    Nothing binary needs to be stored anywhere: the catalog comes from the authored
+    SQL in this repository, and the collected postings come from the committed log.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(path)
+    con.isolation_level = None
+    try:
+        con.executescript((CONFIG / 'schema.sql').read_text(encoding='utf-8'))
+        for migration in sorted((CONFIG / 'migrations').glob('*.sql')):
+            con.executescript(migration.read_text(encoding='utf-8'))
+    finally:
+        con.close()
+    return rebuild(path)
+
+
+def rebuild(path=DB):
+    """Replay the log into the job store, so the database is disposable.
+
+    An Actions runner starts with no database. Replaying is deterministic: every
+    job line inserts or refreshes a posting, then every closure event is applied
+    in order.
+    """
+    migrate(path)
+    counts = {'jobs': 0, 'events': 0, 'sources': 0}
+    with closing(connect(path)) as db, db:
+        # Replay in date order: a posting may be discovered, closed, and relisted.
+        for log in sorted((LOG / 'runs').glob('*.ndjson.gz')):
+            with gzip.open(log, 'rt', encoding='utf-8') as f:
+                lines = [l for l in f if l.strip()]
+            for line in lines:
+                r = json.loads(line)
+                if r.get('type') == 'closed':
+                    db.execute('UPDATE jobs SET closed_at=? WHERE url=?', (r['at'], r['url']))
+                    counts['events'] += 1
+                    continue
+                db.execute(
+                    '''INSERT INTO jobs (url, company_key, provider_key, title, location,
+                           source_job_id, posted_at, posted_relative, lastmod,
+                           first_seen, last_seen, closed_at, raw)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+                       ON CONFLICT(url) DO UPDATE SET
+                           title=excluded.title, location=excluded.location,
+                           posted_at=COALESCE(excluded.posted_at, jobs.posted_at),
+                           first_seen=MIN(jobs.first_seen, excluded.first_seen),
+                           raw=excluded.raw''',
+                    (r['url'], r['company_key'], r['provider_key'], r['title'],
+                     r.get('location') or '', r.get('source_job_id'), r.get('posted_at'),
+                     r.get('posted_relative'), r.get('lastmod'), r['first_seen'],
+                     r['first_seen'], json.dumps(r.get('raw'), ensure_ascii=True)))
+                counts['jobs'] += 1
+        state = LOG / 'source_state.json'
+        if state.is_file():
+            for r in json.loads(state.read_text(encoding='utf-8')):
+                columns = ','.join(r)
+                db.execute('INSERT OR REPLACE INTO source_state (%s) VALUES (%s)'
+                           % (columns, ','.join('?' * len(r))), list(r.values()))
+                counts['sources'] += 1
+    return counts
 
 
 def start_run(db, run_id):
@@ -217,6 +431,57 @@ def finish_run(db, run_id, companies, seen, new, closed, requests, note=''):
         '''UPDATE collection_runs SET finished_at=?, companies=?, jobs_seen=?,
                jobs_new=?, jobs_closed=?, requests=?, note=? WHERE run_id=?''',
         (now(), companies, seen, new, closed, requests, note, run_id))
+
+
+def main():
+    """Inspect the store, or rebuild it from the committed log."""
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--db', type=Path, default=DB)
+    parser.add_argument('--migrate', action='store_true')
+    parser.add_argument('--bootstrap', action='store_true',
+                        help='Create the database from schema.sql, migrations and the log')
+    parser.add_argument('--rebuild', action='store_true',
+                        help='Replay data/store/*.ndjson into the database')
+    parser.add_argument('--verify', action='store_true',
+                        help='Check each day file against its manifest digest')
+    parser.add_argument('--export', action='store_true',
+                        help='Write every held posting to the log (one-off backfill)')
+    args = parser.parse_args()
+    if args.migrate:
+        migrate(args.db)
+    if args.bootstrap:
+        print('bootstrapped:', bootstrap(args.db))
+    if args.rebuild:
+        print('rebuilt:', rebuild(args.db))
+    if args.export:
+        with closing(connect(args.db)) as db, db:
+            urls = [r[0] for r in db.execute('SELECT url FROM jobs ORDER BY url')]
+            closed = [(r[0], r[1]) for r in db.execute(
+                'SELECT url, closed_at FROM jobs WHERE closed_at IS NOT NULL')]
+            for old in (LOG / 'runs').glob('*.ndjson.gz'):
+                old.unlink()
+            for old in (LOG / 'manifests').glob('*.json'):
+                old.unlink()
+            # Group by the day each posting was first seen, so a backfill produces
+            # the same per-day files a live run would have written.
+            by_day = {}
+            for url in urls:
+                stamp = db.execute('SELECT first_seen FROM jobs WHERE url=?', (url,)).fetchone()[0]
+                by_day.setdefault(stamp[:10], []).append(url)
+            for day, batch in sorted(by_day.items()):
+                append_log(db, batch, [], f'{day}T00:00:00+00:00')
+            for url, at in closed:
+                append_log(db, [], [url], at)
+            for day in sorted(by_day):
+                write_manifest(db, f'{day}T00:00:00+00:00', [])
+            export_state(db)
+        print('exported:', len(urls), 'jobs,', len(closed), 'closures')
+    if args.verify:
+        for day, state in verify():
+            print(f'  {day}: {state}')
+    print('summary:', summary(args.db))
+    return 0
 
 
 def summary(path=DB):
