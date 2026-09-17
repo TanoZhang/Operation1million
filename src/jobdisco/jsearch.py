@@ -62,9 +62,20 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
     validate_budget(queries, config['daily_budget'])
-    for group in ('reject_title_patterns', 'keep_title_patterns'):
-        for expression in config.get('filter', {}).get(group, []):
+    rules = config.setdefault('filter', {})
+    for group in ('exclude_title_patterns', 'reject_title_patterns',
+                  'keep_title_patterns', 'strong_terms', 'common_terms'):
+        for expression in rules.get(group, []):
             re.compile(expression, re.I)
+    defaults = {'min_confidence': 25, 'certain_strong_hits': 6, 'half_score': 15,
+                'strong_weight': 3, 'common_weight': 1, 'title_multiplier': 2,
+                'min_description_chars': 1500}
+    for name, default in defaults.items():
+        rules.setdefault(name, default)
+        if type(rules[name]) is not int or rules[name] < 1:
+            raise ValueError(f'Filter setting {name} must be a positive integer')
+    if not 1 <= rules['min_confidence'] <= 100:
+        raise ValueError('Filter min_confidence must fall between 1 and 100')
     return config, queries
 
 
@@ -179,14 +190,116 @@ def normalize_job(item, query, companies):
     return row
 
 
+def excluded(title, rules):
+    """Whether the job is one to decline outright, whatever it involves.
+
+    This answers a different question from relevance. A defence programme is
+    still a defence programme when the work is verification, and a director is
+    still a director, so no score can overturn it and it is checked first.
+    """
+    return any(re.search(p, title or '', re.I)
+               for p in rules.get('exclude_title_patterns', []))
+
+
+def relevance(row, rules):
+    """Score how much of the trade's vocabulary a posting uses, from 0 to 100.
+
+    Terms only add. Nothing is deducted for a term being absent, so a tersely
+    written posting is never punished for what it leaves out; it simply scores
+    lower than one that spells the work out. A title match counts for more than
+    a description match because a title is the employer's own summary.
+
+    Enough distinct strong terms short-circuits the curve at 100: that many
+    trade-exclusive proper nouns together are not something another industry
+    prints by accident.
+    """
+    title = row.get('title') or ''
+    if excluded(title, rules):
+        # Score zero rather than high, so an excluded posting sinks in any ranking
+        # that reads the stored number without re-applying the rules. Answered
+        # from the title alone, before the rest of the posting is even read.
+        return 0, []
+    description = description_text(row)
+    strong_weight = rules.get('strong_weight', 3)
+    common_weight = rules.get('common_weight', 1)
+    multiplier = rules.get('title_multiplier', 2)
+    score, strong_hits, matched = 0, 0, []
+    for patterns, weight, is_strong in (
+            (rules.get('strong_terms', []), strong_weight, True),
+            (rules.get('common_terms', []), common_weight, False)):
+        for pattern in patterns:
+            in_title = re.search(pattern, title, re.I)
+            hit = in_title or re.search(pattern, description, re.I)
+            if not hit:
+                continue
+            score += weight * (multiplier if in_title else 1)
+            strong_hits += is_strong
+            matched.append(hit.group(0).lower())
+    if strong_hits >= rules.get('certain_strong_hits', 6):
+        return 100, matched
+    half = rules.get('half_score', 15)
+    return (round(100 * score / (score + half)) if score else 0), matched
+
+
+# Fields that carry no prose, so scanning them only invites false matches.
+NON_PROSE_FIELDS = {
+    'job_apply_link', 'job_google_link', 'apply_link', 'employer_website',
+    'employer_logo', 'job_id', 'job_uid', 'job_posted_at_datetime_utc',
+    'job_publisher', 'employer_name', 'job_latitude', 'job_longitude',
+}
+
+
+def description_text(row):
+    """Everything the posting says about the work, in whatever field it says it.
+
+    A provider may put the vocabulary in the description, in a skills array, or
+    in highlight bullets; reading only one field would judge a posting on where
+    its publisher chose to put the words rather than on what it says.
+    """
+    raw = row.get('raw')
+    if not isinstance(raw, dict):
+        return ''
+    parts = []
+
+    def walk(value):
+        if isinstance(value, str):
+            parts.append(value)
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                if key not in NON_PROSE_FIELDS:
+                    walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    for key, value in raw.items():
+        if key not in NON_PROSE_FIELDS and key != 'relevance':
+            walk(value)
+    return ' '.join(parts)
+
+
 def rejection_reason(row, rules):
-    """Conservative title-only filtering; missing experience never means reject."""
-    title = row['title']
+    """Title first, then the posting's vocabulary; the unreadable is kept.
+
+    A title that names the work settles it either way, which is why an analog
+    mixed-signal *verification* role survives while an analog *designer* does
+    not. Only titles that say nothing reach the score, and only a posting whose
+    full text uses none of the trade's vocabulary is dropped there; a truncated
+    description is a publisher's excerpt, not silence, so it is kept.
+    """
+    title = row.get('title') or ''
+    if excluded(title, rules):
+        return 'excluded'
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):
         return ''
     if any(re.search(p, title, re.I) for p in rules.get('reject_title_patterns', [])):
         return 'title_mismatch'
-    return ''
+    if relevance(row, rules)[0] >= rules.get('min_confidence', 25):
+        return ''
+    # A truncated description is not silence; it is a publisher's excerpt.
+    if len(description_text(row)) < rules.get('min_description_chars', 1500):
+        return ''
+    return 'off_domain'
 
 
 def collect(queries, client, settings, companies, persist):
@@ -196,13 +309,16 @@ def collect(queries, client, settings, companies, persist):
              'jsearch_pages_planned': sum(q.pages for q in queries),
              'jsearch_pages_used': 0, 'jsearch_jobs_raw': 0, 'jsearch_jobs_unique': 0,
              'jsearch_failures': 0, 'jsearch_jobs_rejected': 0,
-             'jsearch_jobs_malformed': 0, 'jsearch_queries': []}
+             'jsearch_jobs_malformed': 0, 'jsearch_confidence': [],
+             'jsearch_queries': []}
     unique = set()
     all_rows = []
     stop = False
     for query in queries:
         before = client.guard.credits
         detail = {'source_id': query.key, 'query': query.query, 'tier': query.tier,
+                  'date_posted': settings['date_posted'], 'country': settings['country'],
+                  'employment_types': settings['employment_types'],
                   'pages_planned': query.pages, 'pages_used': 0, 'jobs_raw': 0,
                   'jobs_accepted': 0, 'jobs_unique': 0, 'rejected': 0,
                   'malformed': 0, 'status': 'skipped', 'reason': ''}
@@ -218,7 +334,14 @@ def collect(queries, client, settings, companies, persist):
                     except (ValueError, TypeError, KeyError):
                         detail['malformed'] += 1
                         continue
-                    reason = rejection_reason(row, settings.get('filter', {}))
+                    rules = settings.get('filter', {})
+                    confidence, matched = relevance(row, rules)
+                    if isinstance(row.get('raw'), dict):
+                        row['raw']['relevance'] = {
+                            'confidence': confidence,
+                            'matched_terms': sorted(set(matched)),
+                        }
+                    reason = rejection_reason(row, rules)
                     if query.aliases and not employer_matches(row['company_name'], query.aliases):
                         reason = 'employer_mismatch'
                     if reason:
@@ -228,6 +351,7 @@ def collect(queries, client, settings, companies, persist):
                     if identity not in unique:
                         detail['jobs_unique'] += 1
                         unique.add(identity)
+                    stats['jsearch_confidence'].append(confidence)
                     rows.append(row)
                 stats['jsearch_queries_completed'] += 1
                 detail['status'] = 'partial' if detail['malformed'] else 'query_limited'

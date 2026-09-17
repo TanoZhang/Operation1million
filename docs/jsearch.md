@@ -57,6 +57,42 @@ Never delete the ledger to bypass a ceiling or cooldown.
 
 ## Commands
 
+### Temporary windows and single-keyword tests
+
+`--date-posted` accepts `all`, `today`, `3days`, `week`, and `month`.
+"Pull one week" means a temporary `week` search window, not seven repeated
+daily searches and not a permanent edit to the configured `today` default.
+For a one-keyword test, default to one page and one reserved credit. Do not
+expand to all 52 keywords or retry paid failures without a new instruction.
+
+```powershell
+# One keyword, last week, at most one page/credit. Paid when executed.
+.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --jsearch-query "Design Verification Engineer" --jsearch-pages 1 --date-posted week --jsearch-budget 1 --no-store
+
+# Add --jsearch-plan to preview the same command without any API call.
+
+# All 52 functional queries over one week: up to 310 reserved credits.
+# Direct sources and company fallbacks are skipped by --jsearch-only.
+.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 310
+```
+
+`--jsearch-query` replaces the functional catalog for this invocation; its page
+default is 1. `--jsearch-pages` is valid only with that single-query option.
+`--jsearch-only` explicitly skips direct sources and company fallbacks.
+Without it, the normal direct-first execution order still applies.
+`--no-store` writes the usual private JSONL/CSV and manifest under a timestamped
+`runs/` directory, without changing or sealing daily job history. The shared
+quota ledger still records paid attempts. These diagnostic rows do not become
+part of the durable job baseline. Do not use this flag for normal daily storage.
+
+Run caps apply to the planned pages for this invocation; the separate daily
+and monthly ledger caps include earlier attempts. Window and request defaults
+are included in each query's manifest entry. Report raw, accepted, unique,
+rejected, malformed, reserved-credit counts and the private result path.
+One page is a sample, not proof of complete weekly coverage.
+
+### Normal daily collection
+
 ```powershell
 # Offline preview: no credentials or API requests required.
 .\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-plan

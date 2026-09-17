@@ -30,6 +30,11 @@ collection, endpoint investigation, or change to daily discovery behavior.
   Functional discovery has no employer blacklist. Preserve exact employer/alias
   filtering for configured company fallbacks; query text is not a constraint.
   Reserve page credits, not HTTP counts; do not expand a fixed query plan.
+- For a request to test one keyword over one week, use a temporary
+  `--date-posted week` override with `--jsearch-only --jsearch-query` and one
+  page/credit unless the user specifies another bound. Do not edit daily
+  defaults, run the whole catalog, or increase pages automatically. Use
+  `--no-store` for diagnostics and report the private output path and counts.
 - Do not claim complete coverage from a single successful page. Keep Rivos
   marked as third-party data with unverified completeness.
 - Daily incremental collection requires durable job identity and per-source

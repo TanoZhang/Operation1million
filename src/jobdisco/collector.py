@@ -557,6 +557,10 @@ def main():
     p.add_argument('--retries', type=int, default=3, help='Retries for 503 only; 429 pauses the source immediately')
     p.add_argument('--fallback-queries', type=int, default=1)
     p.add_argument('--jsearch', action='store_true', help='Enable the fixed functional JSearch discovery plan')
+    p.add_argument('--jsearch-only', action='store_true', help='Run functional JSearch only, without direct sources or company fallbacks')
+    p.add_argument('--jsearch-query', help='Run one positive phrase instead of the functional catalog')
+    p.add_argument('--jsearch-pages', type=int, default=None, help='Pages for --jsearch-query only; default 1, maximum 20')
+    p.add_argument('--date-posted', choices=['all', 'today', '3days', 'week', 'month'], help='Temporary JSearch time window; does not edit configuration')
     p.add_argument('--jsearch-plan', action='store_true', help='Print the fixed plan without making requests')
     p.add_argument('--jsearch-config', type=Path, default=CONFIG / 'jsearch_queries.toml')
     p.add_argument('--jsearch-budget', type=int, default=0, help='Page-credit cap; 0 uses config with --jsearch, otherwise disables paid discovery')
@@ -566,6 +570,17 @@ def main():
     if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.delay < 0 or args.retries < 0:
         p.error('Caps and timeout must be positive; delay and budget must be nonnegative')
     settings, functional_queries = jsearch.load_plan(args.jsearch_config)
+    if args.jsearch_pages is not None and (not args.jsearch_query or not 1 <= args.jsearch_pages <= 20):
+        p.error('--jsearch-pages requires --jsearch-query and a value in 1..20')
+    if args.jsearch_only or args.jsearch_query:
+        args.jsearch = True
+    if args.jsearch_query:
+        phrase = args.jsearch_query.strip()
+        if not phrase or re.search(r'(^|\s)-\w', phrase):
+            p.error('--jsearch-query requires a positive nonempty phrase')
+        functional_queries = [jsearch.Query(phrase, args.jsearch_pages or 1, 'manual')]
+    if args.date_posted:
+        settings['date_posted'] = args.date_posted
     enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0
     run_budget = min(args.jsearch_budget or settings['daily_budget'], settings['daily_budget']) if enabled else 0
     if not args.db.exists() and args.jsearch_plan:
@@ -582,6 +597,10 @@ def main():
             store.bootstrap(args.db)
         all_sources = load_sources(args.db)
     sources = all_sources
+    if args.jsearch_only:
+        sources = []
+        if args.company:
+            p.error('--company cannot be combined with --jsearch-only')
     if args.company:
         unknown = set(args.company) - {s.company_key for s in sources}
         if unknown:
@@ -593,7 +612,7 @@ def main():
     discovery = config('discovery_queries.toml')
     fallbacks = {r['company_key']: r for r in discovery.get('company_fallbacks', [])}
     search = config('sources_search.toml')['search']['jsearch']
-    company_queries = jsearch.fallback_plan(discovery, all_sources, args.fallback_queries) if enabled else []
+    company_queries = jsearch.fallback_plan(discovery, all_sources, args.fallback_queries) if enabled and not args.jsearch_only else []
     company_queries = [q for q in company_queries if q.company_key in {s.company_key for s in sources}]
     functional_queries = functional_queries if args.jsearch or args.jsearch_plan else []
     planned_queries = functional_queries + company_queries
@@ -601,7 +620,9 @@ def main():
     if args.jsearch_plan:
         print(json.dumps({'queries': [q.__dict__ for q in planned_queries],
                           'pages_planned': sum(q.pages for q in planned_queries),
-                          'daily_budget': run_budget, 'monthly_target': settings['monthly_target']}, indent=2))
+                          'run_budget': run_budget, 'daily_budget': settings['daily_budget'],
+                          'date_posted': settings['date_posted'],
+                          'monthly_target': settings['monthly_target']}, indent=2))
         return 0
     run_stamp = store.now()
     if args.store and store.manifest_path(run_stamp).exists():
@@ -616,7 +637,7 @@ def main():
             known_by_company = {s.company_key: store.known_urls(probe, s.company_key)
                                 for s in sources if s.provider_key in store.LASTMOD_SITEMAP}
     request_guard = RequestGuard(limit=settings['monthly_quota'], target_limit=settings['monthly_target'],
-                                 daily_limit=run_budget or settings['daily_budget'],
+                                 daily_limit=settings['daily_budget'],
                                  billing_day=settings.get('billing_cycle_start_day', 1))
     args.jsearch_guard = request_guard
     if args.output is None:

@@ -33,6 +33,34 @@ def job(ident='1', **extra):
 
 
 class DiscoveryTests(unittest.TestCase):
+    def test_single_week_query_skips_direct_sources_and_preserves_daily_budget(self):
+        self.session.get.return_value = self.response([job()])
+        output = self.root / 'manual'
+        arguments = ['collector', '--jsearch-only', '--jsearch-query', 'Design Verification Engineer',
+                     '--jsearch-pages', '1', '--date-posted', 'week', '--jsearch-budget', '1',
+                     '--no-store', '--db', str(self.db_path), '--output', str(output)]
+        # Earlier daily reservations must not turn a one-credit run cap into
+        # a one-credit account/day cap.
+        self.guard.get(self.session, 'https://example', credits=2)
+        self.session.get.reset_mock()
+        with patch.object(collector, 'load_sources', return_value=[]), \
+             patch.object(collector, 'Collector') as direct, \
+             patch.object(collector, 'RequestGuard', return_value=self.guard) as guard_factory, \
+             patch.object(collector, 'load_credentials'), \
+             patch.object(jsearch.requests, 'Session', return_value=self.session), \
+             patch('sys.argv', arguments), patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(collector.main(), 0)
+        direct.assert_not_called()
+        self.session.get.assert_called_once()
+        params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
+        self.assertEqual(params['date_posted'], ['week'])
+        self.assertEqual(params['num_pages'], ['1'])
+        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 316)
+        manifest = json.loads((output / 'manifest.json').read_text())
+        self.assertEqual(manifest['jsearch_pages_used'], 1)
+        self.assertEqual(manifest['jsearch_queries'][0]['date_posted'], 'week')
+        self.assertFalse(store.LOG.exists())
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

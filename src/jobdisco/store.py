@@ -46,6 +46,9 @@ def migrate(path=DB):
                     db.backup(destination)
         db.executescript(MIGRATION.read_text(encoding='utf-8'))
         db.executescript((CONFIG / 'migrations/003_job_identities.sql').read_text(encoding='utf-8'))
+        applied = {r[0] for r in db.execute('SELECT migration_key FROM catalog_migrations')}
+        if '004_relevance' not in applied:
+            db.executescript((CONFIG / 'migrations/004_relevance.sql').read_text(encoding='utf-8'))
 
 
 def connect(path=DB):
@@ -91,6 +94,31 @@ def known_urls(db, company_key):
     """
     return {r[0] for r in db.execute(
         'SELECT url FROM jobs WHERE company_key=?', (company_key,))}
+
+
+_FILTER_RULES = None
+
+
+def filter_rules():
+    global _FILTER_RULES
+    if _FILTER_RULES is None:
+        from . import jsearch
+        _FILTER_RULES = jsearch.load_plan()[0]['filter']
+    return _FILTER_RULES
+
+
+def score_row(title, raw):
+    """Relevance of one posting, 0..100, on the same yardstick for every source.
+
+    A company's own board is not a filtered list; it carries that company's
+    accountants and HR interns too, so a direct posting earns its rank exactly
+    as a search result does.
+    """
+    from . import jsearch
+    stored = raw.get('relevance') if isinstance(raw, dict) else None
+    if isinstance(stored, dict) and isinstance(stored.get('confidence'), int):
+        return stored['confidence']
+    return jsearch.relevance({'title': title or '', 'raw': raw}, filter_rules())[0]
 
 
 def record_source(db, source, rows, status, strategy, requests, etag=None,
@@ -162,8 +190,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         db.execute(
             '''INSERT INTO jobs (url, company_key, provider_key, title, location,
                    source_job_id, posted_at, posted_relative, lastmod,
-                   first_seen, last_seen, closed_at, raw)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+                   first_seen, last_seen, closed_at, raw, relevance)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
                ON CONFLICT(url) DO UPDATE SET
                    company_key=excluded.company_key,
                    provider_key=excluded.provider_key,
@@ -175,11 +203,13 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                    lastmod=COALESCE(excluded.lastmod, jobs.lastmod),
                    last_seen=excluded.last_seen,
                    closed_at=NULL,
-                   raw=excluded.raw''',
+                   raw=excluded.raw,
+                   relevance=excluded.relevance''',
             (url, row['company_key'], row['provider_key'], row['title'],
              row.get('location') or '', row.get('source_job_id'), row.get('posted_at'),
              posted_relative, lastmod, stamp, stamp,
-             json.dumps(raw, ensure_ascii=True, default=str)))
+             json.dumps(raw, ensure_ascii=True, default=str),
+             score_row(row['title'], raw)))
     for identity, url in pending_identities.items():
         db.execute('INSERT OR IGNORE INTO job_identities VALUES (?, ?, ?, ?)', (*identity, url))
     fresh = sorted(set(u for u in incoming if u not in known))
@@ -578,6 +608,14 @@ def main():
                         help='Create the database from schema.sql, migrations and the log')
     parser.add_argument('--rebuild', action='store_true',
                         help='Replay data/store/*.ndjson into the database')
+    parser.add_argument('--rescore', action='store_true',
+                        help='Recompute every stored relevance score, after a term-list edit')
+    parser.add_argument('--min-score', type=int, metavar='N',
+                        help='With --ranked, hide postings scoring below N')
+    parser.add_argument('--ranked', type=int, nargs='?', const=40, metavar='N',
+                        help='List the N most relevant open postings')
+    parser.add_argument('--since', metavar='DATE',
+                        help='With --ranked, only postings first seen on or after this date')
     parser.add_argument('--verify', action='store_true',
                         help='Check each day file against its manifest digest')
     parser.add_argument('--export', action='store_true',
@@ -610,6 +648,17 @@ def main():
                 write_manifest(db, f'{day}T00:00:00+00:00', [])
             export_state(db)
         print('exported:', len(urls), 'jobs,', len(closed), 'closures')
+    if args.rescore:
+        def tick(done):
+            print('  rescored %d postings' % done, flush=True)
+        print('rescored:', rescore(args.db, progress=tick))
+    if args.ranked:
+        for row in ranked(args.db, args.ranked, args.since, args.min_score):
+            score = '%3d' % row['confidence']
+            print('%-6s %-22s %-52s %s' % (
+                score, (row['company_name'] or '')[:22], (row['title'] or '')[:52],
+                (row['posted_at'] or row['posted_relative'] or row['first_seen'] or '')[:10]))
+            print('       %s' % row['url'])
     if args.verify:
         for day, state in verify():
             print(f'  {day}: {state}')
@@ -625,3 +674,50 @@ def summary(path=DB):
             'SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL AND posted_at IS NOT NULL'
         ).fetchone()[0]
         return {'open': open_jobs, 'total': total, 'with_posted_at': dated}
+
+
+def rescore(path=DB, batch=500, progress=None):
+    """Recompute every stored score. Run this after editing the term lists.
+
+    Read with one cursor and write with another, committing as it goes: pulling
+    every posting into memory first costs a couple of hundred megabytes of stored
+    descriptions, and a single transaction means an interrupted run leaves
+    nothing behind and shows nothing while it works.
+    """
+    done, pending = 0, []
+    with closing(connect(path)) as reader, closing(connect(path)) as writer:
+        cursor = reader.execute('SELECT url, title, raw FROM jobs')
+        while True:
+            rows = cursor.fetchmany(batch)
+            if not rows:
+                break
+            pending = [(score_row(r['title'], json.loads(r['raw'] or 'null')), r['url'])
+                       for r in rows]
+            writer.executemany('UPDATE jobs SET relevance=? WHERE url=?', pending)
+            writer.commit()
+            done += len(pending)
+            if progress:
+                progress(done)
+    return done
+
+
+def ranked(path=DB, limit=40, since=None, minimum=None):
+    """Open postings, most relevant first, from the score stored on each row."""
+    clauses, params = ['j.closed_at IS NULL'], []
+    if since:
+        clauses.append('j.first_seen >= ?')
+        params.append(since)
+    if minimum is not None:
+        clauses.append('COALESCE(j.relevance, 0) >= ?')
+        params.append(minimum)
+    params.append(limit or -1)
+    with closing(connect(path)) as db:
+        return [dict(r) for r in db.execute(
+            'SELECT j.url, COALESCE(c.name, j.company_key) AS company_name, j.title,'
+            ' j.location, j.provider_key, j.posted_at, j.posted_relative, j.first_seen,'
+            ' COALESCE(j.relevance, 0) AS confidence'
+            ' FROM jobs j LEFT JOIN companies c USING(company_key)'
+            ' WHERE ' + ' AND '.join(clauses) +
+            ' ORDER BY confidence DESC, j.posted_at DESC, j.first_seen DESC LIMIT ?', params)]
+
+

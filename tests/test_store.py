@@ -386,3 +386,112 @@ class EmptyBoardTests(unittest.TestCase):
         with patch('jobdisco.collector.time.sleep'):
             self.assertEqual(c.run(), ('complete', ''))
         self.assertEqual(len(c.jobs), 1)
+
+
+class RelevanceScoringTests(unittest.TestCase):
+    """Scoring only ever adds, and ranks what it keeps.
+
+    The point of a score rather than a yes/no is that a reader can start at the
+    top, so the ordering matters as much as the cutoff.
+    """
+
+    def setUp(self):
+        from jobdisco import jsearch
+        self.jsearch = jsearch
+        self.rules = jsearch.load_plan()[0]['filter']
+
+    def posting(self, title, **raw):
+        return {'title': title, 'raw': dict(raw)}
+
+    def test_absent_terms_never_deduct(self):
+        sparse = self.posting('Engineer', job_description='UVM testbench work.')
+        verbose = self.posting('Engineer', job_description='UVM testbench work. ' + 'x' * 4000)
+        # The same evidence scores the same however much other prose surrounds it.
+        self.assertEqual(self.jsearch.relevance(sparse, self.rules)[0],
+                         self.jsearch.relevance(verbose, self.rules)[0])
+
+    def test_more_trade_vocabulary_scores_higher(self):
+        one = self.posting('Engineer', job_description='Work with RTL.')
+        several = self.posting('Engineer', job_description='RTL, UVM, SystemVerilog, AXI.')
+        self.assertLess(self.jsearch.relevance(one, self.rules)[0],
+                        self.jsearch.relevance(several, self.rules)[0])
+
+    def test_enough_strong_terms_is_certain(self):
+        loaded = self.posting('Engineer', job_description=(
+            'RTL, UVM, SystemVerilog, AXI, testbench, tape-out, PrimeTime.'))
+        self.assertEqual(self.jsearch.relevance(loaded, self.rules)[0], 100)
+
+    def test_a_title_term_outweighs_the_same_term_in_the_body(self):
+        in_title = self.posting('RTL Engineer', job_description='General duties.')
+        in_body = self.posting('Engineer', job_description='General duties with RTL.')
+        self.assertGreater(self.jsearch.relevance(in_title, self.rules)[0],
+                           self.jsearch.relevance(in_body, self.rules)[0])
+
+    def test_vocabulary_counts_wherever_the_publisher_put_it(self):
+        # Some publishers put the substance in a skills array, not the prose.
+        in_skills = self.posting('Engineer', job_description='Responsibilities.',
+                                 skills=['RTL', 'SystemVerilog'])
+        self.assertGreater(self.jsearch.relevance(in_skills, self.rules)[0], 0)
+
+    def test_an_off_domain_posting_with_a_full_description_is_dropped(self):
+        pharma = self.posting('Validation - Engineer I / II',
+                              job_description='Batch records and clean room. ' * 200)
+        self.assertEqual(self.jsearch.rejection_reason(pharma, self.rules), 'off_domain')
+
+    def test_a_truncated_description_is_never_evidence_against(self):
+        excerpt = self.posting('Staff Engineer', job_description='See full posting.')
+        self.assertEqual(self.jsearch.rejection_reason(excerpt, self.rules), '')
+
+    def test_a_title_that_names_the_work_settles_it_either_way(self):
+        # Analog mixed-signal *verification* is wanted; an analog *designer* is not.
+        keep = self.posting('Analog Mixed-Signal Design Verification Engineer')
+        drop = self.posting('Analog IC Designer', skills=['RTL', 'SystemVerilog'])
+        self.assertEqual(self.jsearch.rejection_reason(keep, self.rules), '')
+        self.assertEqual(self.jsearch.rejection_reason(drop, self.rules), 'title_mismatch')
+
+
+class HardExclusionTests(unittest.TestCase):
+    """Exclusions answer whether the job is acceptable, not how relevant it is.
+
+    They are checked before everything else, so no amount of matching vocabulary
+    can bring back a posting that was declined on principle.
+    """
+
+    def setUp(self):
+        from jobdisco import jsearch
+        self.jsearch = jsearch
+        self.rules = jsearch.load_plan()[0]['filter']
+
+    def posting(self, title, **raw):
+        return {'title': title, 'raw': dict(raw)}
+
+    def test_a_management_title_is_declined_despite_matching_work(self):
+        # 'verification' is a keep pattern, which would otherwise settle this.
+        for title in ('Senior Manager, Design Verification',
+                      'Director of Silicon Engineering',
+                      'Head of Verification', 'VP of Hardware Engineering',
+                      'Distinguished Engineer, SoC Verification'):
+            with self.subTest(title=title):
+                posting = self.posting(title, skills=['RTL', 'UVM', 'SystemVerilog'])
+                self.assertEqual(self.jsearch.rejection_reason(posting, self.rules), 'excluded')
+
+    def test_a_defence_programme_is_declined_despite_matching_work(self):
+        for title in ('FPGA Engineer - Radar Systems',
+                      'RTL Design Engineer, Mission Systems',
+                      'Verification Engineer - Electronic Warfare',
+                      'ASIC Engineer, Missile Defense'):
+            with self.subTest(title=title):
+                posting = self.posting(title, skills=['RTL', 'UVM', 'SystemVerilog'])
+                self.assertEqual(self.jsearch.rejection_reason(posting, self.rules), 'excluded')
+
+    def test_an_excluded_posting_scores_zero(self):
+        # A stored ranking reads the number, so the number has to agree.
+        loaded = self.posting('Engineering Manager, RTL Design',
+                              job_description='RTL UVM SystemVerilog AXI testbench tape-out.')
+        self.assertEqual(self.jsearch.relevance(loaded, self.rules)[0], 0)
+
+    def test_individual_contributor_titles_are_untouched(self):
+        for title in ('RTL Design Engineer', 'Senior Design Verification Engineer',
+                      'Principal Engineer, SoC', 'Staff FPGA Engineer'):
+            with self.subTest(title=title):
+                self.assertFalse(self.jsearch.excluded(title, self.rules))

@@ -11,13 +11,115 @@ date_posted = "today"
 employment_types = ["FULLTIME", "INTERN"]
 
 [filter]
-# Only title text is examined. Unknown/mixed roles and missing experience stay.
+# Relevance scoring. Terms only ever add; nothing is deducted for a term being
+# absent, so a sparsely written posting is never punished for what it omits.
+#
+#   score      = sum over matched terms of (weight * position multiplier)
+#   confidence = 100 * score / (score + half_score)        0..100
+#
+# A posting carrying `certain_strong_hits` distinct strong terms skips the curve
+# and scores 100: that many trade-exclusive proper nouns in one posting is not
+# something another industry produces by accident.
+#
+# To edit: add the term to the list it belongs to. Entries are regular
+# expressions matched case-insensitively against the title and the description.
+# Bound a term with \b at both ends so it does not match inside a longer word.
+min_confidence = 25
+certain_strong_hits = 6
+half_score = 15
+strong_weight = 3
+common_weight = 1
+title_multiplier = 2
+# Below this length a description was truncated by the publisher rather than
+# genuinely silent, so its silence is not counted as evidence against a posting.
+min_description_chars = 1500
+
+# Hard exclusions, checked before anything else. These answer "would I take this
+# job at all", which no amount of relevance can overturn: a defence programme is
+# still a defence programme when the work is verification, and a director is
+# still a director. Everything below this point only decides how relevant a
+# posting is, never whether it is acceptable.
+#
+# Scanned against the title only. An employer name in this list still catches the
+# many postings that carry the programme or division in their title.
+exclude_title_patterns = [
+  # Defence and weapons programmes
+  '\bdefen[cs]e\b', '\bmilitary\b', '\bDoD\b', '\bDepartment\s+of\s+Defen[cs]e\b',
+  '\bwarfighter\b', '\bweapons?\b', '\bweapon\s+systems?\b', '\bmissile\b',
+  '\bmunitions?\b', '\bradar\b', '\belectronic\s+warfare\b', '\bEW\s+systems?\b',
+  '\bfire\s+control\b', '\btargeting\b', '\bguidance\s+systems?\b',
+  '\bcombat\s+systems?\b', '\btactical\s+systems?\b', '\bmission\s+systems?\b',
+  '\bdefen[cs]e\s+contractor\b', '\bgovernment\s+clearance\b',
+  '\bsecurity\s+clearance\b', '\bLockheed\s+Martin\b', '\bNorthrop\s+Grumman\b',
+  # Full names only: RTX is Raytheon's ticker and also NVIDIA's GPU line, so the
+  # abbreviation would decline GPU work.
+  '\bRaytheon\b', '\bGeneral\s+Dynamics\b', '\bBAE\s+Systems\b', '\bL3Harris\b',
+  '\bLeidos\b', '\bAnduril\b',
+  # Management: not an individual-contributor track
+  '\bdirector\b', '\bmanaging\s+director\b', '\bmanagers?\b',
+  '\bvice\s+president\b', '\bVP\b', '\bSVP\b', '\bEVP\b', '\bhead\s+of\b',
+  '\bchief\b', '\bC[TEIF]O\b',
+  # Levels above what an early-career application reaches
+  '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
+]
+
+# Trade-exclusive vocabulary: languages, methodology, protocols, EDA tools and
+# fabrication. Another industry has no reason to print these words.
+strong_terms = [
+  # Languages, methodology, coverage
+  '\bUVM\b', '\bSystemVerilog\b', '\bVerilog\b', '\bVHDL\b', '\bSVA\b',
+  '\bRTL\b', '\bASIC\b', '\bFPGA\b', '\bSoC\b', '\bVLSI\b',
+  '\btestbench\b', '\bnetlist\b', '\bconstrained[- ]random\b', '\bassertion',
+  '\bcoverage\s+closure\b', '\bfunctional\s+coverage\b', '\bregression\s+suite\b',
+  '\bwaveform\b', '\bformal\s+verification\b', '\bUPF\b', '\bCDC\b', '\bRDC\b',
+  # Test and DFT
+  '\bDFT\b', '\bATPG\b', '\bscan\s+chain\b', '\bMBIST\b', '\bJTAG\b', '\bTessent\b',
+  # Interfaces and IP
+  '\bAXI\b', '\bAHB\b', '\bAPB\b', '\bAMBA\b', '\bPCIe\b', '\bCXL\b', '\bUCIe\b',
+  '\bDDR\d?\b', '\bLPDDR\b', '\bHBM\b', '\bSerDes\b', '\bMIPI\b', '\bNoC\b',
+  # Emulation and prototyping
+  '\bemulation\b', '\bPalladium\b', '\bZeBu\b', '\bVeloce\b', '\bFPGA\s+prototyping\b',
+  # Physical implementation
+  '\bsynthesis\b', '\btiming\s+closure\b', '\bSTA\b', '\bfloorplan',
+  '\bplace\s*(?:and|&)\s*route\b', '\bclock\s+tree\b', '\bPPA\b',
+  '\bstandard\s+cell\b', '\bLEF\b', '\bDEF\b',
+  # EDA vendors and tools
+  '\bCadence\b', '\bSynopsys\b', '\bSiemens\s+EDA\b', '\bMentor\s+Graphics\b',
+  '\bVCS\b', '\bXcelium\b', '\bQuesta\b', '\bVivado\b', '\bQuartus\b',
+  '\bSpyGlass\b', '\bPrimeTime\b', '\bInnovus\b', '\bGenus\b',
+  '\bDesign\s+Compiler\b', '\bVerdi\b', '\bConformal\b',
+  # Silicon and fabrication
+  '\bsilicon\b', '\bpre-?silicon\b', '\bpost-?silicon\b', '\btape-?out\b',
+  '\bbring-?up\b', '\bwafer\b', '\bfoundry\b', '\bTSMC\b',
+]
+
+# Relevant but ordinary English. Worth a point, never proof on its own.
+common_terms = [
+  '\bverification\b', '\bvalidation\b', '\bdigital\s+design\b', '\bhardware\b',
+  '\bmicroarchitecture\b', '\barchitecture\b', '\bprocessor\b', '\bCPU\b',
+  '\bGPU\b', '\bNPU\b', '\baccelerator\b', '\bsemiconductor\b', '\bchip\b',
+  '\bintegrated\s+circuit\b', '\bembedded\b', '\blow\s+power\b', '\bdebug\b',
+  '\bsimulation\b',
+]
+
+# Titles that settle the question on their own, before any scoring runs.
+keep_title_patterns = [
+  '\bverification\b', '\brtl\b', '\bfpga\b', '\bdigital\b', '\bformal\b',
+  '\bdft\b', '\basic\b', '\bvlsi\b', '\bsoc\b', '\bphysical\s+design\b',
+  '\bsilicon\b',
+]
+
+# Applied only when confidence falls below min_confidence, so strong positive
+# evidence always outranks a title that merely reads the wrong way.
 reject_title_patterns = [
   '\banalog(?:\s+ic)?\b', '\brf(?:ic)?\b', '\bpcb\b', '\bboard\s+design\b',
   '\bpower\s+electronics\b', '\bprocess\s+engineer\b',
-  '\bmanufacturing\s+engineer\b', '\byield\s+engineer\b'
+  '\bmanufacturing\s+engineer\b', '\byield\s+engineer\b',
+  '\bsales\b', '\bmarketing\b', '\brecruit', '\bquality\s+engineer\b',
+  '\btechnician\b', '\bfield\s+application\b', '\bclinical\b',
+  '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
+  '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
 ]
-keep_title_patterns = ['\bverification\b', '\brtl\b', '\bfpga\b', '\bdigital\b', '\bformal\b', '\bdft\b']
 
 [[query]]
 query = "Design Verification Engineer"
