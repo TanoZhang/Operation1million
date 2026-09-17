@@ -204,12 +204,16 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                    last_seen=excluded.last_seen,
                    closed_at=NULL,
                    raw=excluded.raw,
-                   relevance=excluded.relevance''',
+                   relevance=COALESCE(jobs.relevance, excluded.relevance)''',
             (url, row['company_key'], row['provider_key'], row['title'],
              row.get('location') or '', row.get('source_job_id'), row.get('posted_at'),
              posted_relative, lastmod, stamp, stamp,
              json.dumps(raw, ensure_ascii=True, default=str),
-             score_row(row['title'], raw)))
+             # Score a posting once, when it first arrives. Every pass re-reads the
+             # whole board, so re-scoring what has not changed would spend a minute
+             # a day recomputing the same numbers. `job-store --rescore` covers the
+             # case that does change them: an edit to the term lists.
+             score_row(row['title'], raw) if url not in known else None))
     for identity, url in pending_identities.items():
         db.execute('INSERT OR IGNORE INTO job_identities VALUES (?, ?, ?, ?)', (*identity, url))
     fresh = sorted(set(u for u in incoming if u not in known))

@@ -495,3 +495,46 @@ class HardExclusionTests(unittest.TestCase):
                       'Principal Engineer, SoC', 'Staff FPGA Engineer'):
             with self.subTest(title=title):
                 self.assertFalse(self.jsearch.excluded(title, self.rules))
+
+
+class ScoreOnceTests(unittest.TestCase):
+    """A posting is scored when it arrives, not on every pass that sees it.
+
+    Every pass re-reads the whole board, so re-scoring unchanged postings would
+    spend a minute a day recomputing the same numbers.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+        self.db = store.connect(self.db_path)
+        self.addCleanup(self.db.close)
+
+    def silicon(self, url, title='RTL Design Engineer'):
+        return dict(row(url, title=title),
+                    raw={'job_description': 'UVM SystemVerilog AXI testbench tape-out.'})
+
+    def stored(self, url):
+        return self.db.execute('SELECT relevance FROM jobs WHERE url=?', (url,)).fetchone()[0]
+
+    def test_a_new_posting_is_scored_and_a_repeat_pass_keeps_that_score(self):
+        store.record_source(self.db, SOURCE, [self.silicon('https://x/1')], 'complete', 'full', 1)
+        scored = self.stored('https://x/1')
+        self.assertGreater(scored, 0)
+        with patch.object(store, 'score_row', side_effect=AssertionError('rescored')) as scorer:
+            store.record_source(self.db, SOURCE, [self.silicon('https://x/1')],
+                                'complete', 'full', 1)
+            scorer.assert_not_called()
+        self.assertEqual(self.stored('https://x/1'), scored)
+
+    def test_a_posting_arriving_later_is_still_scored(self):
+        store.record_source(self.db, SOURCE, [self.silicon('https://x/1')], 'complete', 'full', 1)
+        store.record_source(self.db, SOURCE, [self.silicon('https://x/1'),
+                                              self.silicon('https://x/2')],
+                            'complete', 'full', 1)
+        self.assertGreater(self.stored('https://x/2'), 0)
