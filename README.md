@@ -15,7 +15,8 @@ values locally; never commit credentials.
 ## Run
 
 Read [Collection Rules](docs/collection-rules.md) for request intervals,
-cooldowns, direct source decisions, and the daily incremental design.
+cooldowns, direct source decisions, and the daily incremental design. Read
+[GitHub Actions](docs/github-actions.md) before enabling hosted runs.
 
 ```powershell
 .\.venv\Scripts\python.exe -m jobdisco.collector

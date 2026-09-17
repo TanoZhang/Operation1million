@@ -46,7 +46,8 @@ beyond conceptual documentation requires a new scope decision from the user.
 
 The implementation and existing history remain in the private repository.
 `JSEARCH_API_KEY` is an Actions Secret in that repository. The public repository
-is documentation only. Daily hosted discovery is not enabled by this change.
+is documentation only. Daily hosted discovery is not enabled yet; the required
+restore, checkpoint, and private-output workflow is documented separately.
 
 ## References
 
