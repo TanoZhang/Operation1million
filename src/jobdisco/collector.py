@@ -175,6 +175,23 @@ def reported_total(provider, data):
     return data.get('total') or data.get('totalFound') or data.get('hits')
 
 
+def html_job_id(href, provider):
+    """The requisition a board row points at, not the words in its URL.
+
+    The last path segment is usually the identifier, but Apple puts the slug
+    there and the requisition before it: one role advertised at forty stores
+    shares a slug while each store has its own requisition. Taking the slug made
+    those forty postings one identity, and the store then treated the other
+    thirty-nine as withdrawn.
+    """
+    path = urlsplit(href).path.rstrip('/')
+    if provider == 'apple_jobs':
+        found = re.search(r'/details/([0-9][\w-]*)', path)
+        if found:
+            return found.group(1)
+    return path.split('/')[-1]
+
+
 def html_items(text, base, provider):
     soup = BeautifulSoup(text, 'html.parser')
     structured = list(jsonld(soup))
@@ -206,7 +223,7 @@ def html_items(text, base, provider):
                 continue
             loc = row.select_one('[class*=location], [class*=Location]')
             d = row.select_one('[class*=posted-date], [class*=date-posted]')
-            items.append({'title': title, 'url': urljoin(base, href), 'location': loc.get_text(' ', strip=True) if loc else None, 'source_job_id': urlsplit(href).path.rstrip('/').split('/')[-1], 'posted_text': d.get_text(' ', strip=True) if d else None, 'html': str(row)})
+            items.append({'title': title, 'url': urljoin(base, href), 'location': loc.get_text(' ', strip=True) if loc else None, 'source_job_id': html_job_id(href, provider), 'posted_text': d.get_text(' ', strip=True) if d else None, 'html': str(row)})
     return items, soup
 
 

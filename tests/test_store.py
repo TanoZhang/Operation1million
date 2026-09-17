@@ -538,3 +538,33 @@ class ScoreOnceTests(unittest.TestCase):
                                               self.silicon('https://x/2')],
                             'complete', 'full', 1)
         self.assertGreater(self.stored('https://x/2'), 0)
+
+
+class BoardRowIdentityTests(unittest.TestCase):
+    """A board row's identity must be the requisition, not the words in its URL.
+
+    Apple advertises one role at many stores: the slug is shared and the
+    requisition differs. Identifying by slug merged those postings into one and
+    the store then retired the rest as withdrawn -- 2,155 live Apple postings in
+    a single pass.
+    """
+
+    def test_apple_rows_are_identified_by_requisition_not_slug(self):
+        from jobdisco.collector import html_job_id
+        same_slug = [
+            'https://jobs.apple.com/en-us/details/114438158/us-manager',
+            'https://jobs.apple.com/en-us/details/200683913/us-manager',
+            '/en-us/details/200684352-0836/us-manager?team=RETAIL',
+        ]
+        ids = [html_job_id(u, 'apple_jobs') for u in same_slug]
+        self.assertEqual(ids, ['114438158', '200683913', '200684352-0836'])
+        self.assertEqual(len(set(ids)), len(ids))
+
+    def test_other_boards_keep_the_trailing_segment(self):
+        from jobdisco.collector import html_job_id
+        self.assertEqual(
+            html_job_id('https://jobs.teradyne.com/job/North-Reading-Eng/1310296400/', 'jobs2web'),
+            '1310296400')
+        self.assertEqual(
+            html_job_id('https://careers.arrow.com/us/en/job/R245154/Design-Verification', 'jobs2web'),
+            'Design-Verification')
