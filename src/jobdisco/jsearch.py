@@ -1,5 +1,5 @@
 """Fixed JSearch discovery plans, transport, and post-normalization filtering."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import math
 import os
@@ -45,6 +45,11 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
         raise ValueError('Invalid daily page-credit budget')
     if type(config.get('billing_cycle_start_day', 1)) is not int or not 1 <= config.get('billing_cycle_start_day', 1) <= 31:
         raise ValueError('Invalid billing cycle start day')
+    # How many pages one call may ask for. Narrower calls cost the same credits
+    # and lose less when the provider times out.
+    config.setdefault('max_pages_per_call', 10)
+    if type(config['max_pages_per_call']) is not int or not 1 <= config['max_pages_per_call'] <= 20:
+        raise ValueError('max_pages_per_call must be between 1 and 20')
     config.setdefault('country', 'us')
     config.setdefault('date_posted', 'today')
     config.setdefault('employment_types', ['FULLTIME', 'INTERN'])
@@ -123,6 +128,24 @@ class Client:
         self.session.close()
 
     def fetch(self, query):
+        """Retrieve a query's pages, splitting a wide one across calls.
+
+        Asking for too many pages at once times out at the provider, and a
+        failed call is charged in full, so the widest asks were also the most
+        expensive to lose. Measured over 52 queries: every call of 10 pages or
+        fewer succeeded, while 4 of the 7 asking for 11 to 18 returned HTTP 504
+        and took 61 page credits with them. The provider fetches the same pages
+        either way; only how much one failure costs changes.
+        """
+        width = max(1, int(self.settings.get('max_pages_per_call', 10)))
+        items, done = [], 0
+        while done < query.pages:
+            batch = min(query.pages - done, width)
+            items.extend(self.fetch_batch(replace(query, pages=batch), first_page=done + 1))
+            done += batch
+        return items
+
+    def fetch_batch(self, query, first_page=1):
         key = os.getenv('JSEARCH_API_KEY')
         if not key:
             raise SearchFailure('JSEARCH_API_KEY is missing; no request sent', stop=True)
@@ -132,6 +155,8 @@ class Client:
         params = {'query': query.query, 'num_pages': query.pages,
                   'country': self.settings['country'], 'date_posted': self.settings['date_posted'],
                   'employment_types': ','.join(self.settings['employment_types'])}
+        if first_page > 1:
+            params['page'] = first_page
         url = urlunsplit(endpoint._replace(query=urlencode(params), fragment=''))
         response = None
         try:

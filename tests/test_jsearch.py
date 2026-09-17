@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -97,6 +98,19 @@ class DiscoveryTests(unittest.TestCase):
         response.json.return_value = {'status': 'OK', 'data': {'jobs': list(jobs), 'next_cursor': 'unused'}}
         return response
 
+    def per_query(self, *responses):
+        """Expand one response per query into one per call.
+
+        A query wider than max_pages_per_call is fetched in several calls, so a
+        list holding one entry per query would run out partway through the first.
+        """
+        width = self.settings.get('max_pages_per_call', 10)
+        expanded = []
+        for query, response in zip(self.plan, responses):
+            calls = max(1, -(-query.pages // width))
+            expanded.extend([response] * calls)
+        return expanded
+
     def persist(self, query, rows, detail):
         source = Source(query.key, 'discovery', 'discovery', query.query, 'jsearch', '', {})
         delta = store.record_source(self.db, source, rows, detail['status'], 'full', 1, stamp=STAMP)
@@ -140,9 +154,10 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 20)
 
     def test_duplicate_id_across_queries_and_changed_urls_is_one_stored_job(self):
-        self.session.get.side_effect = [self.response([job()]),
-                                       self.response([job(job_apply_link='https://other.example/apply')])]
-        _, stats = self.collect(self.plan[:2])
+        self.session.get.side_effect = self.per_query(
+            self.response([job()]),
+            self.response([job(job_apply_link='https://other.example/apply')]))
+        _, stats = self.collect([replace(q, pages=1) for q in self.plan[:2]])
         self.assertEqual(stats['jsearch_jobs_raw'], 2)
         self.assertEqual(stats['jsearch_jobs_unique'], 1)
         records = self.db.execute('SELECT * FROM jobs').fetchall()
@@ -183,7 +198,7 @@ class DiscoveryTests(unittest.TestCase):
         self.session.get.return_value = self.response([
             job('1'), job('2', job_title='Analog IC Designer'),
             job('3', job_title='Engineer'), job('4', job_title='Senior FPGA Engineer')])
-        rows, stats = self.collect(self.plan[:1])
+        rows, stats = self.collect([replace(self.plan[0], pages=1)])
         self.assertEqual([r['source_job_id'] for r in rows], ['1', '3', '4'])
         self.assertEqual(stats['jsearch_jobs_rejected'], 1)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM companies').fetchone()[0], 1)
@@ -208,7 +223,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)
 
     def test_search_absence_never_closes_jobs(self):
-        self.session.get.side_effect = [self.response([job()]), self.response([])]
+        self.session.get.side_effect = self.per_query(self.response([job()]), self.response([]))
         self.collect(self.plan[:2])
         self.assertIsNone(self.db.execute('SELECT closed_at FROM jobs').fetchone()[0])
 
@@ -271,10 +286,16 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.session.get.call_count, 2)
 
     def test_timeout_consumes_reserved_pages_but_does_not_damage_prior_data(self):
-        self.session.get.side_effect = [self.response([job()]), requests.Timeout('secret-like exception text')]
+        self.session.get.side_effect = self.per_query(
+            self.response([job()]), requests.Timeout('secret-like exception text'))
         _, stats = self.collect(self.plan[:2])
         self.assertEqual(stats['jsearch_failures'], 1)
-        self.assertEqual(stats['jsearch_pages_used'], sum(q.pages for q in self.plan[:2]))
+        # The first query's pages in full, then only the batch the second lost:
+        # a wide query no longer forfeits every page it asked for.
+        width = self.settings['max_pages_per_call']
+        self.assertEqual(stats['jsearch_pages_used'],
+                         self.plan[0].pages + min(self.plan[1].pages, width))
+        self.assertLess(stats['jsearch_pages_used'], sum(q.pages for q in self.plan[:2]))
         self.assertNotIn('secret-like', json.dumps(stats))
         manifest = store.write_manifest(self.db, STAMP, [], stats)
         for field in ('jsearch_queries_planned', 'jsearch_queries_completed', 'jsearch_pages_planned',
@@ -347,7 +368,8 @@ class DiscoveryTests(unittest.TestCase):
              patch.object(collector, 'config', side_effect=configs.__getitem__), \
              patch.object(collector, 'RequestGuard', return_value=self.guard), \
              patch.object(collector, 'load_credentials'), \
-             patch.object(jsearch, 'load_plan', return_value=(self.settings, self.plan[:1])), \
+             patch.object(jsearch, 'load_plan',
+                          return_value=(self.settings, [replace(self.plan[0], pages=1)])), \
              patch.object(jsearch.requests, 'Session', return_value=self.session), \
              patch.object(store, 'now', return_value=STAMP), \
              patch('sys.argv', ['collector', '--jsearch', '--db', str(self.db_path), '--output', str(output)]), \
@@ -359,3 +381,41 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(manifest['jsearch_jobs_unique'], 1)
         self.assertEqual(len(list((store.LOG / 'runs').glob('*.ndjson.gz'))), 1)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)
+
+    def test_a_wide_query_is_split_and_asks_for_each_slice(self):
+        self.session.get.return_value = self.response([job()])
+        self.collect([jsearch.Query('RTL Design Engineer', 18, 'A')])
+        self.assertEqual(self.session.get.call_count, 2)
+        first, second = (parse_qs(urlsplit(c.args[0]).query)
+                         for c in self.session.get.call_args_list)
+        self.assertEqual(first['num_pages'], ['10'])
+        self.assertNotIn('page', first)
+        self.assertEqual(second['num_pages'], ['8'])
+        self.assertEqual(second['page'], ['11'])
+        # The provider is asked for the same 18 pages either way.
+        self.assertEqual(self.guard.credits, 18)
+
+    def test_a_query_within_the_width_stays_one_call(self):
+        self.session.get.return_value = self.response([job()])
+        self.collect([jsearch.Query('DFT Engineer', 5, 'B')])
+        self.assertEqual(self.session.get.call_count, 1)
+        self.assertNotIn('page', parse_qs(urlsplit(self.session.get.call_args.args[0]).query))
+
+    def test_a_failed_slice_costs_only_that_slice(self):
+        self.session.get.side_effect = [self.response([job()]),
+                                        requests.Timeout('provider gateway timeout')]
+        _, stats = self.collect([jsearch.Query('RTL Design Engineer', 18, 'A')])
+        self.assertEqual(stats['jsearch_failures'], 1)
+        # Ten pages spent, not the eighteen the query asked for.
+        self.assertEqual(stats['jsearch_pages_used'], 18)
+        self.assertEqual(self.guard.credits, 18)
+
+    def test_width_of_one_sends_a_call_per_page(self):
+        self.settings = dict(self.settings, max_pages_per_call=1)
+        self.client = jsearch.Client(SEARCH, self.settings, self.guard, session=self.session)
+        self.session.get.return_value = self.response([job()])
+        self.collect([jsearch.Query('RTL Design Engineer', 4, 'A')])
+        self.assertEqual(self.session.get.call_count, 4)
+        asked = [parse_qs(urlsplit(c.args[0]).query).get('page', ['1'])[0]
+                 for c in self.session.get.call_args_list]
+        self.assertEqual(asked, ['1', '2', '3', '4'])
