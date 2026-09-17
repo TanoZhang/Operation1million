@@ -5,9 +5,11 @@ import json
 import re
 import sqlite3
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from .paths import ROOT, DB, RAW
+from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds
 from typing import Any
 from urllib.parse import urlencode
 
@@ -17,10 +19,7 @@ import requests
 DB_PATH = DB
 OUT_CSV = RAW / "source_validation_results.csv"
 
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
-)
+USER_AGENT = "JobSourceCollector/1.0"
 
 
 @dataclass
@@ -272,6 +271,9 @@ def validate(source: Source, session: requests.Session) -> dict[str, Any]:
         "evidence": "",
     }
     try:
+        policy = SourcePolicy(source, 1.0)
+        policy.check()
+        time.sleep(policy.interval)
         if method == "POST":
             response = session.post(url, json=payload, timeout=25)
         else:
@@ -279,6 +281,11 @@ def validate(source: Source, session: requests.Session) -> dict[str, Any]:
         result["status_code"] = response.status_code
         content_type = response.headers.get("content-type", "")
         text = response.text or ""
+        server_wait = retry_after_seconds(response.headers.get('Retry-After')) or 0
+        if response.status_code in {429, 503}:
+            policy.pause(f'HTTP {response.status_code} during validation', max(900, server_wait))
+        if response.status_code in {401, 403, 405}:
+            policy.pause(f'HTTP {response.status_code} access refused; review before retrying', max(86400, server_wait))
         if response.status_code >= 400:
             result["evidence"] = text[:180].replace("\n", " ")
             return result
@@ -339,6 +346,12 @@ def validate(source: Source, session: requests.Session) -> dict[str, Any]:
             result["evidence"] = evidence
         else:
             result["evidence"] = evidence
+            if evidence.startswith('block/challenge signal:'):
+                policy.pause(evidence, 86400)
+        return result
+    except SourcePaused as exc:
+        result['verdict'] = 'paused'
+        result['evidence'] = str(exc)
         return result
     except Exception as exc:  # noqa: BLE001 - CLI validation should preserve source-level errors.
         result["evidence"] = f"{type(exc).__name__}: {exc}"

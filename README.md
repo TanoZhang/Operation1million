@@ -14,6 +14,9 @@ values locally; never commit credentials.
 
 ## Run
 
+Read [Collection Rules](docs/collection-rules.md) for request intervals,
+cooldowns, direct source decisions, and the daily incremental design.
+
 ```powershell
 .\.venv\Scripts\python.exe -m jobdisco.collector
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v

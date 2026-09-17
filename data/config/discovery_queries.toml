@@ -3,20 +3,9 @@
 
 version = 1
 
+# All active companies now use direct sources. Paid fallback is opt-in.
+company_fallbacks = []
+
 [defaults]
 location = "United States"
 exclude_terms = ["clearance", "TS/SCI", "secret clearance"]
-
-# Direct source fallbacks: do not bypass CAPTCHA/Human Verification. Combine each
-# employer alias with the tiered keyword queries above and send through JSearch.
-[[company_fallbacks]]
-company_key = "rambus"
-provider = "jsearch"
-employer_aliases = ["Rambus", "Rambus.com"]
-reason = "iCIMS returned 405 Human Verification for search and sitemap paths."
-
-[[company_fallbacks]]
-company_key = "ventana_micro"
-provider = "jsearch"
-employer_aliases = ["Ventana Micro Systems"]
-reason = "Jobvite tenant no longer exists; jobs.jobvite.com/ventanamicro redirects to Jobvite support with ?invalid=1 and ventanamicro.com does not respond."

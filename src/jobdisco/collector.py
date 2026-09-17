@@ -26,6 +26,7 @@ except ImportError:
 from .validate_sources import Source, request_for, json_items
 from .paths import ROOT, CONFIG, DB, RUNS
 from .jsearch_access import RequestGuard, QuotaExhausted, load_credentials
+from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, STATE as SOURCE_STATE
 
 FIELDS = ['company_key', 'company_name', 'provider_key', 'title', 'location', 'url', 'source_job_id', 'posted_at', 'raw']
 JSON_PROVIDERS = {'workday', 'greenhouse', 'ashby', 'oracle_cloud', 'smartrecruiters', 'phenom', 'amazon_jobs', 'eightfold', 'amd_careers'}
@@ -178,29 +179,39 @@ class Collector:
         self.jobs, self.seen = [], set()
         self.rejected = []
         self.requests = 0
+        self.policy = SourcePolicy(source, args.delay, getattr(args, 'source_state', SOURCE_STATE))
 
     def fetch(self, url, method='GET', payload=None):
+        self.policy.check()
         if self.requests:
-            time.sleep(self.args.delay)
-        # Some boards throttle by IP rather than blocking; back off and retry so a
-        # burst does not look like abuse and cost us the whole source.
+            time.sleep(self.policy.interval)
+        # Stop on throttling. Only transient service errors receive bounded retries.
         for attempt in range(self.args.retries + 1):
+            self.policy.check()
             self.requests += 1
             r = self.session.request(method, url, json=payload, timeout=self.args.timeout)
-            if r.status_code not in {429, 503} or attempt == self.args.retries:
+            server_wait = retry_after_seconds(r.headers.get('Retry-After'))
+            if r.status_code == 429:
+                r.close()
+                self.policy.pause('HTTP 429 rate limit; source stopped for this run', max(900, server_wait or 0))
+            if r.status_code in {401, 403, 405}:
+                status = r.status_code
+                r.close()
+                self.policy.pause(f'HTTP {status} access refused; review before retrying', max(86400, server_wait or 0))
+            if r.status_code != 503:
                 break
-            wait = r.headers.get('Retry-After')
-            try:
-                wait = float(wait)
-            except (TypeError, ValueError):
-                wait = self.args.delay * 4 * (attempt + 1)
-            time.sleep(min(wait, 30))
+            wait = max(self.policy.interval, 5 * 2 ** attempt, server_wait or 0)
+            r.close()
+            if attempt == self.args.retries or wait > 60:
+                self.policy.pause('HTTP 503 service unavailable; deferred', max(900, wait))
+            time.sleep(wait)
         r.raise_for_status()
         if 'json' not in r.headers.get('content-type', '') and 'xml' not in r.headers.get('content-type', ''):
             soup = BeautifulSoup(r.text, 'html.parser')
             visible = soup.get_text(' ', strip=True).lower()
             if any(t in visible for t in ['human verification', 'verify you are human', 'enable javascript and cookies to continue', 'access denied']) or soup.select_one('#challenge-form, #cf-challenge-running'):
-                raise ValueError('Human verification/challenge: use JSearch fallback')
+                r.close()
+                self.policy.pause('Human verification/challenge; review before retrying', 86400)
         return r
 
     def add(self, items):
@@ -377,6 +388,8 @@ class Collector:
             if self.source.provider_key in {'akeana_careers', 'renesas_careers'}:
                 return self.collect_sitemap()
             return self.collect_html()
+        except SourcePaused as exc:
+            return 'paused', str(exc)
         except Exception as exc:
             return ('partial' if self.jobs else 'failed'), f'{type(exc).__name__}: {exc}'
         finally:
@@ -460,14 +473,14 @@ def main():
     p.add_argument('--db', type=Path, default=DB)
     p.add_argument('--output', type=Path, default=None, help='Run directory; defaults to runs/<UTC timestamp>')
     p.add_argument('--company', action='append', help='Repeat to select company keys')
-    p.add_argument('--max-pages', type=int, default=100)
+    p.add_argument('--max-pages', type=int, default=400)
     p.add_argument('--max-jobs', type=int, default=10000)
-    p.add_argument('--workers', type=int, default=4)
+    p.add_argument('--workers', type=int, default=1)
     p.add_argument('--timeout', type=float, default=25)
-    p.add_argument('--delay', type=float, default=0.15)
-    p.add_argument('--retries', type=int, default=3, help='Retries for 429/503 throttling responses')
+    p.add_argument('--delay', type=float, default=1.0, help='Minimum delay; Eightfold uses at least 2.5s and Microsoft 3s')
+    p.add_argument('--retries', type=int, default=3, help='Retries for 503 only; 429 pauses the source immediately')
     p.add_argument('--fallback-queries', type=int, default=1)
-    p.add_argument('--jsearch-budget', type=int, default=30)
+    p.add_argument('--jsearch-budget', type=int, default=0, help='Paid fallback attempts; disabled by default')
     p.add_argument('--jsearch-timeout', type=float, default=90,
                    help='JSearch read timeout; its Google-for-Jobs backend routinely needs 30-60s')
     args = p.parse_args()
@@ -480,8 +493,11 @@ def main():
         if unknown:
             p.error(f'Unknown company keys: {sorted(unknown)}')
         sources = [s for s in sources if s.company_key in args.company]
+    if any(s.company_key == 'microsoft' for s in sources) and args.workers != 1:
+        print('Microsoft selected: using one worker to avoid concurrent collection.', flush=True)
+        args.workers = 1
     discovery = config('discovery_queries.toml')
-    fallbacks = {r['company_key']: r for r in discovery['company_fallbacks']}
+    fallbacks = {r['company_key']: r for r in discovery.get('company_fallbacks', [])}
     search = config('sources_search.toml')['search']['jsearch']
     budget = [min(args.jsearch_budget, search['limits']['requests']['requests_per_day'])]
     request_guard = RequestGuard()
@@ -509,7 +525,7 @@ def main():
             # merely truncated. 'partial' usually means a cap was reached, and
             # spending a request per capped company exhausts the daily quota
             # before the genuinely blocked companies are reached.
-            if status == 'fallback' or not rows:
+            if budget[0] > 0 and (status == 'fallback' or (status == 'failed' and not rows)):
                 aliases = fallbacks.get(source.company_key, {}).get('employer_aliases', [source.company_name])
                 more, fs, fr = fallback(source, aliases, args, budget, search)
                 urls = {row['url'] for row in rows}

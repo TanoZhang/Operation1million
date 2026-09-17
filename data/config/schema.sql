@@ -92,7 +92,6 @@ VALUES
     ('nxp', 'NXP USA, Inc.'),
     ('nvidia', 'NVIDIA'),
     ('qualcomm', 'QUALCOMM Incorporated'),
-    ('rambus', 'Rambus Inc.'),
     ('renesas', 'Renesas Electronics America, Inc.'),
     ('rivos', 'Rivos Inc.'),
     ('samsung_semiconductor', 'Samsung Semiconductor, Inc.'),
@@ -103,10 +102,13 @@ VALUES
     ('synopsys', 'Synopsys, Inc.'),
     ('tenstorrent', 'Tenstorrent Inc.'),
     ('teradyne', 'Teradyne, Inc.'),
-    ('texas_instruments', 'Texas Instruments Incorporated'),
-    ('ventana_micro', 'Ventana Micro Systems Inc.')
+    ('texas_instruments', 'Texas Instruments Incorporated')
 ON CONFLICT(company_key) DO UPDATE SET
     name = excluded.name;
+
+-- Older catalogs may lack cascading foreign keys on company_sources.
+DELETE FROM company_sources WHERE company_key IN ('rambus', 'ventana_micro');
+DELETE FROM company_direct_sources WHERE company_key IN ('rambus', 'ventana_micro');
 
 DELETE FROM companies
 WHERE company_key IN (
@@ -129,7 +131,9 @@ WHERE company_key IN (
     'psiquantum',
     'analog_devices',
     'celestica',
-    'tsmc'
+    'tsmc',
+    'rambus',
+    'ventana_micro'
 );
 
 DELETE FROM company_sources
@@ -153,7 +157,7 @@ INSERT INTO company_sources (
 ) VALUES (
     'icims:careers-amd',
     'amd',
-    'icims',
+    'amd_careers',
     'careers-amd',
     'https://careers.amd.com/api/jobs?sortBy=relevance&descending=false&internal=false',
     '{"portal_subdomain":"careers-amd"}',
@@ -316,7 +320,7 @@ INSERT INTO company_sources (
     'eightfold',
     'careers.micron.com',
     'https://careers.micron.com/api/pcsx/search?domain=micron.com&query=&location=',
-    '{"career_domain":"careers.micron.com"}',
+    '{"career_domain":"careers.micron.com","pcsx_domain":"micron.com"}',
     1,
     'pending'
 ),
@@ -346,17 +350,7 @@ INSERT INTO company_sources (
     'eightfold',
     'careers.qualcomm.com',
     'https://careers.qualcomm.com/api/pcsx/search?domain=qualcomm.com&query=&location=',
-    '{"career_domain":"careers.qualcomm.com"}',
-    1,
-    'pending'
-),
-(
-    'icims:careers-rambus',
-    'rambus',
-    'icims',
-    'careers-rambus',
-    'https://careers-rambus.icims.com/jobs/search?ss=1',
-    '{"portal_subdomain":"careers-rambus"}',
+    '{"career_domain":"careers.qualcomm.com","pcsx_domain":"qualcomm.com"}',
     1,
     'pending'
 ),
@@ -439,16 +433,6 @@ INSERT INTO company_sources (
     '{"career_domain":"jobs.teradyne.com","query":"","q2":"","title":"","location":"","department":"","facility":""}',
     1,
     'pending'
-),
-(
-    'jobvite:ventanamicro',
-    'ventana_micro',
-    'jobvite',
-    'ventanamicro',
-    'https://jobs.jobvite.com/ventanamicro/',
-    '{"company_slug":"ventanamicro"}',
-    1,
-    'pending'
 )
 ON CONFLICT(source_instance_id) DO UPDATE SET
     company_key = excluded.company_key,
@@ -519,7 +503,7 @@ INSERT INTO company_direct_sources (
     'https://apply.careers.microsoft.com/careers?query={keyword}&location={location}&start={start}',
     'query',
     'location',
-    '{"career_domain":"apply.careers.microsoft.com","start":"0"}',
+    '{"career_domain":"apply.careers.microsoft.com","pcsx_domain":"microsoft.com","start":"0"}',
     1,
     'pending'
 ),

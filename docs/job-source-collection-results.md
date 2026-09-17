@@ -4,7 +4,8 @@ Collected 33,113 records from 52 source companies. 41 companies returned jobs.
 
 This is a historical snapshot from before Advantest, MaxLinear, OMNIVISION, and
 the later removal of Achronix, Akeana, Analog Devices, Celestica, Infineon, Microchip,
-Nexperia, Nokia, onsemi, PsiQuantum, Semtech, and TSMC from the active catalog.
+Nexperia, Nokia, onsemi, PsiQuantum, Semtech, TSMC, Rambus, and Ventana Micro
+from the active catalog.
 Its counts and company table are retained as evidence and are not the current
 active-company count.
 

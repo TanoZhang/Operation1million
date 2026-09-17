@@ -2,7 +2,7 @@
 # ATS connectors never use discovery queries. Each company instance is fetched
 # as a complete public board, subject to provider pagination and local caps.
 
-version = 13
+version = 14
 
 [defaults]
 query_mode = "company_board"
@@ -739,25 +739,25 @@ scope = "response"
 max_items_per_response = 1000
 
 [ats.eightfold]
-name = "Eightfold Career Site"
-access_method = "public_career_portal"
+name = "Eightfold PCSX Job List"
+access_method = "public_job_list_json"
 auth = "none"
-endpoint_template = "https://{career_domain}/careers"
-required_instance_fields = ["career_domain"]
+endpoint_template = "https://{career_domain}/api/pcsx/search?domain={pcsx_domain}&start=0&num=10"
+required_instance_fields = ["career_domain", "pcsx_domain"]
 optional_instance_fields = []
 required_secret_fields = []
-fetch_strategy = "provider_specific_html"
-title_field = "provider_specific"
-link_field = "provider_specific"
-source_job_id_field = "provider_specific"
+fetch_strategy = "provider_pagination"
+title_field = "name"
+link_field = "positionUrl"
+source_job_id_field = "id"
 docs_url = ""
 risk_tier = "medium"
-readiness_status = "source_identified_extractor_needed"
+readiness_status = "ready"
 
 [ats.eightfold.connection]
 http_method = "GET"
-accept = "text/html"
-response_items_path = "provider_specific"
+accept = "application/json"
+response_items_path = "data.positions"
 auth_location = "none"
 
 [ats.eightfold.capabilities]
@@ -767,10 +767,47 @@ supports_pagination = true
 [ats.eightfold.limits.requests]
 scope = "board_instance"
 concurrent_requests = 1
+minimum_interval_seconds = 2.5
 
 [ats.eightfold.limits.response_processing_cap]
 scope = "response"
-max_items_per_response = 1000
+max_items_per_response = 10
+
+[ats.amd_careers]
+name = "AMD Public Careers API"
+access_method = "public_job_list_json"
+auth = "none"
+endpoint_template = "https://careers.amd.com/api/jobs?page=1&sortBy=relevance&descending=false&internal=false"
+required_instance_fields = []
+optional_instance_fields = []
+required_secret_fields = []
+fetch_strategy = "provider_pagination"
+title_field = "data.title"
+link_field = "data.req_id"
+source_job_id_field = "data.req_id"
+docs_url = ""
+risk_tier = "medium"
+readiness_status = "ready"
+
+[ats.amd_careers.connection]
+http_method = "GET"
+accept = "application/json"
+response_items_path = "jobs"
+auth_location = "none"
+notes = "Fields are nested in each item's data object; construct public job URLs from req_id."
+
+[ats.amd_careers.capabilities]
+supports_request_row_limit = false
+supports_pagination = true
+
+[ats.amd_careers.limits.requests]
+scope = "board_instance"
+concurrent_requests = 1
+minimum_interval_seconds = 1.0
+
+[ats.amd_careers.limits.response_processing_cap]
+scope = "response"
+max_items_per_response = 10
 
 [ats.smartrecruiters]
 name = "SmartRecruiters Public Postings API"

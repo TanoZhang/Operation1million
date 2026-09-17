@@ -47,7 +47,6 @@ def probes() -> list[Probe]:
 
     for sub, company in [
         ("careers-amd", "amd"),
-        ("careers-rambus", "rambus"),
     ]:
         base = f"https://{sub}.icims.com"
         rows.extend(
@@ -206,54 +205,10 @@ def first_json_evidence(data: Any) -> Any:
 
 
 def main() -> int:
-    session = requests.Session()
-    session.headers.update(
-        {
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        }
-    )
-    rows: list[dict[str, Any]] = []
-    all_probes = probes()
-    for index, probe in enumerate(all_probes, start=1):
-        print(f"[{index}/{len(all_probes)}] {probe.company_key} {probe.label}", flush=True)
-        row: dict[str, Any] = {
-            "company_key": probe.company_key,
-            "provider": probe.provider,
-            "label": probe.label,
-            "method": probe.method,
-            "url": probe.url,
-            "status_code": "",
-            "verdict": "error",
-            "item_count": "",
-            "evidence": "",
-        }
-        try:
-            verify = not probe.label.startswith("microsoft_gcs_")
-            if probe.method == "POST":
-                response = session.post(probe.url, json=probe.payload, timeout=25, verify=verify)
-            else:
-                response = session.get(probe.url, timeout=25, verify=verify)
-            row["status_code"] = response.status_code
-            if response.status_code >= 400:
-                row["verdict"] = "http_error"
-                row["evidence"] = response.text[:180].replace("\n", " ")
-            else:
-                verdict, evidence, count = summarize(response)
-                row["verdict"] = verdict
-                row["item_count"] = count
-                row["evidence"] = evidence
-        except Exception as exc:  # noqa: BLE001
-            row["evidence"] = f"{type(exc).__name__}: {exc}"
-        rows.append(row)
-
-    with OUT_CSV.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-
-    print(OUT_CSV)
-    return 0
+    # Keep historical probes as evidence, but never rerun obsolete endpoint guesses.
+    print('Legacy endpoint probing is disabled. Use job-collect --company <key> '
+          '--max-pages 1 --max-jobs 10 --jsearch-budget 0 for a guarded check.')
+    return 2
 
 
 if __name__ == "__main__":
