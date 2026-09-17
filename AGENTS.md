@@ -26,13 +26,16 @@ collection, endpoint investigation, or change to daily discovery behavior.
 - JSearch is off by default. A direct page/job cap, malformed item, or a valid
   empty board must not trigger paid fallback. Test only with an explicit small
   request budget, starting at 1, and stop when the stated question is answered.
-- Preserve exact employer/alias filtering for JSearch. A company-name query is
-  discovery text, not an employer constraint.
+- Read [docs/jsearch.md](docs/jsearch.md) before changing paid discovery.
+  Functional discovery has no employer blacklist. Preserve exact employer/alias
+  filtering for configured company fallbacks; query text is not a constraint.
+  Reserve page credits, not HTTP counts; do not expand a fixed query plan.
 - Do not claim complete coverage from a single successful page. Keep Rivos
   marked as third-party data with unverified completeness.
 - Daily incremental collection requires durable job identity and per-source
   progress. Do not stop on the first familiar job or trust posting dates alone.
-  The incremental design in the rules document is pending implementation.
+  Persist through the shared daily gzip log. SQLite is derived and must not be
+  committed. Never rewrite sealed daily logs or skip restoring private state.
 - Do not install startup tasks. A daily schedule needs an explicit time and
   user request; documenting daily collection is not authorization to schedule it.
 

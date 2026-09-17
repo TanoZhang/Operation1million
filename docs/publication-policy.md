@@ -30,7 +30,9 @@ beyond conceptual documentation requires a new scope decision from the user.
 - API credentials stay in ignored local credential files and Actions Secrets
   in the private operating repository. Never publish their values.
 - Keep downloaded responses, job records, personal information, search/filter
-  settings, SQLite files, run exports, and operational logs private.
+  settings, SQLite files, run exports, and operational logs private. Durable
+  job history uses daily `.ndjson.gz` files and manifests; SQLite is derived
+  locally and must not return to Git.
 - Run future scheduled collection in the private repository. The public
   overview repository has Actions disabled and receives no secrets.
 - Public Actions logs and artifacts are not private storage. A login requirement
@@ -54,3 +56,11 @@ restore, checkpoint, and private-output workflow is documented separately.
 - [GitHub repository visibility](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility)
 - [GitHub Actions artifacts and read access](https://docs.github.com/en/rest/actions/artifacts)
 - [GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)
+
+## Code and data separation compatibility
+
+The collector supports `JOBDISCO_STORE` pointing to a separate private data
+checkout. A future clean code repository may contain source, tests, schemas,
+configuration examples and workflow definitions, without real records. This
+integration does not publish those files or change the existing repositories.
+Use independent reviewed history; never expose the old operating history.

@@ -1,0 +1,232 @@
+# Fixed nationwide daily plan: 310 pages plus 6 credits available for configured
+# company fallbacks. No automatic expansion when a response is full.
+version = 1
+monthly_quota = 10000
+target_utilization = 0.95
+operating_days = 30
+daily_budget = 316
+billing_cycle_start_day = 1
+country = "us"
+date_posted = "today"
+employment_types = ["FULLTIME", "INTERN"]
+
+[filter]
+# Only title text is examined. Unknown/mixed roles and missing experience stay.
+reject_title_patterns = [
+  '\banalog(?:\s+ic)?\b', '\brf(?:ic)?\b', '\bpcb\b', '\bboard\s+design\b',
+  '\bpower\s+electronics\b', '\bprocess\s+engineer\b',
+  '\bmanufacturing\s+engineer\b', '\byield\s+engineer\b'
+]
+keep_title_patterns = ['\bverification\b', '\brtl\b', '\bfpga\b', '\bdigital\b', '\bformal\b', '\bdft\b']
+
+[[query]]
+query = "Design Verification Engineer"
+tier = "A"
+pages = 18
+[[query]]
+query = "ASIC Verification Engineer"
+tier = "A"
+pages = 12
+[[query]]
+query = "SoC Verification Engineer"
+tier = "A"
+pages = 10
+[[query]]
+query = "RTL Design Engineer"
+tier = "A"
+pages = 18
+[[query]]
+query = "ASIC Design Engineer"
+tier = "A"
+pages = 17
+[[query]]
+query = "Digital Design Engineer"
+tier = "A"
+pages = 14
+[[query]]
+query = "SoC Design Engineer"
+tier = "A"
+pages = 10
+[[query]]
+query = "FPGA Engineer"
+tier = "A"
+pages = 14
+[[query]]
+query = "FPGA Design Engineer"
+tier = "A"
+pages = 10
+[[query]]
+query = "Physical Design Engineer"
+tier = "A"
+pages = 15
+[[query]]
+query = "Physical Implementation Engineer"
+tier = "A"
+pages = 10
+[[query]]
+query = "Hardware Engineer RTL"
+tier = "A"
+pages = 10
+[[query]]
+query = "Hardware Engineer ASIC"
+tier = "A"
+pages = 10
+[[query]]
+query = "Hardware Engineer FPGA"
+tier = "A"
+pages = 8
+[[query]]
+query = "Hardware Engineer SoC"
+tier = "A"
+pages = 8
+
+[[query]]
+query = "Hardware Verification Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "Pre-Silicon Verification Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "Functional Verification Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "Digital IC Design Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "Logic Design Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "Silicon Design Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "Silicon Verification Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "ASIC Implementation Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "DFT Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "RTL Verification Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "FPGA Verification Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "Hardware Emulation Engineer"
+tier = "B"
+pages = 5
+[[query]]
+query = "FPGA Prototyping Engineer"
+tier = "B"
+pages = 5
+
+[[query]]
+query = "Formal Verification Engineer"
+tier = "C"
+pages = 3
+[[query]]
+query = "STA Engineer ASIC"
+tier = "C"
+pages = 3
+[[query]]
+query = "Timing Engineer ASIC"
+tier = "C"
+pages = 3
+[[query]]
+query = "DFT Design Engineer"
+tier = "C"
+pages = 3
+[[query]]
+query = "Scan ATPG Engineer"
+tier = "C"
+pages = 3
+[[query]]
+query = "CPU Design Engineer RTL"
+tier = "C"
+pages = 3
+[[query]]
+query = "GPU Design Engineer RTL"
+tier = "C"
+pages = 3
+[[query]]
+query = "CPU Verification Engineer"
+tier = "C"
+pages = 3
+[[query]]
+query = "GPU Verification Engineer"
+tier = "C"
+pages = 3
+[[query]]
+query = "AI Accelerator RTL Engineer"
+tier = "C"
+pages = 3
+[[query]]
+query = "NPU Design Engineer"
+tier = "C"
+pages = 3
+[[query]]
+query = "Memory Design Engineer SRAM"
+tier = "C"
+pages = 3
+[[query]]
+query = "SRAM Design Engineer"
+tier = "C"
+pages = 3
+
+[[query]]
+query = "Design Verification Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "RTL Design Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "ASIC Design Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "Digital Design Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "FPGA Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "Physical Design Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "SoC Design Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "Hardware Engineering Intern ASIC"
+tier = "intern"
+pages = 2
+[[query]]
+query = "Hardware Engineering Intern RTL"
+tier = "intern"
+pages = 2
+[[query]]
+query = "Silicon Design Intern"
+tier = "intern"
+pages = 2
+[[query]]
+query = "DFT Intern"
+tier = "intern"
+pages = 2

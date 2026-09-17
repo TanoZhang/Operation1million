@@ -1,4 +1,4 @@
-# Paid search fallback used only when explicitly enabled for a blocked source.
+# Paid functional discovery and explicitly configured company fallback.
 # Direct company sources remain the primary collection path.
 
 version = 1
@@ -7,7 +7,7 @@ version = 1
 name = "JSearch (OpenWeb Ninja direct)"
 access_method = "direct_search_api"
 auth = "api_key_header"
-endpoint_template = "https://api.openwebninja.com/jsearch/search-v2?query={query}&num_pages=1&country=us&date_posted=3days"
+endpoint_template = "https://api.openwebninja.com/jsearch/search-v2"
 required_config = ["JSEARCH_API_KEY"]
 response_items_path = "data.jobs"
 title_field = "job_title"
@@ -24,9 +24,9 @@ auth_header = "X-API-Key"
 
 [search.jsearch.limits.requests]
 scope = "provider_account"
-requests_per_day = 30
+# Page-credit budgets are configured in jsearch_queries.toml.
 concurrent_requests = 1
 
 [search.jsearch.limits.request_capacity]
 scope = "request"
-rows_per_request = 10
+rows_per_page = 10

@@ -15,7 +15,7 @@ values locally; never commit credentials.
 ## Run
 
 Read [Collection Rules](docs/collection-rules.md) for request intervals,
-cooldowns, direct source decisions, and the daily incremental design. Read
+cooldowns, direct source decisions, and the daily incremental behavior. Read
 [GitHub Actions](docs/github-actions.md) before enabling hosted runs.
 
 ```powershell
@@ -37,16 +37,18 @@ are ignored by Git; `runs/latest.json` is the reviewed pointer.
 - `runs/`: timestamped generated collection results
 - `docs/`: operating rules, usage notes, and publication policy
 
-The database is the source of truth for companies, sources, enabled search query
-templates, and collected job records.
+Versioned SQL and migrations define the source catalog. The executable JSearch
+plan is `data/config/jsearch_queries.toml`. Private compressed event history is
+the durable job store; SQLite is a rebuildable local index.
 
 ## Job store and incremental runs
 
-Each pass writes its rows into the `jobs` table and records what it learned about
-the source in `source_state`. Run one migration before the first collection:
+Each pass writes into the shared `jobs` table and checkpoints `source_state`.
+On a fresh machine, restore private history under `JOBDISCO_STORE` (default
+`data/store`) and bootstrap the derived database:
 
 ```powershell
-.\.venv\Scripts\python.exe -c "from jobdisco import store; store.migrate()"
+.\.venv\Scripts\python.exe -m jobdisco.store --bootstrap
 ```
 
 `first_seen` is our own observation and exists for every board. `posted_at` only
@@ -67,7 +69,19 @@ board in full. Later passes pick the cheapest safe strategy per source:
 
 `full` is the default on purpose: a board that merely trends newest-first, or
 whose dates are relative, is read completely rather than guessed at. Only a
-`complete` pass advances a source's watermark or retires a posting, so a capped,
-paused or failed pass never closes a job it simply did not reach.
+`complete` pass advances a source's watermark. Only a complete inventory pass
+may retire a posting; a since-window scan, search, capped, paused or failed pass
+never closes a job it simply did not reach.
 
 Pass `--no-store` to write run files without touching the store.
+
+## JSearch functional discovery
+
+Read [JSearch daily discovery](docs/jsearch.md) before enabling paid collection.
+Preview the 52-query, 310-page plan with `python -m jobdisco.collector
+--jsearch-plan`. Run `python -m jobdisco.collector --jsearch` to collect direct
+boards first, functional searches second, and configured company fallbacks last.
+The ceiling is 316 page credits/day and the monthly target is 9,500. Paid search
+is off without explicit flags. Finalized daily logs cannot be appended again.
+
+No live API test or hosted schedule is implied by these commands being documented.

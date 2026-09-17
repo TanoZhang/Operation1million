@@ -47,8 +47,8 @@ normalized to public job pages. Records are deduplicated by URL within a source,
 so location-specific variants of a requisition can remain distinct.
 
 The source board determines geographic scope. Most ATS boards are worldwide;
-Apple's configured source is US-only. JSearch uses US role queries and a three-day
-posting window. These are discovery results, not a guarantee of every open role.
+Apple's configured source is US-only. JSearch functional discovery uses
+nationwide US queries and the configured `today` posting window. These are discovery results, not a guarantee of every open role.
 
 ## Coverage
 
@@ -68,8 +68,8 @@ a product homepage. Such failures are reported rather than counted as zero jobs.
 
 There are no configured company fallbacks after removing Rambus and Ventana
 Micro. Paid search is disabled by default. When explicitly enabled, it can be
-used for failed sources with zero records; caps, valid empty boards, and paused
-sources do not trigger it. No challenge solving,
+used for nationwide functional discovery and explicitly configured company
+fallbacks. Caps, valid empty boards, and paused sources do not trigger fallback. No challenge solving,
 browser impersonation, disabled TLS verification, or CAPTCHA bypass is used.
 
 ## Limits and status
@@ -95,45 +95,25 @@ limit. `partial` indicates a cap, malformed record, page repetition, detail
 failure, or unverified HTML pagination. `failed` means no jobs were collected.
 `paused` means the request policy stopped the source; any rows collected before
 the pause are retained. Do not treat a paused or partial run as a complete board.
-Exit code 0 means every selected direct source completed; code 2 means the
-artifacts were written but at least one source remains incomplete or uses fallback.
+Exit code 0 means all selected direct sources completed or were unchanged and
+all enabled search queries completed their fixed batches. Code 2 means at least
+one source/query failed, was skipped or remains incomplete. Successful searches
+are `query_limited`, never complete inventories.
 Each invocation replaces the files in its output directory; use a different
 `--output` to retain previous runs.
 
 ## JSearch
 
-Supply `JSEARCH_API_KEY` in the process environment or the ignored `.env.local` file. The collector uses OpenWeb Ninja directly with `X-API-Key`. Never put
-keys in source files, reports, or the handoff archive. With no key, the collector
-records `missing_credentials` and makes no JSearch request.
+See [JSearch daily discovery](jsearch.md) for the executable 52-query functional
+plan, 310-page allocation, 316-credit daily ceiling and 9,500-credit monthly
+target. JSearch remains opt-in. The shared store deduplicates stable IDs across
+queries and preserves full descriptions, salary and useful unknown fields.
 
-The endpoint and headers come from `data/config/sources_search.toml`; fallback
-aliases come from `data/config/discovery_queries.toml`. The SQLite `search_queries`
-table stores role templates for separate discovery; company fallback uses plain
-employer names. Employer names must equal a
-configured alias or company name after punctuation, case, and trailing legal
-suffix normalization. Substring matches such as `AMD Staffing` are rejected.
-This conservative filter can miss legitimate subsidiaries; add explicitly
-reviewed subsidiary aliases to the configuration rather than weakening matching.
-
-`--jsearch-budget` defaults to 0 and is capped at 30 per invocation. Use an
-explicit budget of 1 for an authorized one-request diagnostic. When enabled,
-the collector searches the first page of a plain employer-name query, then
-applies strict employer matching. `--fallback-queries` limits the number of
-employer aliases tried, not the number of role keywords. This is not a shared
-daily budget. `--jsearch-timeout` defaults to 90 seconds.
-
-A persistent SQLite ledger in `.local/jsearch_usage.sqlite` reserves each attempt
-before dispatch, including failures and timeouts. Across cooperating processes,
-requests are serialized and spaced at least 250 ms apart. The local hard limit
-is 10,000 attempts. Preserve the ledger when upgrading or restarting. No automatic
-reset occurs: reconcile the provider billing cycle and any external usage before
-a manual reset. Calls made outside this collector are not visible to the ledger.
-The provider dashboard controls account-wide caps; this code does not change them.
-Authentication and rate-limit errors stop further calls in the current run.
-
-Fallback results are always marked `query_limited`; they do not prove board
-completeness. Search-v2 uses cursor pagination; this collector intentionally only
-fetches the first page. No scheduled task or startup item is installed.
+Supply JSEARCH_API_KEY through the environment or ignored `.env.local`. Missing
+credentials are reported without dispatching a request. `--jsearch-plan` previews
+the entire configured plan without credentials or network requests. Company
+fallbacks use reviewed exact employer aliases; functional discovery does not
+blacklist employers. No actual API request is required by the offline tests.
 
 ## Source corrections and attribution
 

@@ -70,95 +70,50 @@ cap accommodates the reported PCSX totals but future boards may exceed it.
 
 ## JSearch usage
 
-- Default `--jsearch-budget` is 0. Direct discovery should normally use no paid
-  search now that Rambus and Ventana Micro have been removed.
-- Use JSearch only when expressly enabled for a discovery task. Start a transport
-  test with a budget of 1; document the result before increasing the scope.
-- Do not trigger fallback for a page/job cap, some malformed records, a valid
-  empty board, or a source paused by the request policy.
-- Company-specific discovery starts with the plain employer name and always
-  filters returned `employer_name` against reviewed aliases. Search text alone
-  does not constrain the employer. Keep `num_pages=1` for bounded tests.
-- Keep the 90-second timeout separate from direct-source timeouts. Count every
-  dispatch, including timeouts; a timeout does not invalidate unrelated attempts.
-- Preserve `.local/jsearch_usage.sqlite`, the 10,000-attempt local cap, and the
-  provider's account cap. Never reset a ledger automatically or silently expand
-  a testing budget. The previous handoff reported more than 30 test requests;
-  repeating that investigation is unnecessary.
+See [JSearch daily discovery](jsearch.md) for the fixed plan, title filtering,
+page-credit accounting, query manifests, and paid transport stop conditions.
+Direct ATS collection runs first. Explicit `--jsearch` then runs nationwide
+functional discovery; configured company fallback runs last. Company fallback
+alone requires reviewed employer aliases; functional discovery has no employer
+blacklist. No paid calls are made by offline tests.
 
-## Daily incremental discovery: implementation design
+The functional plan contains 52 queries and 310 pages. The daily cap is 316
+page credits and the monthly operating target is 9,500 of the 10,000 quota.
+Each query reserves its fixed page count before sending, including failures.
+Preserve `.local/jsearch_usage.sqlite` across runners and configure the actual
+billing anchor. Never increase pages because a result is full.
 
-**Status: design only. The current collector still outputs a run snapshot and
-does not yet persist jobs across runs or implement a `--new-only` option.**
+## Daily incremental discovery
 
-Keep one job database, `data/db/job_discovery.sqlite`, with additional tables;
-there is no need for separate downloaded/filtered/applied databases. Operational
-cooldown and quota ledgers remain separate local files.
+Implemented storage uses one derived SQLite database with `jobs`,
+`job_identities`, `source_state`, and `collection_runs`. Persistent evidence is
+stored under `JOBDISCO_STORE` (default `data/store`) as daily `.ndjson.gz` files,
+checksum manifests and `source_state.json`. SQLite is not committed to Git.
 
-| Planned table | Purpose and important fields |
-| --- | --- |
-| jobs | Stable identity, company_key, title, location, URL, first_seen_at, last_seen_at, posted_at, content_hash, raw |
-| job_sources | Mapping of source instance + source_job_id (or canonical URL) to jobs; preserve location variants when they are separate application records |
-| collection_runs | Run ID, start/end time, status, new/changed/seen counts, request count |
-| source_sync_state | Source ID, endpoint/scope fingerprint, last attempt, last successful complete scan, baseline status, optional verified cursor/date watermark |
-| run_jobs | Which jobs were first seen, changed, or observed in a run; allows exports to be rebuilt after a crash |
+New and changed jobs share the same event stream across direct and JSearch
+sources. Compact seen events preserve `last_seen`; `first_seen` means observed
+by this collector, not necessarily posted today. Finalized daily files are
+immutable. Rebuild the derived database from the restored private log with
+`python -m jobdisco.store --bootstrap` on a fresh runner.
 
-Keep later filter results and application status separate from source records.
-Changing a filter or keyword must not require re-downloading jobs already stored.
+A first source pass is full. Later passes may use conditional HTTP, a configured
+newest-first watermark, sitemap lastmod, or a full list scan. Only full inventory
+coverage may establish closure: query-limited searches, since-window scans,
+capped, paused or failed passes cannot retire unseen jobs. A direct scan also
+must not close unrelated search-only records for the same company.
 
-Implementation sequence:
+Local deduplication saves repeated storage and processing. It does not guarantee
+fewer provider requests. Never extend a newest-first optimization to another
+endpoint without evidence of its order/date behavior. A posting absent from a
+`date_posted=today` search may simply be old or indexed late; search absence is
+not evidence of closure. Broader reconciliation is not automatically scheduled.
 
-1. Import retained `jobs.jsonl` for active companies as an initial seen set.
-   Label it a historical baseline, not a current inventory. Run each source
-   once to establish a current baseline; do not call initial baseline rows
-   newly posted jobs. Microsoft and the newly recovered boards may lack a
-   usable historical baseline and must be initialized separately.
-2. Give each posting a stable identity using company + source job ID, scoped
-   to the source when IDs are not globally unique. Use a canonical URL when
-   the provider has no reliable ID. Preserve meaningful URL parameters and
-   distinguish location variants; do not deduplicate on title alone.
-3. On later runs, insert unseen jobs and retain `first_seen_at`. Refresh
-   `last_seen_at` for known jobs; record material changes separately. A repost
-   with the same ID is an update/reappearance, not automatically a new job.
-4. Export `new_jobs.jsonl` and `new_jobs.csv` from the run's durable new-job
-   records. Keep changed jobs separate. Never infer a posting date from
-   `first_seen_at`; it means first observed by this system.
-5. Commit accepted records and the corresponding run/source progress together.
-   A failed or capped run may keep collected records but must not advance the
-   last-successful-scan watermark or mark unseen jobs closed. Resume after the
-   cooldown with deduplication; do not blindly reuse offset cursors on changing
-   boards. Regenerate exports from run_jobs if file output fails after commit.
-
-### When this saves network requests
-
-Saving only new jobs always saves repeated processing and output. It does not
-guarantee that providers will send only new jobs.
-
-| Provider behavior | Daily strategy |
-| --- | --- |
-| Verified server-side updated-since/date filter or durable delta cursor | Query from the last successful watermark with at least 72 hours of overlap, then deduplicate |
-| Verified newest-first ordering with reliable timestamps and pagination | Read through the overlap window, including all tied timestamps; use a periodic full scan to recover delayed/reordered listings |
-| JSON list without a verified incremental filter/order | Fetch list pages at the required pace, compare IDs locally, and process/export only new or changed jobs |
-| Board returned in one response, such as the current Greenhouse/Ashby integrations | Fetch once and diff locally; use conditional HTTP requests only if the endpoint supports them |
-| Sitemap with trustworthy lastmod | Diff URLs/lastmod and fetch details for new or changed URLs; periodically refresh known URLs with missing/unreliable lastmod |
-
-For AMD the current query uses `sortBy=relevance`. The current PCSX queries do
-not establish a newest-first contract. Do not assume that these four boards can
-stop after the first old ID, or that only the first page contains new jobs.
-Their optimized date/order strategy needs a small, deliberate verification
-before implementation. Do not guess filter parameters or silently claim request
-savings. A 72-hour overlap and weekly reconciliation are proposed starting
-points, not guarantees against arbitrarily delayed indexing.
-
-Run once per day after the baseline, with jitter only to avoid simultaneous
-scheduled starts, never to evade detection. An optional weekly full scan can
-reconcile missed changes and closures. Mark a missing posting as suspected
-closed only after successful full inventory checks; partial/paused runs cannot
-establish closure. No schedule or startup item is installed by this change.
+No schedule or startup item is installed. Hosted execution must restore the
+private event history and operational ledgers before collection.
 
 ## Maintenance and verification
 
-- Keep schema.sql, SQLite, active source lists, and fallback aliases consistent.
+- Keep schema.sql, migrations, derived SQLite, and fallback aliases consistent.
   A fresh schema must preserve AMD's `amd_careers` provider and the PCSX routes.
 - Current validation CSV rows describe the endpoint and time originally tested;
   older iCIMS/app-shell results must not be relabeled as new API successes.

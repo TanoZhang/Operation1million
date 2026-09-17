@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sqlite3
+import tempfile
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -15,7 +16,7 @@ from contextlib import closing, nullcontext
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit, quote
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
 from bs4 import BeautifulSoup
@@ -26,9 +27,10 @@ except ImportError:
 
 from .validate_sources import Source, request_for, json_items
 from .paths import ROOT, CONFIG, DB, RUNS
-from .jsearch_access import RequestGuard, QuotaExhausted, load_credentials
+from .jsearch_access import RequestGuard, load_credentials
 from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, STATE as SOURCE_STATE
 from . import store
+from . import jsearch
 
 FIELDS = ['company_key', 'company_name', 'provider_key', 'title', 'location', 'url', 'source_job_id', 'posted_at', 'raw']
 JSON_PROVIDERS = {'workday', 'greenhouse', 'ashby', 'oracle_cloud', 'smartrecruiters', 'phenom', 'amazon_jobs', 'eightfold', 'amd_careers'}
@@ -40,7 +42,7 @@ def config(name):
 
 
 def load_sources(db):
-    with sqlite3.connect(db.resolve().as_uri() + '?mode=ro', uri=True) as con:
+    with closing(sqlite3.connect(db.resolve().as_uri() + '?mode=ro', uri=True)) as con:
         con.row_factory = sqlite3.Row
         result = []
         for table, key in [('company_sources', 'source_instance_id'), ('company_direct_sources', 'direct_source_id')]:
@@ -481,53 +483,40 @@ def employer_matches(name, aliases):
 
 
 def fallback(source, aliases, args, budget, search):
-    key = os.getenv('JSEARCH_API_KEY')
-    if not key:
+    """Compatibility helper for a bounded employer search using the shared client."""
+    if not os.getenv('JSEARCH_API_KEY'):
         return [], 'missing_credentials', 'Set JSEARCH_API_KEY; JSearch was not called'
     rows, seen, rejected = [], set(), 0
-    conn = search['connection']
-    headers = {conn['auth_header']: key}
     guard = getattr(args, 'jsearch_guard', None) or RequestGuard()
     names = [n for n in dict.fromkeys(list(aliases) + [source.company_name]) if n]
     names = names[:args.fallback_queries]
-    with requests.Session() as session:
+    settings = {'country': 'us', 'date_posted': 'today', 'employment_types': ['FULLTIME', 'INTERN']}
+    client = jsearch.Client(search, settings, guard, args.jsearch_timeout)
+    try:
         for text in names:
             if budget[0] <= 0:
                 return rows, 'partial', 'JSearch per-run request budget exhausted'
-            url = search['endpoint_template'].format(query=quote(text, safe=''), page=1)
-            url = query_url(url, country='us')
+            query = jsearch.Query(text, 1, 'company', source.company_key, tuple(aliases))
+            budget[0] -= 1
             try:
-                r = guard.get(session, url, headers=headers, timeout=args.jsearch_timeout)
-                budget[0] -= 1
-                if r.status_code in {401, 403, 429}:
-                    budget[0] = 0
-                if 300 <= r.status_code < 400:
-                    raise ValueError("Unexpected API redirect")
-                r.raise_for_status()
-                data = r.json()
-                if not isinstance(data, dict) or data.get('status') != 'OK':
-                    raise ValueError('JSearch API did not report OK')
-                payload = data.get('data')
-                if not isinstance(payload, dict) or not isinstance(payload.get('jobs'), list):
-                    raise ValueError('Expected search-v2 data.jobs list')
-                for item in payload['jobs']:
-                    if not employer_matches(item.get(search['employer_field'], ''), aliases + [source.company_name]):
+                for item in client.fetch(query):
+                    if not isinstance(item, dict) or not employer_matches(item.get('employer_name', ''), aliases + [source.company_name]):
                         rejected += 1
                         continue
-                    ident = item.get('job_id')
-                    url = item.get('job_apply_link') or item.get('job_google_link')
-                    if not ident or not url or not item.get('job_title') or url in seen:
+                    try:
+                        row = jsearch.normalize_job(item, query, {employer_normalize(source.company_name): source.company_key})
+                    except (ValueError, TypeError):
                         continue
-                    seen.add(url)
-                    row = normalize(replace(source, provider_key='jsearch'), {'title': item['job_title'], 'url': url, 'id': ident, 'location': ', '.join(filter(None, [item.get('job_city'), item.get('job_state'), item.get('job_country')])), 'posted_at': item.get('job_posted_at_datetime_utc')})
-                    row['raw'] = item
-                    rows.append(row)
-            except QuotaExhausted as exc:
-                return rows, 'quota_exhausted', str(exc)
-            except (requests.RequestException, ValueError) as exc:
-                if not isinstance(exc, requests.Timeout):
+                    identity = row['source_job_id'] or row['url']
+                    if identity not in seen:
+                        seen.add(identity)
+                        rows.append(row)
+            except jsearch.SearchFailure as exc:
+                if exc.stop:
                     budget[0] = 0
-                return rows, 'partial' if rows else 'failed', f'JSearch {type(exc).__name__}' + (f' HTTP {exc.response.status_code}' if isinstance(exc, requests.HTTPError) and exc.response is not None else '') + '; check credentials, quota and connectivity'
+                return rows, 'partial' if rows else 'failed', str(exc)
+    finally:
+        client.close()
     return rows, 'query_limited', f'First page of {len(names)} employer-name queries; {rejected} employer mismatches rejected'
 
 
@@ -552,14 +541,32 @@ def main():
     p.add_argument('--no-store', dest='store', action='store_false', help='Write run files only; leave the job store untouched')
     p.add_argument('--retries', type=int, default=3, help='Retries for 503 only; 429 pauses the source immediately')
     p.add_argument('--fallback-queries', type=int, default=1)
-    p.add_argument('--jsearch-budget', type=int, default=0, help='Paid fallback attempts; disabled by default')
+    p.add_argument('--jsearch', action='store_true', help='Enable the fixed functional JSearch discovery plan')
+    p.add_argument('--jsearch-plan', action='store_true', help='Print the fixed plan without making requests')
+    p.add_argument('--jsearch-config', type=Path, default=CONFIG / 'jsearch_queries.toml')
+    p.add_argument('--jsearch-budget', type=int, default=0, help='Page-credit cap; 0 uses config with --jsearch, otherwise disables paid discovery')
     p.add_argument('--jsearch-timeout', type=float, default=90,
                    help='JSearch read timeout; its Google-for-Jobs backend routinely needs 30-60s')
     args = p.parse_args()
     if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.delay < 0 or args.retries < 0:
         p.error('Caps and timeout must be positive; delay and budget must be nonnegative')
-    load_credentials()
-    sources = load_sources(args.db)
+    settings, functional_queries = jsearch.load_plan(args.jsearch_config)
+    enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0
+    run_budget = min(args.jsearch_budget or settings['daily_budget'], settings['daily_budget']) if enabled else 0
+    if not args.db.exists() and args.jsearch_plan:
+        # Preview authored sources without creating or replaying private state.
+        with tempfile.TemporaryDirectory() as folder:
+            preview_db = Path(folder) / 'preview.sqlite'
+            with closing(sqlite3.connect(preview_db)) as connection:
+                connection.executescript((CONFIG / 'schema.sql').read_text(encoding='utf-8'))
+                for migration in sorted((CONFIG / 'migrations').glob('*.sql')):
+                    connection.executescript(migration.read_text(encoding='utf-8'))
+            all_sources = load_sources(preview_db)
+    else:
+        if not args.db.exists():
+            store.bootstrap(args.db)
+        all_sources = load_sources(args.db)
+    sources = all_sources
     if args.company:
         unknown = set(args.company) - {s.company_key for s in sources}
         if unknown:
@@ -571,14 +578,31 @@ def main():
     discovery = config('discovery_queries.toml')
     fallbacks = {r['company_key']: r for r in discovery.get('company_fallbacks', [])}
     search = config('sources_search.toml')['search']['jsearch']
-    budget = [min(args.jsearch_budget, search['limits']['requests']['requests_per_day'])]
+    company_queries = jsearch.fallback_plan(discovery, all_sources, args.fallback_queries) if enabled else []
+    company_queries = [q for q in company_queries if q.company_key in {s.company_key for s in sources}]
+    functional_queries = functional_queries if args.jsearch or args.jsearch_plan else []
+    planned_queries = functional_queries + company_queries
+    jsearch.validate_budget(planned_queries, run_budget)
+    if args.jsearch_plan:
+        print(json.dumps({'queries': [q.__dict__ for q in planned_queries],
+                          'pages_planned': sum(q.pages for q in planned_queries),
+                          'daily_budget': run_budget, 'monthly_target': settings['monthly_target']}, indent=2))
+        return 0
+    run_stamp = store.now()
+    if args.store and store.manifest_path(run_stamp).exists():
+        p.error('This UTC day is sealed in the persistent store; refusing to modify its immutable log')
+    load_credentials()
+    if args.store:
+        store.migrate(args.db)
     source_state = store.load_state(args.db) if args.store else {}
     known_by_company = None
     if args.store:
         with closing(store.connect(args.db)) as probe:
             known_by_company = {s.company_key: store.known_urls(probe, s.company_key)
                                 for s in sources if s.provider_key in store.LASTMOD_SITEMAP}
-    request_guard = RequestGuard()
+    request_guard = RequestGuard(limit=settings['monthly_quota'], target_limit=settings['monthly_target'],
+                                 daily_limit=run_budget or settings['daily_budget'],
+                                 billing_day=settings.get('billing_cycle_start_day', 1))
     args.jsearch_guard = request_guard
     if args.output is None:
         args.output = RUNS / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -588,14 +612,14 @@ def main():
         c.strategy, c.watermark = store.plan(source, source_state)
         if source.provider_key in store.LASTMOD_SITEMAP and known_by_company is not None:
             c.known = known_by_company.get(source.company_key, set())
-        if source.company_key in fallbacks:
-            status, reason = 'fallback', fallbacks[source.company_key]['reason']
-        else:
+        try:
             status, reason = c.run()
             if c.rejected:
                 status = 'partial'
                 reason = f'{len(c.rejected)} malformed records rejected. ' + reason
                 (args.output/(source.company_key + '_rejected.json')).write_text(json.dumps(c.rejected, ensure_ascii=True), encoding='utf-8')
+        finally:
+            c.session.close()
         print(f'{source.company_key}: {len(c.jobs)} jobs, {status}', flush=True)
         return source, c.jobs, status, reason, c.requests, c
     jobs, reports = [], []
@@ -616,11 +640,13 @@ def main():
         kwargs = {'etag': getattr(c, 'etag', None),
                   'last_modified': getattr(c, 'last_modified', None)}
         if status == 'unchanged':
-            delta = store.touch_source(db, source, strategy, count, **kwargs)
+            delta = store.touch_source(db, source, strategy, count, stamp=run_stamp, **kwargs)
         else:
             delta = store.record_source(db, source, rows, status, strategy, count,
-                                        listed=getattr(c, 'listed', None), **kwargs)
-        store.append_log(db, delta['new_urls'], delta['closed_urls'], delta['stamp'])
+                                        stamp=run_stamp, listed=getattr(c, 'listed', None), **kwargs)
+        store.append_log(db, delta['new_urls'] + delta.get('changed_urls', []),
+                         delta['closed_urls'], run_stamp, seen_urls=delta.get('seen_urls', []),
+                         source_id=source.source_id)
         db.commit()
         for key in ('seen', 'new', 'closed'):
             totals[key] += delta[key]
@@ -634,23 +660,48 @@ def main():
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             for source, rows, status, reason, count, c in pool.map(direct, sources):
                 fs, fr = '', ''
-                # Paid search is for boards we cannot read, not for boards this run
-                # merely truncated. 'partial' usually means a cap was reached, and
-                # spending a request per capped company exhausts the daily quota
-                # before the genuinely blocked companies are reached.
-                if budget[0] > 0 and (status == 'fallback' or (status == 'failed' and not rows)):
-                    aliases = fallbacks.get(source.company_key, {}).get('employer_aliases', [source.company_name])
-                    more, fs, fr = fallback(source, aliases, args, budget, search)
-                    urls = {row['url'] for row in rows}
-                    rows.extend(row for row in more if row['url'] not in urls)
                 jobs.extend(rows)
                 persist(db, source, rows, status, count, c)
                 reports.append({'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': fs, 'next_step': '; '.join(filter(None, [reason if status != 'complete' else '', fr])) or 'None'})
+        # Functional discovery follows direct sources. Only configured employers
+        # qualify for the final fallback phase; no automatic company-wide search.
+        direct_results = {r['company_key']: r for r in reports}
+        eligible = [q for q in company_queries if
+                    fallbacks[q.company_key].get('mode') == 'supplement' or
+                    (direct_results[q.company_key]['direct_status'] == 'failed' and
+                     direct_results[q.company_key]['jobs'] == 0)]
+        from types import SimpleNamespace
+        def persist_query(query, rows, detail):
+            source = Source(query.key, 'discovery', query.company_key or 'jsearch_discovery',
+                            query.query, 'jsearch', '', {})
+            count = 1 if detail['pages_used'] else 0
+            persist(db, source, rows, detail['status'], count, SimpleNamespace(strategy='full'))
+            reports.append({'company_key': source.company_key, 'company_name': query.query,
+                            'provider_key': 'jsearch', 'jobs': len(rows), 'direct_status': detail['status'],
+                            'requests': count, 'failure_reason': detail['reason'],
+                            'fallback_status': 'configured' if query.company_key else '',
+                            'next_step': detail['reason'] or 'Query-limited discovery; no closure inference'})
+        companies = {employer_normalize(s.company_name): s.company_key for s in all_sources}
+        for key, entry in fallbacks.items():
+            companies.update({employer_normalize(a): key for a in entry.get('employer_aliases', [])})
+        client = jsearch.Client(search, settings, request_guard, args.jsearch_timeout)
+        try:
+            discovered, search_stats = jsearch.collect(functional_queries + eligible, client, settings,
+                                                       companies, persist_query)
+        finally:
+            client.close()
+        # Same IDs appearing under multiple phrases get one presentation row.
+        presented = set()
+        for row in discovered:
+            identity = row['source_job_id'] or row['url']
+            if identity not in presented and row['url'] not in {r['url'] for r in jobs}:
+                jobs.append(row)
+                presented.add(identity)
         if db is not None:
             store.finish_run(db, run_id, len(reports), totals['seen'], totals['new'],
                              totals['closed'], sum(r['requests'] for r in reports))
             store.export_state(db)
-            manifest = store.write_manifest(db, store.now(), reports)
+            manifest = store.write_manifest(db, run_stamp, reports, search_stats)
             db.commit()
             print('manifest: %s records=%s sha256=%s' % (
                 manifest['run_date'], manifest['records'], (manifest['sha256'] or '-')[:12]), flush=True)
@@ -662,10 +713,10 @@ def main():
             f.write(json.dumps(row, ensure_ascii=True)+'\n')
     write_csv(args.output/'jobs.csv', jobs, FIELDS)
     write_csv(args.output/'company_results.csv', reports, list(reports[0]) if reports else ['company_key'])
-    manifest = {'collected_at': datetime.now(timezone.utc).isoformat(), 'companies': len(reports), 'jobs': len(jobs), 'max_pages': args.max_pages, 'max_jobs': args.max_jobs, 'jsearch_requests': request_guard.attempts, 'complete_direct_sources': sum(r['direct_status']=='complete' for r in reports)}
+    manifest = {'collected_at': datetime.now(timezone.utc).isoformat(), 'companies': len(sources), 'jobs': len(jobs), 'max_pages': args.max_pages, 'max_jobs': args.max_jobs, 'jsearch_requests': request_guard.attempts, 'complete_direct_sources': sum(r['direct_status']=='complete' and r['provider_key'] != 'jsearch' for r in reports), **search_stats}
     (args.output/'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(json.dumps(manifest), flush=True)
-    return 0 if all(r['direct_status']=='complete' for r in reports) else 2
+    return 0 if all(r['direct_status'] in {'complete', 'unchanged', 'query_limited'} for r in reports) else 2
 
 
 def main_cli():

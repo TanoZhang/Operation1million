@@ -45,6 +45,7 @@ def migrate(path=DB):
                 with closing(sqlite3.connect(backup)) as destination:
                     db.backup(destination)
         db.executescript(MIGRATION.read_text(encoding='utf-8'))
+        db.executescript((CONFIG / 'migrations/003_job_identities.sql').read_text(encoding='utf-8'))
 
 
 def connect(path=DB):
@@ -107,6 +108,33 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     """
     stamp = stamp or now()
     seen = set()
+    prepared, before_rows, pending_identities = [], {}, {}
+    for original in rows:
+        row = dict(original)
+        scope = '' if row['provider_key'] == 'jsearch' else row['company_key']
+        identity = (row['provider_key'], scope, str(row['source_job_id'])) if row.get('source_job_id') else None
+        mapped = db.execute('SELECT url FROM job_identities WHERE provider_key=? AND scope=? AND source_job_id=?', identity).fetchone() if identity else None
+        if mapped:
+            row['url'] = mapped[0]
+        elif identity in pending_identities:
+            row['url'] = pending_identities[identity]
+        previous = db.execute('SELECT * FROM jobs WHERE url=?', (row['url'],)).fetchone()
+        before_rows.setdefault(row['url'], dict(previous) if previous else None)
+        if previous:
+            old_raw = json.loads(previous['raw'] or 'null')
+            if previous['provider_key'] != 'jsearch' and row['provider_key'] == 'jsearch':
+                # Direct title, employer and source identity stay authoritative.
+                enrichment = dict(old_raw or {})
+                enrichment['jsearch'] = merge_raw(enrichment.get('jsearch'), row['raw'])
+                for field in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at'):
+                    row[field] = previous[field]
+                row['raw'] = enrichment
+            else:
+                row['raw'] = merge_raw(old_raw, row.get('raw'))
+        prepared.append((row, identity))
+        if identity:
+            pending_identities[identity] = row['url']
+    rows = [r for r, _ in prepared]
     # Ask which URLs we already hold before writing. Comparing first_seen to
     # last_seen afterwards would call everything new whenever two passes land on
     # the same clock tick, which Windows timer granularity makes possible.
@@ -118,7 +146,10 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             'SELECT url FROM jobs WHERE url IN (%s)' % ','.join('?' * len(chunk)), chunk))
     new = len({u for u in incoming if u not in known})
     for row in rows:
-        raw = row.get('raw')
+        raw = slim(row.get('raw'))
+        current = db.execute('SELECT raw FROM jobs WHERE url=?', (row['url'],)).fetchone()
+        if current:
+            raw = slim(merge_raw(json.loads(current['raw'] or 'null'), raw))
         posted_relative = lastmod = None
         if isinstance(raw, dict):
             # normalize() emits only FIELDS, so these live on the original record.
@@ -134,6 +165,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                    first_seen, last_seen, closed_at, raw)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
                ON CONFLICT(url) DO UPDATE SET
+                   company_key=excluded.company_key,
+                   provider_key=excluded.provider_key,
                    title=excluded.title,
                    location=excluded.location,
                    source_job_id=COALESCE(excluded.source_job_id, jobs.source_job_id),
@@ -147,8 +180,16 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
              row.get('location') or '', row.get('source_job_id'), row.get('posted_at'),
              posted_relative, lastmod, stamp, stamp,
              json.dumps(raw, ensure_ascii=True, default=str)))
-    fresh = sorted(u for u in incoming if u not in known)
-    live = set(listed) if listed else seen
+    for identity, url in pending_identities.items():
+        db.execute('INSERT OR IGNORE INTO job_identities VALUES (?, ?, ?, ?)', (*identity, url))
+    fresh = sorted(set(u for u in incoming if u not in known))
+    changed = []
+    for url in seen - set(fresh):
+        old = before_rows[url]
+        latest = dict(db.execute('SELECT * FROM jobs WHERE url=?', (url,)).fetchone())
+        if old and any(old[k] != latest[k] for k in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at', 'raw', 'closed_at')):
+            changed.append(url)
+    live = set(listed) if listed is not None else seen
     # Postings the board still lists but this pass skipped fetching are alive.
     for start in range(0, len(live - seen), 400):
         chunk = sorted(live - seen)[start:start + 400]
@@ -156,15 +197,15 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             'UPDATE jobs SET last_seen=? WHERE url IN (%s)' % ','.join('?' * len(chunk)),
             [stamp, *chunk])
     closed_urls = []
-    if status == 'complete':
-        placeholders = ','.join('?' * len(live)) or 'NULL'
+    if status == 'complete' and strategy != 'since' and source.provider_key != 'jsearch':
+        placeholders = ','.join('?' * len(live)) or "''"
         closed_urls = [r[0] for r in db.execute(
-            f'''SELECT url FROM jobs WHERE company_key=? AND closed_at IS NULL
-                AND url NOT IN ({placeholders})''', [source.company_key, *live])]
+            f'''SELECT url FROM jobs WHERE company_key=? AND provider_key=? AND closed_at IS NULL
+                AND url NOT IN ({placeholders})''', [source.company_key, source.provider_key, *live])]
         db.execute(
-            f'''UPDATE jobs SET closed_at=? WHERE company_key=? AND closed_at IS NULL
+            f'''UPDATE jobs SET closed_at=? WHERE company_key=? AND provider_key=? AND closed_at IS NULL
                 AND url NOT IN ({placeholders})''',
-            [stamp, source.company_key, *live])
+            [stamp, source.company_key, source.provider_key, *live])
     closed = len(closed_urls)
     db.execute(
         '''INSERT INTO source_state (source_id, company_key, provider_key, etag,
@@ -185,7 +226,9 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
          last_modified, stamp if status == 'complete' else None, stamp, status,
          strategy, len(seen), requests, note))
     return {'seen': len(seen), 'new': new, 'closed': closed,
-            'new_urls': fresh, 'closed_urls': closed_urls, 'stamp': stamp}
+            'new_urls': fresh, 'changed_urls': changed,
+            'seen_urls': sorted(live - set(fresh) - set(changed)),
+            'closed_urls': closed_urls, 'stamp': stamp}
 
 
 def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
@@ -198,8 +241,8 @@ def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
     """
     stamp = stamp or now()
     seen = db.execute(
-        'UPDATE jobs SET last_seen=? WHERE company_key=? AND closed_at IS NULL',
-        (stamp, source.company_key)).rowcount
+        'UPDATE jobs SET last_seen=? WHERE company_key=? AND provider_key=? AND closed_at IS NULL',
+        (stamp, source.company_key, source.provider_key)).rowcount
     db.execute(
         """UPDATE source_state SET etag=COALESCE(?, etag),
                last_modified=COALESCE(?, last_modified), last_success_at=?,
@@ -208,7 +251,8 @@ def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
         (etag, last_modified, stamp, stamp, strategy, seen, requests, note,
          source.source_id))
     return {'seen': seen, 'new': 0, 'closed': 0,
-            'new_urls': [], 'closed_urls': [], 'stamp': stamp}
+            'new_urls': [], 'closed_urls': [], 'stamp': stamp,
+            'seen_urls': [r[0] for r in db.execute('SELECT url FROM jobs WHERE company_key=? AND provider_key=? AND closed_at IS NULL', (source.company_key, source.provider_key))]}
 
 
 # The durable log may live in a separate (private) data repository checkout.
@@ -225,16 +269,29 @@ DROP_FIELDS = {
     # Provider-internal scoring, parser output, compliance and UI metadata.
     'meta_data', 'metadata', 'data_compliance', 'ml_job_parser', 'ml_skills',
     'bulletFields', 'sectionLabels', 'solrScore', 'isHot', 'job_uid', 'uuid',
-    'savedSearchMetadata', 'resultsMetaData', 'debug',
+    'savedSearchMetadata', 'resultsMetaData', 'debug', 'tracking', 'tracking_metadata',
+    'ranking', 'ranking_score', 'review_counts', 'employer_review_count',
     # Benefits blurbs: marketing copy, identical across a company's postings.
     'benefits', 'jobBenefits', 'job_benefits', 'job_benefits_strings',
     # Duplicate or truncated renderings of a description we keep in full.
-    'descriptionHtml', 'jobDescriptionHtml', 'descriptionTeaser', 'description_short',
+    'descriptionTeaser', 'description_short',
     # The scraped row markup; normalize() already took the fields out of it.
     'html',
 }
 LOG_FIELDS = ['url', 'company_key', 'provider_key', 'title', 'location', 'source_job_id',
-              'posted_at', 'posted_relative', 'lastmod', 'first_seen', 'raw']
+              'posted_at', 'posted_relative', 'lastmod', 'first_seen', 'last_seen', 'closed_at', 'raw']
+
+
+def merge_raw(previous, incoming):
+    if not isinstance(previous, dict) or not isinstance(incoming, dict):
+        return incoming if incoming is not None else previous
+    result = dict(previous)
+    for key, value in incoming.items():
+        if value is not None:
+            result[key] = value
+    if 'discovery_queries' in previous or 'discovery_queries' in incoming:
+        result['discovery_queries'] = sorted(set(previous.get('discovery_queries', []) + incoming.get('discovery_queries', [])))
+    return result
 
 
 def slim(raw):
@@ -247,7 +304,18 @@ def slim(raw):
     """
     if not isinstance(raw, dict):
         return raw
-    return {k: v for k, v in raw.items() if k not in DROP_FIELDS}
+    from bs4 import BeautifulSoup
+    result = {k: slim(v) if isinstance(v, dict) else
+              [slim(x) for x in v] if isinstance(v, list) else v
+              for k, v in raw.items() if k not in DROP_FIELDS}
+    # Drop duplicate HTML only after verifying equivalent full plain text.
+    plain = next((str(result[k]).strip() for k in ('descriptionPlain', 'job_description', 'description')
+                  if result.get(k)), '')
+    for key in ('descriptionHtml', 'jobDescriptionHtml'):
+        value = result.get(key)
+        if isinstance(value, str) and plain and ' '.join(BeautifulSoup(value, 'html.parser').stripped_strings) == ' '.join(plain.split()):
+            result.pop(key)
+    return result
 
 
 def daily_log(stamp):
@@ -264,7 +332,7 @@ def manifest_path(stamp):
     return LOG / 'manifests' / f'{stamp[:10]}.json'
 
 
-def append_log(db, urls, closed_urls, stamp):
+def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None):
     """Append this pass's discoveries and closures to the day's durable file.
 
     The log, not the SQLite file, is what persists between runs: a binary database
@@ -272,32 +340,59 @@ def append_log(db, urls, closed_urls, stamp):
     written once and reviewable in a diff.
     """
     path = daily_log(stamp)
+    if manifest_path(stamp).exists():
+        raise FileExistsError('Daily log is sealed; refusing to change an immutable day')
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not urls and not closed_urls:
+    if not urls and not closed_urls and not seen_urls and not source_id:
         return
-    # Gzip members concatenate, so a run can append per source and still read back
-    # as one stream.
-    with gzip.open(path, 'at', encoding='utf-8') as f:
-        for start in range(0, len(urls), 400):
-            chunk = urls[start:start + 400]
-            for row in db.execute(
-                    'SELECT %s FROM jobs WHERE url IN (%s)'
-                    % (','.join(LOG_FIELDS), ','.join('?' * len(chunk))), chunk):
-                record = dict(row, type='job')
-                record['raw'] = slim(json.loads(record['raw'] or 'null'))
-                f.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + '\n')
-        for url in closed_urls:
-            f.write(json.dumps({'type': 'closed', 'url': url, 'at': stamp},
-                               ensure_ascii=True, sort_keys=True) + '\n')
+    # Build a complete gzip member before touching the existing stream. Restore
+    # its previous length if a write fails; never leave half a member appended.
+    records = []
+    for start in range(0, len(urls), 400):
+        chunk = urls[start:start + 400]
+        for row in db.execute(
+                'SELECT %s FROM jobs WHERE url IN (%s)'
+                % (','.join(LOG_FIELDS), ','.join('?' * len(chunk))), chunk):
+            record = dict(row, type='job')
+            record['raw'] = slim(json.loads(record['raw'] or 'null'))
+            record['identities'] = [dict(r) for r in db.execute(
+                'SELECT provider_key, scope, source_job_id FROM job_identities WHERE url=? ORDER BY provider_key, scope, source_job_id', (record['url'],))]
+            records.append(record)
+    for url in closed_urls:
+        records.append({'type': 'closed', 'url': url, 'at': stamp})
+    if seen_urls:
+        records.append({'type': 'seen', 'urls': sorted(set(seen_urls)), 'at': stamp})
+    if source_id:
+        state = db.execute('SELECT * FROM source_state WHERE source_id=?', (source_id,)).fetchone()
+        if state:
+            records.append({'type': 'source_state', 'state': dict(state)})
+    member = gzip.compress((''.join(json.dumps(r, ensure_ascii=True, sort_keys=True) + '\n'
+                                    for r in records)).encode('utf-8'), mtime=0)
+    size = path.stat().st_size if path.exists() else 0
+    try:
+        with path.open('ab') as handle:
+            handle.write(member)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError:
+        with path.open('r+b') as handle:
+            handle.truncate(size)
+        raise
 
 
-def write_manifest(db, stamp, reports):
+def write_manifest(db, stamp, reports, jsearch_stats=None):
     """Record what the day collected, and checksum the file that holds it.
 
     The digest is what later tells you a day's data is the data that was collected,
     not something edited or truncated afterwards.
     """
     path = daily_log(stamp)
+    if manifest_path(stamp).exists():
+        raise FileExistsError('Daily manifest is immutable')
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open('xb') as handle:
+            handle.write(gzip.compress(b'', mtime=0))
     manifest_path(stamp).parent.mkdir(parents=True, exist_ok=True)
     digest = records = None
     if path.is_file():
@@ -312,10 +407,10 @@ def write_manifest(db, stamp, reports):
         'run_date': stamp[:10],
         'collected_at': stamp,
         'records': records,
-        'sources_completed': sum(1 for r in reports if r['direct_status'] == 'complete'),
+        'sources_completed': sum(1 for r in reports if r['direct_status'] in {'complete', 'query_limited'}),
         'sources_unchanged': sum(1 for r in reports if r['direct_status'] == 'unchanged'),
         'sources_incomplete': sum(1 for r in reports
-                                  if r['direct_status'] in {'partial', 'fallback'}),
+                                  if r['direct_status'] in {'partial', 'fallback', 'skipped'}),
         'sources_failed': sum(1 for r in reports
                               if r['direct_status'] in {'failed', 'paused'}),
         'requests': sum(r['requests'] for r in reports),
@@ -323,9 +418,13 @@ def write_manifest(db, stamp, reports):
         'file': str(path.relative_to(LOG)).replace('\\', '/') if path.is_file() else None,
         'sha256': digest,
     }
-    manifest_path(stamp).write_text(
+    if jsearch_stats:
+        manifest.update(jsearch_stats)
+    temporary = manifest_path(stamp).with_suffix('.json.tmp')
+    temporary.write_text(
         json.dumps(manifest, ensure_ascii=True, indent=1, sort_keys=True) + '\n',
         encoding='utf-8')
+    temporary.replace(manifest_path(stamp))
     return manifest
 
 
@@ -353,8 +452,10 @@ def export_state(db):
     """Per-source incremental state as small readable JSON beside the log."""
     LOG.mkdir(parents=True, exist_ok=True)
     rows = [dict(r) for r in db.execute('SELECT * FROM source_state ORDER BY source_id')]
-    (LOG / 'source_state.json').write_text(
+    temporary = LOG / 'source_state.json.tmp'
+    temporary.write_text(
         json.dumps(rows, ensure_ascii=True, indent=1, sort_keys=True) + '\n', encoding='utf-8')
+    temporary.replace(LOG / 'source_state.json')
 
 
 def bootstrap(path=DB):
@@ -383,6 +484,9 @@ def rebuild(path=DB):
     job line inserts or refreshes a posting, then every closure event is applied
     in order.
     """
+    invalid = [(day, status) for day, status in verify() if status != 'ok']
+    if invalid:
+        raise ValueError(f'Daily log integrity check failed: {invalid}')
     migrate(path)
     counts = {'jobs': 0, 'events': 0, 'sources': 0}
     with closing(connect(path)) as db, db:
@@ -392,6 +496,17 @@ def rebuild(path=DB):
                 lines = [l for l in f if l.strip()]
             for line in lines:
                 r = json.loads(line)
+                if r.get('type') == 'seen':
+                    db.executemany('UPDATE jobs SET last_seen=? WHERE url=?',
+                                   [(r['at'], url) for url in r['urls']])
+                    counts['events'] += 1
+                    continue
+                if r.get('type') == 'source_state':
+                    state_row = r['state']
+                    columns = ','.join(state_row)
+                    db.execute('INSERT OR REPLACE INTO source_state (%s) VALUES (%s)' %
+                               (columns, ','.join('?' * len(state_row))), list(state_row.values()))
+                    continue
                 if r.get('type') == 'closed':
                     db.execute('UPDATE jobs SET closed_at=? WHERE url=?', (r['at'], r['url']))
                     counts['events'] += 1
@@ -400,20 +515,36 @@ def rebuild(path=DB):
                     '''INSERT INTO jobs (url, company_key, provider_key, title, location,
                            source_job_id, posted_at, posted_relative, lastmod,
                            first_seen, last_seen, closed_at, raw)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                        ON CONFLICT(url) DO UPDATE SET
+                           company_key=excluded.company_key, provider_key=excluded.provider_key,
                            title=excluded.title, location=excluded.location,
                            posted_at=COALESCE(excluded.posted_at, jobs.posted_at),
                            first_seen=MIN(jobs.first_seen, excluded.first_seen),
+                           last_seen=excluded.last_seen, closed_at=excluded.closed_at,
+                           source_job_id=excluded.source_job_id,
+                           posted_relative=excluded.posted_relative, lastmod=excluded.lastmod,
                            raw=excluded.raw''',
                     (r['url'], r['company_key'], r['provider_key'], r['title'],
                      r.get('location') or '', r.get('source_job_id'), r.get('posted_at'),
                      r.get('posted_relative'), r.get('lastmod'), r['first_seen'],
-                     r['first_seen'], json.dumps(r.get('raw'), ensure_ascii=True)))
+                     r.get('last_seen', r['first_seen']), r.get('closed_at'), json.dumps(r.get('raw'), ensure_ascii=True)))
+                identities = r.get('identities', [])
+                if not identities and r.get('source_job_id'):
+                    identities = [{'provider_key': r['provider_key'],
+                                   'scope': '' if r['provider_key'] == 'jsearch' else r['company_key'],
+                                   'source_job_id': str(r['source_job_id'])}]
+                for identity in identities:
+                    db.execute('INSERT OR REPLACE INTO job_identities VALUES (?, ?, ?, ?)',
+                               (identity['provider_key'], identity['scope'], identity['source_job_id'], r['url']))
                 counts['jobs'] += 1
         state = LOG / 'source_state.json'
         if state.is_file():
             for r in json.loads(state.read_text(encoding='utf-8')):
+                current = db.execute('SELECT last_run_at FROM source_state WHERE source_id=?',
+                                     (r['source_id'],)).fetchone()
+                if current and (current[0] or '') > (r.get('last_run_at') or ''):
+                    continue
                 columns = ','.join(r)
                 db.execute('INSERT OR REPLACE INTO source_state (%s) VALUES (%s)'
                            % (columns, ','.join('?' * len(r))), list(r.values()))
@@ -455,14 +586,12 @@ def main():
     if args.rebuild:
         print('rebuilt:', rebuild(args.db))
     if args.export:
+        if any((LOG / 'runs').glob('*.ndjson.gz')) or any((LOG / 'manifests').glob('*.json')):
+            parser.error('Backfill requires an empty JOBDISCO_STORE; existing history is immutable')
         with closing(connect(args.db)) as db, db:
             urls = [r[0] for r in db.execute('SELECT url FROM jobs ORDER BY url')]
             closed = [(r[0], r[1]) for r in db.execute(
                 'SELECT url, closed_at FROM jobs WHERE closed_at IS NOT NULL')]
-            for old in (LOG / 'runs').glob('*.ndjson.gz'):
-                old.unlink()
-            for old in (LOG / 'manifests').glob('*.json'):
-                old.unlink()
             # Group by the day each posting was first seen, so a backfill produces
             # the same per-day files a live run would have written.
             by_day = {}
