@@ -1,0 +1,106 @@
+name: Daily collection
+
+# Scheduled runs are queued behind everyone else's at the top of the hour, so ask
+# for an odd minute. Private repositories are not auto-disabled for inactivity.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+      timezone: America/Los_Angeles
+  workflow_dispatch:
+    inputs:
+      workers:
+        description: Concurrent sources
+        default: '3'
+      dry_run:
+        description: Collect without committing the result
+        type: boolean
+        default: false
+
+concurrency:
+  # Two passes at once would both read the same watermarks and race the push.
+  group: collection
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Check out the collector
+        uses: actions/checkout@v4
+
+      - name: Check out the data repository
+        uses: actions/checkout@v4
+        with:
+          repository: TanoZhang/Operation1million-data
+          # Both repositories are private, so the built-in token cannot reach the
+          # other one. A fine-grained PAT with Contents:write on the data
+          # repository is the whole credential this workflow needs.
+          token: ${{ secrets.DATA_REPO_TOKEN }}
+          path: data-repo
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install -e .
+
+      - name: Rebuild the database from the committed log
+        env:
+          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+        # The runner has no database. Everything is derived: the catalog from
+        # schema.sql and the migrations, the postings from the log.
+        run: job-store --bootstrap --verify
+
+      - name: Collect
+        env:
+          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
+        # Sources are committed to the store one at a time, so a timeout or a
+        # cancelled run still keeps every board it finished.
+        run: |
+          job-collect \
+            --workers "${{ inputs.workers || '3' }}" \
+            --delay 1.0 \
+            --jsearch-budget 0
+
+      - name: Commit the day's data
+        if: ${{ !inputs.dry_run }}
+        working-directory: data-repo
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add runs manifests source_state.json
+          if git diff --cached --quiet; then
+            echo 'Nothing collected today.'
+            exit 0
+          fi
+          git commit -m "Collect $(date -u +%Y-%m-%d)"
+          # A concurrent push is unlikely under the concurrency group, but rebasing
+          # is safe here: the day files are append-only and the manifests are
+          # per-day, so there is nothing to merge by hand.
+          git pull --rebase --autostash origin main
+          git push origin main
+
+      - name: Summarise
+        if: always()
+        env:
+          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+        run: |
+          job-store --verify >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          latest=$(ls -1 data-repo/manifests/*.json | tail -1)
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat "$latest" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the run report for triage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-report
+          # company_results.csv only; the postings themselves are in the data
+          # repository, and artifact storage is the small quota on this plan.
+          path: runs/*/company_results.csv
+          retention-days: 14
+          if-no-files-found: warn
