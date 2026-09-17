@@ -1,115 +1,158 @@
 # Handoff — 2026-09-17
 
-State of the collector after the first full baseline and two incremental passes.
-Read `README.md` first for how the pieces fit; this is what is true right now.
+State after the first full baseline, three collection passes, and the first
+hosted attempts. Read `README.md` for how the pieces fit; this is what is true
+right now, including what is broken.
 
 ## Where the data lives
 
-Two repositories, both private:
+Two private repositories:
 
 - `TanoZhang/Operation1million` — code, config, workflow. No collected data.
 - `TanoZhang/Operation1million-data` — one gzipped NDJSON file per collection
-  day, a manifest with a SHA-256 for each, and `source_state.json`.
+  day, a manifest carrying its SHA-256, `source_state.json`, and under
+  `operational/` the two ledgers that must outlive a runner: the JSearch credit
+  count and the per-source cooldowns.
 
-The SQLite database is derived and gitignored. From an empty machine:
+The job database is derived and gitignored. From nothing:
 
 ```
 JOBDISCO_STORE=<data repo> job-store --bootstrap
 ```
 
-That rebuilds 38,000-odd postings in about two seconds from `schema.sql`, the
-migrations and the log. Verified to reproduce every row field for field.
+Roughly two seconds for 38,000 postings, from `schema.sql`, the migrations and
+the log. Verified to reproduce every row field for field.
+
+## Current numbers
+
+| | |
+| --- | --- |
+| Open postings | 38,193 (38,302 including closed) |
+| With an absolute `posted_at` | 28,074 (74%) |
+| Scoring 25 or above | 5,383 |
+| Direct sources | 35 companies, 33 collecting completely |
+| JSearch credits spent this billing period | 314 of 9,500 |
 
 ## What works
 
-**35 direct company boards, 33 collecting completely.** Four providers were
-rebuilt during this work: AMD and Microsoft/Micron/Qualcomm were on paid search
-because the endpoints in the catalog were the wrong ones, not because the boards
-were unreadable. AMD serves `careers.amd.com/api/jobs`; the Eightfold tenants
-serve `/api/pcsx/search` even though `apply-v2` returns 403 for them.
+**Four boards were recovered from paid search.** AMD and the three Eightfold
+tenants were on JSearch because the catalog held the wrong endpoints, not
+because the boards were unreadable: AMD serves `careers.amd.com/api/jobs`, and
+the Eightfold sites serve `/api/pcsx/search` even where `apply-v2` returns 403.
 
 **Incremental strategies, chosen per source from stored state.** A first pass is
-always a full download. Later passes use the cheapest safe option: `conditional`
-where the board returns an ETag (four Greenhouse boards answered 304 on the last
-run, one request each), `since` where the listing is strictly newest-first
-(Eightfold: 295 requests became 1), `lastmod` where a sitemap carries it
-(Renesas: 909 became 1), and `full` everywhere else.
+always a full download; later passes take the cheapest safe option. On the last
+run four Greenhouse boards answered 304 and cost one request each; Eightfold
+dropped from 295 requests to 1, Renesas from 909 to 1.
 
-**Relevance scoring, 0-100, on every posting.** Trade-exclusive terms weigh more
-than ordinary English, a title match counts double, and nothing is deducted for
-absence. Six distinct strong terms score 100 outright. 37,584 open postings
-reduce to 4,836 at or above the keep bar. Exclusions — defence programmes,
-management titles — are a separate question asked first, and score 0.
+**Relevance scoring on every posting, 0-100.** Trade-exclusive terms outweigh
+ordinary English, a title match counts double, nothing is deducted for absence,
+and six distinct strong terms score 100 outright. Exclusions — defence
+programmes, management titles — are a separate question asked first and score 0.
+`job-store --ranked N --min-score M` reads the stored score; `--rescore` after a
+term-list edit.
 
-**Politeness.** Per-source intervals, `Crawl-delay` honoured from robots.txt
-(only AMD declares one, at 5s), durable pauses on 429/403 that survive a restart.
-Every path collected is permitted: the three Eightfold sites explicitly
-`Allow: /api/pcsx`, and Micron whitelists `IndeedJobBot` alongside it.
+**Wide search queries are split across calls.** Every call of 10 pages or fewer
+succeeded across 52 live queries, while 4 of the 7 asking for 11 to 18 returned
+HTTP 504 and took 61 credits with them. `max_pages_per_call` is configurable; 1
+means one call per page.
 
-## What is not done
+**Politeness.** Per-source intervals, `Crawl-delay` honoured (only AMD declares
+one, at 5s), durable pauses on 429/403 that survive a restart, and the ledgers
+now checkpointed to the data repository so a hosted runner cannot reset them.
+Every path collected is permitted: the Eightfold sites explicitly
+`Allow: /api/pcsx`, and Micron whitelists `IndeedJobBot` beside it.
+
+## What is broken or unfinished
+
+**The local store has diverged from the data repository.** Local holds 66,780 log
+lines; the data repository has 37,622, from the initial backfill. The full run's
+699 new postings and the Apple repair are on this machine only. A hosted run
+bootstraps from the data repository, so until this is pushed it will rebuild
+from a stale baseline and rediscover known postings as new. Push before the next
+non-dry hosted run.
 
 **Collection is single-threaded whenever Microsoft is in the source list.**
 `collector.py` drops `--workers` to 1 for the whole run because Microsoft
-throttles by IP. That is the main cost of the 57-minute run: 34 other companies
-wait while one slow board is fetched. The fix is a lock on the Microsoft source
-alone, leaving the rest concurrent — an estimated 13 minutes instead of 57.
+throttles by IP. That is most of the 57-minute local run: 34 companies wait on
+one slow board. A lock on the Microsoft source alone, leaving the rest
+concurrent, should bring it near 13 minutes.
 
-**The JSearch plan has no headroom.** 310 pages planned against a 316-page daily
-budget. Any manual testing earlier in the same UTC day, or a few failures, pushes
-the tail of the plan past the budget: the last run completed 36 of 52 queries and
-skipped 11 after `QuotaExhausted`. Failed requests are charged, by design, since
-the provider counts them. Sizing the plan near 280 would absorb that.
+**The JSearch plan leaves no headroom.** 310 pages against a 316-page daily
+budget, and the daily budget is a fixed slice of the month. Any manual testing
+earlier in the same UTC day eats the scheduled run: on 2026-09-17, 29 credits of
+testing left 287 for a 310-page plan, and 11 queries were skipped after
+`QuotaExhausted`. Two fixes, neither applied: size the plan near 280, and make
+the daily allowance the month's remainder divided by the days left rather than a
+fixed slice.
 
 **Two companies have no direct route.** Rambus answers 405 on every path under
 `careers-rambus.icims.com`, including `/sitemap.xml`; `ventanamicro.com` does not
-accept connections at all. Whether to reach them through paid search is an open
-decision — coverage of both is thin.
+accept connections. Whether to reach them through paid search is undecided.
 
-**Amazon is capped by its own search.** It returns its 10,000-result ceiling, so
-its board is collected but not proven complete. Partitioning the search would
-settle it.
+**Amazon is capped by its own search** at 10,000 results, so its board is
+collected but not proven complete. **Rivos** is an aggregator profile, not the
+company's board: 15 postings, completeness unverifiable.
 
-**Rivos is a third-party listing.** Its source is an aggregator profile page, not
-the company's board; 15 postings, completeness unverifiable.
+**The manifest carries per-item detail.** 29 KB, of which `jsearch_queries` is
+18 KB and `jsearch_confidence` 4 KB — 883 bare numbers with no keys, unusable
+away from the postings they came from. A distribution summary would say the same
+in five fields. Per-query yield is worth keeping; it is how the plan gets tuned.
 
-**The workflow has never run.** `.github/workflows/collect.yml` is committed and
-`DATA_REPO_TOKEN` is set, but no scheduled or manual run has happened yet. A
-`workflow_dispatch` with `dry_run=true` would prove the runner path before the
-first real one.
+## The hosted workflow
 
-## Bugs found and fixed, worth not reintroducing
+Committed, scheduled daily at 06:17 America/Los_Angeles, and it has run.
 
-**A board row's identity is its requisition, not its URL slug.** Apple
+- The first scheduled attempt (2026-09-17 17:39Z) failed in 48 seconds at
+  `Check out the data repository`: **`Bad credentials`**. The
+  `DATA_REPO_TOKEN` secret existed but its value was not a usable token.
+- A dispatch at 23:07Z failed the same way.
+- A dispatch at 23:09Z passed that step and ran on, so the secret has since been
+  replaced with a working token.
+
+A secret's value cannot be read back — `gh secret` has no `get` — so the only
+proof a token works is a run that gets past checkout.
+
+Paid search is disabled in the workflow (`--jsearch-budget 0`). A dry run
+checkpoints the operational ledgers but not collected postings.
+
+## Lessons worth not relearning
+
+**A board row's identity is its requisition, not the words in its URL.** Apple
 advertises one role at many stores, so forty postings share `.../us-manager` and
 differ only in the requisition before it. Taking the trailing path segment made
-them one identity; the identity table remapped them onto a single URL, a pass
-that fetched 4,513 postings recorded 2,358, and the 2,155 that appeared unseen
-were retired — 48% of Apple's board in one pass, while every other company moved
-by about 1%.
+them one identity, a pass that fetched 4,513 postings recorded 2,358, and the
+2,155 that appeared unseen were retired — 48% of Apple's board in one pass,
+while every other company moved by about 1%. Nothing errored; the pass reported
+`complete`. The reason it was caught at all was that 48% against 1% is not
+churn.
 
 **Only a pass that enumerated a whole board may retire a posting.** An
 early-stop pass reads the newest slice and stops; on a quiet day it returns
-nothing and would otherwise have closed everything. A blank first page is also
-what a board looks like mid-deploy, so it is trusted only when the board states a
-count of zero.
+nothing and would otherwise close everything. A blank first page is also what a
+board looks like mid-deploy, so it counts only when the board states a count of
+zero.
 
 **Paid search was querying the wrong thing.** `"AMD electrical engineer"` returns
-electrical-engineer roles at RTX and Bechtel, all correctly rejected by the
-employer filter, which read as a broken filter. JSearch treats the employer as a
-plain search term; querying the employer name alone returns 10/10.
+electrical-engineer roles at other employers, all correctly rejected, which read
+as a broken filter. JSearch treats the employer as a plain search term;
+the employer name alone returns 10 of 10.
 
-**Scores are stored, not recomputed.** Scoring 37,584 postings against 134
-patterns per read did not return within two minutes.
+**Failures are charged, so the widest asks are the most expensive to lose.**
+Four tier-A queries timed out and spent a fifth of the day's budget returning
+nothing.
 
-## Open questions for whoever picks this up
+**Score on write, not on read.** Scoring 37,584 postings against 134 patterns
+per read did not return within two minutes.
 
-- Same role at many locations: the store keeps all of them, which is right —
-  a posting in San Jose is not one in Austin. The ranked view should group them
-  (`Design Verification Engineer (13 locations)`) rather than the store merging
-  them. Not implemented.
-- `posted_at` exists on 73% of postings. Workday states only relative text
-  (`Posted 7 Days Ago`), kept verbatim in `posted_relative` and never converted.
-  Anything reporting "new today" must key off `first_seen`.
-- JSearch overlaps direct boards by roughly half. Whether a LinkedIn link to a
-  Qualcomm job is worth storing beside the ATS record is undecided; the URLs
-  never match, so they do not merge.
+## Open questions
+
+- One role at many locations: the store keeps all of them, which is right — San
+  Jose is not Austin. The ranked view should group them
+  (`Design Verification Engineer (13 locations)`). Not implemented.
+- `posted_at` covers 74%. Workday states only relative text, kept verbatim in
+  `posted_relative` and never converted, so anything reporting "new today" must
+  key off `first_seen`.
+- JSearch overlaps direct boards by roughly half, and the URLs never match, so
+  the two records never merge. Whether a LinkedIn link to a Qualcomm role is
+  worth storing beside the ATS record is undecided.
