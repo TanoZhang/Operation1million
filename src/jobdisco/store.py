@@ -144,6 +144,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
              row.get('location') or '', row.get('source_job_id'), row.get('posted_at'),
              posted_relative, lastmod, stamp, stamp,
              json.dumps(raw, ensure_ascii=True, default=str)))
+    fresh = sorted(u for u in incoming if u not in known)
     live = set(listed) if listed else seen
     # Postings the board still lists but this pass skipped fetching are alive.
     for start in range(0, len(live - seen), 400):
@@ -151,13 +152,17 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         db.execute(
             'UPDATE jobs SET last_seen=? WHERE url IN (%s)' % ','.join('?' * len(chunk)),
             [stamp, *chunk])
-    closed = 0
+    closed_urls = []
     if status == 'complete':
         placeholders = ','.join('?' * len(live)) or 'NULL'
-        closed = db.execute(
+        closed_urls = [r[0] for r in db.execute(
+            f'''SELECT url FROM jobs WHERE company_key=? AND closed_at IS NULL
+                AND url NOT IN ({placeholders})''', [source.company_key, *live])]
+        db.execute(
             f'''UPDATE jobs SET closed_at=? WHERE company_key=? AND closed_at IS NULL
                 AND url NOT IN ({placeholders})''',
-            [stamp, source.company_key, *live]).rowcount
+            [stamp, source.company_key, *live])
+    closed = len(closed_urls)
     db.execute(
         '''INSERT INTO source_state (source_id, company_key, provider_key, etag,
                last_modified, last_success_at, last_run_at, last_status, strategy,
@@ -176,7 +181,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         (source.source_id, source.company_key, source.provider_key, etag,
          last_modified, stamp if status == 'complete' else None, stamp, status,
          strategy, len(seen), requests, note))
-    return {'seen': len(seen), 'new': new, 'closed': closed}
+    return {'seen': len(seen), 'new': new, 'closed': closed,
+            'new_urls': fresh, 'closed_urls': closed_urls, 'stamp': stamp}
 
 
 def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
