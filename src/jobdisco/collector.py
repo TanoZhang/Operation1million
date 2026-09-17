@@ -625,8 +625,8 @@ def main():
                           'monthly_target': settings['monthly_target']}, indent=2))
         return 0
     run_stamp = store.now()
-    if args.store and store.manifest_path(run_stamp).exists():
-        p.error('This UTC day is sealed in the persistent store; refusing to modify its immutable log')
+    if args.store and store.sealed(run_stamp):
+        p.error('That UTC day is over and sealed in the persistent store; refusing to modify it')
     load_credentials()
     if args.store:
         store.migrate(args.db)

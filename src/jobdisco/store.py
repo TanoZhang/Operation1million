@@ -356,6 +356,19 @@ def slim(raw):
     return result
 
 
+def sealed(stamp):
+    """Whether a day is closed to further writing.
+
+    A day seals when it is over, not when a run finishes. What is worth
+    protecting is that a day already in the record never changes again; a second
+    pass on the same day is ordinary, and its postings belong in that day's file
+    beside the first pass's. The manifest is rewritten each time, so its digest
+    always describes the file as it currently stands, and becomes final when the
+    day does.
+    """
+    return stamp[:10] < now()[:10]
+
+
 def daily_log(stamp):
     """One immutable gzipped file per collection day.
 
@@ -378,8 +391,8 @@ def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None):
     written once and reviewable in a diff.
     """
     path = daily_log(stamp)
-    if manifest_path(stamp).exists():
-        raise FileExistsError('Daily log is sealed; refusing to change an immutable day')
+    if sealed(stamp):
+        raise FileExistsError('Daily log is sealed; refusing to change a day that is over')
     path.parent.mkdir(parents=True, exist_ok=True)
     if not urls and not closed_urls and not seen_urls and not source_id:
         return
@@ -425,8 +438,8 @@ def write_manifest(db, stamp, reports, jsearch_stats=None):
     not something edited or truncated afterwards.
     """
     path = daily_log(stamp)
-    if manifest_path(stamp).exists():
-        raise FileExistsError('Daily manifest is immutable')
+    if sealed(stamp):
+        raise FileExistsError('Daily manifest is sealed; that day is over')
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open('xb') as handle:

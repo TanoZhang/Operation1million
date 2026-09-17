@@ -294,14 +294,30 @@ class DiscoveryTests(unittest.TestCase):
         with self.assertRaises(QuotaExhausted):
             restarted.get(self.session, 'https://example')
 
-    def test_sealed_log_and_manifest_cannot_be_changed(self):
-        store.write_manifest(self.db, STAMP, [])
-        original = store.daily_log(STAMP).read_bytes()
+    def test_a_day_that_is_over_cannot_be_changed(self):
+        # Sealing follows the calendar, not the run: a finished pass does not lock
+        # the current day, but nothing may touch a day already in the record.
+        past = '2020-01-01T01:00:00+00:00'
+        # Lay the day down directly: the guard refuses to create it too.
+        store.daily_log(past).parent.mkdir(parents=True, exist_ok=True)
+        store.manifest_path(past).parent.mkdir(parents=True, exist_ok=True)
+        store.daily_log(past).write_bytes(gzip.compress(b'', mtime=0))
+        store.manifest_path(past).write_text('{"run_date": "2020-01-01"}', encoding='utf-8')
+        original = store.daily_log(past).read_bytes()
         with self.assertRaises(FileExistsError):
-            store.append_log(self.db, [], [], STAMP)
+            store.append_log(self.db, [], [], past)
         with self.assertRaises(FileExistsError):
-            store.write_manifest(self.db, STAMP, [])
-        self.assertEqual(store.daily_log(STAMP).read_bytes(), original)
+            store.write_manifest(self.db, past, [])
+        self.assertEqual(store.daily_log(past).read_bytes(), original)
+
+    def test_a_second_pass_today_appends_beside_the_first(self):
+        today = store.now()
+        store.write_manifest(self.db, today, [])
+        first = store.manifest_path(today).read_text(encoding='utf-8')
+        store.append_log(self.db, [], [], today, seen_urls=['https://x/1'])
+        store.write_manifest(self.db, today, [])
+        # The digest tracks the file as it now stands rather than staying stale.
+        self.assertNotEqual(store.manifest_path(today).read_text(encoding='utf-8'), first)
 
     def test_checksum_failure_prevents_replay(self):
         store.write_manifest(self.db, STAMP, [])
