@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check out the data repository
+        id: data_checkout
         uses: actions/checkout@v4
         with:
           repository: TanoZhang/Operation1million-data
@@ -39,6 +40,15 @@ jobs:
           token: ${{ secrets.DATA_REPO_TOKEN }}
           path: data-repo
 
+      - name: Restore operational safety state
+        run: |
+          mkdir -p .local
+          for name in source_access.sqlite jsearch_usage.sqlite; do
+            if [ -f "data-repo/operational/$name" ]; then
+              cp "data-repo/operational/$name" ".local/$name"
+            fi
+          done
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -47,6 +57,7 @@ jobs:
       - run: pip install -e .
 
       - name: Rebuild the database from the committed log
+        id: rebuild
         env:
           JOBDISCO_STORE: ${{ github.workspace }}/data-repo
         # The runner has no database. Everything is derived: the catalog from
@@ -54,6 +65,8 @@ jobs:
         run: job-store --bootstrap --verify
 
       - name: Collect
+        id: collect
+        continue-on-error: true
         env:
           JOBDISCO_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
@@ -65,18 +78,38 @@ jobs:
             --delay 1.0 \
             --jsearch-budget 0
 
-      - name: Commit the day's data
-        if: ${{ !inputs.dry_run }}
+      - name: Save operational safety state
+        if: ${{ always() && steps.data_checkout.outcome == 'success' }}
+        run: |
+          mkdir -p data-repo/operational
+          for name in source_access.sqlite jsearch_usage.sqlite; do
+            if [ -f ".local/$name" ]; then
+              cp ".local/$name" "data-repo/operational/$name"
+            fi
+          done
+
+      - name: Commit durable state
+        if: ${{ always() && steps.data_checkout.outcome == 'success' && steps.rebuild.outcome == 'success' }}
         working-directory: data-repo
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add runs manifests source_state.json
+          # The data repository ignores SQLite generally because the job database
+          # is derived. These two small databases are different: they are the
+          # authoritative quota and cooldown ledgers and must survive a runner.
+          for name in operational/source_access.sqlite operational/jsearch_usage.sqlite; do
+            if [ -f "$name" ]; then
+              git add -f "$name"
+            fi
+          done
+          if [ "${{ inputs.dry_run || false }}" != 'true' ]; then
+            git add runs manifests source_state.json
+          fi
           if git diff --cached --quiet; then
-            echo 'Nothing collected today.'
+            echo 'No durable state changed.'
             exit 0
           fi
-          git commit -m "Collect $(date -u +%Y-%m-%d)"
+          git commit -m "Checkpoint collection $(date -u +%Y-%m-%d)"
           # A concurrent push is unlikely under the concurrency group, but rebasing
           # is safe here: the day files are append-only and the manifests are
           # per-day, so there is nothing to merge by hand.
@@ -84,15 +117,19 @@ jobs:
           git push origin main
 
       - name: Summarise
-        if: always()
+        if: ${{ always() && steps.data_checkout.outcome == 'success' }}
         env:
           JOBDISCO_STORE: ${{ github.workspace }}/data-repo
         run: |
           job-store --verify >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
-          latest=$(ls -1 data-repo/manifests/*.json | tail -1)
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat "$latest" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          latest=$(find data-repo/manifests -maxdepth 1 -name '*.json' -type f 2>/dev/null | sort | tail -1)
+          if [ -n "$latest" ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat "$latest" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No manifest is available.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Keep the run report for triage
         if: always()
@@ -104,3 +141,7 @@ jobs:
           path: runs/*/company_results.csv
           retention-days: 14
           if-no-files-found: warn
+
+      - name: Report collection failure
+        if: ${{ always() && steps.collect.outcome == 'failure' }}
+        run: exit 1

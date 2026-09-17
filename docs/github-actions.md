@@ -58,9 +58,13 @@ for collected data, regardless of whether download requires a login.
 4. Run `python -m jobdisco.collector --jsearch-plan` and verify the budget.
 5. Run `python -m jobdisco.collector --jsearch` with one collector process.
 6. Verify checksums and inspect completion/failure metrics, including exit code 2.
-7. Save operational ledgers even after failures: attempted credits remain spent
-   and cooldowns remain active. Save valid source checkpoints and daily files
-   privately; never rewrite an already sealed daily log.
+7. Save `operational/source_access.sqlite` and
+   `operational/jsearch_usage.sqlite` even after collection failures: attempted
+   credits remain spent and cooldowns remain active. These are the only SQLite
+   files force-added despite the data repository's general SQLite ignore rule.
+   Save valid source checkpoints and daily files privately; never rewrite an
+   already sealed daily log. A dry run checkpoints only these safety ledgers,
+   not collected jobs.
 8. Retain optional exports privately and publish only a non-sensitive summary.
 
 Use concurrency control to prohibit overlapping writers. A sealed UTC day
@@ -75,6 +79,8 @@ that test. The functional plan's 310 pages are reservations, not a guarantee of
 ## Current status
 
 The integration includes offline regression tests, shared persistence and an
-API-free plan preview. No live paid test, workflow, or schedule is enabled by
-this change. The existing private repository has a JSEARCH_API_KEY Secret; the
-hosted private-state restore/checkpoint wiring still needs implementation.
+API-free plan preview. The daily workflow is enabled but its first scheduled
+attempt failed while checking out the private data repository because
+`DATA_REPO_TOKEN` was rejected. Replace that secret before dispatching another
+run. The workflow now restores and checkpoints both operational ledgers; paid
+JSearch remains disabled in the workflow with `--jsearch-budget 0`.
