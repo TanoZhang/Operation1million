@@ -1,0 +1,4 @@
+# This documentation-only repository uses an explicit publication allowlist.
+/*
+!/.gitignore
+!/README.md

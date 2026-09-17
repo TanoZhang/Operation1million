@@ -36,6 +36,17 @@ collection, endpoint investigation, or change to daily discovery behavior.
 - Do not install startup tasks. A daily schedule needs an explicit time and
   user request; documenting daily collection is not authorization to schedule it.
 
+## Publication boundary
+
+- Keep `TanoZhang/Operation1million` private, including its Git history, source
+  catalog, downloaded records, databases, logs, and future discovery workflows.
+- Publish only the reviewed conceptual overview to the separate public
+  `TanoZhang/Operation1million-overview` repository with independent Git history.
+- Keep credentials in local ignored files or private repository Actions Secrets.
+  Never copy credentials, runtime state, or real records into public artifacts.
+- Read [Publication Policy](docs/publication-policy.md) before publishing or
+  changing repository visibility. The public repository has Actions disabled.
+
 ## Agent skills
 
 ### Issue tracker
