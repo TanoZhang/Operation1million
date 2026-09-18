@@ -6,6 +6,8 @@ import csv
 import sqlite3
 import tempfile
 import unittest
+
+import yaml
 from contextlib import closing
 from dataclasses import replace
 from datetime import datetime
@@ -357,6 +359,62 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(after['period_unproductive'], 1)
         # The provider charged what was reserved for the page it answered.
         self.assertEqual(after['provider_drift'], 0)
+
+    def test_the_cycle_is_thirty_days_from_a_date_not_a_month(self):
+        """Every boundary the sweep and the budget depend on, walked.
+
+        A thirty-day cycle drifts off the calendar, so the sixteenth is only
+        the reset date once. The day count is what decides when a sweep runs
+        and what a day's share of the remainder is, and a single day of drift
+        moves both.
+        """
+        guard = RequestGuard(path=self.root / 'cycles.sqlite',
+                             cycle_start='2026-09-16', cycle_days=30)
+
+        def on(day):
+            stamp = datetime.fromisoformat(day + 'T12:00:00+00:00').timestamp()
+            with patch.object(jsearch_access.time, 'time', return_value=stamp):
+                return guard.period()[0], guard.days_until_reset()
+
+        # First day of the cycle, and the last.
+        self.assertEqual(on('2026-09-16'), ('2026-09-16', 30))
+        self.assertEqual(on('2026-10-15'), ('2026-09-16', 1))
+        # The reset the provider states, and the day before it.
+        self.assertEqual(on('2026-10-16'), ('2026-10-16', 30))
+        # The three days a sweep runs are the cycle's last three, by count.
+        self.assertEqual([on(d)[1] for d in ('2026-10-13', '2026-10-14', '2026-10-15')],
+                         [3, 2, 1])
+        # The next cycle does not land on a sixteenth, and the one after that
+        # drifts further: a calendar anchor would be wrong by a day each month.
+        self.assertEqual(on('2026-11-14'), ('2026-10-16', 1))
+        self.assertEqual(on('2026-11-15'), ('2026-11-15', 30))
+        self.assertEqual(on('2026-12-14'), ('2026-11-15', 1))
+        self.assertEqual(on('2026-12-15'), ('2026-12-15', 30))
+
+    def test_the_scheduled_hour_never_meets_a_utc_date_change(self):
+        """Daylight saving must not move the pass onto another cycle day.
+
+        The cycle is counted in UTC dates and the schedule is stated in Pacific
+        time, so a pass near either midnight would land on different days in
+        different halves of the year. 04:38 is eleven hours from one in both
+        offsets, and a pass runs at most ninety minutes.
+        """
+        workflow = yaml.safe_load(
+            (Path(__file__).resolve().parents[1] / '.github/workflows/collect.yml')
+            .read_text(encoding='utf-8'))
+        schedule = workflow[True]['schedule']
+        self.assertEqual(len(schedule), 1, 'exactly one pass a day')
+        self.assertEqual(schedule[0]['timezone'], 'America/Los_Angeles')
+        minute, hour = (int(f) for f in schedule[0]['cron'].split()[:2])
+        local = hour * 60 + minute
+        # Pacific is seven hours behind UTC in daylight time and eight in
+        # standard time; the pass must clear midnight either way.
+        for offset in (7, 8):
+            utc = local + offset * 60
+            self.assertLess(utc, 24 * 60, 'the pass must not cross into the next UTC day')
+            margin = min(utc, 24 * 60 - utc)
+            self.assertGreater(margin, 3 * 60,
+                               'too close to a UTC date change at UTC-%d' % offset)
 
     def test_rolling_cycle_tracks_thirty_days_not_a_calendar_day(self):
         guard = RequestGuard(path=self.root / 'cycle.sqlite',

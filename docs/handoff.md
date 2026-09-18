@@ -116,7 +116,10 @@ what changed is that it no longer leaves the repository unable to rebuild. A
 day already in that state is repaired by resealing its manifest, as on
 2026-09-18.
 
-**A run that crosses UTC midnight seals itself out.** `run_stamp` is fixed when
+**A run that crosses UTC midnight seals itself out.** The scheduled pass
+cannot reach it: 04:38 Pacific is 11:38 UTC in daylight time and 12:38 in
+standard time, eleven hours from a UTC date change either way, and a pass runs
+at most ninety minutes. A late manual run still can. `run_stamp` is fixed when
 the pass begins, and `sealed()` asks whether that day is over, so from midnight
 every `append_log` raises `Daily log is sealed` and the seal on the way out is
 refused for the same reason. The pass is lost entirely, and the message reads
