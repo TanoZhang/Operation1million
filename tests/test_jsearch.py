@@ -624,6 +624,47 @@ class DiscoveryTests(unittest.TestCase):
             store.rebuild(fresh)
         self.assertFalse(fresh.exists())
 
+    def test_the_whole_daily_plan_within_the_daily_budget(self):
+        """The scheduled pass runs all 52 queries for real; nothing else has.
+
+        Every test so far ran a handful of queries or a budget of five. The
+        pass that matters enables paid search by itself, takes the configured
+        plan and the configured ceiling, and has never been exercised.
+        """
+        settings, plan = jsearch.load_plan()
+        guard = RequestGuard(path=self.root / 'wholeplan.sqlite',
+                             limit=settings['monthly_quota'],
+                             target_limit=settings['monthly_target'],
+                             daily_limit=settings['daily_budget'],
+                             cycle_start=settings['cycle_start'],
+                             cycle_days=settings['cycle_days'],
+                             run_limit=settings['daily_budget'])
+        # The politeness floor is a live-traffic rule; 320 waits would be 80
+        # seconds of a test suite that sends nothing.
+        guard.interval = 0
+        client = jsearch.Client(SEARCH, settings, guard, session=self.session)
+        # Every page full, so only the budget or a cap can stop a query. The
+        # descriptions are short because what is under test is how the budget
+        # and the guards behave across the plan, not how a posting scores --
+        # and scoring a full one costs about twenty milliseconds.
+        self.session.get.side_effect = lambda url, **kw: self.response([
+            job(f'{parse_qs(urlsplit(url).query)["query"][0]}'
+                f'-{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}',
+                job_description='RTL design and verification.')
+            for i in range(10)])
+        _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
+
+        self.assertEqual(len(plan), 52)
+        # The ceiling holds exactly, and no query outran its own guard.
+        self.assertEqual(guard.credits, settings['daily_budget'])
+        self.assertEqual(stats['jsearch_pages_used'], settings['daily_budget'])
+        self.assertLessEqual(max(q['pages_used'] for q in stats['jsearch_queries']),
+                             settings['max_pages_per_query'])
+        self.assertEqual(stats['jsearch_failures'], 0)
+        # Nothing may report a status a run is not allowed to finish on.
+        settled = {'complete', 'unchanged', 'query_limited', 'skipped'}
+        self.assertTrue({q['status'] for q in stats['jsearch_queries']} <= settled)
+
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
 
