@@ -1,9 +1,13 @@
 """Offline contracts for pagination, attribution, and SQL rebuilds."""
 import argparse
 import sqlite3
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch, Mock
-from jobdisco.collector import Collector, Source, ROOT, employer_matches, html_items, fallback, config, normalize
+from jobdisco.collector import (Collector, Source, ROOT, employer_matches,
+                                html_items, fallback, config, normalize,
+                                source_lock)
 from jobdisco.paths import CONFIG
 from dataclasses import replace
 
@@ -91,5 +95,40 @@ class CollectionTests(unittest.TestCase):
         self.assertIn('num_pages=1', call.args[1])
         self.assertIn('query=Sample&', call.args[1])  # employer name, not a role keyword
         self.assertEqual(call.kwargs['headers'], {'X-API-Key': 'test-placeholder'})
+
+    def test_microsoft_lock_does_not_block_other_sources(self):
+        microsoft = replace(self.source(), company_key='microsoft')
+        another_microsoft = replace(self.source(), source_id='microsoft:second',
+                                    company_key='microsoft')
+        other = replace(self.source(), source_id='other', company_key='other')
+        first_entered = threading.Event()
+        second_entered = threading.Event()
+        other_finished = threading.Event()
+        release = threading.Event()
+
+        def first():
+            with source_lock(microsoft):
+                first_entered.set()
+                release.wait(2)
+
+        def second():
+            first_entered.wait(2)
+            with source_lock(another_microsoft):
+                second_entered.set()
+
+        def independent():
+            first_entered.wait(2)
+            with source_lock(other):
+                other_finished.set()
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = [pool.submit(first), pool.submit(second), pool.submit(independent)]
+            self.assertTrue(first_entered.wait(1))
+            self.assertTrue(other_finished.wait(1))
+            self.assertFalse(second_entered.is_set())
+            release.set()
+            for future in futures:
+                future.result(timeout=2)
+        self.assertTrue(second_entered.is_set())
 
 if __name__=='__main__':unittest.main()

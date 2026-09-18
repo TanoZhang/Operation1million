@@ -76,7 +76,8 @@ browser impersonation, disabled TLS verification, or CAPTCHA bypass is used.
 
 Default limits are 400 pages and 10,000 jobs per source, one worker, and at
 least 1 second between requests within a company. Eightfold uses at least
-2.5 seconds and Microsoft 3 seconds. Microsoft forces one worker for the run.
+2.5 seconds and Microsoft 3 seconds. Microsoft has a dedicated source lock;
+other companies continue through the configured worker pool.
 Use `--max-pages` and `--max-jobs` to change caps. Direct requests have a
 25-second timeout. A 429 pauses the source immediately; 503 retries are bounded
 and honor Retry-After. Cooldowns persist in `.local/source_access.sqlite`.

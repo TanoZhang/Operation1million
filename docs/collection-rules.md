@@ -40,7 +40,7 @@ stop at verification challenges rather than attempting to evade them.
 
 | Source or response | Required behavior |
 | --- | --- |
-| Microsoft | At least 3 seconds between requests; one worker; no overlapping collector/diagnostic process |
+| Microsoft | At least 3 seconds between requests; dedicated source lock; no overlapping collector/diagnostic process |
 | Micron and Qualcomm | At least 2.5 seconds between requests; sequential pages |
 | AMD and other sources | At least 1 second between requests; sequential pages |
 | HTTP 429 | Stop the source immediately for this run; no retry loop; persist a cooldown of at least 15 minutes or Retry-After, whichever is longer |
@@ -56,8 +56,10 @@ Do not delete cooldown state, change identity/IP, or switch to blocked endpoints
 to keep collecting during a pause. Parse both seconds and HTTP-date forms of
 Retry-After; never truncate the provider's requested delay.
 
-The collector enforces these intervals even if `--delay` is smaller. Its default
-worker count is one, and selecting Microsoft forces one worker for the run.
+The collector enforces these intervals even if `--delay` is smaller. Microsoft
+is serialized by its own source lock while unrelated companies continue through
+the configured worker pool. The default remains one worker for manual runs;
+hosted collection explicitly requests three.
 Cooldowns live in `.local/source_access.sqlite` and survive restarts; this is
 operational state, separate from the job catalog. This file does not coordinate
 in-flight requests between independent processes, so do not overlap processes.

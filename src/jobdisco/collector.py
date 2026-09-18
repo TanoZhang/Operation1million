@@ -8,6 +8,7 @@ import os
 import re
 import sqlite3
 import tempfile
+import threading
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -34,6 +35,12 @@ from . import jsearch
 
 FIELDS = ['company_key', 'company_name', 'provider_key', 'title', 'location', 'url', 'source_job_id', 'posted_at', 'raw']
 JSON_PROVIDERS = {'workday', 'greenhouse', 'ashby', 'oracle_cloud', 'smartrecruiters', 'phenom', 'amazon_jobs', 'eightfold', 'amd_careers'}
+_MICROSOFT_SOURCE_LOCK = threading.Lock()
+
+
+def source_lock(source):
+    """Serialize Microsoft without reducing concurrency for other sources."""
+    return _MICROSOFT_SOURCE_LOCK if source.company_key == 'microsoft' else nullcontext()
 
 
 def config(name):
@@ -623,9 +630,6 @@ def main():
         if unknown:
             p.error(f'Unknown company keys: {sorted(unknown)}')
         sources = [s for s in sources if s.company_key in args.company]
-    if any(s.company_key == 'microsoft' for s in sources) and args.workers != 1:
-        print('Microsoft selected: using one worker to avoid concurrent collection.', flush=True)
-        args.workers = 1
     discovery = config('discovery_queries.toml')
     fallbacks = {r['company_key']: r for r in discovery.get('company_fallbacks', [])}
     search = config('sources_search.toml')['search']['jsearch']
@@ -661,20 +665,21 @@ def main():
         args.output = RUNS / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     args.output.mkdir(parents=True, exist_ok=True)
     def direct(source):
-        c = Collector(source, args)
-        c.strategy, c.watermark = store.plan(source, source_state)
-        if source.provider_key in store.LASTMOD_SITEMAP and known_by_company is not None:
-            c.known = known_by_company.get(source.company_key, set())
-        try:
-            status, reason = c.run()
-            if c.rejected:
-                status = 'partial'
-                reason = f'{len(c.rejected)} malformed records rejected. ' + reason
-                (args.output/(source.company_key + '_rejected.json')).write_text(json.dumps(c.rejected, ensure_ascii=True), encoding='utf-8')
-        finally:
-            c.session.close()
-        print(f'{source.company_key}: {len(c.jobs)} jobs, {status}', flush=True)
-        return source, c.jobs, status, reason, c.requests, c
+        with source_lock(source):
+            c = Collector(source, args)
+            c.strategy, c.watermark = store.plan(source, source_state)
+            if source.provider_key in store.LASTMOD_SITEMAP and known_by_company is not None:
+                c.known = known_by_company.get(source.company_key, set())
+            try:
+                status, reason = c.run()
+                if c.rejected:
+                    status = 'partial'
+                    reason = f'{len(c.rejected)} malformed records rejected. ' + reason
+                    (args.output/(source.company_key + '_rejected.json')).write_text(json.dumps(c.rejected, ensure_ascii=True), encoding='utf-8')
+            finally:
+                c.session.close()
+            print(f'{source.company_key}: {len(c.jobs)} jobs, {status}', flush=True)
+            return source, c.jobs, status, reason, c.requests, c
     jobs, reports = [], []
     run_id = args.output.name
     totals = {'seen': 0, 'new': 0, 'closed': 0}

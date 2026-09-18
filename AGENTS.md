@@ -14,10 +14,11 @@ collection, endpoint investigation, or change to daily discovery behavior.
 - Prefer the verified public JSON list endpoints. Use Eightfold PCSX for Micron,
   Microsoft, and Qualcomm, and careers.amd.com/api/jobs for AMD. Do not restart
   legacy apply-v2, iCIMS, or GCS endpoint guessing for these companies.
-- Use one collector process at a time. Microsoft runs with one worker and a
-  minimum 3-second interval; other Eightfold sources use at least 2.5 seconds;
-  other sources use at least 1 second. These are local conservative defaults,
-  not provider guarantees or a promise against rate limiting.
+- Use one collector process at a time. Microsoft has a dedicated source lock
+  and a minimum 3-second interval; it must not reduce the configured worker pool
+  for other companies. Other Eightfold sources use at least 2.5 seconds; other
+  sources use at least 1 second. These are local conservative defaults, not
+  provider guarantees or a promise against rate limiting.
 - HTTP 429 stops that company for the current run. Preserve the persistent
   cooldown and wait at least 15 minutes or Retry-After, whichever is longer.
   Repeated throttling requires review and a longer pause, not repeated runs.

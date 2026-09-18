@@ -72,11 +72,11 @@ bootstraps from the data repository, so until this is pushed it will rebuild
 from a stale baseline and rediscover known postings as new. Push before the next
 non-dry hosted run.
 
-**Collection is single-threaded whenever Microsoft is in the source list.**
-`collector.py` drops `--workers` to 1 for the whole run because Microsoft
-throttles by IP. That is most of the 57-minute local run: 34 companies wait on
-one slow board. A lock on the Microsoft source alone, leaving the rest
-concurrent, should bring it near 13 minutes.
+**Microsoft no longer makes the whole collection single-threaded.** Its source
+has a dedicated lock and keeps its 3-second request interval, while the other
+companies continue through the configured worker pool. This addresses the main
+cost observed in the 46-minute hosted dry run; the next dry run should measure
+the actual reduction.
 
 **The JSearch plan leaves no headroom.** 310 pages against a 316-page daily
 budget, and the daily budget is a fixed slice of the month. Any manual testing
