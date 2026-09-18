@@ -170,6 +170,9 @@ jobs:
           done
 
       - name: Commit durable state
+        env:
+          # The check below reads the store being committed, not the default path.
+          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
         if: ${{ always() && steps.data_checkout.outcome == 'success' && steps.rebuild.outcome == 'success' }}
         working-directory: data-repo
         run: |
@@ -199,7 +202,23 @@ jobs:
             git restore --worktree --source=HEAD -- runs manifests source_state.json
             git clean -fd -- runs manifests
           else
-            git add runs manifests source_state.json
+            # Never publish a store that cannot verify itself. A run killed
+            # outright -- a runner timeout, a cancelled job -- can stop between
+            # sharding the day's log and sealing its manifest, and this step
+            # runs on cancellation too. Committing that leaves the data
+            # repository unable to rebuild, which is worse than losing a pass.
+            if ! python -c "
+          import sys
+          from jobdisco import store
+          bad = [(d, s) for d, s in store.verify() if s != 'ok']
+          for d, s in bad:
+              print(f'::error title=Unverified store::{d}: {s}')
+          sys.exit(1 if bad else 0)
+          "; then
+              echo '::warning::Collected postings were not committed; the store did not verify.'
+            else
+              git add runs manifests source_state.json
+            fi
           fi
           if git diff --cached --quiet; then
             echo 'No durable state changed.'

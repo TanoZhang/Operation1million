@@ -83,9 +83,14 @@ them is scheduled.
 deletes the day's; the active file that replaces it has no manifest until the
 run seals it on the way out. Every ordinary exit seals, including a failure,
 but a process killed outright -- a runner timeout, a cancelled job -- does not.
-`Commit durable state` runs on cancellation, so the unmanifested file can reach
-the data repository, and the next run's `--bootstrap --verify` refuses it. The
-repair is to reseal that day's manifest by hand, as on 2026-09-18.
+`Commit durable state` runs on cancellation, so the unmanifested file could
+reach the data repository and the next run's `--bootstrap --verify` would
+refuse it. That step now verifies the store before adding the collected
+postings and commits only the operational ledgers when it does not hold, so a
+killed pass is lost rather than published. The window itself is still there;
+what changed is that it no longer leaves the repository unable to rebuild. A
+day already in that state is repaired by resealing its manifest, as on
+2026-09-18.
 
 **The daily schedule has never completed.** Every successful pass so far has
 been a manual dispatch. The only scheduled run, on 2026-09-17, failed on
