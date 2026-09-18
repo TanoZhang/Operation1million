@@ -87,11 +87,6 @@ but a process killed outright -- a runner timeout, a cancelled job -- does not.
 the data repository, and the next run's `--bootstrap --verify` refuses it. The
 repair is to reseal that day's manifest by hand, as on 2026-09-18.
 
-**The 38,849 postings logged before the score travelled with them cannot be
-given one.** Sealed days are not rewritten. A fresh rebuild ranks them as
-irrelevant until `job-store --rescore` runs, which costs 129 seconds.
-`job-store` prints the count so an empty ranking is not a mystery.
-
 **The daily schedule has never completed.** Every successful pass so far has
 been a manual dispatch. The only scheduled run, on 2026-09-17, failed on
 `Bad credentials` before the token was replaced.
@@ -114,6 +109,13 @@ overlap mean the next run recovers it, and duplicates cost nothing because the
 identity is the provider's `job_id`. The daily ceiling is 320 credits. Note that
 320 across 30 days is exactly the 9,600 monthly target, and the billing anchor
 is day 16 because that is when the provider resets.
+
+**Every posting in a rebuild carries its score.** A runner replays the log and
+never rescores, and recomputing costs 129 seconds for 39,635 postings. The
+score travels two ways: written beside a posting as it is logged, and, for the
+postings logged before that, as a compact `score` event carrying only a URL and
+a number. A fresh rebuild reports `unscored: 0`, which `job-store` prints so
+that an empty ranking would never be a mystery.
 
 **Credit accounting is per page and durable.** The credit is committed to the
 ledger before the request leaves, so a timeout or a crash still shows it as
