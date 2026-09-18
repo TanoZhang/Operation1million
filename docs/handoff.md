@@ -92,6 +92,16 @@ what changed is that it no longer leaves the repository unable to rebuild. A
 day already in that state is repaired by resealing its manifest, as on
 2026-09-18.
 
+**A run that crosses UTC midnight seals itself out.** `run_stamp` is fixed when
+the pass begins, and `sealed()` asks whether that day is over, so from midnight
+every `append_log` raises `Daily log is sealed` and the seal on the way out is
+refused for the same reason. The pass is lost entirely, and the message reads
+as corruption rather than a clock. A pass takes up to ninety minutes with a
+sweep, and the one scheduled run so far started four hours and twenty-two
+minutes late, so the window is narrow but not closed. Either the day's stamp
+should roll forward when it is overtaken, or a day should seal only once no run
+still holds it.
+
 **The daily schedule has never completed.** Every successful pass so far has
 been a manual dispatch. The only scheduled run, on 2026-09-17, failed on
 `Bad credentials` before the token was replaced.

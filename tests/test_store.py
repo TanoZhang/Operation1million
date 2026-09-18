@@ -466,6 +466,33 @@ class LogRoundTripTests(unittest.TestCase):
             self.assertIsNotNone(rebuilt.execute(
                 'SELECT closed_at FROM jobs WHERE url=?', ('https://x/4',)).fetchone()[0])
 
+    def test_a_second_shard_numbers_and_orders_after_the_first(self):
+        """A busy day cuts more than one shard, and order still has to hold."""
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        stamps = []
+        with patch.object(store, 'MAX_DAILY_LOG_BYTES', 1):
+            for i in range(3):
+                delta = store.record_source(db, SOURCE, [row(f'https://x/{i}')],
+                                            'complete', 'full', 1)
+                store.append_log(db, delta['new_urls'], [], delta['stamp'])
+                store.write_manifest(db, delta['stamp'], [])
+                stamps.append(delta['stamp'])
+        db.commit()
+        day = stamps[0][:10]
+        names = sorted(p.name for p in (self.log / 'runs').glob('*.ndjson.gz'))
+        self.assertEqual(names, [f'{day}-0001.ndjson.gz', f'{day}-0002.ndjson.gz',
+                                 f'{day}.ndjson.gz'])
+        self.assertTrue(all(state == 'ok' for _, state in store.verify()), store.verify())
+
+        fresh = Path(self.dir.name) / 'two.sqlite'
+        with closing(sqlite3.connect(fresh)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.migrate(fresh)
+        store.rebuild(fresh)
+        with closing(store.connect(fresh)) as rebuilt:
+            self.assertEqual(rebuilt.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 3)
+
     def test_verify_reports_a_log_without_a_manifest(self):
         path = self.log / 'runs' / '2026-09-18.ndjson.gz'
         path.parent.mkdir(parents=True)
