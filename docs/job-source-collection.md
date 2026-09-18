@@ -107,7 +107,7 @@ Each invocation replaces the files in its output directory; use a different
 ## JSearch
 
 See [JSearch daily discovery](jsearch.md) for the executable 52-query functional
-plan, 310-page allocation, 316-credit daily ceiling and 9,500-credit monthly
+plan, 272-page allocation, 280-credit daily ceiling and 9,500-credit monthly
 target. JSearch remains opt-in locally and for manual workflow dispatches; the
 authorized daily schedule enables it. The shared store deduplicates stable IDs
 across queries and preserves full descriptions, salary and useful unknown fields.

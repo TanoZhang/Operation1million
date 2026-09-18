@@ -79,13 +79,10 @@ the collection step from 45 minutes 48 seconds to 13 minutes 3 seconds. Microsof
 received an immediate 429 in the faster run and stopped under the cooldown rule,
 so a future normal pass still needs to confirm full Microsoft pagination.
 
-**The JSearch plan leaves no headroom.** 310 pages against a 316-page daily
-budget, and the daily budget is a fixed slice of the month. Any manual testing
-earlier in the same UTC day eats the scheduled run: on 2026-09-17, 29 credits of
-testing left 287 for a 310-page plan, and 11 queries were skipped after
-`QuotaExhausted`. Two fixes, neither applied: size the plan near 280, and make
-the daily allowance the month's remainder divided by the days left rather than a
-fixed slice.
+**JSearch now uses an overlapping 3-day window and a smaller fixed plan.** The
+seven queries above 10 pages were capped at 10 after the wider calls timed out
+and successful calls used less than half their capacity. The plan is 272 pages
+against a 280-page daily ceiling, leaving 8 credits for configured fallbacks.
 
 **Two companies have no direct route.** Rambus answers 405 on every path under
 `careers-rambus.icims.com`, including `/sitemap.xml`; `ventanamicro.com` does not
@@ -121,6 +118,8 @@ raw jobs: 9 accepted, 1 rejected, and no malformed records or failures. A dry ru
 checkpoints the operational ledgers but not collected postings.
 Collector exit code 2 is reported as a warning rather than making every daily
 run red; unexpected failures still fail the workflow.
+Dry runs now print the new, closed, and seen counts they discard and explicitly
+restore/remove durable collection paths before committing only safety ledgers.
 
 ## Lessons worth not relearning
 
@@ -138,6 +137,11 @@ early-stop pass reads the newest slice and stops; on a quiet day it returns
 nothing and would otherwise close everything. A blank first page is also what a
 board looks like mid-deploy, so it counts only when the board states a count of
 zero.
+
+**A board's own zero count is not sufficient protection.** A complete pass that
+would close more than 25% of the existing company/provider inventory is now
+downgraded to partial. The store keeps all candidate closures open, preserves
+the prior success watermark, and reports the blocked count and ratio.
 
 **Paid search was querying the wrong thing.** `"AMD electrical engineer"` returns
 electrical-engineer roles at other employers, all correctly rejected, which read

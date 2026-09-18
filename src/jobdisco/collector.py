@@ -693,7 +693,7 @@ def main():
         progress is durable and queryable while the run continues.
         """
         if db is None:
-            return
+            return None
         strategy = getattr(c, 'strategy', 'full')
         kwargs = {'etag': getattr(c, 'etag', None),
                   'last_modified': getattr(c, 'last_modified', None)}
@@ -708,8 +708,11 @@ def main():
         db.commit()
         for key in ('seen', 'new', 'closed'):
             totals[key] += delta[key]
+        if delta.get('closure_fused'):
+            print(f"WARNING: {delta['note']}", flush=True)
         print(f"  stored {source.company_key}: +{delta['new']} new, "
               f"-{delta['closed']} closed, {delta['seen']} seen", flush=True)
+        return delta
 
     with closing(store.connect(args.db)) if args.store else nullcontext() as db:
         if db is not None:
@@ -719,7 +722,10 @@ def main():
             for source, rows, status, reason, count, c in pool.map(direct, sources):
                 fs, fr = '', ''
                 jobs.extend(rows)
-                persist(db, source, rows, status, count, c)
+                delta = persist(db, source, rows, status, count, c)
+                if delta and delta.get('status') != status:
+                    status = delta['status']
+                    reason = '; '.join(filter(None, [reason, delta.get('note', '')]))
                 reports.append({'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': fs, 'next_step': '; '.join(filter(None, [reason if status != 'complete' else '', fr])) or 'None'})
         # Functional discovery follows direct sources. Only configured employers
         # qualify for the final fallback phase; no automatic company-wide search.
@@ -771,7 +777,7 @@ def main():
             f.write(json.dumps(row, ensure_ascii=True)+'\n')
     write_csv(args.output/'jobs.csv', jobs, FIELDS)
     write_csv(args.output/'company_results.csv', reports, list(reports[0]) if reports else ['company_key'])
-    manifest = {'collected_at': datetime.now(timezone.utc).isoformat(), 'companies': len(sources), 'jobs': len(jobs), 'max_pages': args.max_pages, 'max_jobs': args.max_jobs, 'jsearch_requests': request_guard.attempts, 'complete_direct_sources': sum(r['direct_status']=='complete' and r['provider_key'] != 'jsearch' for r in reports), **search_stats}
+    manifest = {'collected_at': datetime.now(timezone.utc).isoformat(), 'companies': len(sources), 'jobs': len(jobs), 'max_pages': args.max_pages, 'max_jobs': args.max_jobs, 'jsearch_requests': request_guard.attempts, 'complete_direct_sources': sum(r['direct_status']=='complete' and r['provider_key'] != 'jsearch' for r in reports), 'store_new': totals['new'], 'store_closed': totals['closed'], 'store_seen': totals['seen'], **search_stats}
     (args.output/'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(json.dumps(manifest), flush=True)
     return 0 if all(r['direct_status'] in {'complete', 'unchanged', 'query_limited'} for r in reports) else 2

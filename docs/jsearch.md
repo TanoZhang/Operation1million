@@ -19,26 +19,26 @@ SQLite `search_queries` table is not executed by this collector.
 
 | Group | Queries | Page credits |
 | --- | ---: | ---: |
-| A | 15 | 184 |
+| A | 15 | 146 |
 | B | 13 | 65 |
 | C | 13 | 39 |
 | Internships | 11 | 22 |
-| Total | 52 | 310 |
+| Total | 52 | 272 |
 
-The daily ceiling is 316, leaving 6 credits for explicit company fallbacks.
+The daily ceiling is 280, leaving 8 credits for explicit company fallbacks.
 The catalog currently configures none. Each query has a fixed allocation of
 1..20 pages. A batch requests `num_pages` once; a full result or returned cursor
 never expands the plan. The plan is rejected before collection if all configured
 functional and company allocations would exceed the ceiling. Allocations are
 initial choices, not measured optimal values.
 
-Requests use `/jsearch/search-v2`, `country=us`, `date_posted=today`, and
+Requests use `/jsearch/search-v2`, `country=us`, `date_posted=3days`, and
 `employment_types=FULLTIME,INTERN`. Queries contain positive functional phrases;
 there are no city/state expansions or negative search terms.
 
 The quota is 10,000 page credits per billing period. The operating target is
-`floor(10000 * 0.95) = 9500`; `9500 // 30 = 316` is the daily ceiling.
-On a 31-day period the monthly guard may stop collection before the daily
+`floor(10000 * 0.95) = 9500`; the configured daily ceiling is 280. On a 31-day
+period the monthly guard may stop collection before the daily
 allocation is exhausted. `billing_cycle_start_day` is 17, matching the current
 subscription billing anchor. Days use UTC.
 
@@ -71,9 +71,9 @@ expand to all 52 keywords or retry paid failures without a new instruction.
 
 # Add --jsearch-plan to preview the same command without any API call.
 
-# All 52 functional queries over one week: up to 310 reserved credits.
+# All 52 functional queries over one week: up to 272 reserved credits.
 # Direct sources and company fallbacks are skipped by --jsearch-only.
-.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 310
+.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 272
 ```
 
 `--jsearch-query` replaces the functional catalog for this invocation; its page
@@ -158,8 +158,8 @@ enter the code repository. Transient `runs/<timestamp>/` JSONL/CSV files remain
 private snapshots and are not the durable source of truth.
 
 Search results are always query-limited. Their absences never close jobs, even
-when every planned page succeeds. `today` is the requested discovery window,
-not a guarantee against delayed indexing or missed listings. Direct sources
+when every planned page succeeds. `3days` is the requested overlapping discovery
+window, not a guarantee against delayed indexing or missed listings. Direct sources
 continue to supply independent coverage; no automatic wider-window search or
 extra paid pages are added.
 

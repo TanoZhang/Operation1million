@@ -131,7 +131,22 @@ jobs:
               git add -f "$name"
             fi
           done
-          if [ "${{ inputs.dry_run || false }}" != 'true' ]; then
+          if [ "${{ inputs.dry_run || false }}" = 'true' ]; then
+            summary=$(python - <<'PY'
+          import json
+          from pathlib import Path
+          files = sorted(Path('../runs').glob('*/manifest.json'), key=lambda p: p.stat().st_mtime)
+          data = json.loads(files[-1].read_text()) if files else {}
+          print(f"dry run: discarding durable collection result: "
+                f"{data.get('store_new', 0)} new, {data.get('store_closed', 0)} closed, "
+                f"{data.get('store_seen', 0)} seen; triage report retained")
+          PY
+            )
+            echo "::notice title=Dry run discarded::$summary"
+            echo "$summary" >> "$GITHUB_STEP_SUMMARY"
+            git restore --worktree --source=HEAD -- runs manifests source_state.json
+            git clean -fd -- runs manifests
+          else
             git add runs manifests source_state.json
           fi
           if git diff --cached --quiet; then

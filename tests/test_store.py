@@ -65,16 +65,15 @@ class StoreTests(unittest.TestCase):
 
     def test_new_then_unchanged_then_closed(self):
         db = self.open_db()
-        first = store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
-                                    'complete', 'full', 2)
-        self.assertEqual((first['seen'], first['new'], first['closed']), (2, 2, 0))
-        again = store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
-                                    'complete', 'full', 2)
-        self.assertEqual((again['seen'], again['new'], again['closed']), (2, 0, 0))
-        gone = store.record_source(db, SOURCE, [row('https://x/1')], 'complete', 'full', 1)
+        baseline = [row(f'https://x/{i}') for i in range(1, 5)]
+        first = store.record_source(db, SOURCE, baseline, 'complete', 'full', 2)
+        self.assertEqual((first['seen'], first['new'], first['closed']), (4, 4, 0))
+        again = store.record_source(db, SOURCE, baseline, 'complete', 'full', 2)
+        self.assertEqual((again['seen'], again['new'], again['closed']), (4, 0, 0))
+        gone = store.record_source(db, SOURCE, baseline[:3], 'complete', 'full', 1)
         self.assertEqual((gone['new'], gone['closed']), (0, 1))
         self.assertIsNotNone(
-            db.execute("SELECT closed_at FROM jobs WHERE url='https://x/2'").fetchone()[0])
+            db.execute("SELECT closed_at FROM jobs WHERE url='https://x/4'").fetchone()[0])
         # first_seen records when we observed it, and survives later passes.
         seen = db.execute("SELECT first_seen, last_seen FROM jobs WHERE url='https://x/1'").fetchone()
         self.assertLess(seen['first_seen'], seen['last_seen'])
@@ -97,20 +96,21 @@ class StoreTests(unittest.TestCase):
 
     def test_skipping_a_fetch_does_not_retire_a_listed_posting(self):
         db = self.open_db()
-        store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
-                            'complete', 'full', 2)
-        self.assertEqual(store.known_urls(db, 'matx'), {'https://x/1', 'https://x/2'})
-        # The board still lists both, but only the new one was downloaded.
-        delta = store.record_source(db, SOURCE, [row('https://x/3')], 'complete', 'lastmod', 1,
-                                    listed={'https://x/1', 'https://x/2', 'https://x/3'})
+        baseline = [row(f'https://x/{i}') for i in range(1, 9)]
+        store.record_source(db, SOURCE, baseline, 'complete', 'full', 2)
+        self.assertEqual(store.known_urls(db, 'matx'), {r['url'] for r in baseline})
+        # The board still lists all eight, but only the new one was downloaded.
+        listed = {r['url'] for r in baseline} | {'https://x/9'}
+        delta = store.record_source(db, SOURCE, [row('https://x/9')], 'complete', 'lastmod', 1,
+                                    listed=listed)
         self.assertEqual((delta['new'], delta['closed']), (1, 0))
         self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL')
-                         .fetchone()[0], 3)
+                         .fetchone()[0], 9)
         # Skipped-but-listed postings still count as seen this pass.
         self.assertEqual(len({r[0] for r in db.execute('SELECT last_seen FROM jobs')}), 1)
         # Dropping out of the listing is what closes a posting.
         gone = store.record_source(db, SOURCE, [], 'complete', 'lastmod', 1,
-                                   listed={'https://x/3'})
+                                   listed={f'https://x/{i}' for i in range(3, 10)})
         self.assertEqual(gone['closed'], 2)
 
     def test_unchanged_board_refreshes_without_closing(self):
@@ -177,15 +177,15 @@ class LogRoundTripTests(unittest.TestCase):
     def test_replaying_the_log_restores_every_posting_and_closure(self):
         db = store.connect(self.db_path)
         self.addCleanup(db.close)
-        first = store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
-                                    'complete', 'full', 2)
+        baseline = [row(f'https://x/{i}') for i in range(1, 5)]
+        first = store.record_source(db, SOURCE, baseline, 'complete', 'full', 2)
         store.append_log(db, first['new_urls'], first['closed_urls'], first['stamp'])
-        gone = store.record_source(db, SOURCE, [row('https://x/1')], 'complete', 'full', 1)
+        gone = store.record_source(db, SOURCE, baseline[:3], 'complete', 'full', 1)
         store.append_log(db, gone['new_urls'], gone['closed_urls'], gone['stamp'])
         store.export_state(db)
         db.commit()
         expected = self.snapshot(self.db_path)
-        self.assertEqual(len(expected), 2)
+        self.assertEqual(len(expected), 4)
 
         # A fresh runner: the catalog exists, the collected data does not.
         fresh = Path(self.dir.name) / 'fresh.sqlite'
@@ -193,7 +193,7 @@ class LogRoundTripTests(unittest.TestCase):
             blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
             blank.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
         counts = store.rebuild(fresh)
-        self.assertEqual(counts, {'jobs': 2, 'events': 1, 'sources': 1})
+        self.assertEqual(counts, {'jobs': 4, 'events': 1, 'sources': 1})
         self.assertEqual(self.snapshot(fresh), expected)
 
     def test_log_keeps_the_whole_posting_and_drops_only_noise(self):
@@ -334,10 +334,51 @@ class ClosingGuardTests(unittest.TestCase):
         self.assertEqual(self.open_count(), 3)
 
     def test_a_full_enumeration_still_closes_what_vanished(self):
-        delta = store.record_source(self.db, SOURCE, [row('https://x/1')],
+        baseline = [row(f'https://x/{i}') for i in range(1, 5)]
+        store.record_source(self.db, SOURCE, baseline, 'complete', 'full', 1)
+        delta = store.record_source(self.db, SOURCE, baseline[:3],
                                     'complete', 'full', 1)
         self.assertEqual(delta['closed'], 1)
-        self.assertEqual(self.open_count(), 1)
+        self.assertEqual(self.open_count(), 3)
+
+    def test_exactly_twenty_five_percent_may_close(self):
+        baseline = [row(f'https://x/{i}') for i in range(1, 9)]
+        store.record_source(self.db, SOURCE, baseline, 'complete', 'full', 1)
+        delta = store.record_source(self.db, SOURCE, baseline[:6],
+                                    'complete', 'full', 1)
+        self.assertEqual(delta['status'], 'complete')
+        self.assertFalse(delta['closure_fused'])
+        self.assertEqual(delta['closed'], 2)
+        self.assertEqual(self.open_count(), 6)
+
+    def test_large_complete_closure_is_downgraded_and_blocked(self):
+        baseline = [row(f'https://x/{i}') for i in range(1, 9)]
+        store.record_source(self.db, SOURCE, baseline, 'complete', 'full', 1,
+                            stamp='2026-09-16T00:00:00+00:00')
+        delta = store.record_source(self.db, SOURCE, baseline[:5],
+                                    'complete', 'full', 1,
+                                    stamp='2026-09-17T00:00:00+00:00')
+        self.assertEqual(delta['status'], 'partial')
+        self.assertTrue(delta['closure_fused'])
+        self.assertEqual(delta['closure_candidates'], 3)
+        self.assertEqual(delta['closure_ratio'], 3 / 8)
+        self.assertEqual(delta['closed'], 0)
+        self.assertEqual(self.open_count(), 8)
+        state = self.db.execute(
+            'SELECT last_status, last_success_at, note FROM source_state WHERE source_id=?',
+            (SOURCE.source_id,)).fetchone()
+        self.assertEqual(state['last_status'], 'partial')
+        self.assertEqual(state['last_success_at'], '2026-09-16T00:00:00+00:00')
+        self.assertIn('Closure fuse blocked 3 of 8', state['note'])
+
+    def test_reported_empty_board_cannot_retire_an_existing_inventory(self):
+        baseline = [row(f'https://x/{i}') for i in range(1, 9)]
+        store.record_source(self.db, SOURCE, baseline, 'complete', 'full', 1)
+        delta = store.record_source(self.db, SOURCE, [], 'complete', 'full', 1)
+        self.assertEqual(delta['status'], 'partial')
+        self.assertEqual(delta['closed'], 0)
+        self.assertEqual(delta['closure_candidates'], 8)
+        self.assertEqual(self.open_count(), 8)
 
 
 class EmptyBoardTests(unittest.TestCase):

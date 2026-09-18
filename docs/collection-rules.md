@@ -79,7 +79,7 @@ functional discovery; configured company fallback runs last. Company fallback
 alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
-The functional plan contains 52 queries and 310 pages. The daily cap is 316
+The functional plan contains 52 queries and 272 pages. The daily cap is 280
 page credits and the monthly operating target is 9,500 of the 10,000 quota.
 Each query reserves its fixed page count before sending, including failures.
 Preserve `.local/jsearch_usage.sqlite` across runners and configure the actual
@@ -104,10 +104,16 @@ coverage may establish closure: query-limited searches, since-window scans,
 capped, paused or failed passes cannot retire unseen jobs. A direct scan also
 must not close unrelated search-only records for the same company.
 
+Even a pass labeled complete may expose a broken upstream count or empty board.
+Before applying closures, the store compares candidate closures with the open
+inventory for that company/provider. More than 25% trips a fuse: no jobs close,
+the source becomes partial, its success watermark does not advance, and the
+report records the blocked count and ratio. Exactly 25% remains permitted.
+
 Local deduplication saves repeated storage and processing. It does not guarantee
 fewer provider requests. Never extend a newest-first optimization to another
 endpoint without evidence of its order/date behavior. A posting absent from a
-`date_posted=today` search may simply be old or indexed late; search absence is
+`date_posted=3days` search may still be old or indexed late; search absence is
 not evidence of closure. Broader reconciliation is not automatically scheduled.
 
 The authorized private GitHub Actions schedule runs daily at 06:17

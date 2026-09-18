@@ -2,6 +2,7 @@
 import gzip
 import io
 import json
+import csv
 import sqlite3
 import tempfile
 import unittest
@@ -56,10 +57,13 @@ class DiscoveryTests(unittest.TestCase):
         params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
         self.assertEqual(params['date_posted'], ['week'])
         self.assertEqual(params['num_pages'], ['1'])
-        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 316)
+        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 280)
         manifest = json.loads((output / 'manifest.json').read_text())
         self.assertEqual(manifest['jsearch_pages_used'], 1)
         self.assertEqual(manifest['jsearch_queries'][0]['date_posted'], 'week')
+        self.assertEqual(
+            (manifest['store_new'], manifest['store_closed'], manifest['store_seen']),
+            (0, 0, 0))
         self.assertFalse(store.LOG.exists())
 
     def setUp(self):
@@ -78,7 +82,7 @@ class DiscoveryTests(unittest.TestCase):
         p = patch('requests.sessions.Session.request', side_effect=AssertionError('Network forbidden'))
         p.start()
         self.addCleanup(p.stop)
-        self.guard = RequestGuard(self.root / 'usage.sqlite', daily_limit=316, target_limit=9500)
+        self.guard = RequestGuard(self.root / 'usage.sqlite', daily_limit=280, target_limit=9500)
         self.session = Mock()
         self.client = jsearch.Client(SEARCH, self.settings, self.guard, session=self.session)
         self.db_path = self.root / 'jobs.sqlite'
@@ -123,15 +127,16 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_fixed_catalog_and_budget_math(self):
         self.assertEqual(len(self.plan), 52)
-        self.assertEqual(sum(q.pages for q in self.plan), 310)
+        self.assertEqual(sum(q.pages for q in self.plan), 272)
         self.assertEqual(self.settings['monthly_target'], 9500)
-        self.assertEqual(self.settings['daily_budget'], 9500 // 30)
+        self.assertEqual(self.settings['daily_budget'], 280)
         self.assertEqual(self.settings['billing_cycle_start_day'], 17)
-        self.assertTrue(all(1 <= q.pages <= 20 for q in self.plan))
+        self.assertEqual(self.settings['date_posted'], '3days')
+        self.assertTrue(all(1 <= q.pages <= 10 for q in self.plan))
 
     def test_over_budget_refused_before_transport(self):
         with self.assertRaises(ValueError):
-            jsearch.validate_budget(self.plan, 309)
+            jsearch.validate_budget(self.plan, 271)
         self.session.get.assert_not_called()
 
     def test_invalid_page_allocation_rejected(self):
@@ -146,7 +151,7 @@ class DiscoveryTests(unittest.TestCase):
         rows, stats = self.collect([jsearch.Query('RTL Design Engineer', 2, 'A')])
         params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
         self.assertEqual(params, {'query': ['RTL Design Engineer'], 'num_pages': ['2'],
-                                 'country': ['us'], 'date_posted': ['today'],
+                                 'country': ['us'], 'date_posted': ['3days'],
                                  'employment_types': ['FULLTIME,INTERN']})
         self.assertEqual(len(rows), 20)
         self.assertEqual(stats['jsearch_pages_used'], 2)
@@ -228,7 +233,7 @@ class DiscoveryTests(unittest.TestCase):
         self.collect(self.plan[:2])
         self.assertIsNone(self.db.execute('SELECT closed_at FROM jobs').fetchone()[0])
 
-    def test_empty_direct_inventory_closes_only_its_own_provider(self):
+    def test_empty_direct_inventory_trips_fuse_without_touching_search_rows(self):
         self.session.get.return_value = self.response([job()])
         self.collect(self.plan[:1])
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
@@ -236,8 +241,40 @@ class DiscoveryTests(unittest.TestCase):
         row.update(company_key='sample', provider_key='ashby')
         store.record_source(self.db, source, [row], 'complete', 'full', 1)
         delta = store.record_source(self.db, source, [], 'complete', 'full', 1)
-        self.assertEqual(delta['closed'], 1)
+        self.assertEqual(delta['status'], 'partial')
+        self.assertTrue(delta['closure_fused'])
+        self.assertEqual(delta['closed'], 0)
         self.assertIsNone(self.db.execute("SELECT closed_at FROM jobs WHERE provider_key='jsearch'").fetchone()[0])
+
+    def test_collector_report_exposes_a_tripped_closure_fuse(self):
+        source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
+        baseline = []
+        for i in range(8):
+            item = jsearch.normalize_job(job(str(i)), self.plan[0], {})
+            item.update(company_key='sample', company_name='Sample', provider_key='ashby')
+            baseline.append(item)
+        store.record_source(self.db, source, baseline, 'complete', 'full', 1,
+                            stamp='2026-09-17T00:00:00+00:00')
+        self.db.commit()
+        fake = Mock(jobs=[], rejected=[], requests=1, listed=None, etag=None,
+                    last_modified=None)
+        fake.run.return_value = ('complete', '')
+        output = self.root / 'fuse-run'
+        arguments = ['collector', '--db', str(self.db_path), '--output', str(output)]
+        with patch.object(collector, 'load_sources', return_value=[source]), \
+             patch.object(collector, 'Collector', return_value=fake), \
+             patch.object(collector, 'RequestGuard', return_value=self.guard), \
+             patch.object(collector, 'load_credentials'), \
+             patch('sys.argv', arguments), patch('sys.stdout', new_callable=io.StringIO) as stdout:
+            self.assertEqual(collector.main(), 2)
+        with (output / 'company_results.csv').open(newline='', encoding='utf-8') as handle:
+            report = next(csv.DictReader(handle))
+        self.assertEqual(report['direct_status'], 'partial')
+        self.assertIn('Closure fuse blocked 8 of 8', report['failure_reason'])
+        self.assertIn('WARNING: Closure fuse blocked 8 of 8', stdout.getvalue())
+        self.assertEqual(self.db.execute(
+            "SELECT COUNT(*) FROM jobs WHERE provider_key='ashby' AND closed_at IS NULL"
+        ).fetchone()[0], 8)
 
     def test_changed_and_seen_events_rebuild_with_stale_state_snapshot(self):
         self.session.get.return_value = self.response([job()])
@@ -269,7 +306,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview['pages_planned'], 310)
+        self.assertEqual(preview['pages_planned'], 272)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
 
@@ -291,12 +328,12 @@ class DiscoveryTests(unittest.TestCase):
             self.response([job()]), requests.Timeout('secret-like exception text'))
         _, stats = self.collect(self.plan[:2])
         self.assertEqual(stats['jsearch_failures'], 1)
-        # The first query's pages in full, then only the batch the second lost:
-        # a wide query no longer forfeits every page it asked for.
+        # The first query succeeds and the failed second query loses one batch.
+        # Every configured query now fits within the ten-page safety width.
         width = self.settings['max_pages_per_call']
         self.assertEqual(stats['jsearch_pages_used'],
                          self.plan[0].pages + min(self.plan[1].pages, width))
-        self.assertLess(stats['jsearch_pages_used'], sum(q.pages for q in self.plan[:2]))
+        self.assertLessEqual(self.plan[1].pages, width)
         self.assertNotIn('secret-like', json.dumps(stats))
         manifest = store.write_manifest(self.db, STAMP, [], stats)
         for field in ('jsearch_queries_planned', 'jsearch_queries_completed', 'jsearch_pages_planned',

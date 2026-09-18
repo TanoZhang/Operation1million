@@ -1,13 +1,13 @@
-# Fixed nationwide daily plan: 310 pages plus 6 credits available for configured
+# Fixed nationwide daily plan: 272 pages plus 8 credits available for configured
 # company fallbacks. No automatic expansion when a response is full.
 version = 1
 monthly_quota = 10000
 target_utilization = 0.95
 operating_days = 30
-daily_budget = 316
+daily_budget = 280
 billing_cycle_start_day = 17
 country = "us"
-date_posted = "today"
+date_posted = "3days"
 employment_types = ["FULLTIME", "INTERN"]
 
 [filter]
@@ -124,11 +124,11 @@ reject_title_patterns = [
 [[query]]
 query = "Design Verification Engineer"
 tier = "A"
-pages = 18
+pages = 10
 [[query]]
 query = "ASIC Verification Engineer"
 tier = "A"
-pages = 12
+pages = 10
 [[query]]
 query = "SoC Verification Engineer"
 tier = "A"
@@ -136,15 +136,15 @@ pages = 10
 [[query]]
 query = "RTL Design Engineer"
 tier = "A"
-pages = 18
+pages = 10
 [[query]]
 query = "ASIC Design Engineer"
 tier = "A"
-pages = 17
+pages = 10
 [[query]]
 query = "Digital Design Engineer"
 tier = "A"
-pages = 14
+pages = 10
 [[query]]
 query = "SoC Design Engineer"
 tier = "A"
@@ -152,7 +152,7 @@ pages = 10
 [[query]]
 query = "FPGA Engineer"
 tier = "A"
-pages = 14
+pages = 10
 [[query]]
 query = "FPGA Design Engineer"
 tier = "A"
@@ -160,7 +160,7 @@ pages = 10
 [[query]]
 query = "Physical Design Engineer"
 tier = "A"
-pages = 15
+pages = 10
 [[query]]
 query = "Physical Implementation Engineer"
 tier = "A"

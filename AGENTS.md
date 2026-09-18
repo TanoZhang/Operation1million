@@ -42,6 +42,9 @@ collection, endpoint investigation, or change to daily discovery behavior.
   progress. Do not stop on the first familiar job or trust posting dates alone.
   Persist through the shared daily gzip log. SQLite is derived and must not be
   committed. Never rewrite sealed daily logs or skip restoring private state.
+- A complete inventory pass may retire at most 25% of the open jobs for its
+  company/provider. A larger candidate closure must be blocked, downgraded to
+  partial, and reported; never bypass this fuse when publishing private state.
 - The authorized hosted schedule runs once daily at 06:17
   `America/Los_Angeles`. Scheduled runs execute the fixed JSearch plan; manual
   dispatches require an explicit paid-search toggle. Do not install a local

@@ -121,6 +121,9 @@ def score_row(title, raw):
     return jsearch.relevance({'title': title or '', 'raw': raw}, filter_rules())[0]
 
 
+MAX_CLOSURE_FRACTION = 0.25
+
+
 def record_source(db, source, rows, status, strategy, requests, etag=None,
                   last_modified=None, note='', stamp=None, listed=None):
     """Upsert one source's rows and close postings it no longer lists.
@@ -135,6 +138,10 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     live postings.
     """
     stamp = stamp or now()
+    open_before = db.execute(
+        '''SELECT COUNT(*) FROM jobs WHERE company_key=? AND provider_key=?
+           AND closed_at IS NULL''',
+        (source.company_key, source.provider_key)).fetchone()[0]
     seen = set()
     prepared, before_rows, pending_identities = [], {}, {}
     for original in rows:
@@ -231,19 +238,29 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             'UPDATE jobs SET last_seen=? WHERE url IN (%s)' % ','.join('?' * len(chunk)),
             [stamp, *chunk])
     closed_urls = []
+    closure_candidates = []
+    closure_ratio = 0.0
+    effective_status = status
+    effective_note = note
     if status == 'complete' and strategy != 'since' and source.provider_key != 'jsearch':
-        # An enumerated board that now lists nothing has genuinely emptied, so its
-        # own provider's postings close. Whether an empty response really means
-        # that is decided by the collector, which can tell a first-page blank from
-        # the end of pagination; here 'complete' is taken at its word.
         placeholders = ','.join('?' * len(live)) or "''" 
-        closed_urls = [r[0] for r in db.execute(
+        closure_candidates = [r[0] for r in db.execute(
             f'''SELECT url FROM jobs WHERE company_key=? AND provider_key=? AND closed_at IS NULL
                 AND url NOT IN ({placeholders})''', [source.company_key, source.provider_key, *live])]
-        db.execute(
-            f'''UPDATE jobs SET closed_at=? WHERE company_key=? AND provider_key=? AND closed_at IS NULL
-                AND url NOT IN ({placeholders})''',
-            [stamp, source.company_key, source.provider_key, *live])
+        closure_ratio = len(closure_candidates) / open_before if open_before else 0.0
+        if closure_ratio > MAX_CLOSURE_FRACTION:
+            effective_status = 'partial'
+            fuse = (f'Closure fuse blocked {len(closure_candidates)} of {open_before} open '
+                    f'{source.company_key}/{source.provider_key} jobs '
+                    f'({closure_ratio:.1%}); limit is {MAX_CLOSURE_FRACTION:.0%}; '
+                    'no jobs were retired')
+            effective_note = '; '.join(filter(None, [note, fuse]))
+        else:
+            closed_urls = closure_candidates
+            db.execute(
+                f'''UPDATE jobs SET closed_at=? WHERE company_key=? AND provider_key=? AND closed_at IS NULL
+                    AND url NOT IN ({placeholders})''',
+                [stamp, source.company_key, source.provider_key, *live])
     closed = len(closed_urls)
     db.execute(
         '''INSERT INTO source_state (source_id, company_key, provider_key, etag,
@@ -261,12 +278,15 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                requests=excluded.requests,
                note=excluded.note''',
         (source.source_id, source.company_key, source.provider_key, etag,
-         last_modified, stamp if status == 'complete' else None, stamp, status,
-         strategy, len(seen), requests, note))
+         last_modified, stamp if effective_status == 'complete' else None, stamp,
+         effective_status, strategy, len(seen), requests, effective_note))
     return {'seen': len(seen), 'new': new, 'closed': closed,
             'new_urls': fresh, 'changed_urls': changed,
             'seen_urls': sorted(live - set(fresh) - set(changed)),
-            'closed_urls': closed_urls, 'stamp': stamp}
+            'closed_urls': closed_urls, 'stamp': stamp,
+            'status': effective_status, 'note': effective_note,
+            'closure_candidates': len(closure_candidates),
+            'closure_ratio': closure_ratio, 'closure_fused': effective_status != status}
 
 
 def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
@@ -736,5 +756,4 @@ def ranked(path=DB, limit=40, since=None, minimum=None):
             ' FROM jobs j LEFT JOIN companies c USING(company_key)'
             ' WHERE ' + ' AND '.join(clauses) +
             ' ORDER BY confidence DESC, j.posted_at DESC, j.first_seen DESC LIMIT ?', params)]
-
 
