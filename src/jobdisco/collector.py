@@ -652,7 +652,11 @@ def main():
     # cycle has left: leaving it out here emptied the plan and made it a no-op.
     functional_queries = functional_queries if args.jsearch or args.jsearch_plan or args.backfill else []
     planned_queries = functional_queries + company_queries
-    jsearch.validate_budget(planned_queries, run_budget)
+    # The plan is checked against the budget the plan is written for, not
+    # against whatever one run was told to spend. A run may be deliberately
+    # bounded -- a sweep's share of the cycle, or a capped test -- and that is
+    # not a misconfigured plan; the guard stops such a run at its own limit.
+    jsearch.validate_budget(planned_queries, settings['daily_budget'])
     if args.jsearch_plan:
         # Depth is discovered while paging, so a plan states how many queries it
         # holds and what they may spend, never how many pages it will use.

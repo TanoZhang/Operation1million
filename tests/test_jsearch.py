@@ -591,6 +591,35 @@ class DiscoveryTests(unittest.TestCase):
             store.rebuild(fresh)
         self.assertFalse(fresh.exists())
 
+    def test_a_bounded_run_is_not_a_misconfigured_plan(self):
+        """A deliberately small budget must not be read as a broken catalog.
+
+        The plan is checked against the budget it is written for. Checking it
+        against whatever one run was told to spend refused the sweep outright:
+        a capped test, and equally a sweep whose share of the cycle is small,
+        looked like a plan holding more queries than it had credits.
+        """
+        jsearch.validate_budget(self.plan, self.settings['daily_budget'])
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        self.session.get.return_value = self.response([job()])
+        argv = ['collector', '--jsearch-only', '--backfill', '--jsearch-budget', '5',
+                '--db', str(self.db_path), '--output', str(self.root / 'bounded')]
+        with (
+            patch.object(collector, 'load_sources', return_value=[]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(jsearch, 'load_plan', return_value=(self.settings, self.plan)),
+            patch.object(jsearch.requests, 'Session', return_value=self.session),
+            patch.object(store, 'now', return_value=STAMP),
+            patch('sys.argv', argv),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            collector.main()
+        # All 52 queries are planned; the guard, not the plan check, bounds it.
+        self.assertLessEqual(self.guard.credits, 5)
+
     def test_a_crash_mid_run_still_seals_the_day(self):
         """Boards are committed one at a time, so a crash leaves the log longer.
 
