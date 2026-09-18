@@ -515,6 +515,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     if stop:
                         break
                     continue
+                asked = entry['page']
                 identities = page_identity(items)
                 looping = identities is not None and identities == entry['previous']
                 entry['previous'] = identities
@@ -528,8 +529,20 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                         checkpoint(query, entry['rows'][before_rows:], detail)
                 entry['page'] += 1
                 if backfill:
-                    client.guard.advance(query.key, entry['page'],
-                                         exhausted=exhausted or looping)
+                    # An empty page is not proof the results ran out: a provider
+                    # hiccup returns one too, and settling the cursor on it would
+                    # skip the rest of this query for the whole cycle. So it ends
+                    # the query for this run only, and the next day asks the same
+                    # page again -- one repeated page costs a credit, a silently
+                    # skipped query costs everything after it. A page that came
+                    # back short but not empty, and a first page with nothing on
+                    # it at all, are both genuine ends.
+                    settled = looping or (exhausted and (bool(items) or asked == 1))
+                    # An unsettled empty page is the one page that must not be
+                    # stepped over: nothing was persisted from it, so the cursor
+                    # stays where it is and the next day asks for it again.
+                    resume = entry['page'] if (items or settled) else asked
+                    client.guard.advance(query.key, resume, exhausted=settled)
                 if exhausted or looping:
                     if detail['status'] != 'failed':
                         stats['jsearch_queries_completed'] += 1

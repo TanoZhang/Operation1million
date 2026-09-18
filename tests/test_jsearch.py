@@ -431,6 +431,52 @@ class DiscoveryTests(unittest.TestCase):
                 budget = remaining if days <= 1 else remaining // days
             self.assertEqual((remaining, budget), (left, expected))
 
+    def test_an_empty_page_does_not_settle_a_sweep_cursor(self):
+        """A provider hiccup must not skip the rest of a query for the cycle.
+
+        A page with nothing on it looks exactly like the end of the results,
+        and one arrives from a provider having a bad minute as readily as from
+        a query that has genuinely run out. Settling the cursor on it meant the
+        remaining days of the sweep never asked that query again.
+        """
+        pages = {'n': 0}
+
+        def dispatch(url, **kwargs):
+            pages['n'] += 1
+            # Two full pages, then nothing -- a hiccup, not an ending.
+            if pages['n'] <= 2:
+                return self.response([job(f'p{pages["n"]}-{i}') for i in range(10)])
+            return self.response([])
+
+        self.session.get.side_effect = dispatch
+        query = jsearch.Query('RTL Design Engineer', 40, 'A')
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        page, exhausted = self.guard.resume_page(query.key)
+        self.assertEqual(page, 3)
+        self.assertFalse(exhausted)
+
+    def test_a_short_page_with_rows_does_settle_a_sweep_cursor(self):
+        """The real end-of-results signal still ends the query for the cycle."""
+        pages = {'n': 0}
+
+        def dispatch(url, **kwargs):
+            pages['n'] += 1
+            if pages['n'] == 1:
+                return self.response([job(f'p1-{i}') for i in range(10)])
+            return self.response([job('tail')])
+
+        self.session.get.side_effect = dispatch
+        query = jsearch.Query('ASIC Design Engineer', 40, 'A')
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(self.guard.resume_page(query.key), (3, True))
+
+    def test_a_query_with_nothing_at_all_settles_on_its_first_page(self):
+        """An empty first page is a genuine empty result set, not a hiccup."""
+        self.session.get.return_value = self.response([])
+        query = jsearch.Query('Formal Verification Engineer', 40, 'C')
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(self.guard.resume_page(query.key), (2, True))
+
     def test_backfill_resumes_where_the_previous_day_stopped(self):
         """A month-wide sweep is split across days without losing its depth.
 
