@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Applications | Job review</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body>
+<header><a class="brand" href="/">APPLICATIONS<span>Job review</span></a><span class="local"><i></i>Local workspace</span><button id="refresh" title="Refresh queue" aria-label="Refresh queue">&#8635;</button></header>
+<main>
+<section class="overview"><div><span class="eyebrow">YOUR NEXT MOVE</span><h1>Review queue</h1><p>First discovered in the last 72 hours</p></div><div class="metrics"><div><strong id="remaining">&mdash;</strong><span>Remaining</span></div><div><strong id="applied">&mdash;</strong><span>Applied</span></div><div><strong id="skipped">&mdash;</strong><span>Skipped</span></div></div></section>
+<div id="error" role="alert" hidden></div>
+<nav aria-label="Application status"><div class="tabs"><button data-tab="pending" aria-pressed="true">To review <span id="pending-count"></span></button><button data-tab="applied" aria-pressed="false">Applied</button><button data-tab="skipped" aria-pressed="false">Skipped</button></div><label class="search"><span class="sr-only">Search company or title</span><input id="search" type="search" placeholder="Search company or title"></label></nav>
+<div class="workspace"><section class="queue" aria-label="Jobs"><div class="list-label"><span>COMPANY / POSITION</span><span>FIT</span></div><div id="list" aria-live="polite"><div class="empty">Loading jobs...</div></div></section><section id="detail" class="detail" aria-label="Selected job"><div class="empty">Select a position</div></section></div>
+<footer><span id="count"></span><span id="saved" role="status">Application ledger</span></footer>
+</main>
+<dialog id="skip-dialog"><form id="skip-form"><h2>Skip this position?</h2><label for="reason">Reason <span class="muted">(optional)</span></label><textarea id="reason" maxlength="2000" rows="4" placeholder="Location, role, timing..."></textarea><div class="dialog-actions"><button type="button" id="cancel-skip">Cancel</button><button class="primary" type="submit">Skip position</button></div></form></dialog>
+</body></html>

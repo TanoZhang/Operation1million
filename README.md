@@ -12,6 +12,13 @@ company sources, ATS providers, public feeds, and compliant search fallbacks.
 Credentials stay in the ignored `.env.local` file. Copy `.env.example` and add
 values locally; never commit credentials.
 
+## Application review
+
+Run `.\.venv\Scripts\python.exe -m jobdisco.review` and open
+`http://127.0.0.1:8765` for the local review queue. Application decisions live in
+an append-only ledger outside SQLite and survive database rebuilds.
+See [Application review](docs/application-review.md) for storage and recovery.
+
 ## Run
 
 Read [Collection Rules](docs/collection-rules.md) for request intervals,

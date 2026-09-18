@@ -21,9 +21,13 @@ job-collect = "jobdisco.collector:main_cli"
 job-validate-sources = "jobdisco.validate_sources:main"
 job-queries = "jobdisco.query_catalog:main"
 job-store = "jobdisco.store:main"
+job-review = "jobdisco.review:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+jobdisco = ["review_static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
