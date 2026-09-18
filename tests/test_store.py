@@ -149,6 +149,33 @@ class StoreTests(unittest.TestCase):
             self.assertEqual(done.returncode, 0, module)
             self.assertIn('usage', done.stdout.lower(), module)
 
+    def test_a_relative_age_does_not_rewrite_a_posting(self):
+        """A board that recomputes an age must not restate the whole posting.
+
+        Amazon publishes `updated_time` as "8 days", which becomes "9 days"
+        with nothing about the posting having changed. A differing row is
+        rewritten into the log in full, description and all: 9,993 rows and
+        about 92 MB in a single pass, for a string `posted_at` already states.
+        """
+        db = self.open_db()
+        first = row('https://x/1', raw={'description': 'Verification work',
+                                        'posted_date': 'September 16, 2026',
+                                        'updated_time': '8 days'})
+        store.record_source(db, SOURCE, [first], 'complete', 'full', 1)
+        aged = row('https://x/1', raw={'description': 'Verification work',
+                                       'posted_date': 'September 16, 2026',
+                                       'updated_time': '9 days'})
+        self.assertEqual(
+            store.record_source(db, SOURCE, [aged], 'complete', 'full', 1)['changed_urls'], [])
+        self.assertNotIn('updated_time', store.slim({'updated_time': '9 days'}))
+        # A real edit to the posting still counts.
+        edited = row('https://x/1', raw={'description': 'Physical design work',
+                                         'posted_date': 'September 16, 2026',
+                                         'updated_time': '9 days'})
+        self.assertEqual(
+            store.record_source(db, SOURCE, [edited], 'complete', 'full', 1)['changed_urls'],
+            ['https://x/1'])
+
     def test_a_rebuilt_database_keeps_the_scores(self):
         """A runner rebuilds from the log every run and never rescores.
 

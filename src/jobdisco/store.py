@@ -364,6 +364,12 @@ DROP_FIELDS = {
     'descriptionTeaser', 'description_short',
     # The scraped row markup; normalize() already took the fields out of it.
     'html',
+    # A relative age the board recomputes on every read: "8 days" becomes
+    # "9 days" with nothing about the posting having changed. Keeping it made
+    # every Amazon posting differ from itself once a day, and a differing row
+    # is rewritten into the log in full, description and all -- 9,993 rows and
+    # about 92 MB per pass, for a string the absolute posted_at already says.
+    'updated_time',
 }
 # The score is a pure function of the title, the raw record and the term list,
 # and it is computed once on write. Carrying it in the log keeps a rebuild as
