@@ -308,8 +308,13 @@ def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
                requests=?, note=? WHERE source_id=?""",
         (etag, last_modified, stamp, stamp, strategy, seen, requests, note,
          source.source_id))
+    # Every persist path returns the same shape. A caller that has to ask which
+    # one it got will one day forget, and a 304 is the ordinary case, not the
+    # rare one: a board that answers unchanged is the cheapest pass there is.
     return {'seen': seen, 'new': 0, 'closed': 0,
-            'new_urls': [], 'closed_urls': [], 'stamp': stamp,
+            'new_urls': [], 'changed_urls': [], 'closed_urls': [], 'stamp': stamp,
+            'status': 'unchanged', 'note': note,
+            'closure_candidates': 0, 'closure_ratio': 0.0, 'closure_fused': False,
             'seen_urls': [r[0] for r in db.execute('SELECT url FROM jobs WHERE company_key=? AND provider_key=? AND closed_at IS NULL', (source.company_key, source.provider_key))]}
 
 

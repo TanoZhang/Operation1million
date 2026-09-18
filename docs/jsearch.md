@@ -17,19 +17,36 @@ filtering; normalization precedes conservative title filtering.
 `data/config/jsearch_queries.toml` is the executable functional plan. The legacy
 SQLite `search_queries` table is not executed by this collector.
 
-| Group | Queries | Page credits |
-| --- | ---: | ---: |
-| A | 15 | 146 |
-| B | 13 | 65 |
-| C | 13 | 39 |
-| Internships | 11 | 22 |
-| Total | 52 | 272 |
+| Group | Queries |
+| --- | ---: |
+| A | 15 |
+| B | 13 |
+| C | 13 |
+| Internships | 11 |
+| Total | 52 |
 
-The daily ceiling is 280, leaving 8 credits for explicit company fallbacks.
-The catalog currently configures none. Each query has a fixed allocation of
-1..20 pages. A batch requests `num_pages` once; a full result or returned cursor
-never expands the plan. The plan is rejected before collection if all configured
-functional and company allocations would exceed the ceiling. Allocations are
+The daily ceiling is 320. No query declares a depth. Every call asks for
+`num_pages=1` and the next page is requested only when the last one came back
+full, so a query stops where the provider runs out rather than where a guess
+said it would. The provider states no total, so any declared allocation was
+either waste or truncation: measured over 52 queries, not one filled the pages
+it had reserved, and the plan used 43.5% of the capacity it paid for.
+
+A page is therefore the unit of both billing and loss. Four calls asking for 11
+to 18 pages once returned HTTP 504 and were charged 61 credits for nothing; the
+same failure now costs one credit.
+
+`max_pages_per_query` is a runaway guard, not an allocation. It stops a provider
+whose pages never run short -- or that repeats a page instead of advancing --
+from spending the whole day on one query. Set it far above any real depth.
+
+Tier A is paged to exhaustion before tier B begins, and within a tier every
+query takes one page per round. Spending the budget depth first would leave the
+tail of the plan unreached every day, always the same queries.
+
+The plan is rejected before collection if it holds more queries than the daily
+budget has credits, because the tail could then never reach a first page.
+Allocations are
 initial choices, not measured optimal values.
 
 Requests use `/jsearch/search-v2`, `country=us`, `date_posted=3days`, and
@@ -37,7 +54,7 @@ Requests use `/jsearch/search-v2`, `country=us`, `date_posted=3days`, and
 there are no city/state expansions or negative search terms.
 
 The quota is 10,000 page credits per billing period. The operating target is
-`floor(10000 * 0.95) = 9500`; the configured daily ceiling is 280. On a 31-day
+`floor(10000 * 0.96) = 9600`; the configured daily ceiling is 320. On a 31-day
 period the monthly guard may stop collection before the daily
 allocation is exhausted. `billing_cycle_start_day` is 17, matching the current
 subscription billing anchor. Days use UTC.
@@ -71,9 +88,33 @@ expand to all 52 keywords or retry paid failures without a new instruction.
 
 # Add --jsearch-plan to preview the same command without any API call.
 
-# All 52 functional queries over one week: up to 272 reserved credits.
+# All 52 functional queries over one week, bounded by an explicit budget.
 # Direct sources and company fallbacks are skipped by --jsearch-only.
-.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 272
+.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 320
+```
+
+## Backfill sweep
+
+Credits do not carry into the next cycle, so the last three days spend what the
+daily passes left. `--backfill` looks a month back instead of three days, pages
+to `backfill_max_pages_per_query` (200) instead of 40, and is not held to the
+daily slice -- that slice only paces a month that is now ending. The monthly
+target still binds, and always does.
+
+The sweep is one pass spread over those days, not three passes. A cursor per
+query and cycle records where paging stopped, so the next day resumes at the
+following page rather than re-buying pages the sweep already holds. A daily run
+never reads that cursor.
+
+The budget is what the cycle has left divided by the days that remain -- a third
+with three days to go, a half with two, all of it on the last day -- so a sweep
+that fails has a later day to recover in.
+
+The cycle rolls every `cycle_days` (30) from `cycle_start`, not on a day of the
+month, so the window is computed from the ledger rather than from a cron date.
+
+```powershell
+.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --backfill
 ```
 
 `--jsearch-query` replaces the functional catalog for this invocation; its page

@@ -2,6 +2,7 @@
 from dataclasses import dataclass, replace
 import hashlib
 import math
+from datetime import date
 import os
 import re
 from urllib.parse import urlencode, urlsplit, urlunsplit
@@ -43,13 +44,28 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     config.setdefault('daily_budget', config['monthly_target'] // days)
     if type(config['daily_budget']) is not int or not 0 <= config['daily_budget'] <= config['monthly_target']:
         raise ValueError('Invalid daily page-credit budget')
-    if type(config.get('billing_cycle_start_day', 1)) is not int or not 1 <= config.get('billing_cycle_start_day', 1) <= 31:
-        raise ValueError('Invalid billing cycle start day')
-    # How many pages one call may ask for. Narrower calls cost the same credits
-    # and lose less when the provider times out.
-    config.setdefault('max_pages_per_call', 10)
-    if type(config['max_pages_per_call']) is not int or not 1 <= config['max_pages_per_call'] <= 20:
-        raise ValueError('max_pages_per_call must be between 1 and 20')
+    # The plan renews every cycle_days from a fixed date, not on a day of the
+    # month, so a period never stretches or shrinks with February.
+    config.setdefault('cycle_start', '2026-09-16')
+    config.setdefault('cycle_days', 30)
+    try:
+        date.fromisoformat(str(config['cycle_start']))
+    except ValueError:
+        raise ValueError('cycle_start must be an ISO date') from None
+    if type(config['cycle_days']) is not int or not 1 <= config['cycle_days'] <= 366:
+        raise ValueError('cycle_days must be between 1 and 366')
+    # A sweep runs deeper than a daily pass because it is spending credits that
+    # expire with the cycle rather than pacing a month.
+    config.setdefault('backfill_max_pages_per_query', 200)
+    if type(config['backfill_max_pages_per_query']) is not int or not 1 <= config['backfill_max_pages_per_query'] <= 1000:
+        raise ValueError('backfill_max_pages_per_query must be between 1 and 1000')
+    # Every call asks for exactly one page, so a page is the unit of both billing
+    # and loss: a provider timeout now costs one credit instead of the whole ask.
+    # Depth is discovered, not declared, so this is only a runaway guard for a
+    # cursor that never terminates -- set it far above any real query's depth.
+    config.setdefault('max_pages_per_query', 40)
+    if type(config['max_pages_per_query']) is not int or not 1 <= config['max_pages_per_query'] <= 100:
+        raise ValueError('max_pages_per_query must be between 1 and 100')
     config.setdefault('country', 'us')
     config.setdefault('date_posted', 'today')
     config.setdefault('employment_types', ['FULLTIME', 'INTERN'])
@@ -60,9 +76,11 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
         if not row.get('enabled', True):
             continue
         text = row.get('query', '').strip()
-        pages = row.get('pages')
-        if not text or type(pages) is not int or not 1 <= pages <= 20 or re.search(r'(^|\s)-\w', text):
-            raise ValueError('Queries require positive phrases and 1..20 pages')
+        # A query no longer declares its depth; it stops when the provider runs
+        # out. A row may still lower its own guard below the global one.
+        pages = row.get('pages', config['max_pages_per_query'])
+        if not text or type(pages) is not int or not 1 <= pages <= config['max_pages_per_query'] or re.search(r'(^|\s)-\w', text):
+            raise ValueError('Queries require positive phrases and a cap within max_pages_per_query')
         queries.append(Query(text, pages, row.get('tier', 'C')))
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
@@ -85,10 +103,18 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
 
 
 def validate_budget(queries, budget):
-    pages = sum(q.pages for q in queries)
-    if pages > budget:
-        raise ValueError(f'JSearch fixed plan needs {pages} page credits; budget is {budget}')
-    return pages
+    """Every query must be able to reach its first page.
+
+    Depth is no longer declared, so the old check -- the sum of the planned
+    pages against the budget -- has nothing to measure. What can still be
+    wrong is a plan with more queries than credits: the tail would be
+    unreachable every single day, always the same queries.
+    """
+    if len(queries) > budget:
+        raise ValueError(
+            f'JSearch plan holds {len(queries)} queries; the daily budget of '
+            f'{budget} page credits cannot give each one a first page')
+    return len(queries)
 
 
 def fallback_plan(config, sources, max_aliases=1):
@@ -117,6 +143,19 @@ class SearchFailure(Exception):
         self.stop = stop
 
 
+PAGE_SIZE = 10
+
+
+def page_identity(items):
+    """The set of provider job ids on a page, or None when it cannot be taken.
+
+    Used only to notice a provider that returns the same page twice. Items
+    without an id are not comparable, so such a page never matches.
+    """
+    ids = {i.get('job_id') for i in items if isinstance(i, dict) and i.get('job_id')}
+    return ids if len(ids) == len(items) and items else None
+
+
 class Client:
     """Retrieve API job objects faithfully; no employer or business filtering."""
     def __init__(self, search, settings, guard, timeout=90, session=None):
@@ -127,22 +166,36 @@ class Client:
     def close(self):
         self.session.close()
 
-    def fetch(self, query):
-        """Retrieve a query's pages, splitting a wide one across calls.
+    def fetch_page(self, query, page):
+        """Retrieve exactly one page, and say whether the query is exhausted.
 
-        Asking for too many pages at once times out at the provider, and a
-        failed call is charged in full, so the widest asks were also the most
-        expensive to lose. Measured over 52 queries: every call of 10 pages or
-        fewer succeeded, while 4 of the 7 asking for 11 to 18 returned HTTP 504
-        and took 61 page credits with them. The provider fetches the same pages
-        either way; only how much one failure costs changes.
+        Asking for many pages at once timed out at the provider and was charged
+        in full, so the widest asks were also the most expensive to lose: four
+        calls of 11 to 18 pages returned HTTP 504 and took 61 page credits with
+        them. One page per call makes a page the unit of both billing and loss,
+        and removes the need to guess a query's depth before seeing it -- the
+        provider states no total, so any guess was either waste or truncation.
+
+        Returns (items, exhausted). A short page is the real end-of-results
+        signal. A page identical to the one before it means the provider is
+        looping rather than advancing, which no amount of further paging fixes.
         """
-        width = max(1, int(self.settings.get('max_pages_per_call', 10)))
-        items, done = [], 0
-        while done < query.pages:
-            batch = min(query.pages - done, width)
-            items.extend(self.fetch_batch(replace(query, pages=batch), first_page=done + 1))
-            done += batch
+        items = self.fetch_batch(replace(query, pages=1), first_page=page)
+        return items, len(items) < PAGE_SIZE
+
+    def fetch(self, query):
+        """Page through a whole query, for callers that want it in one piece."""
+        items, page, previous = [], 1, None
+        while page <= query.pages:
+            batch, done = self.fetch_page(query, page)
+            identities = page_identity(batch)
+            if identities is not None and identities == previous:
+                break
+            previous = identities
+            items.extend(batch)
+            if done:
+                break
+            page += 1
         return items
 
     def fetch_batch(self, query, first_page=1):
@@ -176,8 +229,6 @@ class Client:
             data = payload.get('data')
             if not isinstance(data, dict) or not isinstance(data.get('jobs'), list):
                 raise SearchFailure('Expected search-v2 data.jobs list')
-            # num_pages already asks the provider for the fixed batch. A cursor
-            # or a full result must not cause extra requests in this version.
             return data['jobs']
         except QuotaExhausted as exc:
             raise SearchFailure(str(exc), stop=True) from None
@@ -327,11 +378,25 @@ def rejection_reason(row, rules):
     return 'off_domain'
 
 
-def collect(queries, client, settings, companies, persist):
-    """Normalize and filter each fixed query, persisting through the shared store."""
+TIER_ORDER = ('A', 'B', 'C', 'intern', 'company')
+
+
+def tier_rank(tier):
+    return TIER_ORDER.index(tier) if tier in TIER_ORDER else len(TIER_ORDER)
+
+
+def collect(queries, client, settings, companies, persist, backfill=False):
+    """Page through each query adaptively, breadth first within a tier.
+
+    Depth is discovered rather than declared, so the budget is spent in the
+    order the plan ranks its queries: every tier A query takes a page, then a
+    second, until tier A is exhausted, and only then does tier B begin. Running
+    a query to its own end before starting the next one would instead starve
+    the tail of the plan -- the same queries, every day, would never be reached.
+    """
     from .collector import employer_matches
     stats = {'jsearch_queries_planned': len(queries), 'jsearch_queries_completed': 0,
-             'jsearch_pages_planned': sum(q.pages for q in queries),
+             'jsearch_pages_cap': sum(q.pages for q in queries),
              'jsearch_pages_used': 0, 'jsearch_jobs_raw': 0, 'jsearch_jobs_unique': 0,
              'jsearch_failures': 0, 'jsearch_jobs_rejected': 0,
              'jsearch_jobs_malformed': 0, 'jsearch_confidence': [],
@@ -339,56 +404,109 @@ def collect(queries, client, settings, companies, persist):
     unique = set()
     all_rows = []
     stop = False
+    rules = settings.get('filter', {})
+
+    state = {}
     for query in queries:
-        before = client.guard.credits
-        detail = {'source_id': query.key, 'query': query.query, 'tier': query.tier,
-                  'date_posted': settings['date_posted'], 'country': settings['country'],
-                  'employment_types': settings['employment_types'],
-                  'pages_planned': query.pages, 'pages_used': 0, 'jobs_raw': 0,
-                  'jobs_accepted': 0, 'jobs_unique': 0, 'rejected': 0,
-                  'malformed': 0, 'status': 'skipped', 'reason': ''}
-        rows = []
-        if not stop:
+        # A backfill is one sweep spread over the cycle's last days, so it picks
+        # up where the previous day stopped instead of re-buying its own pages.
+        start, finished = client.guard.resume_page(query.key) if backfill else (1, False)
+        state[query.key] = {
+            'query': query, 'rows': [], 'page': start, 'previous': None, 'done': finished,
+            'detail': {'source_id': query.key, 'query': query.query, 'tier': query.tier,
+                       'date_posted': settings['date_posted'], 'country': settings['country'],
+                       'employment_types': settings['employment_types'],
+                       'pages_cap': query.pages, 'pages_used': 0, 'jobs_raw': 0,
+                       'resumed_from': start,
+                       'jobs_accepted': 0, 'jobs_unique': 0, 'rejected': 0,
+                       'malformed': 0, 'status': 'skipped', 'reason': ''}}
+
+    def take(query, items):
+        """Normalize, filter and keep one page's worth of a query's results."""
+        entry = state[query.key]
+        detail, rows = entry['detail'], entry['rows']
+        detail['jobs_raw'] += len(items)
+        stats['jsearch_jobs_raw'] += len(items)
+        for item in items:
             try:
-                items = client.fetch(query)
-                detail['jobs_raw'] = len(items)
-                stats['jsearch_jobs_raw'] += len(items)
-                for item in items:
-                    try:
-                        row = normalize_job(item, query, companies)
-                    except (ValueError, TypeError, KeyError):
-                        detail['malformed'] += 1
-                        continue
-                    rules = settings.get('filter', {})
-                    confidence, matched = relevance(row, rules)
-                    if isinstance(row.get('raw'), dict):
-                        row['raw']['relevance'] = {
-                            'confidence': confidence,
-                            'matched_terms': sorted(set(matched)),
-                        }
-                    reason = rejection_reason(row, rules)
-                    if query.aliases and not employer_matches(row['company_name'], query.aliases):
-                        reason = 'employer_mismatch'
-                    if reason:
-                        detail['rejected'] += 1
-                        continue
-                    identity = ('id', row['source_job_id']) if row['source_job_id'] else ('url', row['url'])
-                    if identity not in unique:
-                        detail['jobs_unique'] += 1
-                        unique.add(identity)
-                    stats['jsearch_confidence'].append(confidence)
-                    rows.append(row)
-                stats['jsearch_queries_completed'] += 1
-                detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
-            except SearchFailure as exc:
-                stats['jsearch_failures'] += 1
-                detail['status'], detail['reason'] = 'failed', str(exc)
-                stop = exc.stop
-        else:
+                row = normalize_job(item, query, companies)
+            except (ValueError, TypeError, KeyError):
+                detail['malformed'] += 1
+                continue
+            confidence, matched = relevance(row, rules)
+            if isinstance(row.get('raw'), dict):
+                row['raw']['relevance'] = {
+                    'confidence': confidence,
+                    'matched_terms': sorted(set(matched)),
+                }
+            reason = rejection_reason(row, rules)
+            if query.aliases and not employer_matches(row['company_name'], query.aliases):
+                reason = 'employer_mismatch'
+            if reason:
+                detail['rejected'] += 1
+                continue
+            identity = ('id', row['source_job_id']) if row['source_job_id'] else ('url', row['url'])
+            if identity not in unique:
+                detail['jobs_unique'] += 1
+                unique.add(identity)
+            stats['jsearch_confidence'].append(confidence)
+            rows.append(row)
+
+    for tier in sorted({q.tier for q in queries}, key=tier_rank):
+        active = [q for q in queries if q.tier == tier and not state[q.key]['done']]
+        while active and not stop:
+            for query in list(active):
+                entry = state[query.key]
+                detail = entry['detail']
+                # The guard has to bind before the credit is spent, not after:
+                # a resumed sweep can start already past its own cap.
+                if entry['page'] > query.pages:
+                    detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
+                    detail['reason'] = f'Runaway guard stopped paging at {query.pages} pages'
+                    entry['done'] = True
+                    active.remove(query)
+                    continue
+                before = client.guard.credits
+                try:
+                    items, exhausted = client.fetch_page(query, entry['page'])
+                except SearchFailure as exc:
+                    stats['jsearch_failures'] += 1
+                    detail['status'], detail['reason'] = 'failed', str(exc)
+                    stop = exc.stop
+                    entry['done'] = True
+                    active.remove(query)
+                    detail['pages_used'] += client.guard.credits - before
+                    stats['jsearch_pages_used'] += client.guard.credits - before
+                    if stop:
+                        break
+                    continue
+                detail['pages_used'] += client.guard.credits - before
+                stats['jsearch_pages_used'] += client.guard.credits - before
+                identities = page_identity(items)
+                looping = identities is not None and identities == entry['previous']
+                entry['previous'] = identities
+                if not looping:
+                    take(query, items)
+                entry['page'] += 1
+                if backfill:
+                    client.guard.advance(query.key, entry['page'],
+                                         exhausted=exhausted or looping)
+                if exhausted or looping:
+                    if detail['status'] != 'failed':
+                        stats['jsearch_queries_completed'] += 1
+                        detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
+                        if looping:
+                            detail['reason'] = 'Provider repeated a page; stopped advancing'
+                    entry['done'] = True
+                    active.remove(query)
+
+    for entry in state.values():
+        query, detail, rows = entry['query'], entry['detail'], entry['rows']
+        if backfill:
+            detail['resumed_from'] = entry['detail'].get('resumed_from', 1)
+        if not entry['done'] and not detail['reason']:
             detail['reason'] = 'Account stop condition from an earlier query'
-        detail['pages_used'] = client.guard.credits - before
         detail['jobs_accepted'] = len(rows)
-        stats['jsearch_pages_used'] += detail['pages_used']
         stats['jsearch_jobs_rejected'] += detail['rejected']
         stats['jsearch_jobs_malformed'] += detail['malformed']
         # A successful search is still query-limited, never a full board scan.

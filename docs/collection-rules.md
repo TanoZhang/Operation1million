@@ -79,8 +79,11 @@ functional discovery; configured company fallback runs last. Company fallback
 alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
-The functional plan contains 52 queries and 272 pages. The daily cap is 280
-page credits and the monthly operating target is 9,500 of the 10,000 quota.
+The functional plan contains 52 queries. No query declares a depth: each asks
+for one page at a time and stops when the provider returns a short page, so the
+day's spend is measured rather than planned. The daily cap is 320
+page credits and the monthly operating target is 9,600 of the 10,000 quota,
+which is exactly 320 a day for thirty days.
 Each query reserves its fixed page count before sending, including failures.
 Preserve `.local/jsearch_usage.sqlite` across runners and configure the actual
 billing anchor. Never increase pages because a result is full.

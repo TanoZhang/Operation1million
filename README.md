@@ -78,10 +78,14 @@ Pass `--no-store` to write run files without touching the store.
 ## JSearch functional discovery
 
 Read [JSearch daily discovery](docs/jsearch.md) before enabling paid collection.
-Preview the 52-query, 272-page plan with `python -m jobdisco.collector
+Preview the 52-query plan with `python -m jobdisco.collector
 --jsearch-plan`. Run `python -m jobdisco.collector --jsearch` to collect direct
 boards first, functional searches second, and configured company fallbacks last.
-The ceiling is 280 page credits/day and the monthly target is 9,500. Paid search
+Each call asks for a single page and a query stops when the provider runs
+short, so the number of pages a day uses is discovered, not declared; a runaway
+guard of 40 pages bounds any one query. Tier A is paged to exhaustion before
+tier B begins, so the tail of the plan is not starved. The ceiling is 320 page
+credits/day and the monthly target is 9,600. Paid search
 is off in local and manual commands without explicit flags. The private GitHub
 Actions workflow runs daily at 06:17 America/Los_Angeles and enables the fixed
 plan for scheduled runs. Finalized daily logs cannot be appended again.

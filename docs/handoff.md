@@ -31,7 +31,7 @@ the log. Verified to reproduce every row field for field.
 | With an absolute `posted_at` | 28,074 (74%) |
 | Scoring 25 or above | 5,383 |
 | Direct sources | 35 companies, 33 collecting completely |
-| JSearch credits spent this billing period | 314 of 9,500 |
+| JSearch credits spent this billing period | 218 of 9,600 (resets 2026-10-16) |
 
 ## What works
 
@@ -52,10 +52,20 @@ programmes, management titles — are a separate question asked first and score 
 `job-store --ranked N --min-score M` reads the stored score; `--rescore` after a
 term-list edit.
 
-**Wide search queries are split across calls.** Every call of 10 pages or fewer
-succeeded across 52 live queries, while 4 of the 7 asking for 11 to 18 returned
-HTTP 504 and took 61 credits with them. `max_pages_per_call` is configurable; 1
-means one call per page.
+**A search query's depth is discovered, not declared.** Every call asks for
+`num_pages=1`, and the next page follows only when the last came back full, so a
+query stops where the provider runs out. The provider publishes no result total,
+so every declared allocation was a guess that was either waste or truncation:
+across 52 live queries not one filled the pages it reserved, and the plan used
+43.5% of the capacity it paid for. A page is now the unit of both billing and
+loss — the four calls of 11 to 18 pages that returned HTTP 504 were charged 61
+credits for nothing, and the same failure now costs one.
+
+`max_pages_per_query` (40) is a runaway guard, not an allocation: it stops a
+provider whose pages never run short, or that repeats a page instead of
+advancing. Tier A is paged to exhaustion before tier B begins, and within a tier
+each query takes one page per round — spending depth first would leave the tail
+of the plan unreached every day, always the same queries.
 
 **Politeness.** Per-source intervals, `Crawl-delay` honoured (only AMD declares
 one, at 5s), durable pauses on 429/403 that survive a restart, and the ledgers
@@ -79,10 +89,23 @@ the collection step from 45 minutes 48 seconds to 13 minutes 3 seconds. Microsof
 received an immediate 429 in the faster run and stopped under the cooldown rule,
 so a future normal pass still needs to confirm full Microsoft pagination.
 
-**JSearch now uses an overlapping 3-day window and a smaller fixed plan.** The
-seven queries above 10 pages were capped at 10 after the wider calls timed out
-and successful calls used less than half their capacity. The plan is 272 pages
-against a 280-page daily ceiling, leaving 8 credits for configured fallbacks.
+**JSearch uses an overlapping 3-day window.** A `today` window loses a day
+permanently whenever a run fails, which has already happened; three days of
+overlap mean the next run recovers it, and duplicates cost nothing because the
+identity is the provider's `job_id`. The daily ceiling is 320 credits. Note that
+320 across 30 days is exactly the 9,600 monthly target, and the billing anchor
+is day 16 because that is when the provider resets.
+
+**Credit accounting is per page and durable.** The credit is committed to the
+ledger before the request leaves, so a timeout or a crash still shows it as
+spent; the outcome is written afterwards and never refunds it. `credit_events`
+therefore separates credits that returned jobs from credits a 504 consumed, and
+`RequestGuard.balance()` answers used/remaining from durable state at any moment
+rather than at the end of a run.
+
+`credit_baseline` holds credits the provider counted that this ledger never saw.
+It currently carries 218 for the period beginning 2026-10-16's predecessor: the
+ledger was rebuilt and had drifted to 4 against the provider's 218.
 
 **Two companies have no direct route.** Rambus answers 405 on every path under
 `careers-rambus.icims.com`, including `/sitemap.xml`; `ventanamicro.com` does not

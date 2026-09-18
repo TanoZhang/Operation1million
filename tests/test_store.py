@@ -126,6 +126,22 @@ class StoreTests(unittest.TestCase):
         # A 304 carries no validator of its own, so the stored one is kept.
         self.assertEqual(db.execute('SELECT etag FROM source_state').fetchone()[0], 'W/"one"')
 
+    def test_every_persist_path_returns_the_same_delta_shape(self):
+        """A 304 is the ordinary daily pass, not a rare one.
+
+        The collector reads the returned status to see whether the closure fuse
+        downgraded a source. When the unchanged path returned a shorter dict the
+        whole run died on the first board that answered 304 -- after the boards
+        were already stored, so the data survived and only the report was lost.
+        """
+        db = self.open_db()
+        recorded = store.record_source(db, SOURCE, [row('https://x/1')],
+                                       'complete', 'full', 1, etag='W/"one"')
+        touched = store.touch_source(db, SOURCE, 'conditional', 1)
+        self.assertEqual(set(recorded), set(touched))
+        self.assertEqual(touched['status'], 'unchanged')
+        self.assertFalse(touched['closure_fused'])
+
     def test_relative_and_lastmod_values_are_kept_verbatim(self):
         db = self.open_db()
         store.record_source(db, SOURCE, [

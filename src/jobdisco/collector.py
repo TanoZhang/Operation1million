@@ -586,6 +586,8 @@ def main():
     p.add_argument('--jsearch-pages', type=int, default=None, help='Pages for --jsearch-query only; default 1, maximum 20')
     p.add_argument('--date-posted', choices=['all', 'today', '3days', 'week', 'month'], help='Temporary JSearch time window; does not edit configuration')
     p.add_argument('--jsearch-plan', action='store_true', help='Print the fixed plan without making requests')
+    p.add_argument('--backfill', action='store_true',
+                   help="Month-wide sweep of the cycle's remaining credits; run it after a daily pass")
     p.add_argument('--jsearch-config', type=Path, default=CONFIG / 'jsearch_queries.toml')
     p.add_argument('--jsearch-budget', type=int, default=0, help='Page-credit cap; 0 uses config with --jsearch, otherwise disables paid discovery')
     p.add_argument('--jsearch-timeout', type=float, default=90,
@@ -603,9 +605,15 @@ def main():
         if not phrase or re.search(r'(^|\s)-\w', phrase):
             p.error('--jsearch-query requires a positive nonempty phrase')
         functional_queries = [jsearch.Query(phrase, args.jsearch_pages or 1, 'manual')]
+    if args.backfill:
+        # Credits do not carry into the next cycle, so a sweep looks a month
+        # back, pages far deeper than a daily pass, and is not held to the daily
+        # slice -- that slice exists only to pace the month it is now ending.
+        settings['date_posted'] = 'month'
+        settings['max_pages_per_query'] = settings['backfill_max_pages_per_query']
     if args.date_posted:
         settings['date_posted'] = args.date_posted
-    enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0
+    enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0 or args.backfill
     run_budget = min(args.jsearch_budget or settings['daily_budget'], settings['daily_budget']) if enabled else 0
     if not args.db.exists() and args.jsearch_plan:
         # Preview authored sources without creating or replaying private state.
@@ -639,9 +647,15 @@ def main():
     planned_queries = functional_queries + company_queries
     jsearch.validate_budget(planned_queries, run_budget)
     if args.jsearch_plan:
+        # Depth is discovered while paging, so a plan states how many queries it
+        # holds and what they may spend, never how many pages it will use.
         print(json.dumps({'queries': [q.__dict__ for q in planned_queries],
-                          'pages_planned': sum(q.pages for q in planned_queries),
-                          'run_budget': run_budget, 'daily_budget': settings['daily_budget'],
+                          'queries_planned': len(planned_queries),
+                          'max_pages_per_query': settings['max_pages_per_query'],
+                          # A sweep's budget is whatever the cycle has left when
+                          # it starts, which a preview cannot know.
+                          'run_budget': 'computed at run time' if args.backfill else run_budget,
+                          'daily_budget': settings['daily_budget'],
                           'date_posted': settings['date_posted'],
                           'monthly_target': settings['monthly_target']}, indent=2))
         return 0
@@ -659,7 +673,18 @@ def main():
                                 for s in sources if s.provider_key in store.LASTMOD_SITEMAP}
     request_guard = RequestGuard(limit=settings['monthly_quota'], target_limit=settings['monthly_target'],
                                  daily_limit=settings['daily_budget'],
-                                 billing_day=settings.get('billing_cycle_start_day', 1))
+                                 cycle_start=settings['cycle_start'],
+                                 cycle_days=settings['cycle_days'],
+                                 ignore_daily_limit=args.backfill)
+    if args.backfill:
+        # Spread what is left over the days that are left, so an early sweep
+        # cannot take the whole remainder and leave a failed day unrecoverable.
+        # On the final day there is no later day to save for.
+        left = request_guard.balance()['period_remaining']
+        days = max(1, request_guard.days_until_reset())
+        run_budget = left if days <= 1 else left // days
+        print(f'backfill: {left} credits left in the cycle, {days} days to reset, '
+              f'spending up to {run_budget}', flush=True)
     args.jsearch_guard = request_guard
     if args.output is None:
         args.output = RUNS / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -714,7 +739,23 @@ def main():
               f"-{delta['closed']} closed, {delta['seen']} seen", flush=True)
         return delta
 
+    def seal(db):
+        """Leave the day's log and its manifest agreeing, whatever happened.
+
+        Sources are committed one at a time, so an exception anywhere after the
+        first board leaves postings appended to the day file. A manifest that
+        still describes the file as it was before makes the whole store fail its
+        own integrity check, and the next run cannot even rebuild from it. The
+        seal is therefore owed by every exit, not only the successful one.
+        """
+        if db is None:
+            return
+        store.export_state(db)
+        store.write_manifest(db, run_stamp, reports, search_stats)
+        db.commit()
+
     with closing(store.connect(args.db)) if args.store else nullcontext() as db:
+      try:
         if db is not None:
             store.start_run(db, run_id)
             db.commit()
@@ -751,7 +792,7 @@ def main():
         client = jsearch.Client(search, settings, request_guard, args.jsearch_timeout)
         try:
             discovered, search_stats = jsearch.collect(functional_queries + eligible, client, settings,
-                                                       companies, persist_query)
+                                                       companies, persist_query, backfill=args.backfill)
         finally:
             client.close()
         # Same IDs appearing under multiple phrases get one presentation row.
@@ -771,6 +812,14 @@ def main():
                 manifest['run_date'], manifest['records'], (manifest['sha256'] or '-')[:12]), flush=True)
             print(f"store: {totals['new']} new, {totals['closed']} closed, "
                   f"{totals['seen']} seen", flush=True)
+      except BaseException:
+        # Whatever went wrong, the boards already stored must not be left behind
+        # a manifest that disagrees with them.
+        try:
+            seal(db)
+        except Exception as inner:
+            print(f'WARNING: could not seal the day after a failure: {inner}', flush=True)
+        raise
     jobs.sort(key=lambda r: (r['company_key'], r['url']))
     with (args.output/'jobs.jsonl').open('w', encoding='utf-8') as f:
         for row in jobs:

@@ -1,7 +1,6 @@
 """Local credentials and a conservative, persistent JSearch request guard."""
 from contextlib import contextmanager
-from datetime import datetime, timezone
-import calendar
+from datetime import date, datetime, timedelta, timezone
 import sqlite3
 import time
 from pathlib import Path
@@ -32,7 +31,8 @@ class RequestGuard:
     calls made outside this ledger require separate reconciliation.
     """
     def __init__(self, path=STATE, limit=10000, interval=0.25, daily_limit=None,
-                 target_limit=None, billing_day=1):
+                 target_limit=None, cycle_start='2026-09-16', cycle_days=30,
+                 ignore_daily_limit=False):
         self.attempts = 0
         self.credits = 0
         self.path = Path(path)
@@ -40,13 +40,43 @@ class RequestGuard:
         self.interval = max(interval, 0.25)
         self.daily_limit = daily_limit
         self.target_limit = min(target_limit or self.limit, self.limit)
-        self.billing_day = billing_day
+        # The plan renews every cycle_days, not on a day of the month: a
+        # calendar anchor would drift by a day or three every month a period
+        # crosses February or a 31-day month.
+        self.cycle_start = date.fromisoformat(str(cycle_start))
+        self.cycle_days = max(1, int(cycle_days))
+        # A backfill exists to spend credits that expire with the cycle, so the
+        # daily slice -- which is only a way of pacing the month -- must not
+        # stop it. The monthly target still binds, and always does.
+        self.ignore_daily_limit = ignore_daily_limit
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with connect(self.path, timeout=30) as db:
             db.execute('CREATE TABLE IF NOT EXISTS usage (id INTEGER PRIMARY KEY CHECK(id=1), used INTEGER NOT NULL, last_sent REAL NOT NULL)')
             db.execute('INSERT OR IGNORE INTO usage VALUES (1, 0, 0)')
             db.execute('CREATE TABLE IF NOT EXISTS credit_usage (period TEXT, day TEXT, used INTEGER NOT NULL, PRIMARY KEY(period, day))')
             db.execute('CREATE TABLE IF NOT EXISTS account_pause (id INTEGER PRIMARY KEY, retry_at REAL NOT NULL)')
+            # One row per dispatched page. The reservation is written before the
+            # request leaves, so a crash or a timeout still shows the credit as
+            # spent; the outcome is filled in afterwards. Without it the ledger
+            # cannot tell a credit that returned jobs from one a 504 consumed.
+            db.execute('''CREATE TABLE IF NOT EXISTS credit_events (
+                              id INTEGER PRIMARY KEY, at REAL NOT NULL, period TEXT NOT NULL,
+                              day TEXT NOT NULL, credits INTEGER NOT NULL,
+                              outcome TEXT NOT NULL DEFAULT 'reserved',
+                              provider_remaining INTEGER)''')
+            # Credits spent outside this ledger -- a console test, a lost run, a
+            # ledger rebuilt from scratch -- are real against the provider's
+            # count and must not read as available here.
+            db.execute('CREATE TABLE IF NOT EXISTS credit_baseline (period TEXT PRIMARY KEY, used INTEGER NOT NULL)')
+            # Where each query had reached when the last backfill pass stopped.
+            # A month-wide sweep is too long for one Actions job, so it runs over
+            # the cycle's final days; without this each day would start at page
+            # one and re-buy pages it already holds. Keyed by period, because a
+            # new billing cycle is a new sweep.
+            db.execute('''CREATE TABLE IF NOT EXISTS backfill_cursor (
+                              period TEXT NOT NULL, query_key TEXT NOT NULL,
+                              page INTEGER NOT NULL, exhausted INTEGER NOT NULL DEFAULT 0,
+                              updated_at REAL NOT NULL, PRIMARY KEY(period, query_key))''')
             # Existing one-page reservations have no date. Charge them to the
             # first known billing period rather than silently erasing usage.
             if not db.execute('SELECT 1 FROM credit_usage LIMIT 1').fetchone():
@@ -55,14 +85,17 @@ class RequestGuard:
                 db.execute('INSERT INTO credit_usage VALUES (?, ?, ?)', (period, day, old))
 
     def period(self):
+        """The current cycle's first day, and today, both as ISO dates."""
         today = datetime.fromtimestamp(time.time(), timezone.utc).date()
-        year, month = today.year, today.month
-        anchor = today.replace(day=min(self.billing_day, calendar.monthrange(year, month)[1]))
-        if today < anchor:
-            year, month = (year - 1, 12) if month == 1 else (year, month - 1)
-            anchor = today.replace(year=year, month=month,
-                                   day=min(self.billing_day, calendar.monthrange(year, month)[1]))
-        return anchor.isoformat(), today.isoformat()
+        elapsed = (today - self.cycle_start).days
+        cycles = elapsed // self.cycle_days if elapsed >= 0 else -((-elapsed + self.cycle_days - 1) // self.cycle_days)
+        start = self.cycle_start + timedelta(days=cycles * self.cycle_days)
+        return start.isoformat(), today.isoformat()
+
+    def days_until_reset(self):
+        """Days left in this cycle, counting today. 1 means today is the last."""
+        start, today = self.period()
+        return self.cycle_days - (date.fromisoformat(today) - date.fromisoformat(start)).days
 
     def pause(self, seconds):
         with connect(self.path) as db:
@@ -81,6 +114,54 @@ class RequestGuard:
         with connect(self.path) as db:
             return db.execute('SELECT used FROM usage WHERE id=1').fetchone()[0]
 
+    def baseline(self, used, period=None):
+        """Record credits the provider counted that this ledger never saw."""
+        period = period or self.period()[0]
+        with connect(self.path) as db:
+            db.execute('INSERT INTO credit_baseline VALUES (?, ?) '
+                       'ON CONFLICT(period) DO UPDATE SET used=excluded.used', (period, used))
+        return period, used
+
+    def resume_page(self, query_key, period=None):
+        """The page a backfill should ask for next, and whether it is finished."""
+        period = period or self.period()[0]
+        with connect(self.path) as db:
+            row = db.execute('SELECT page, exhausted FROM backfill_cursor WHERE period=? AND query_key=?',
+                             (period, query_key)).fetchone()
+        return (row[0], bool(row[1])) if row else (1, False)
+
+    def advance(self, query_key, page, exhausted=False, period=None):
+        period = period or self.period()[0]
+        with connect(self.path, timeout=120) as db:
+            db.execute('INSERT INTO backfill_cursor VALUES (?, ?, ?, ?, ?) '
+                       'ON CONFLICT(period, query_key) DO UPDATE SET '
+                       'page=excluded.page, exhausted=excluded.exhausted, updated_at=excluded.updated_at',
+                       (period, query_key, page, int(exhausted), time.time()))
+
+    def balance(self):
+        """What is spent and what is left, right now, from durable state."""
+        period, day = self.period()
+        with connect(self.path) as db:
+            spent = db.execute(
+                'SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?', (period,)).fetchone()[0]
+            base = db.execute(
+                'SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', (period,)).fetchone()[0]
+            today = db.execute(
+                'SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', (day,)).fetchone()[0]
+            wasted = db.execute(
+                """SELECT COALESCE(SUM(credits), 0) FROM credit_events
+                   WHERE period=? AND outcome NOT LIKE 'http:2%'""", (period,)).fetchone()[0]
+            reported = db.execute(
+                """SELECT provider_remaining FROM credit_events
+                   WHERE provider_remaining IS NOT NULL ORDER BY id DESC LIMIT 1""").fetchone()
+        monthly = spent + base
+        return {'period': period, 'day': day, 'period_used': monthly,
+                'period_remaining': max(0, self.target_limit - monthly),
+                'day_used': today,
+                'day_remaining': max(0, self.daily_limit - today) if self.daily_limit is not None else None,
+                'period_unproductive': wasted,
+                'provider_remaining': reported[0] if reported else None}
+
     def _get_locked(self, session, url, credits=1, **kwargs):
         with connect(self.path, timeout=120) as db:
             db.execute('BEGIN IMMEDIATE')
@@ -88,16 +169,52 @@ class RequestGuard:
             period, day = self.period()
             monthly = db.execute('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?', (period,)).fetchone()[0]
             daily = db.execute('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', (day,)).fetchone()[0]
-            if monthly + credits > self.target_limit or (self.daily_limit is not None and daily + credits > self.daily_limit):
+            over_daily = (not self.ignore_daily_limit and self.daily_limit is not None
+                          and daily + credits > self.daily_limit)
+            if monthly + credits > self.target_limit or over_daily:
                 raise QuotaExhausted('JSearch page-credit budget reached; no request sent')
             pause = db.execute('SELECT retry_at FROM account_pause WHERE id=1').fetchone()
             if pause and pause[0] > time.time():
                 raise QuotaExhausted('JSearch account cooldown is active; no request sent')
+            monthly_base = db.execute(
+                'SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', (period,)).fetchone()[0]
+            if monthly + monthly_base + credits > self.target_limit:
+                raise QuotaExhausted('JSearch page-credit budget reached; no request sent')
             time.sleep(max(0, last + self.interval - time.time()))
             db.execute('UPDATE usage SET used=used+?, last_sent=? WHERE id=1', (credits, time.time()))
             db.execute('INSERT INTO credit_usage VALUES (?, ?, ?) ON CONFLICT(period, day) DO UPDATE SET used=used+excluded.used', (period, day, credits))
+            event = db.execute('INSERT INTO credit_events (at, period, day, credits) VALUES (?, ?, ?, ?)',
+                               (time.time(), period, day, credits)).lastrowid
             db.commit()
             self.attempts += 1
             self.credits += credits
-        # Reservations remain counted even on network errors or process crashes.
-        return session.get(url, allow_redirects=False, **kwargs)
+        # The reservation is committed before the request leaves, so a network
+        # error or a crash still shows the credit as spent. Only the outcome is
+        # written afterwards, and failing to write it never refunds anything.
+        try:
+            response = session.get(url, allow_redirects=False, **kwargs)
+        except BaseException as exc:
+            self.settle(event, 'transport:' + type(exc).__name__)
+            raise
+        self.settle(event, f'http:{response.status_code}', response.headers)
+        return response
+
+    # A provider that states its own remaining quota is the only authority on
+    # the number; record it so drift against this ledger is visible.
+    REMAINING_HEADERS = ('x-ratelimit-requests-remaining', 'x-ratelimit-remaining',
+                         'x-quota-remaining', 'x-requests-remaining')
+
+    def settle(self, event, outcome, headers=None):
+        remaining = None
+        for name in self.REMAINING_HEADERS:
+            value = (headers or {}).get(name) or (headers or {}).get(name.title())
+            if value is not None:
+                try:
+                    remaining = int(str(value).strip())
+                except ValueError:
+                    remaining = None
+                if remaining is not None:
+                    break
+        with connect(self.path, timeout=120) as db:
+            db.execute('UPDATE credit_events SET outcome=?, provider_remaining=? WHERE id=?',
+                       (outcome, remaining, event))

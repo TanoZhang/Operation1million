@@ -8,12 +8,14 @@ import tempfile
 import unittest
 from contextlib import closing
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlsplit
 
 import requests
 from jobdisco import collector, jsearch, store
+from jobdisco import jsearch_access
 from jobdisco.jsearch_access import RequestGuard, QuotaExhausted
 from jobdisco.validate_sources import Source
 
@@ -57,7 +59,7 @@ class DiscoveryTests(unittest.TestCase):
         params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
         self.assertEqual(params['date_posted'], ['week'])
         self.assertEqual(params['num_pages'], ['1'])
-        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 280)
+        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 320)
         manifest = json.loads((output / 'manifest.json').read_text())
         self.assertEqual(manifest['jsearch_pages_used'], 1)
         self.assertEqual(manifest['jsearch_queries'][0]['date_posted'], 'week')
@@ -82,7 +84,7 @@ class DiscoveryTests(unittest.TestCase):
         p = patch('requests.sessions.Session.request', side_effect=AssertionError('Network forbidden'))
         p.start()
         self.addCleanup(p.stop)
-        self.guard = RequestGuard(self.root / 'usage.sqlite', daily_limit=280, target_limit=9500)
+        self.guard = RequestGuard(self.root / "usage.sqlite", daily_limit=320, target_limit=9600)
         self.session = Mock()
         self.client = jsearch.Client(SEARCH, self.settings, self.guard, session=self.session)
         self.db_path = self.root / 'jobs.sqlite'
@@ -103,17 +105,12 @@ class DiscoveryTests(unittest.TestCase):
         return response
 
     def per_query(self, *responses):
-        """Expand one response per query into one per call.
+        """One response per query.
 
-        A query wider than max_pages_per_call is fetched in several calls, so a
-        list holding one entry per query would run out partway through the first.
+        Every call asks for a single page, and a page holding fewer than ten
+        jobs ends its query, so a one-job response is exactly one call.
         """
-        width = self.settings.get('max_pages_per_call', 10)
-        expanded = []
-        for query, response in zip(self.plan, responses):
-            calls = max(1, -(-query.pages // width))
-            expanded.extend([response] * calls)
-        return expanded
+        return list(responses)
 
     def persist(self, query, rows, detail):
         source = Source(query.key, 'discovery', 'discovery', query.query, 'jsearch', '', {})
@@ -127,36 +124,48 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_fixed_catalog_and_budget_math(self):
         self.assertEqual(len(self.plan), 52)
-        self.assertEqual(sum(q.pages for q in self.plan), 272)
-        self.assertEqual(self.settings['monthly_target'], 9500)
-        self.assertEqual(self.settings['daily_budget'], 280)
-        self.assertEqual(self.settings['billing_cycle_start_day'], 17)
+        self.assertEqual(self.settings['monthly_target'], 9600)
+        self.assertEqual(self.settings['daily_budget'], 320)
+        # 320 a day for 30 days is exactly the month's target, and the anchor is
+        # the day the provider resets, not the day after.
+        self.assertEqual(self.settings['daily_budget'] * 30, self.settings['monthly_target'])
+        # A 30-day cycle, not a day of the month: a calendar anchor would drift
+        # against the provider every time a period crosses a short month.
+        self.assertEqual(self.settings['cycle_start'], '2026-09-16')
+        self.assertEqual(self.settings['cycle_days'], 30)
+        self.assertEqual(self.settings['backfill_max_pages_per_query'], 200)
         self.assertEqual(self.settings['date_posted'], '3days')
-        self.assertTrue(all(1 <= q.pages <= 10 for q in self.plan))
+        # No query declares a depth; each carries only the runaway guard.
+        self.assertEqual(self.settings['max_pages_per_query'], 40)
+        self.assertTrue(all(q.pages == 40 for q in self.plan))
 
-    def test_over_budget_refused_before_transport(self):
+    def test_more_queries_than_credits_refused_before_transport(self):
+        """The tail of an oversized plan would be unreachable every day."""
+        jsearch.validate_budget(self.plan, 52)
         with self.assertRaises(ValueError):
-            jsearch.validate_budget(self.plan, 271)
+            jsearch.validate_budget(self.plan, 51)
         self.session.get.assert_not_called()
 
     def test_invalid_page_allocation_rejected(self):
         path = self.root / 'invalid.toml'
-        for pages in (0, 21):
+        for pages in (0, 41):
             path.write_text(f'[[query]]\nquery="RTL Engineer"\npages={pages}\n', encoding='utf-8')
             with self.assertRaises(ValueError):
                 jsearch.load_plan(path)
 
     def test_request_defaults_and_multi_page_batch_without_expansion(self):
         self.session.get.return_value = self.response([job(str(i)) for i in range(20)])
-        rows, stats = self.collect([jsearch.Query('RTL Design Engineer', 2, 'A')])
-        params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
-        self.assertEqual(params, {'query': ['RTL Design Engineer'], 'num_pages': ['2'],
+        rows, stats = self.collect([jsearch.Query('RTL Design Engineer', 40, 'A')])
+        params = parse_qs(urlsplit(self.session.get.call_args_list[0].args[0]).query)
+        self.assertEqual(params, {'query': ['RTL Design Engineer'], 'num_pages': ['1'],
                                  'country': ['us'], 'date_posted': ['3days'],
                                  'employment_types': ['FULLTIME,INTERN']})
+        # A full page advances; the identical second page is the provider
+        # repeating itself, which stops the query and is not counted twice.
+        self.assertEqual(self.session.get.call_count, 2)
         self.assertEqual(len(rows), 20)
         self.assertEqual(stats['jsearch_pages_used'], 2)
-        self.assertEqual(self.session.get.call_count, 1)
-        self.assertEqual(self.guard.attempts, 1)
+        self.assertEqual(self.guard.attempts, 2)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 20)
 
     def test_duplicate_id_across_queries_and_changed_urls_is_one_stored_job(self):
@@ -306,9 +315,142 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview['pages_planned'], 272)
+        self.assertEqual(preview['queries_planned'], 52)
+        self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
+
+    def test_each_page_is_reserved_before_dispatch_and_settled_after(self):
+        """Accounting must be durable per page, not summarised at run end."""
+        guard = RequestGuard(path=self.root / 'live.sqlite', limit=100,
+                           target_limit=100, daily_limit=10, cycle_start="2026-09-16", cycle_days=30)
+        seen = []
+
+        def dispatch(url, **kwargs):
+            # Mid-flight the credit is already committed and already visible.
+            seen.append(RequestGuard(path=self.root / 'live.sqlite', limit=100,
+                                   target_limit=100, daily_limit=10,
+                                   cycle_start="2026-09-16", cycle_days=30).balance())
+            return Mock(status_code=200, headers={'x-ratelimit-requests-remaining': '77'})
+
+        session = Mock()
+        session.get.side_effect = dispatch
+        guard.get(session, 'https://example', credits=1)
+        self.assertEqual(seen[0]['period_used'], 1)
+        self.assertEqual(seen[0]['day_remaining'], 9)
+
+        session.get.side_effect = requests.Timeout('gateway')
+        with self.assertRaises(requests.Timeout):
+            guard.get(session, 'https://example', credits=1)
+
+        after = RequestGuard(path=self.root / 'live.sqlite', limit=100,
+                           target_limit=100, daily_limit=10, cycle_start="2026-09-16", cycle_days=30).balance()
+        # A failed page is charged, and is visible as charged-but-unproductive.
+        self.assertEqual(after['period_used'], 2)
+        self.assertEqual(after['period_unproductive'], 1)
+        self.assertEqual(after['provider_remaining'], 77)
+
+    def test_rolling_cycle_tracks_thirty_days_not_a_calendar_day(self):
+        guard = RequestGuard(path=self.root / 'cycle.sqlite',
+                             cycle_start='2026-09-16', cycle_days=30)
+        expected = {'2026-09-16': ('2026-09-16', 30), '2026-10-13': ('2026-09-16', 3),
+                    '2026-10-15': ('2026-09-16', 1), '2026-10-16': ('2026-10-16', 30),
+                    # Thirty days after 16 October is 15 November, so the sweep
+                    # window is not a fixed set of month days.
+                    '2026-11-14': ('2026-10-16', 1)}
+        for today, (start, left) in expected.items():
+            stamp = datetime.fromisoformat(today + 'T12:00:00+00:00').timestamp()
+            with patch.object(jsearch_access.time, 'time', return_value=stamp):
+                self.assertEqual(guard.period()[0], start, today)
+                self.assertEqual(guard.days_until_reset(), left, today)
+
+    def test_backfill_budget_splits_the_remainder_over_the_days_that_remain(self):
+        """An early sweep must leave something for a day that has to retry."""
+        settings = dict(self.settings, monthly_target=9600)
+        for days, left, expected in ((3, 900, 300), (2, 600, 300), (1, 300, 300)):
+            guard = RequestGuard(path=self.root / f'split{days}.sqlite',
+                                 limit=10000, target_limit=settings['monthly_target'],
+                                 daily_limit=320, cycle_start='2026-09-16', cycle_days=30,
+                                 ignore_daily_limit=True)
+            guard.baseline(settings['monthly_target'] - left, period='2026-09-16')
+            with patch.object(guard, 'days_until_reset', return_value=days),                  patch.object(guard, 'period', return_value=('2026-09-16', '2026-10-14')):
+                remaining = guard.balance()['period_remaining']
+                budget = remaining if days <= 1 else remaining // days
+            self.assertEqual((remaining, budget), (left, expected))
+
+    def test_backfill_resumes_where_the_previous_day_stopped(self):
+        """A month-wide sweep is split across days without losing its depth.
+
+        One long run does not fit an Actions job, but restarting each day at
+        page one would re-buy the pages the sweep already holds, so the split
+        would cost depth rather than time.
+        """
+        pages = {}
+
+        def dispatch(url, **kwargs):
+            asked = parse_qs(urlsplit(url).query)
+            page = int(asked.get('page', ['1'])[0])
+            pages.setdefault(asked['query'][0], []).append(page)
+            # Full pages for a while, so nothing exhausts within one day.
+            return self.response([job(f'p{page}-{i}') for i in range(10)])
+
+        self.session.get.side_effect = dispatch
+        query = jsearch.Query('RTL Design Engineer', 3, 'A')
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        first = list(pages['RTL Design Engineer'])
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(first, [1, 2, 3])
+        # The second day continues past the cap the first day reached, rather
+        # than asking for page one again.
+        self.assertEqual(pages['RTL Design Engineer'][len(first):], [])
+        # The cap binds before the credit is spent, so a resumed sweep that is
+        # already past it buys nothing at all.
+        self.assertEqual(self.guard.credits, 3)
+        self.assertEqual(self.guard.resume_page(query.key), (4, False))
+
+    def test_backfill_mode_changes_only_window_cap_and_daily_slice(self):
+        """The daily pass must behave exactly as before the sweep existed."""
+        daily, _ = jsearch.load_plan()
+        sweep, _ = jsearch.load_plan()
+        sweep['date_posted'] = 'month'
+        sweep['max_pages_per_query'] = sweep['backfill_max_pages_per_query']
+        differing = {k for k in daily if k != 'query' and daily[k] != sweep.get(k)}
+        self.assertEqual(differing, {'date_posted', 'max_pages_per_query'})
+        self.assertEqual(daily['date_posted'], '3days')
+        self.assertEqual(daily['max_pages_per_query'], 40)
+        self.assertEqual(sweep['max_pages_per_query'], 200)
+
+    def test_a_daily_run_ignores_the_backfill_cursor(self):
+        """Only the sweep resumes; the ordinary daily pass always starts fresh."""
+        self.guard.advance('anything', 9)
+        self.session.get.return_value = self.response([job()])
+        self.collect([replace(self.plan[0], pages=40)])
+        asked = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
+        self.assertNotIn('page', asked)
+
+    def test_backfill_may_pass_the_daily_slice_but_never_the_month(self):
+        """Credits expire with the cycle, so the daily slice must not hold them."""
+        free = RequestGuard(path=self.root / 'sweep.sqlite', limit=100, target_limit=5,
+                            daily_limit=2, cycle_start="2026-09-16", cycle_days=30, ignore_daily_limit=True)
+        session = Mock()
+        session.get.return_value = Mock(status_code=200, headers={})
+        for _ in range(5):
+            free.get(session, 'https://example', credits=1)
+        self.assertEqual(free.balance()['period_used'], 5)
+        with self.assertRaises(QuotaExhausted):
+            free.get(session, 'https://example', credits=1)
+
+    def test_baseline_counts_credits_spent_outside_this_ledger(self):
+        """A rebuilt ledger must not read the provider's spend as available."""
+        guard = RequestGuard(path=self.root / 'base.sqlite', limit=1000,
+                           target_limit=1000, daily_limit=10, cycle_start="2026-09-16", cycle_days=30)
+        guard.baseline(218)
+        self.assertEqual(guard.balance()['period_used'], 218)
+        self.assertEqual(guard.balance()['period_remaining'], 782)
+        near = RequestGuard(path=self.root / 'base.sqlite', limit=1000,
+                          target_limit=219, daily_limit=10, cycle_start="2026-09-16", cycle_days=30)
+        with self.assertRaises(QuotaExhausted):
+            near.get(Mock(), 'https://example', credits=2)
 
     def test_weighted_daily_and_monthly_caps_survive_restart(self):
         self.session.get.return_value = self.response()
@@ -328,15 +470,12 @@ class DiscoveryTests(unittest.TestCase):
             self.response([job()]), requests.Timeout('secret-like exception text'))
         _, stats = self.collect(self.plan[:2])
         self.assertEqual(stats['jsearch_failures'], 1)
-        # The first query succeeds and the failed second query loses one batch.
-        # Every configured query now fits within the ten-page safety width.
-        width = self.settings['max_pages_per_call']
-        self.assertEqual(stats['jsearch_pages_used'],
-                         self.plan[0].pages + min(self.plan[1].pages, width))
-        self.assertLessEqual(self.plan[1].pages, width)
+        # One page each: the first query exhausts on a short page, and the
+        # second loses a single credit rather than a whole declared batch.
+        self.assertEqual(stats['jsearch_pages_used'], 2)
         self.assertNotIn('secret-like', json.dumps(stats))
         manifest = store.write_manifest(self.db, STAMP, [], stats)
-        for field in ('jsearch_queries_planned', 'jsearch_queries_completed', 'jsearch_pages_planned',
+        for field in ('jsearch_queries_planned', 'jsearch_queries_completed', 'jsearch_pages_cap',
                       'jsearch_pages_used', 'jsearch_jobs_raw', 'jsearch_jobs_unique', 'jsearch_failures'):
             self.assertEqual(manifest[field], stats[field])
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
@@ -420,40 +559,57 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(len(list((store.LOG / 'runs').glob('*.ndjson.gz'))), 1)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)
 
-    def test_a_wide_query_is_split_and_asks_for_each_slice(self):
-        self.session.get.return_value = self.response([job()])
-        self.collect([jsearch.Query('RTL Design Engineer', 18, 'A')])
-        self.assertEqual(self.session.get.call_count, 2)
-        first, second = (parse_qs(urlsplit(c.args[0]).query)
-                         for c in self.session.get.call_args_list)
-        self.assertEqual(first['num_pages'], ['10'])
-        self.assertNotIn('page', first)
-        self.assertEqual(second['num_pages'], ['8'])
-        self.assertEqual(second['page'], ['11'])
-        # The provider is asked for the same 18 pages either way.
-        self.assertEqual(self.guard.credits, 18)
+    def test_paging_advances_and_stops_on_a_short_page(self):
+        """Depth is discovered: full pages advance, a short page ends it."""
+        full = [self.response([job(f'{page}-{i}') for i in range(10)]) for page in range(3)]
+        self.session.get.side_effect = full + [self.response([job('last')])]
+        _, stats = self.collect([jsearch.Query('RTL Design Engineer', 40, 'A')])
+        asked = [parse_qs(urlsplit(c.args[0]).query) for c in self.session.get.call_args_list]
+        self.assertEqual([a['num_pages'] for a in asked], [['1']] * 4)
+        self.assertEqual([a.get('page', ['1'])[0] for a in asked], ['1', '2', '3', '4'])
+        self.assertEqual(stats['jsearch_jobs_raw'], 31)
+        self.assertEqual(self.guard.credits, 4)
 
-    def test_a_query_within_the_width_stays_one_call(self):
+    def test_runaway_guard_stops_a_provider_that_never_runs_short(self):
+        """A cursor that never ends must not spend the day on one query."""
+        self.session.get.side_effect = [
+            self.response([job(f'{page}-{i}') for i in range(10)]) for page in range(99)]
+        _, stats = self.collect([jsearch.Query('RTL Design Engineer', 6, 'A')])
+        self.assertEqual(self.guard.credits, 6)
+        self.assertIn('Runaway guard', stats['jsearch_queries'][0]['reason'])
+
+    def test_a_failed_page_costs_one_credit(self):
+        self.session.get.side_effect = requests.Timeout('secret-like exception text')
+        _, stats = self.collect([jsearch.Query('RTL Design Engineer', 40, 'A')])
+        self.assertEqual(stats['jsearch_failures'], 1)
+        self.assertEqual(stats['jsearch_pages_used'], 1)
+        self.assertEqual(self.guard.credits, 1)
+
+    def test_a_short_first_page_stays_one_call(self):
         self.session.get.return_value = self.response([job()])
-        self.collect([jsearch.Query('DFT Engineer', 5, 'B')])
+        self.collect([jsearch.Query('DFT Engineer', 40, 'B')])
         self.assertEqual(self.session.get.call_count, 1)
         self.assertNotIn('page', parse_qs(urlsplit(self.session.get.call_args.args[0]).query))
 
-    def test_a_failed_slice_costs_only_that_slice(self):
-        self.session.get.side_effect = [self.response([job()]),
-                                        requests.Timeout('provider gateway timeout')]
-        _, stats = self.collect([jsearch.Query('RTL Design Engineer', 18, 'A')])
-        self.assertEqual(stats['jsearch_failures'], 1)
-        # Ten pages spent, not the eighteen the query asked for.
-        self.assertEqual(stats['jsearch_pages_used'], 18)
-        self.assertEqual(self.guard.credits, 18)
+    def test_tiers_are_paged_breadth_first_in_rank_order(self):
+        """Tier A exhausts before tier B starts, and neither starves the other.
 
-    def test_width_of_one_sends_a_call_per_page(self):
-        self.settings = dict(self.settings, max_pages_per_call=1)
-        self.client = jsearch.Client(SEARCH, self.settings, self.guard, session=self.session)
-        self.session.get.return_value = self.response([job()])
-        self.collect([jsearch.Query('RTL Design Engineer', 4, 'A')])
-        self.assertEqual(self.session.get.call_count, 4)
-        asked = [parse_qs(urlsplit(c.args[0]).query).get('page', ['1'])[0]
+        Running one query to its end before the next begins would spend the
+        budget depth first, so the tail of the plan would go unreached every
+        day -- always the same queries.
+        """
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job(f'{parse_qs(urlsplit(url).query)["query"][0]}-'
+                 f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}')]
+            if parse_qs(urlsplit(url).query).get('page', ['1'])[0] != '1'
+            else [job(f'{parse_qs(urlsplit(url).query)["query"][0]}-{i}') for i in range(10)])
+        self.collect([jsearch.Query('first A', 40, 'A'), jsearch.Query('second A', 40, 'A'),
+                      jsearch.Query('only B', 40, 'B')])
+        asked = [(parse_qs(urlsplit(c.args[0]).query)['query'][0],
+                  parse_qs(urlsplit(c.args[0]).query).get('page', ['1'])[0])
                  for c in self.session.get.call_args_list]
-        self.assertEqual(asked, ['1', '2', '3', '4'])
+        # Both tier A queries take page 1 before either takes page 2, and tier B
+        # is not reached until tier A has finished.
+        self.assertEqual(asked, [('first A', '1'), ('second A', '1'),
+                                 ('first A', '2'), ('second A', '2'),
+                                 ('only B', '1'), ('only B', '2')])

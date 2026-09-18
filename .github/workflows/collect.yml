@@ -107,6 +107,40 @@ jobs:
           fi
           exit "$code"
 
+      # The cycle rolls every 30 days rather than landing on a day of the month,
+      # so the window is computed from the ledger, never from a cron date.
+      - name: Decide whether the cycle is ending
+        id: sweep_window
+        if: ${{ steps.collect.outputs.exit_code == '0' || steps.collect.outputs.exit_code == '2' }}
+        env:
+          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          from jobdisco import jsearch
+          from jobdisco.jsearch_access import RequestGuard
+          settings, _ = jsearch.load_plan()
+          guard = RequestGuard(target_limit=settings['monthly_target'],
+                               cycle_start=settings['cycle_start'],
+                               cycle_days=settings['cycle_days'])
+          days = guard.days_until_reset()
+          print(f'days_until_reset={days}')
+          print(f'run={"true" if days <= 3 else "false"}')
+          PY
+
+      # Unused credits do not carry into the next cycle, so the last three days
+      # spend what the daily passes left. A daily failure skips this entirely:
+      # a sweep on top of a broken pass would spend the remainder for nothing.
+      - name: Backfill sweep
+        id: backfill
+        continue-on-error: true
+        if: ${{ steps.sweep_window.outputs.run == 'true' }}
+        env:
+          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
+        run: |
+          echo "::notice title=Backfill::${{ steps.sweep_window.outputs.days_until_reset }} days until the cycle resets"
+          job-collect --jsearch-only --backfill --workers 1 --delay 1.0
+
       - name: Save operational safety state
         if: ${{ always() && steps.data_checkout.outcome == 'success' }}
         run: |

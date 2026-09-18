@@ -72,8 +72,10 @@ Use concurrency control to prohibit overlapping writers. A sealed UTC day
 cannot be run again in the same store. Interrupted unsealed logs require
 inspection/recovery before retry; do not discard history or reset usage.
 The bounded transport test used one credit and succeeded before paid scheduling
-was enabled. The billing anchor is day 17. The functional plan's 272 pages are
-reservations, not a guarantee of 272 returned pages or complete job coverage.
+was enabled. The billing anchor is day 16, the day the provider resets. A page
+is reserved before it is
+requested and is charged even when the provider fails, so the day's spend is a
+floor on what was asked for, never a guarantee of returned pages or coverage.
 
 ## Current status
 
