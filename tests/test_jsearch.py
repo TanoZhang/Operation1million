@@ -121,6 +121,9 @@ class DiscoveryTests(unittest.TestCase):
                          STAMP, seen_urls=delta['seen_urls'], source_id=source.source_id)
         self.db.commit()
 
+    def cursor(self, query):
+        return query.key + ':' + jsearch.search_space(self.settings)
+
     def collect(self, queries):
         return jsearch.collect(queries, self.client, self.settings, {}, self.persist)
 
@@ -511,6 +514,33 @@ class DiscoveryTests(unittest.TestCase):
             jsearch.rejection_reason({'title': 'Engineer', 'raw': {'description': prose * 3}}, rules),
             'off_domain')
 
+    def test_a_cursor_does_not_survive_a_change_to_the_search(self):
+        """A page number only means something while the search is the same.
+
+        The window, the country and the employment types decide the result set.
+        A cursor kept under the query alone would be handed to a later run that
+        had changed one of them, and would point into a search that no longer
+        exists. It must simply not match, so the sweep starts again -- reading
+        twice costs credits, skipping loses postings.
+        """
+        query = jsearch.Query('RTL Design Engineer', 40, 'A')
+        self.session.get.return_value = self.response([job(f'a{i}') for i in range(10)])
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertGreater(self.guard.resume_page(self.cursor(query))[0], 1)
+
+        for changed in (dict(self.settings, date_posted='week'),
+                        dict(self.settings, country='ca'),
+                        dict(self.settings, employment_types=['FULLTIME'])):
+            moved = changed['date_posted'] != self.settings['date_posted']                 or changed['country'] != self.settings['country']                 or changed['employment_types'] != self.settings['employment_types']
+            self.assertTrue(moved)
+            other = query.key + ':' + jsearch.search_space(changed)
+            self.assertNotEqual(other, self.cursor(query))
+            self.assertEqual(self.guard.resume_page(other), (1, False))
+
+        # The same settings in a different order are the same search.
+        same = dict(self.settings, employment_types=list(reversed(self.settings['employment_types'])))
+        self.assertEqual(jsearch.search_space(same), jsearch.search_space(self.settings))
+
     def test_an_empty_page_does_not_settle_a_sweep_cursor(self):
         """A provider hiccup must not skip the rest of a query for the cycle.
 
@@ -531,7 +561,7 @@ class DiscoveryTests(unittest.TestCase):
         self.session.get.side_effect = dispatch
         query = jsearch.Query('RTL Design Engineer', 40, 'A')
         jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
-        page, exhausted = self.guard.resume_page(query.key)
+        page, exhausted = self.guard.resume_page(self.cursor(query))
         self.assertEqual(page, 3)
         self.assertFalse(exhausted)
 
@@ -548,14 +578,14 @@ class DiscoveryTests(unittest.TestCase):
         self.session.get.side_effect = dispatch
         query = jsearch.Query('ASIC Design Engineer', 40, 'A')
         jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
-        self.assertEqual(self.guard.resume_page(query.key), (3, True))
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (3, True))
 
     def test_a_query_with_nothing_at_all_settles_on_its_first_page(self):
         """An empty first page is a genuine empty result set, not a hiccup."""
         self.session.get.return_value = self.response([])
         query = jsearch.Query('Formal Verification Engineer', 40, 'C')
         jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
-        self.assertEqual(self.guard.resume_page(query.key), (2, True))
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (2, True))
 
     def test_backfill_resumes_where_the_previous_day_stopped(self):
         """A month-wide sweep is split across days without losing its depth.
@@ -585,7 +615,7 @@ class DiscoveryTests(unittest.TestCase):
         # The cap binds before the credit is spent, so a resumed sweep that is
         # already past it buys nothing at all.
         self.assertEqual(self.guard.credits, 3)
-        self.assertEqual(self.guard.resume_page(query.key), (4, False))
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (4, False))
 
     def test_bounded_backfill_resumes_the_shallowest_query_first(self):
         """Repeated small tests must rotate through the plan instead of its head."""
@@ -621,7 +651,7 @@ class DiscoveryTests(unittest.TestCase):
                             backfill=True, checkpoint=checkpoint)
 
         self.assertEqual(order, [('checkpoint', (1, False), 1)])
-        self.assertEqual(self.guard.resume_page(query.key), (1, False))
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (1, False))
 
     def test_successful_checkpoint_advances_backfill_cursor_after_commit(self):
         self.session.get.return_value = self.response([job('kept')])
@@ -633,7 +663,7 @@ class DiscoveryTests(unittest.TestCase):
         jsearch.collect([query], self.client, self.settings, {}, lambda *args: None,
                         backfill=True, checkpoint=checkpoint)
 
-        self.assertEqual(self.guard.resume_page(query.key), (2, True))
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (2, True))
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)
 
     def test_backfill_mode_changes_only_window_cap_and_daily_slice(self):

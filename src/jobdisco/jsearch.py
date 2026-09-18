@@ -405,6 +405,23 @@ def rejection_reason(row, rules):
 TIER_ORDER = ('A', 'intern', 'B', 'C', 'company')
 
 
+def search_space(settings):
+    """A fingerprint of what a query is being asked, beyond its own words.
+
+    A resumable cursor says which page of a search to ask for next, which only
+    means anything while the search is the same one. The window, the country
+    and the employment types all decide the result set, so a cursor kept under
+    the query alone would be handed to a later run that had changed one of them
+    and would point at a page of a search that no longer exists. Including them
+    makes such a cursor simply not match, and a sweep starts again at page one
+    -- reading twice, which costs credits, rather than skipping, which loses
+    postings. `Query.key` cannot carry this: it is also the stored source id.
+    """
+    shape = '|'.join((settings.get('country', ''), settings.get('date_posted', ''),
+                      ','.join(sorted(settings.get('employment_types', ())))))
+    return hashlib.sha256(shape.encode()).hexdigest()[:8]
+
+
 def tier_rank(tier):
     return TIER_ORDER.index(tier) if tier in TIER_ORDER else len(TIER_ORDER)
 
@@ -431,13 +448,16 @@ def collect(queries, client, settings, companies, persist, backfill=False,
     stop = False
     rules = settings.get('filter', {})
 
+    space = search_space(settings)
     state = {}
     for query in queries:
         # A backfill is one sweep spread over the cycle's last days, so it picks
         # up where the previous day stopped instead of re-buying its own pages.
-        start, finished = client.guard.resume_page(query.key) if backfill else (1, False)
+        cursor = query.key + ':' + space
+        start, finished = client.guard.resume_page(cursor) if backfill else (1, False)
         state[query.key] = {
-            'query': query, 'rows': [], 'page': start, 'previous': None, 'done': finished,
+            'query': query, 'cursor': cursor, 'rows': [], 'page': start,
+            'previous': None, 'done': finished,
             'detail': {'source_id': query.key, 'query': query.query, 'tier': query.tier,
                        'date_posted': settings['date_posted'], 'country': settings['country'],
                        'employment_types': settings['employment_types'],
@@ -550,7 +570,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # stepped over: nothing was persisted from it, so the cursor
                     # stays where it is and the next day asks for it again.
                     resume = entry['page'] if (items or settled) else asked
-                    client.guard.advance(query.key, resume, exhausted=settled)
+                    client.guard.advance(entry['cursor'], resume, exhausted=settled)
                 if exhausted or looping:
                     if detail['status'] != 'failed':
                         stats['jsearch_queries_completed'] += 1
