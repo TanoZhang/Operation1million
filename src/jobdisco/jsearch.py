@@ -457,6 +457,11 @@ def collect(queries, client, settings, companies, persist, backfill=False,
     unique = set()
     all_rows = []
     stop = False
+    # Why the rotation ended, for the queries it never reached. Three unrelated
+    # things end a run -- the clock, the budget, the provider -- and reporting
+    # all three as the provider sends whoever reads the report looking for an
+    # outage that never happened.
+    stop_reason = None
     rules = settings.get('filter', {})
 
     space = search_space(settings)
@@ -524,6 +529,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     detail['status'] = 'query_limited'
                     detail['reason'] = 'JSearch runtime limit reached before this page'
                     stop = True
+                    stop_reason = 'the run reached its time limit'
                     break
                 # The guard has to bind before the credit is spent, not after:
                 # a resumed sweep can start already past its own cap.
@@ -549,6 +555,9 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     detail['status'] = 'query_limited' if failure.budget else 'failed'
                     detail['reason'] = str(failure)
                     stop = failure.stop
+                    if stop:
+                        stop_reason = ('the page-credit budget was exhausted' if failure.budget
+                                       else f'the provider stopped the account ({failure})')
                     entry['done'] = True
                     active.remove(query)
                     if stop:
@@ -601,7 +610,11 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             if not detail['reason']:
                 detail['reason'] = 'Budget reached before this query finished paging'
         if not entry['done'] and not detail['reason']:
-            detail['reason'] = 'Account stop condition from an earlier query'
+            # Never reached. Say which of the three ended the rotation, because
+            # "the account stopped" sent a reader hunting for a provider outage
+            # when the real answer was that the budget had simply run out.
+            detail['reason'] = (f'Not reached: {stop_reason}' if stop_reason
+                                else 'Not reached before the run ended')
         detail['jobs_accepted'] = len(rows)
         stats['jsearch_jobs_rejected'] += detail['rejected']
         stats['jsearch_jobs_malformed'] += detail['malformed']

@@ -495,9 +495,9 @@ class DiscoveryTests(unittest.TestCase):
 
         # Two schedules would spend the same credit budget twice and race each
         # other's push, so the workflow must no longer fire on its own.
-        workflow = (root / '.github/workflows/collect.yml').read_text(encoding='utf-8')
+        workflow = (root / '.github/workflows/collect-backup.yml').read_text(encoding='utf-8')
         self.assertEqual(re.findall(r"^\s*- cron: '([^']+)'", workflow, re.M), [],
-                         'the workflow must not schedule a second daily pass')
+                         'the backup workflow must not schedule a second daily pass')
         # Pacific is seven hours behind UTC in daylight time and eight in
         # standard time; the pass must clear midnight either way.
         for offset in (7, 8):
@@ -565,6 +565,50 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(stats['jsearch_pages_used'], 0)
         self.assertEqual(stats['jsearch_queries'][0]['status'], 'query_limited')
         self.assertIn('runtime limit', stats['jsearch_queries'][0]['reason'])
+
+    def test_a_query_never_reached_names_the_limit_that_actually_ended_the_run(self):
+        """Three unrelated things end a rotation, and only one is the provider.
+
+        Every query the rotation never reached used to report an account stop
+        condition. Measured on the VPS, a run that simply spent its 120-page
+        budget reported thirty-seven queries stopped by the account, while the
+        ledger's pause table was empty and every one of its 253 requests had
+        been answered. The report sent its reader hunting an outage that had
+        not happened.
+        """
+        queries = [jsearch.Query('RTL Design Engineer', 200, 'A'),
+                   jsearch.Query('ASIC Design Engineer', 200, 'A'),
+                   jsearch.Query('FPGA Engineer', 200, 'A')]
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job(f'page-{i}') for i in range(10)])
+
+        # One credit for the whole run: the first query spends it, the second
+        # is refused it, and the third is never looked at.
+        guard = RequestGuard(path=self.root / 'ranout.sqlite', limit=10000,
+                             target_limit=9600, daily_limit=320,
+                             cycle_start='2026-09-16', cycle_days=30, run_limit=1)
+        client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
+        _, stats = jsearch.collect(queries, client, self.settings, {}, self.persist)
+        unreached = stats['jsearch_queries'][2]['reason']
+        self.assertIn('budget', unreached)
+        self.assertNotIn('Account stop', unreached)
+        self.assertNotIn('account', unreached.lower())
+
+    def test_a_query_never_reached_says_so_when_the_clock_ended_the_run(self):
+        with patch.object(jsearch.time, 'monotonic', return_value=10):
+            _, stats = jsearch.collect(self.plan[:3], self.client, self.settings,
+                                       {}, self.persist, deadline=5)
+        unreached = stats['jsearch_queries'][2]['reason']
+        self.assertIn('time limit', unreached)
+        self.assertNotIn('account', unreached.lower())
+
+    def test_a_query_never_reached_does_blame_the_provider_when_it_is_to_blame(self):
+        """The message was not wrong to exist, only wrong to be the only one."""
+        self.session.get.side_effect = lambda url, **kw: self.response([], status=403)
+        _, stats = jsearch.collect(self.plan[:3], self.client, self.settings,
+                                   {}, self.persist)
+        unreached = stats['jsearch_queries'][2]['reason']
+        self.assertIn('provider stopped the account', unreached)
 
     def test_backfill_budget_splits_the_remainder_over_the_days_that_remain(self):
         """An early sweep must leave something for a day that has to retry."""

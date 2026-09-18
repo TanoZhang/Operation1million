@@ -1,11 +1,11 @@
-name: Daily collection
+name: Backup collection (manual)
 
-# The daily pass runs on the VPS; see docs/vps-deployment.md. This workflow no
-# longer fires on its own, because two schedules at 04:38 Pacific would spend
-# the same credit budget twice and race each other's push. It is kept, and costs
-# nothing kept, as the clean-room way to run a pass while the VPS is being
-# changed or is suspect -- a runner starts from the committed log and needs
-# nothing this machine holds.
+# BACKUP. The daily pass runs on the VPS; see docs/vps-deployment.md. This is
+# kept, and costs nothing kept, as the clean-room way to run a pass while that
+# machine is being changed or is suspect: a runner starts from the committed log
+# and needs nothing the VPS holds. It does not fire on its own, because two
+# schedules at 04:38 Pacific would spend one credit budget twice and race each
+# other's push, so reaching for it is always a deliberate act.
 on:
   workflow_dispatch:
     inputs:
