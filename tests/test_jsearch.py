@@ -444,6 +444,35 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.guard.credits, 3)
         self.assertEqual(self.guard.resume_page(query.key), (4, False))
 
+    def test_backfill_checkpoints_jobs_before_advancing_its_cursor(self):
+        self.session.get.return_value = self.response([job('kept')])
+        query = jsearch.Query('RTL Design Engineer', 3, 'A')
+        order = []
+
+        def checkpoint(current, rows, detail):
+            order.append(('checkpoint', self.guard.resume_page(current.key), len(rows)))
+            raise RuntimeError('simulated crash while committing the page')
+
+        with self.assertRaisesRegex(RuntimeError, 'simulated crash'):
+            jsearch.collect([query], self.client, self.settings, {}, self.persist,
+                            backfill=True, checkpoint=checkpoint)
+
+        self.assertEqual(order, [('checkpoint', (1, False), 1)])
+        self.assertEqual(self.guard.resume_page(query.key), (1, False))
+
+    def test_successful_checkpoint_advances_backfill_cursor_after_commit(self):
+        self.session.get.return_value = self.response([job('kept')])
+        query = jsearch.Query('RTL Design Engineer', 3, 'A')
+
+        def checkpoint(current, rows, detail):
+            self.persist(current, rows, dict(detail, status='query_limited'))
+
+        jsearch.collect([query], self.client, self.settings, {}, lambda *args: None,
+                        backfill=True, checkpoint=checkpoint)
+
+        self.assertEqual(self.guard.resume_page(query.key), (2, True))
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)
+
     def test_backfill_mode_changes_only_window_cap_and_daily_slice(self):
         """The daily pass must behave exactly as before the sweep existed."""
         daily, _ = jsearch.load_plan()
@@ -592,6 +621,37 @@ class DiscoveryTests(unittest.TestCase):
         ):
             collector.main()
         self.assertEqual(asked, [self.plan[0].query])
+
+    def test_backfill_uses_the_deeper_query_guard(self):
+        observed = []
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        argv = ['collector', '--backfill', '--jsearch-budget', '320',
+                '--db', str(self.db_path), '--output', str(self.root / 'deep-sweep')]
+
+        def capture(queries, *args, **kwargs):
+            observed.extend(q.pages for q in queries)
+            return [], {'jsearch_queries_planned': len(queries)}
+
+        with (
+            patch.object(collector, 'load_sources', return_value=[]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(jsearch, 'collect', side_effect=capture),
+            patch.object(store, 'now', return_value=STAMP),
+            patch('sys.argv', argv),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            collector.main()
+
+        self.assertEqual(observed, [self.settings['backfill_max_pages_per_query']] * len(self.plan))
+
+    def test_backfill_rejects_no_store_before_any_paid_request(self):
+        with patch('sys.argv', ['collector', '--backfill', '--no-store']), \
+             self.assertRaises(SystemExit):
+            collector.main()
+        self.session.get.assert_not_called()
 
     def test_collector_runs_direct_then_functional_then_configured_company(self):
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})

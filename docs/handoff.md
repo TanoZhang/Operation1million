@@ -113,6 +113,15 @@ reserved -- the only way that would ever be visible. Measured live on
 It currently carries 218 for the period beginning 2026-10-16's predecessor: the
 ledger was rebuilt and had drifted to 4 against the provider's 218.
 
+**The whole history is unscored in a fresh rebuild.** A runner has no database
+and replays the log on every run, but the score was computed on write and never
+travelled with the row, so a rebuilt store returns nothing at all from a ranked
+view: 38,849 of 38,849 open postings unscored. The score now travels in the log,
+so everything written from here carries it. The postings already logged do not,
+and recomputing costs 129 seconds for 39,445 rows -- too long to pay every run.
+`job-store` reports the count rather than leaving it to be found by an empty
+ranking; `--rescore` fixes a given database.
+
 **Two companies have no direct route.** Rambus answers 405 on every path under
 `careers-rambus.icims.com`, including `/sitemap.xml`; `ventanamicro.com` does not
 accept connections. Whether to reach them through paid search is undecided.

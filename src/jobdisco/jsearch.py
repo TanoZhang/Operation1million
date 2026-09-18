@@ -381,7 +381,8 @@ def tier_rank(tier):
     return TIER_ORDER.index(tier) if tier in TIER_ORDER else len(TIER_ORDER)
 
 
-def collect(queries, client, settings, companies, persist, backfill=False):
+def collect(queries, client, settings, companies, persist, backfill=False,
+            checkpoint=None):
     """Page through each query adaptively, breadth first within a tier.
 
     Depth is discovered rather than declared, so the budget is spent in the
@@ -487,7 +488,13 @@ def collect(queries, client, settings, companies, persist, backfill=False):
                 looping = identities is not None and identities == entry['previous']
                 entry['previous'] = identities
                 if not looping:
+                    before_rows = len(entry['rows'])
                     take(query, items)
+                    # Paid results become durable before a resumable cursor can
+                    # move past them. A crash after this callback may repeat a
+                    # page, but it cannot skip jobs that existed only in memory.
+                    if checkpoint is not None:
+                        checkpoint(query, entry['rows'][before_rows:], detail)
                 entry['page'] += 1
                 if backfill:
                     client.guard.advance(query.key, entry['page'],

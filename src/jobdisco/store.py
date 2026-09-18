@@ -341,8 +341,13 @@ DROP_FIELDS = {
     # The scraped row markup; normalize() already took the fields out of it.
     'html',
 }
+# The score is a pure function of the title, the raw record and the term list,
+# and it is computed once on write. Carrying it in the log keeps a rebuild as
+# cheap as the replay itself: recomputing it costs two minutes for 39,000
+# postings, which a runner would otherwise pay on every single run.
 LOG_FIELDS = ['url', 'company_key', 'provider_key', 'title', 'location', 'source_job_id',
-              'posted_at', 'posted_relative', 'lastmod', 'first_seen', 'last_seen', 'closed_at', 'raw']
+              'posted_at', 'posted_relative', 'lastmod', 'first_seen', 'last_seen', 'closed_at',
+              'relevance', 'raw']
 
 
 def merge_raw(previous, incoming):
@@ -600,8 +605,8 @@ def rebuild(path=DB):
                 db.execute(
                     '''INSERT INTO jobs (url, company_key, provider_key, title, location,
                            source_job_id, posted_at, posted_relative, lastmod,
-                           first_seen, last_seen, closed_at, raw)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           first_seen, last_seen, closed_at, relevance, raw)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                        ON CONFLICT(url) DO UPDATE SET
                            company_key=excluded.company_key, provider_key=excluded.provider_key,
                            title=excluded.title, location=excluded.location,
@@ -610,11 +615,14 @@ def rebuild(path=DB):
                            last_seen=excluded.last_seen, closed_at=excluded.closed_at,
                            source_job_id=excluded.source_job_id,
                            posted_relative=excluded.posted_relative, lastmod=excluded.lastmod,
+                           relevance=COALESCE(excluded.relevance, jobs.relevance),
                            raw=excluded.raw''',
                     (r['url'], r['company_key'], r['provider_key'], r['title'],
                      r.get('location') or '', r.get('source_job_id'), r.get('posted_at'),
                      r.get('posted_relative'), r.get('lastmod'), r['first_seen'],
-                     r.get('last_seen', r['first_seen']), r.get('closed_at'), json.dumps(r.get('raw'), ensure_ascii=True)))
+                     r.get('last_seen', r['first_seen']), r.get('closed_at'),
+                     # Absent in logs written before the score was carried.
+                     r.get('relevance'), json.dumps(r.get('raw'), ensure_ascii=True)))
                 identities = r.get('identities')
                 # Logs written before identity tracking have no identities key,
                 # so infer their primary identity for backward compatibility.
@@ -729,7 +737,13 @@ def summary(path=DB):
         dated = db.execute(
             'SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL AND posted_at IS NOT NULL'
         ).fetchone()[0]
-        return {'open': open_jobs, 'total': total, 'with_posted_at': dated}
+        # Postings logged before the score travelled with them. They rank as if
+        # irrelevant until `--rescore` is run, so the count is stated rather
+        # than left to be discovered by an empty ranking.
+        unscored = db.execute(
+            'SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL AND relevance IS NULL').fetchone()[0]
+        return {'open': open_jobs, 'total': total, 'with_posted_at': dated,
+                'unscored': unscored}
 
 
 def rescore(path=DB, batch=500, progress=None):

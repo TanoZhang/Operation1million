@@ -33,6 +33,9 @@ class StoreTests(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.dir.cleanup)
+        log_patcher = patch.object(store, 'LOG', Path(self.dir.name) / 'store')
+        log_patcher.start()
+        self.addCleanup(log_patcher.stop)
         self.db_path = Path(self.dir.name) / 'catalog.sqlite'
         with closing(sqlite3.connect(self.db_path)) as db:
             db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
@@ -112,6 +115,29 @@ class StoreTests(unittest.TestCase):
         gone = store.record_source(db, SOURCE, [], 'complete', 'lastmod', 1,
                                    listed={f'https://x/{i}' for i in range(3, 10)})
         self.assertEqual(gone['closed'], 2)
+
+    def test_a_rebuilt_database_keeps_the_scores(self):
+        """A runner rebuilds from the log every run and never rescores.
+
+        The score is computed on write, so replaying rows without it left every
+        posting unscored -- a ranked view on a fresh machine was simply empty,
+        and recomputing costs two minutes for the postings already held.
+        """
+        db = self.open_db()
+        store.record_source(db, SOURCE, [row('https://x/1', title='ASIC Design Verification Engineer')],
+                            'complete', 'full', 1)
+        scored = db.execute('SELECT relevance FROM jobs WHERE url=?', ('https://x/1',)).fetchone()[0]
+        self.assertGreater(scored, 0)
+        store.append_log(db, ['https://x/1'], [], store.now())
+        rebuilt = Path(self.dir.name) / 'rebuilt.sqlite'
+        with closing(sqlite3.connect(rebuilt)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.migrate(rebuilt)
+        store.rebuild(rebuilt)
+        with closing(store.connect(rebuilt)) as fresh:
+            self.assertEqual(
+                fresh.execute('SELECT relevance FROM jobs WHERE url=?', ('https://x/1',)).fetchone()[0],
+                scored)
 
     def test_unchanged_board_refreshes_without_closing(self):
         db = self.open_db()

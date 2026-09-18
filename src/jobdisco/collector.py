@@ -611,6 +611,11 @@ def main():
         # slice -- that slice exists only to pace the month it is now ending.
         settings['date_posted'] = 'month'
         settings['max_pages_per_query'] = settings['backfill_max_pages_per_query']
+        if not args.jsearch_query:
+            functional_queries = [replace(q, pages=settings['max_pages_per_query'])
+                                  for q in functional_queries]
+        if not args.store:
+            p.error('--backfill requires durable storage; it cannot be combined with --no-store')
     if args.date_posted:
         settings['date_posted'] = args.date_posted
     enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0 or args.backfill
@@ -782,11 +787,24 @@ def main():
                     (direct_results[q.company_key]['direct_status'] == 'failed' and
                      direct_results[q.company_key]['jobs'] == 0)]
         from types import SimpleNamespace
+        checkpointed_queries = set()
+
+        def query_source(query):
+            return Source(query.key, 'discovery', query.company_key or 'jsearch_discovery',
+                          query.query, 'jsearch', '', {})
+
+        def checkpoint_query(query, rows, detail):
+            source = query_source(query)
+            persist(db, source, rows, 'query_limited', 1,
+                    SimpleNamespace(strategy='full'))
+            checkpointed_queries.add(query.key)
+
         def persist_query(query, rows, detail):
-            source = Source(query.key, 'discovery', query.company_key or 'jsearch_discovery',
-                            query.query, 'jsearch', '', {})
+            source = query_source(query)
             count = 1 if detail['pages_used'] else 0
-            persist(db, source, rows, detail['status'], count, SimpleNamespace(strategy='full'))
+            if query.key not in checkpointed_queries:
+                persist(db, source, rows, detail['status'], count,
+                        SimpleNamespace(strategy='full'))
             reports.append({'company_key': source.company_key, 'company_name': query.query,
                             'provider_key': 'jsearch', 'jobs': len(rows), 'direct_status': detail['status'],
                             'requests': count, 'failure_reason': detail['reason'],
@@ -798,7 +816,8 @@ def main():
         client = jsearch.Client(search, settings, request_guard, args.jsearch_timeout)
         try:
             discovered, search_stats = jsearch.collect(functional_queries + eligible, client, settings,
-                                                       companies, persist_query, backfill=args.backfill)
+                                                       companies, persist_query, backfill=args.backfill,
+                                                       checkpoint=checkpoint_query if db is not None else None)
         finally:
             client.close()
         # Same IDs appearing under multiple phrases get one presentation row.
