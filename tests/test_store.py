@@ -7,6 +7,9 @@ complete pass may retire a posting.
 import gzip
 import json
 import sqlite3
+import ast
+import tomllib
+import re
 import subprocess
 import sys
 import tempfile
@@ -208,6 +211,45 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(
             html_job_id('https://jobs.apple.com/en-us/details/200612345/us-manager', 'apple_jobs'),
             '200612345')
+
+    def test_nothing_imports_what_the_package_does_not_declare(self):
+        """A runner installs what the package declares and nothing else.
+
+        Tests run before collection so that a broken build cannot reach the
+        boards. A test that imported PyYAML -- present on the machine it was
+        written on, absent from the package's dependencies -- failed the suite
+        on the runner, and the first scheduled pass collected nothing at all.
+        """
+        root = Path(__file__).resolve().parents[1]
+        declared = set()
+        with (root / 'pyproject.toml').open('rb') as handle:
+            project = tomllib.load(handle)['project']
+        specs = list(project['dependencies'])
+        for extra in project.get('optional-dependencies', {}).values():
+            specs.extend(extra)
+        for spec in specs:
+            declared.add(re.split(r'[<>=!;\[ ]', spec)[0].lower())
+        # A distribution may install a module under another name.
+        declared |= {'bs4' if d == 'beautifulsoup4' else d for d in set(declared)}
+        declared |= {'curl_cffi' if d == 'curl-cffi' else d for d in set(declared)}
+
+        outside = {}
+        for path in list((root / 'src').rglob('*.py')) + list((root / 'tests').rglob('*.py')):
+            tree = ast.parse(path.read_text(encoding='utf-8'))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                    names = [node.module]
+                else:
+                    continue
+                for name in names:
+                    top = name.split('.')[0]
+                    if top in sys.stdlib_module_names or top == 'jobdisco':
+                        continue
+                    if top.lower() not in declared:
+                        outside.setdefault(top, set()).add(path.name)
+        self.assertEqual(outside, {}, 'imported but not declared as a dependency')
 
     def test_documented_module_entry_points_actually_run(self):
         """`python -m jobdisco.store` is how a fresh machine is recovered.
