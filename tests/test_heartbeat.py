@@ -9,8 +9,10 @@ import io
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -179,6 +181,54 @@ class ShellContractTests(unittest.TestCase):
 
     def test_a_broken_pinger_cannot_mask_a_real_failure_either(self):
         self.assertEqual(self.run_pass('exit 9\n', pinger_exit=1)[0], 9)
+
+    @unittest.skipUnless(hasattr(os, 'setsid'), 'POSIX process groups are required')
+    def test_a_pass_killed_the_way_systemd_kills_one_reports_failure(self):
+        """The quietest way for this to go wrong, and the one that matters most.
+
+        systemd's default KillMode signals every process in the unit, so its
+        timeout, an operator's stop and the OOM killer all arrive as SIGTERM to
+        the shell and to whatever it is waiting on. Bash runs the EXIT trap with
+        $? still 0 unless the signal is first turned into an ordinary exit, so
+        without the signal traps a pass that never finished closes the check as
+        successful, and nothing is ever alerted about a collection that died.
+        Measured on the VPS before the fix: start, success.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / 'events'
+            stub = root / 'pinger'
+            stub.write_text('#!/bin/sh\necho "$3" >> "$EVENTS"\n',
+                            encoding='utf-8', newline='\n')
+            stub.chmod(0o755)
+            script = root / 'pass.sh'
+            script.write_text(
+                'set -euo pipefail\n'
+                'JOBDISCO_PYTHON=%s\n'
+                '. %s\n'
+                'heartbeat_arm\n'
+                'sleep 60\n' % (stub.as_posix(), SHELL_HELPER.as_posix()),
+                encoding='utf-8', newline='\n')
+            running = subprocess.Popen(
+                ['bash', script.as_posix()], start_new_session=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                env={**os.environ, 'EVENTS': str(events)})
+            try:
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    if events.exists() and events.read_text(encoding='utf-8').split():
+                        break
+                    time.sleep(0.1)
+                os.killpg(running.pid, signal.SIGTERM)
+                running.wait(timeout=20)
+            finally:
+                if running.poll() is None:
+                    os.killpg(running.pid, signal.SIGKILL)
+                    running.wait(timeout=10)
+            sent = events.read_text(encoding='utf-8').split() if events.exists() else []
+            self.assertNotIn('success', sent, 'a killed pass reported success')
+            self.assertEqual(sent, ['start', 'fail'])
+            self.assertNotEqual(running.returncode, 0, 'a killed pass kept a zero status')
 
 
 if __name__ == '__main__':

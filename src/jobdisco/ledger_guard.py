@@ -12,6 +12,7 @@ diagnostic that opened the path and built the schema is a perfectly valid
 SQLite file of several kilobytes with nothing in it. It passes every test but
 the only one that matters, which is whether it still knows what was spent.
 """
+from pathlib import Path
 import sys
 
 from . import jsearch
@@ -19,7 +20,17 @@ from .jsearch_access import RequestGuard
 
 
 def credits_recorded(path, settings=None):
-    """Return credits this ledger says were spent in the current period."""
+    """Return credits this ledger says were spent in the current period.
+
+    Opening a ledger creates it. That is right for a pass, which needs somewhere
+    to record what it spends, and wrong for a check, which must not manufacture
+    the very thing it is asking about: a missing published ledger would be
+    created empty, compare equal-or-below the local one, and report that all was
+    well. So a check reads only what is already there.
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f'No credit ledger at {path}')
     settings = settings or jsearch.load_plan()[0]
     guard = RequestGuard(path=path,
                          target_limit=settings['monthly_target'],
@@ -41,7 +52,12 @@ def main(argv=None):
     if len(argv) != 2:
         print('usage: python -m jobdisco.ledger_guard <local> <published>', file=sys.stderr)
         return 64
-    here, there, ok = compare(argv[0], argv[1])
+    try:
+        here, there, ok = compare(argv[0], argv[1])
+    except FileNotFoundError as exc:
+        print(f'REFUSING TO COLLECT: {exc}. A pass cannot know what it has '
+              f'already spent without one.', file=sys.stderr)
+        return 1
     if ok:
         print(f'credit ledger ok: local {here} >= published {there}')
         return 0
