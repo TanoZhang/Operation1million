@@ -653,6 +653,33 @@ class DiscoveryTests(unittest.TestCase):
         # All 52 queries are planned; the guard, not the plan check, bounds it.
         self.assertLessEqual(self.guard.credits, 5)
 
+    def test_spending_the_budget_is_not_a_failed_run(self):
+        """A sweep exists to spend the budget, so doing it must not go red.
+
+        The first real sweep paged five queries, kept thirty postings and then
+        stopped on the budget exactly as intended -- and exited 2, because the
+        queries it never reached still read `skipped`, and the five that had
+        paged read `skipped` too despite having collected rows.
+        """
+        guard = RequestGuard(path=self.root / 'spent.sqlite', limit=10000,
+                             target_limit=9600, daily_limit=320,
+                             cycle_start='2026-09-16', cycle_days=30,
+                             ignore_daily_limit=True, run_limit=2)
+        client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job(f'{parse_qs(urlsplit(url).query)["query"][0]}-{i}') for i in range(10)])
+        plan = [replace(q, pages=200) for q in self.plan[:4]]
+        rows, stats = jsearch.collect(plan, client, self.settings, {}, self.persist)
+        self.assertEqual(guard.credits, 2)
+        # Nothing that paged may report as skipped, and no status a run is
+        # allowed to finish on is missing from the settled set.
+        paged = [q for q in stats['jsearch_queries'] if q['pages_used']]
+        self.assertEqual(len(paged), 2)
+        self.assertTrue(all(q['status'] == 'query_limited' for q in paged))
+        settled = {'complete', 'unchanged', 'query_limited', 'skipped'}
+        self.assertTrue({q['status'] for q in stats['jsearch_queries']} <= settled)
+        self.assertEqual(stats['jsearch_failures'], 0)
+
     def test_a_crash_mid_run_still_seals_the_day(self):
         """Boards are committed one at a time, so a crash leaves the log longer.
 

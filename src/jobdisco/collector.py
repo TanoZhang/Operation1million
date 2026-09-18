@@ -868,7 +868,11 @@ def main():
     manifest = {'collected_at': datetime.now(timezone.utc).isoformat(), 'companies': len(sources), 'jobs': len(jobs), 'max_pages': args.max_pages, 'max_jobs': args.max_jobs, 'jsearch_requests': request_guard.attempts, 'complete_direct_sources': sum(r['direct_status']=='complete' and r['provider_key'] != 'jsearch' for r in reports), 'store_new': totals['new'], 'store_closed': totals['closed'], 'store_seen': totals['seen'], **search_stats}
     (args.output/'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(json.dumps(manifest), flush=True)
-    return 0 if all(r['direct_status'] in {'complete', 'unchanged', 'query_limited'} for r in reports) else 2
+    # A search the budget never reached is not a fault. Spending the budget is
+    # what a sweep is for, and it leaves the rest of the plan untouched by
+    # design; only a board that failed to read is worth a nonzero exit.
+    settled = {'complete', 'unchanged', 'query_limited', 'skipped'}
+    return 0 if all(r['direct_status'] in settled for r in reports) else 2
 
 
 def main_cli():

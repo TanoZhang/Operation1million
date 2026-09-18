@@ -522,6 +522,13 @@ def collect(queries, client, settings, companies, persist, backfill=False,
 
     for entry in state.values():
         query, detail, rows = entry['query'], entry['detail'], entry['rows']
+        if detail['pages_used'] and detail['status'] == 'skipped':
+            # It paged and kept rows; the budget ran out mid-rotation before it
+            # could reach its own end. 'skipped' is for a query never reached,
+            # and it is not a status a run may finish on.
+            detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
+            if not detail['reason']:
+                detail['reason'] = 'Budget reached before this query finished paging'
         if not entry['done'] and not detail['reason']:
             detail['reason'] = 'Account stop condition from an earlier query'
         detail['jobs_accepted'] = len(rows)
