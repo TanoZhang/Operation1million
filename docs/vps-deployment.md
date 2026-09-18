@@ -120,6 +120,13 @@ Note that this is a real pass: it spends credits, writes the log and pushes. It
 differs from a production pass only in staying silent to Healthchecks. There is
 no dry-run mode on the box; use the workflow's `dry_run` dispatch for that.
 
+**Check the UTC clock before starting one by hand.** The day's log seals when
+the UTC date advances -- `sealed()` is `stamp[:10] < now()[:10]` -- and a pass
+holds the stamp it began with. A pass started late enough to cross 00:00 UTC
+loses the ability to write partway through and reports it as corruption rather
+than as a clock. The scheduled pass cannot reach this, being eleven hours clear
+in both offsets, but a manual one started in the evening UTC can.
+
 To run a real production pass now, outside the timer:
 
     sudo systemctl start jobdisco-collect.service

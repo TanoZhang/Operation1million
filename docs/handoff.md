@@ -23,58 +23,58 @@ JOBDISCO_STORE=<data repo> job-store --bootstrap
 The rebuild uses `schema.sql`, migrations and the append-only log. It has been
 verified from a fresh checkout, including scores, identities and closures.
 
-## Next: move the daily pass to a VPS
+## The VPS, deployed 2026-09-18
 
-An OVH VPS-1 has been bought for this — 2 vCPU, 4 GB, about $4.50 a month.
-Nothing has been deployed to it yet. This is the next piece of work, and it is
-worth doing before anything else because three of the constraints the code
-currently works around stop existing on a machine that keeps its disk.
+The daily pass now runs on the OVH VPS-1 (2 vCPU, 4 GB, 40 GB, Ubuntu 24.04,
+Oregon). `docs/vps-deployment.md` is the operating manual: install, update,
+triage, and the three places the pass deliberately differs from the workflow.
 
-**Why, in measured terms.** A rebuild from the committed log allocates 639 MB
-at its peak and takes 21.5 seconds, and it happens on every hosted run because
-an Actions runner starts with an empty disk. The collector only bootstraps when
-the database is absent (`collector.py`, `if not args.db.exists()`), so on a
-machine that persists, that cost is paid once and never again. The 2,000 free
-Actions minutes a month stop being an accounting problem — a full-depth pass is
-about 110 minutes a day, which is 3,300 a month and would cost roughly $7.80 in
-overage. The 120-minute job timeout stops bounding how deep a search may go.
+**Measured on the box.** 181 offline tests pass. The database builds from the
+committed log in 35.6 seconds at a 769 MB peak -- above the 639 MB recorded on
+a runner, because the log has grown, and still a fifth of the 3.7 GB available.
+That build now happens once: the pass rebuilds only when the file is absent,
+because `job-store --bootstrap` always rebuilds from scratch and replaces the
+database, so calling it daily would reimpose the cost the move removes.
 
-**What the VPS needs to hold.** Only the working set: the derived SQLite at
-about 198 MB, the last few days of logs, and a checkout of the data repository.
-Older logs can be pruned locally because GitHub holds the authoritative copy,
-so the VPS stays under a gigabyte rather than following the ~20 MB a day the
-history grows by.
+**The schedule moved into the timer.** `OnCalendar=*-*-* 04:38:00
+America/Los_Angeles`, `Persistent=true`, and systemd resolves the zone itself:
+the first firing was confirmed as 11:38 UTC. The workflow keeps
+`workflow_dispatch` and lost its `schedule`, because two schedules at the same
+minute would spend one credit budget twice and race each other's push. The
+daylight-saving test followed the schedule into the timer and now also asserts
+the workflow schedules nothing.
 
-**What to build.** A systemd service and timer at 04:38 local, an
-`EnvironmentFile` with mode 600 for `JSEARCH_API_KEY` and the data repository
-token, a one-shot install script, and `docs/vps-deployment.md` covering install,
-update and triage. Four things need deciding as part of it rather than after:
+**Nothing else would notice it dying**, so the pass reports to a Healthchecks.io
+check and its silence is the alarm. `/start` when it begins, the bare URL only
+after collection, store verification and the push have all succeeded, `/fail`
+otherwise -- and then the original exit code is restored, because a monitor that
+swallowed the failure would be worse than none. A ping that cannot be delivered
+is a warning and never fails the pass. The URL is configuration, not source: it
+lives in `/etc/jobdisco/env` at mode 640, and a test walks every tracked file to
+keep it out of the tree. A shell without that variable stays silent, which is
+what makes a manual diagnostic safe. Set the check to period 1 day, grace 3
+hours; a shorter grace pages you about a pass that is running normally.
 
-- *Nothing will tell you it died.* Actions emails on a failed run; a systemd
-  timer that stops, a disk that fills or a process the kernel kills are all
-  silent. A `OnFailure=` unit, or a heartbeat the run writes and something
-  checks, is not optional here.
-- *Secrets become files.* They are encrypted secrets on Actions and plain text
-  on a box. Mode 600, outside the repository, never in shell history.
-- *Disk.* Under a gigabyte if old logs are pruned; several gigabytes a year if
-  they are not. Decide the prune and put it in the timer, because a full disk
-  fails exactly where the store is least able to survive it.
-- *A fixed IP against 35 boards.* Actions runners rotate through Azure ranges;
-  a VPS does not. Collection is polite -- per-source intervals, `Crawl-delay`
-  honoured, cooldowns persisted -- and a predictable polite caller is usually
-  treated better than an unpredictable one, but this is the one thing that
-  could behave differently and it is worth watching for a fortnight.
+**Secrets are three lines** in `/etc/jobdisco/env`, root-owned and group-readable
+by the service account. The GitHub token is handed to git by a credential helper
+that reads it from the environment, so it never reaches `.git/config` or a remote
+URL. One honest compromise: a fine-grained PAT applies one permission set to
+every repository it selects, so the token carries write on the code repository
+although the pass only ever reads it.
 
-**Keep the workflow.** Drop its `schedule` and leave `workflow_dispatch`, so
-there is a clean-room way to run a pass when the VPS is being changed or is
-suspect. It costs nothing once it no longer fires on its own.
+**Local log retention was decided and then not implemented**, on purpose.
+Deleting old files inside the data checkout stages a deletion that the next
+commit publishes, removing them from the authoritative copy -- the opposite of
+the intent. The safe equivalents are machinery for a problem this disk does not
+have: at 20 MB a day, tree and history together fill 36 GB in about two and a
+half years, and the ~5 GB GitHub guidance forces a repository reset long before
+that. What is implemented is a 5 GiB floor that refuses to start, because a full
+disk fails exactly where the store is least able to survive it.
 
-**Do not follow the cloud product tree.** Container Apps, Lambda, scheduled VM
-start/stop and burstable CPU credits were all considered and are all more
-moving parts than this workload has problems. Azure's student tier was the
-closest call and fails on one number: B1s, B2pts v2 and B2ats v2 all have 1 GiB
-of memory against a 639 MB peak that grows with the log, and the failure mode
-is an OOM kill partway through a pass.
+**Still to watch: the fixed address.** Runners rotated through Azure ranges; this
+machine does not. Collection is polite and a predictable polite caller is usually
+treated better than an unpredictable one, but this is the one thing that could
+behave differently after the move. Watch per-source outcomes for a fortnight.
 
 ## Production audit, 2026-09-18
 
@@ -112,7 +112,7 @@ below was measured, not assumed.
 
 | | |
 | --- | --- |
-| Offline tests | 132 pass |
+| Offline tests | 181 pass (132 at the time of the audit below) |
 | Store rebuilds from the data repository | 9.9s, three manifests verify |
 | Open / total / unscored | 38,893 / 39,694 / 0 |
 | Scoring 25 or above | 4,845 |
@@ -150,6 +150,27 @@ what happened, to a build broken by a test. Every import under `src` and
 | JSearch credits spent this billing period | 218 of 9,600 (resets 2026-10-16) |
 
 ## What works
+
+**A review queue decides once per position, not once per URL.** `job-review`
+serves a local page over the loopback interface listing open postings first seen
+in the last 72 hours, grouped by company and normalized title, ordered by stored
+score. Apple advertises one role at eleven listings in five locations, and
+answering the same question eleven times is how a queue stops being used, so a
+decision covers the group and any location that appears under it later.
+
+Decisions live in `operational/applications.ndjson`, beside the credit count and
+the cooldowns and for the same reason: the store answers what is open, and
+`job-store --bootstrap` rebuilds it from the log, but a decision has no source to
+be rebuilt from. The ledger is append-only and replayed on every read, an undo is
+another event rather than a rewrite, writes take an OS file lock and fsync before
+reporting success, and a malformed line stops both replay and writing while
+naming its line number. The server never collects, submits, buys a credit or
+commits anything. `docs/application-review.md` is the detail.
+
+Measured against the live store: 28,916 positions pending, `/api/queue` answers
+in 0.42s with 19.4 MB. The count is that high only because most of the board was
+first seen when the store was bootstrapped; in steady state a day adds a few
+hundred.
 
 **Four boards were recovered from paid search.** AMD and the three Eightfold
 tenants were on JSearch because the catalog held the wrong endpoints, not
@@ -211,7 +232,12 @@ day already in that state is repaired by resealing its manifest, as on
 **A run that crosses UTC midnight seals itself out.** The scheduled pass
 cannot reach it: 04:38 Pacific is 11:38 UTC in daylight time and 12:38 in
 standard time, eleven hours from a UTC date change either way, and a pass runs
-at most ninety minutes. A late manual run still can. `run_stamp` is fixed when
+at most ninety minutes. A late manual run still can, and on 2026-09-18 one was
+started at 22:31 UTC and stopped again once it was noticed -- a full pass from
+there would have lost the ability to write at 00:00, partway through, and
+reported it as corruption. `sealed()` is literally `stamp[:10] < now()[:10]`.
+Anyone running a pass by hand should check the UTC clock first; this is the
+sharpest edge left in the system. `run_stamp` is fixed when
 the pass begins, and `sealed()` asks whether that day is over, so from midnight
 every `append_log` raises `Daily log is sealed` and the seal on the way out is
 refused for the same reason. The pass is lost entirely, and the message reads
@@ -255,9 +281,19 @@ A, intern, B, C, and one depth for all of them made that an exclusion rather
 than a preference: fifteen tier A queries at forty pages can ask for six
 hundred against a budget of three hundred and twenty, so measured on the real
 plan, tier A alone spent all 320 and the other 37 queries -- every internship
-among them -- were never reached. The depths now step down the priority order
-and the whole plan fits even if every page comes back full: 10, 6, 4, 3 for a
-day (307 of 320) and 100, 60, 40, 30 for a sweep (3,070 of about 3,127).
+among them -- were never reached. The depths now step down the priority order:
+15, 8, 6, 5 for a day and 100, 60, 40, 30 for a sweep. Tier A was raised back
+from ten after measurement, because nine of its fifteen queries reached the cap,
+so ten was not the end of those searches.
+
+That makes a day's ceiling 456 pages against a 320-credit budget, and the two
+are not meant to match. Depth is discovered rather than declared, so a declared
+sum has nothing left to guarantee: `validate_budget` now only asks that every
+query can reach a first page -- 52 queries against 320 credits -- and 456 is a
+cap no plan is expected to reach. The budget is what binds, and tier A is paged
+to exhaustion first, so a day whose wide queries keep returning full pages can
+still leave the tail unreached. That is the same failure the per-tier depths
+were introduced to fix, now bounded rather than eliminated.
 
 
 **Microsoft no longer makes the whole collection single-threaded.** Its source
@@ -311,7 +347,10 @@ manifest and replays before the active same-day file.
 
 ## The hosted workflow
 
-Committed and scheduled daily at 06:17 America/Los_Angeles. Hosted collection
+No longer scheduled: the daily pass runs on the VPS and this workflow keeps
+only `workflow_dispatch`, as the clean-room way to run a pass while that
+machine is being changed or is suspect. A runner starts from the committed log
+and needs nothing the VPS holds. Hosted collection
 has checked out both private repositories, rebuilt from scratch, collected,
 sealed the log and pushed the resulting data commit. The current credentials
 have therefore been exercised successfully; secret values remain unreadable.
@@ -329,6 +368,24 @@ Paid paging stops cleanly before the job timeout: 25 minutes for daily discovery
 and 50 minutes for the end-of-cycle sweep, leaving time to seal and push state.
 
 ## Lessons worth not relearning
+
+**A ledger that is present and non-empty may still have forgotten everything.**
+Reading the credit balance through `RequestGuard` on the new machine created a
+schema-only ledger at the local path, which then shadowed the published one
+holding 133 credit events, a baseline and five backfill cursors. `[ -s ]`
+accepted it: it was several kilobytes of valid SQLite. The invariant is
+directional and had never been written down -- the local ledger may be ahead of
+the published copy, because a pass whose push failed leaves exactly that, but it
+may never be behind, since behind means charges the provider has already counted
+have been lost. `jobdisco.ledger_guard` now compares the two before collecting
+and refuses, naming the repair. The diagnostic that caused it was stopped in its
+test phase, before a credit was spent.
+
+**Tests run before collection, and they caught a config change.** Raising
+`daily_budget` to 600 on the box to let a full-plan test run failed two tests
+that assert it is 320, and the pass aborted before touching a board. The number
+is an invariant, not a default: 320 across 30 days is exactly the 9,600 monthly
+target.
 
 **A board row's identity is its requisition, not the words in its URL.** Apple
 advertises one role at many stores, so forty postings share `.../us-manager` and
