@@ -27,8 +27,8 @@ verified from a fresh checkout, including scores, identities and closures.
 
 | | |
 | --- | --- |
-| Open postings | 38,872 (39,635 including closed) |
-| Open with an absolute `posted_at` | 28,727 (74%) |
+| Open postings | 38,869 (39,635 including closed) |
+| Open with an absolute `posted_at` | 28,724 (74%) |
 | Open scoring 25 or above | 4,817 |
 | Direct sources | 35 companies, 33 collecting completely |
 | JSearch credits spent this billing period | 218 of 9,600 (resets 2026-10-16) |
