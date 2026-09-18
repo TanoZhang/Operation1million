@@ -5,6 +5,7 @@ import json
 import csv
 import sqlite3
 import tempfile
+import threading
 import unittest
 
 import yaml
@@ -362,6 +363,48 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(after['period_unproductive'], 1)
         # The provider charged what was reserved for the page it answered.
         self.assertEqual(after['provider_drift'], 0)
+
+    def test_concurrent_guards_cannot_spend_past_the_budget(self):
+        """Two passes reading the same balance must not both spend it.
+
+        A rerun overlapping a scheduled run, or a sweep beside a daily pass,
+        gives two processes the same ledger. Checking the balance and then
+        spending it would let both pass the check on the same remainder. The
+        reservation is taken inside the transaction that reads it, so the
+        budget is what bounds them rather than their timing.
+        """
+        path = self.root / 'race.sqlite'
+        limit = 40
+        spent = {}
+
+        def pass_over(n):
+            guard = RequestGuard(path=path, limit=1000, target_limit=limit,
+                                 daily_limit=limit, cycle_start='2026-09-16',
+                                 cycle_days=30)
+            guard.interval = 0
+            session = Mock()
+            session.get.side_effect = lambda url, **kw: Mock(status_code=200, headers={})
+            used = 0
+            for _ in range(limit):
+                try:
+                    guard.get(session, 'https://example', credits=1)
+                except QuotaExhausted:
+                    break
+                used += 1
+            spent[n] = used
+
+        threads = [threading.Thread(target=pass_over, args=(n,)) for n in range(6)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        ledger = RequestGuard(path=path, limit=1000, target_limit=limit,
+                              daily_limit=limit, cycle_start='2026-09-16',
+                              cycle_days=30).balance()
+        self.assertEqual(sum(spent.values()), limit)
+        self.assertEqual(ledger['day_used'], limit)
+        self.assertEqual(ledger['period_remaining'], 0)
 
     def test_the_cycle_is_thirty_days_from_a_date_not_a_month(self):
         """Every boundary the sweep and the budget depend on, walked.
