@@ -2,13 +2,12 @@
 import gzip
 import io
 import json
+import re
 import csv
 import sqlite3
 import tempfile
 import threading
 import unittest
-
-import yaml
 from contextlib import closing
 from dataclasses import replace
 from datetime import datetime
@@ -475,13 +474,16 @@ class DiscoveryTests(unittest.TestCase):
         different halves of the year. 04:38 is eleven hours from one in both
         offsets, and a pass runs at most ninety minutes.
         """
-        workflow = yaml.safe_load(
-            (Path(__file__).resolve().parents[1] / '.github/workflows/collect.yml')
-            .read_text(encoding='utf-8'))
-        schedule = workflow[True]['schedule']
-        self.assertEqual(len(schedule), 1, 'exactly one pass a day')
-        self.assertEqual(schedule[0]['timezone'], 'America/Los_Angeles')
-        minute, hour = (int(f) for f in schedule[0]['cron'].split()[:2])
+        # Read the two values out of the file rather than parsing the whole
+        # workflow: a test that needs a YAML library needs it installed on the
+        # runner, and the runner installs what the package declares.
+        text = (Path(__file__).resolve().parents[1] / '.github/workflows/collect.yml'
+                ).read_text(encoding='utf-8')
+        crons = re.findall(r"^\s*- cron: '([^']+)'", text, re.M)
+        zones = re.findall(r'^\s*timezone: (\S+)', text, re.M)
+        self.assertEqual(len(crons), 1, 'exactly one pass a day')
+        self.assertEqual(zones, ['America/Los_Angeles'])
+        minute, hour = (int(f) for f in crons[0].split()[:2])
         local = hour * 60 + minute
         # Pacific is seven hours behind UTC in daylight time and eight in
         # standard time; the pass must clear midnight either way.
