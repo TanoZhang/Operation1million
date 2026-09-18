@@ -23,6 +23,35 @@ JOBDISCO_STORE=<data repo> job-store --bootstrap
 The rebuild uses `schema.sql`, migrations and the append-only log. It has been
 verified from a fresh checkout, including scores, identities and closures.
 
+## Production audit, 2026-09-18
+
+Everything below was measured against the live store or exercised as a test,
+not read off the code.
+
+**Holds.** The budget bounds concurrent passes rather than their timing: six
+guards racing forty credits spend forty, because the reservation is taken
+inside the transaction that reads the balance. Every dispatch is charged once
+whatever it returns -- 200, 504, 500, a timeout, a connection reset -- so the
+count never falls below the provider's. The cycle is thirty days from a date
+and drifts off the calendar correctly, with the sweep on its last three days.
+04:38 Pacific is eleven hours from a UTC date change in both offsets, so
+daylight saving cannot move a pass onto another cycle day. Hard exclusions are
+checked before the keep list, so nothing skips them: a director of silicon
+verification is excluded, while Senior, Staff, Firmware, Embedded, Product,
+Test and Applications engineers are all kept when the posting talks about the
+trade. The ledgers the workflow copies are in `delete` journal mode, so one
+file carries every committed write. A run's log is 93 to 129 KB; paging prints
+nothing per page.
+
+**Fixed here.** An empty page no longer ends a query for the cycle, nor steps
+the cursor past itself -- a provider's bad minute looked exactly like the end
+of the results and skipped the page for good. A cursor is now kept under the
+search it belongs to, so changing the window or the country cannot hand a later
+run a page number from a search that no longer exists. A description is
+measured by its prose rather than its markup. Renesas's requisition is read out
+of the URL that hides it, so its 899 postings -- the only ones with no identity
+of their own -- survive being retitled or relocated.
+
 ## Verified state, 2026-09-18
 
 The last check before the first scheduled pass under this code. Everything

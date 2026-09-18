@@ -364,6 +364,36 @@ class DiscoveryTests(unittest.TestCase):
         # The provider charged what was reserved for the page it answered.
         self.assertEqual(after['provider_drift'], 0)
 
+    def test_the_ledger_is_complete_in_the_file_the_workflow_copies(self):
+        """The workflow copies this file; it must hold every committed write.
+
+        The credit ledger and the cooldowns are the two things that have to
+        outlive a runner, and they travel as plain file copies into the data
+        repository. In WAL mode a committed transaction can still be sitting in
+        a `-wal` file the copy leaves behind, so the next run would restore a
+        ledger missing its most recent spending and buy those credits twice.
+        """
+        guard = RequestGuard(path=self.root / 'mode.sqlite', limit=100,
+                             target_limit=100, daily_limit=10,
+                             cycle_start='2026-09-16', cycle_days=30)
+        session = Mock()
+        session.get.side_effect = lambda url, **kw: Mock(status_code=200, headers={})
+        guard.interval = 0
+        guard.get(session, 'https://example', credits=3)
+
+        with closing(sqlite3.connect(self.root / 'mode.sqlite')) as db:
+            mode = db.execute('PRAGMA journal_mode').fetchone()[0]
+        self.assertIn(mode.lower(), {'delete', 'truncate', 'persist', 'memory', 'off'},
+                      'a copied ledger must not keep committed writes beside it')
+        self.assertFalse(list(self.root.glob('mode.sqlite-wal')))
+
+        # And a copy of that one file really does carry the spending.
+        copied = self.root / 'copied.sqlite'
+        copied.write_bytes((self.root / 'mode.sqlite').read_bytes())
+        restored = RequestGuard(path=copied, limit=100, target_limit=100,
+                                daily_limit=10, cycle_start='2026-09-16', cycle_days=30)
+        self.assertEqual(restored.balance()['day_used'], 3)
+
     def test_concurrent_guards_cannot_spend_past_the_budget(self):
         """Two passes reading the same balance must not both spend it.
 
