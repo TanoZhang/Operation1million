@@ -119,6 +119,8 @@ no paid calls and expose an explicit `enable_jsearch` toggle. A bounded live tes
 used one credit for `Design Verification Engineer` over one week and returned 10
 raw jobs: 9 accepted, 1 rejected, and no malformed records or failures. A dry run
 checkpoints the operational ledgers but not collected postings.
+Collector exit code 2 is reported as a warning rather than making every daily
+run red; unexpected failures still fail the workflow.
 
 ## Lessons worth not relearning
 

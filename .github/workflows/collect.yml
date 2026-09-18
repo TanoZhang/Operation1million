@@ -97,7 +97,15 @@ jobs:
           else
             args+=(--jsearch-budget 0)
           fi
+          set +e
           job-collect "${args[@]}"
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -eq 2 ]; then
+            echo '::warning::Collection completed with partial or paused sources; inspect the report.'
+          fi
+          exit "$code"
 
       - name: Save operational safety state
         if: ${{ always() && steps.data_checkout.outcome == 'success' }}
@@ -163,6 +171,6 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Report collection failure
-        if: ${{ always() && steps.collect.outcome == 'failure' }}
+      - name: Report unexpected collection failure
+        if: ${{ always() && steps.collect.outcome == 'failure' && steps.collect.outputs.exit_code != '2' }}
         run: exit 1

@@ -84,3 +84,5 @@ runs paid JSearch. It checkpoints both operational ledgers even on collection
 failure. Manual dispatches default to no paid search and expose an explicit
 `enable_jsearch` toggle. The data repository credential was replaced and later
 hosted runs completed checkout, collection, checkpointing, and report upload.
+Collector exit code 2 produces a workflow warning and retained report because it
+means partial or paused sources; unexpected nonzero exits still fail the job.
