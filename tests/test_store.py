@@ -4,6 +4,7 @@ The incremental paths decide what a run is allowed to skip, so a bug here loses
 postings silently. Each strategy is covered together with the rule that only a
 complete pass may retire a posting.
 """
+import gzip
 import json
 import sqlite3
 import subprocess
@@ -160,7 +161,9 @@ class StoreTests(unittest.TestCase):
                             'complete', 'full', 1)
         scored = db.execute('SELECT relevance FROM jobs WHERE url=?', ('https://x/1',)).fetchone()[0]
         self.assertGreater(scored, 0)
-        store.append_log(db, ['https://x/1'], [], store.now())
+        stamp = store.now()
+        store.append_log(db, ['https://x/1'], [], stamp)
+        store.write_manifest(db, stamp, [])
         rebuilt = Path(self.dir.name) / 'rebuilt.sqlite'
         with closing(sqlite3.connect(rebuilt)) as blank:
             blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
@@ -185,6 +188,7 @@ class StoreTests(unittest.TestCase):
         path.write_bytes(gzip.compress(
             ''.join(json.dumps(record) + '\n' for record in records).encode('utf-8'),
             mtime=0))
+        store.write_manifest(db, store.now(), [])
 
         rebuilt = Path(self.dir.name) / 'legacy-rebuilt.sqlite'
         with closing(sqlite3.connect(rebuilt)) as blank:
@@ -283,6 +287,7 @@ class LogRoundTripTests(unittest.TestCase):
         gone = store.record_source(db, SOURCE, baseline[:3], 'complete', 'full', 1)
         store.append_log(db, gone['new_urls'], gone['closed_urls'], gone['stamp'])
         store.export_state(db)
+        store.write_manifest(db, first['stamp'], [])
         db.commit()
         expected = self.snapshot(self.db_path)
         self.assertEqual(len(expected), 4)
@@ -346,6 +351,8 @@ class LogRoundTripTests(unittest.TestCase):
         with gzip.open(path, 'wt', encoding='utf-8') as handle:
             handle.write(json.dumps(canonical) + '\n')
             handle.write(json.dumps(stale) + '\n')
+        with closing(store.connect(self.db_path)) as db:
+            store.write_manifest(db, '2026-09-18T00:00:00+00:00', [])
 
         store.rebuild(self.db_path)
 
@@ -354,6 +361,58 @@ class LogRoundTripTests(unittest.TestCase):
                 'SELECT url FROM job_identities WHERE provider_key=? AND scope=? AND source_job_id=?',
                 ('ashby', 'matx', 'same-id')).fetchone()
         self.assertEqual(mapped['url'], 'https://x/current')
+
+    def test_compact_score_events_override_legacy_scores_on_replay(self):
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        delta = store.record_source(db, SOURCE, [row('https://x/1', title='Accountant')],
+                                    'complete', 'full', 1)
+        store.append_log(db, delta['new_urls'], [], delta['stamp'])
+        db.execute("UPDATE jobs SET relevance=77 WHERE url='https://x/1'")
+        self.assertEqual(store.append_scores(db, delta['stamp']), 1)
+        store.write_manifest(db, delta['stamp'], [])
+        db.commit()
+
+        fresh = Path(self.dir.name) / 'score-events.sqlite'
+        with closing(sqlite3.connect(fresh)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.migrate(fresh)
+        store.rebuild(fresh)
+        with closing(store.connect(fresh)) as rebuilt:
+            self.assertEqual(rebuilt.execute(
+                "SELECT relevance FROM jobs WHERE url='https://x/1'").fetchone()[0], 77)
+
+    def test_large_current_day_log_rolls_to_a_verified_shard(self):
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        first = store.record_source(db, SOURCE, [row('https://x/1')],
+                                    'complete', 'full', 1)
+        with patch.object(store, 'MAX_DAILY_LOG_BYTES', 1):
+            store.append_log(db, first['new_urls'], [], first['stamp'])
+            store.write_manifest(db, first['stamp'], [])
+            second = store.record_source(db, SOURCE, [row('https://x/2')],
+                                         'partial', 'full', 1)
+            store.append_log(db, second['new_urls'], [], second['stamp'])
+            store.write_manifest(db, second['stamp'], [])
+        db.commit()
+
+        self.assertEqual(store.verify(), [
+            (first['stamp'][:10] + '-0001', 'ok'),
+            (first['stamp'][:10], 'ok'),
+        ])
+        fresh = Path(self.dir.name) / 'sharded.sqlite'
+        with closing(sqlite3.connect(fresh)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.migrate(fresh)
+        store.rebuild(fresh)
+        with closing(store.connect(fresh)) as rebuilt:
+            self.assertEqual(rebuilt.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 2)
+
+    def test_verify_reports_a_log_without_a_manifest(self):
+        path = self.log / 'runs' / '2026-09-18.ndjson.gz'
+        path.parent.mkdir(parents=True)
+        path.write_bytes(gzip.compress(b'', mtime=0))
+        self.assertEqual(store.verify(), [('2026-09-18', 'missing-manifest')])
 
     def test_bootstrap_atomically_replaces_an_existing_derived_database(self):
         db = self.open_existing_db()
@@ -434,10 +493,6 @@ class EarlyStopTests(unittest.TestCase):
         self.assertEqual(c.session.request.call_count, 1)
         self.assertEqual(c.jobs, [])
         self.assertNotIn('If-None-Match', c.session.headers)
-
-
-if __name__ == '__main__':
-    unittest.main()
 
 
 class ClosingGuardTests(unittest.TestCase):
@@ -768,3 +823,7 @@ class BoardRowIdentityTests(unittest.TestCase):
         self.assertEqual(
             html_job_id('https://careers.arrow.com/us/en/job/R245154/Design-Verification', 'jobs2web'),
             'Design-Verification')
+
+
+if __name__ == '__main__':
+    unittest.main()

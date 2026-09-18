@@ -592,8 +592,10 @@ def main():
     p.add_argument('--jsearch-budget', type=int, default=0, help='Page-credit cap; 0 uses config with --jsearch, otherwise disables paid discovery')
     p.add_argument('--jsearch-timeout', type=float, default=90,
                    help='JSearch read timeout; its Google-for-Jobs backend routinely needs 30-60s')
+    p.add_argument('--jsearch-max-seconds', type=float, default=0,
+                   help='Stop paid paging cleanly after this many seconds; 0 has no runtime limit')
     args = p.parse_args()
-    if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.delay < 0 or args.retries < 0:
+    if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.jsearch_max_seconds < 0 or args.delay < 0 or args.retries < 0:
         p.error('Caps and timeout must be positive; delay and budget must be nonnegative')
     settings, functional_queries = jsearch.load_plan(args.jsearch_config)
     if args.jsearch_pages is not None and (not args.jsearch_query or not 1 <= args.jsearch_pages <= 20):
@@ -823,9 +825,13 @@ def main():
             companies.update({employer_normalize(a): key for a in entry.get('employer_aliases', [])})
         client = jsearch.Client(search, settings, request_guard, args.jsearch_timeout)
         try:
-            discovered, search_stats = jsearch.collect(functional_queries + eligible, client, settings,
-                                                       companies, persist_query, backfill=args.backfill,
-                                                       checkpoint=checkpoint_query if db is not None else None)
+            deadline = (time.monotonic() + args.jsearch_max_seconds
+                        if args.jsearch_max_seconds else None)
+            discovered, search_stats = jsearch.collect(
+                functional_queries + eligible, client, settings, companies, persist_query,
+                backfill=args.backfill,
+                checkpoint=checkpoint_query if db is not None else None,
+                deadline=deadline)
         finally:
             client.close()
         # Same IDs appearing under multiple phrases get one presentation row.

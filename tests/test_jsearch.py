@@ -288,6 +288,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_changed_and_seen_events_rebuild_with_stale_state_snapshot(self):
         self.session.get.return_value = self.response([job()])
         self.collect(self.plan[:1])
+        store.write_manifest(self.db, STAMP, [])
         store.export_state(self.db)
         later = '2026-09-19T01:00:00+00:00'
         query = self.plan[0]
@@ -295,9 +296,11 @@ class DiscoveryTests(unittest.TestCase):
         row = jsearch.normalize_job(job(job_description='Updated full description'), query, {})
         delta = store.record_source(self.db, source, [row], 'query_limited', 'full', 1, stamp=later)
         store.append_log(self.db, delta['changed_urls'], [], later, source_id=source.source_id)
+        store.write_manifest(self.db, later, [])
         final = '2026-09-20T01:00:00+00:00'
         delta = store.record_source(self.db, source, [row], 'query_limited', 'full', 1, stamp=final)
         store.append_log(self.db, [], [], final, seen_urls=delta['seen_urls'], source_id=source.source_id)
+        store.write_manifest(self.db, final, [])
         self.db.commit()
         fresh = self.root / 'seen.sqlite'
         self.create_database(fresh)
@@ -400,6 +403,16 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(stats['jsearch_queries'][0]['status'], 'query_limited')
         self.assertIn('budget', stats['jsearch_queries'][0]['reason'])
 
+    def test_runtime_limit_stops_before_spending_another_credit(self):
+        with patch.object(jsearch.time, 'monotonic', return_value=10):
+            _, stats = jsearch.collect(
+                self.plan[:2], self.client, self.settings, {}, self.persist, deadline=5)
+        self.session.get.assert_not_called()
+        self.assertEqual(self.guard.credits, 0)
+        self.assertEqual(stats['jsearch_pages_used'], 0)
+        self.assertEqual(stats['jsearch_queries'][0]['status'], 'query_limited')
+        self.assertIn('runtime limit', stats['jsearch_queries'][0]['reason'])
+
     def test_backfill_budget_splits_the_remainder_over_the_days_that_remain(self):
         """An early sweep must leave something for a day that has to retry."""
         settings = dict(self.settings, monthly_target=9600)
@@ -443,6 +456,26 @@ class DiscoveryTests(unittest.TestCase):
         # already past it buys nothing at all.
         self.assertEqual(self.guard.credits, 3)
         self.assertEqual(self.guard.resume_page(query.key), (4, False))
+
+    def test_bounded_backfill_resumes_the_shallowest_query_first(self):
+        """Repeated small tests must rotate through the plan instead of its head."""
+        asked = []
+
+        def run(path, limit):
+            guard = RequestGuard(path=path, limit=10000, target_limit=9600,
+                                 daily_limit=320, cycle_start='2026-09-16', cycle_days=30,
+                                 ignore_daily_limit=True, run_limit=limit)
+            client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
+            self.session.get.side_effect = lambda url, **kw: (
+                asked.append(parse_qs(urlsplit(url).query)['query'][0]) or
+                self.response([job(f'{len(asked)}-{i}') for i in range(10)]))
+            queries = [jsearch.Query(f'query {i}', 5, 'A') for i in range(3)]
+            jsearch.collect(queries, client, self.settings, {}, self.persist, backfill=True)
+
+        ledger = self.root / 'rotating.sqlite'
+        run(ledger, 2)
+        run(ledger, 1)
+        self.assertEqual(asked, ['query 0', 'query 1', 'query 2'])
 
     def test_backfill_checkpoints_jobs_before_advancing_its_cursor(self):
         self.session.get.return_value = self.response([job('kept')])

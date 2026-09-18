@@ -1,16 +1,16 @@
-# Handoff — 2026-09-17
+# Handoff - 2026-09-18
 
-State after the first full baseline, three collection passes, and the first
-hosted attempts. Read `README.md` for how the pieces fit; this is what is true
-right now, including what is broken.
+State after the hosted baseline and incremental collection were made durable.
+Read `README.md` for how the pieces fit; this file records the current operating
+facts and remaining limitations.
 
 ## Where the data lives
 
 Two private repositories:
 
 - `TanoZhang/Operation1million` — code, config, workflow. No collected data.
-- `TanoZhang/Operation1million-data` — one gzipped NDJSON file per collection
-  day, a manifest carrying its SHA-256, `source_state.json`, and under
+- `TanoZhang/Operation1million-data` - one or more gzipped NDJSON shards per
+  collection day, a manifest carrying each SHA-256, `source_state.json`, and under
   `operational/` the two ledgers that must outlive a runner: the JSearch credit
   count and the per-source cooldowns.
 
@@ -20,16 +20,16 @@ The job database is derived and gitignored. From nothing:
 JOBDISCO_STORE=<data repo> job-store --bootstrap
 ```
 
-Roughly two seconds for 38,000 postings, from `schema.sql`, the migrations and
-the log. Verified to reproduce every row field for field.
+The rebuild uses `schema.sql`, migrations and the append-only log. It has been
+verified from a fresh checkout, including scores, identities and closures.
 
 ## Current numbers
 
 | | |
 | --- | --- |
-| Open postings | 38,193 (38,302 including closed) |
-| With an absolute `posted_at` | 28,074 (74%) |
-| Scoring 25 or above | 5,383 |
+| Open postings | 38,872 (39,635 including closed) |
+| Open with an absolute `posted_at` | 28,727 (74%) |
+| Open scoring 25 or above | 4,817 |
 | Direct sources | 35 companies, 33 collecting completely |
 | JSearch credits spent this billing period | 218 of 9,600 (resets 2026-10-16) |
 
@@ -73,21 +73,12 @@ now checkpointed to the data repository so a hosted runner cannot reset them.
 Every path collected is permitted: the Eightfold sites explicitly
 `Allow: /api/pcsx`, and Micron whitelists `IndeedJobBot` beside it.
 
-## What is broken or unfinished
-
-**The local store has diverged from the data repository.** Local holds 66,780 log
-lines; the data repository has 37,622, from the initial backfill. The full run's
-699 new postings and the Apple repair are on this machine only. A hosted run
-bootstraps from the data repository, so until this is pushed it will rebuild
-from a stale baseline and rediscover known postings as new. Push before the next
-non-dry hosted run.
+## Current limitations
 
 **Microsoft no longer makes the whole collection single-threaded.** Its source
 has a dedicated lock and keeps its 3-second request interval, while the other
-companies continue through the configured worker pool. A hosted dry run reduced
-the collection step from 45 minutes 48 seconds to 13 minutes 3 seconds. Microsoft
-received an immediate 429 in the faster run and stopped under the cooldown rule,
-so a future normal pass still needs to confirm full Microsoft pagination.
+companies continue through the configured worker pool. A later hosted pass
+collected all 2,382 Microsoft postings while unrelated sources ran concurrently.
 
 **JSearch uses an overlapping 3-day window.** A `today` window loses a day
 permanently whenever a run fails, which has already happened; three days of
@@ -113,41 +104,25 @@ reserved -- the only way that would ever be visible. Measured live on
 It currently carries 218 for the period beginning 2026-10-16's predecessor: the
 ledger was rebuilt and had drifted to 4 against the provider's 218.
 
-**The whole history is unscored in a fresh rebuild.** A runner has no database
-and replays the log on every run, but the score was computed on write and never
-travelled with the row, so a rebuilt store returns nothing at all from a ranked
-view: 38,849 of 38,849 open postings unscored. The score now travels in the log,
-so everything written from here carries it. The postings already logged do not,
-and recomputing costs 129 seconds for 39,445 rows -- too long to pay every run.
-`job-store` reports the count rather than leaving it to be found by an empty
-ranking; `--rescore` fixes a given database.
-
-**Two companies have no direct route.** Rambus answers 405 on every path under
-`careers-rambus.icims.com`, including `/sitemap.xml`; `ventanamicro.com` does not
-accept connections. Whether to reach them through paid search is undecided.
+**Legacy scores are repaired through compact events.** New job events carry
+their score directly. Historical jobs are covered by append-only score events,
+so a clean runner restores all 39,635 scores without rewriting large source
+records or recomputing them every day.
 
 **Amazon is capped by its own search** at 10,000 results, so its board is
 collected but not proven complete. **Rivos** is an aggregator profile, not the
 company's board: 15 postings, completeness unverifiable.
 
-**The manifest carries per-item detail.** 29 KB, of which `jsearch_queries` is
-18 KB and `jsearch_confidence` 4 KB — 883 bare numbers with no keys, unusable
-away from the postings they came from. A distribution summary would say the same
-in five fields. Per-query yield is worth keeping; it is how the plan gets tuned.
+**The current UTC day may have multiple files.** A day rolls to a numbered shard
+before the active gzip file would exceed 90 MB. Every shard has its own checksum
+manifest and replays before the active same-day file.
 
 ## The hosted workflow
 
-Committed, scheduled daily at 06:17 America/Los_Angeles, and it has run.
-
-- The first scheduled attempt (2026-09-17 17:39Z) failed in 48 seconds at
-  `Check out the data repository`: **`Bad credentials`**. The
-  `DATA_REPO_TOKEN` secret existed but its value was not a usable token.
-- A dispatch at 23:07Z failed the same way.
-- A dispatch at 23:09Z passed that step and ran on, so the secret has since been
-  replaced with a working token.
-
-A secret's value cannot be read back — `gh secret` has no `get` — so the only
-proof a token works is a run that gets past checkout.
+Committed and scheduled daily at 06:17 America/Los_Angeles. Hosted collection
+has checked out both private repositories, rebuilt from scratch, collected,
+sealed the log and pushed the resulting data commit. The current credentials
+have therefore been exercised successfully; secret values remain unreadable.
 
 Scheduled runs enable the fixed paid JSearch plan. Manual dispatches default to
 no paid calls and expose an explicit `enable_jsearch` toggle. A bounded live test
@@ -158,6 +133,8 @@ Collector exit code 2 is reported as a warning rather than making every daily
 run red; unexpected failures still fail the workflow.
 Dry runs now print the new, closed, and seen counts they discard and explicitly
 restore/remove durable collection paths before committing only safety ledgers.
+Paid paging stops cleanly before the job timeout: 25 minutes for daily discovery
+and 50 minutes for the end-of-cycle sweep, leaving time to seal and push state.
 
 ## Lessons worth not relearning
 
@@ -198,7 +175,7 @@ per read did not return within two minutes.
 - One role at many locations: the store keeps all of them, which is right — San
   Jose is not Austin. The ranked view should group them
   (`Design Verification Engineer (13 locations)`). Not implemented.
-- `posted_at` covers 74%. Workday states only relative text, kept verbatim in
+- `posted_at` covers 74% of open jobs. Workday states only relative text, kept verbatim in
   `posted_relative` and never converted, so anything reporting "new today" must
   key off `first_seen`.
 - JSearch overlaps direct boards by roughly half, and the URLs never match, so

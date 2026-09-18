@@ -44,10 +44,11 @@ Tier A is paged to exhaustion before tier B begins, and within a tier every
 query takes one page per round. Spending the budget depth first would leave the
 tail of the plan unreached every day, always the same queries.
 
-The plan is rejected before collection if it holds more queries than the daily
-budget has credits, because the tail could then never reach a first page.
-Allocations are
-initial choices, not measured optimal values.
+The plan is rejected before collection if it holds more queries than its
+configured daily budget has credits, because the tail could then never reach a
+first page during an ordinary daily pass. A deliberately smaller per-run cap is
+valid: the request guard stops that run, and a backfill resumes the shallowest
+query cursors first so repeated bounded runs rotate through the plan.
 
 Requests use `/jsearch/search-v2`, `country=us`, `date_posted=3days`, and
 `employment_types=FULLTIME,INTERN`. Queries contain positive functional phrases;
@@ -104,7 +105,9 @@ target still binds, and always does.
 The sweep is one pass spread over those days, not three passes. A cursor per
 query and cycle records where paging stopped, so the next day resumes at the
 following page rather than re-buying pages the sweep already holds. A daily run
-never reads that cursor.
+never reads that cursor. When a bounded sweep cannot touch every query, the next
+run starts with the shallowest cursors instead of repeatedly favoring the first
+queries in the file.
 
 The budget is what the cycle has left divided by the days that remain -- a third
 with three days to go, a half with two, all of it on the last day -- so a sweep
@@ -144,16 +147,22 @@ One page is a sample, not proof of complete weekly coverage.
 
 Without `--jsearch` or a positive `--jsearch-budget`, paid discovery is off.
 A positive budget without `--jsearch` enables configured company fallbacks only.
-With `--jsearch`, a lower override must accommodate the entire fixed plan; the
-collector never silently truncates it. Use a separate small TOML plan for an
-authorized transport test. `--company` limits direct sources, not nationwide
-functional discovery.
+With `--jsearch`, a lower override deliberately caps that invocation. The fixed
+plan is still validated against its configured daily budget, while the request
+guard stops before the override is exceeded. `--company` limits direct sources,
+not nationwide functional discovery.
 
 JSearch runs sequentially with at least 0.25 seconds between dispatches and a
 90-second timeout. HTTP 429/503 stops the remaining search queries and persists
 at least a 15-minute account pause; honor a longer `Retry-After`. HTTP 401/403
 persists at least 24 hours. Other transport failures retain reserved credits and
 are recorded without an automatic paid retry.
+
+`--jsearch-max-seconds` is a graceful paging deadline. It is checked before a
+new paid page, so reaching it spends no extra credit and leaves backfill cursors
+ready for the next run. Hosted daily discovery uses 1,500 seconds and the
+end-of-cycle sweep uses 3,000 seconds, leaving time to seal and push durable
+state before the 120-minute job limit.
 
 ## Filtering and retained content
 

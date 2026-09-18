@@ -98,6 +98,7 @@ jobs:
           args=(
             --workers "${{ inputs.workers || '3' }}"
             --delay 1.0
+            --jsearch-max-seconds 1500
           )
           if [ "$ENABLE_JSEARCH" = 'true' ]; then
             job-collect --jsearch-only --jsearch-plan
@@ -155,7 +156,8 @@ jobs:
           if [ "${{ inputs.backfill_budget || '0' }}" != '0' ]; then
             budget=(--jsearch-budget "${{ inputs.backfill_budget }}")
           fi
-          job-collect --jsearch-only --backfill --workers 1 --delay 1.0 "${budget[@]}"
+          job-collect --jsearch-only --backfill --workers 1 --delay 1.0 \
+            --jsearch-max-seconds 3000 "${budget[@]}"
 
       - name: Save operational safety state
         if: ${{ always() && steps.data_checkout.outcome == 'success' }}

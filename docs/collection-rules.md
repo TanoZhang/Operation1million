@@ -94,12 +94,15 @@ configure the actual billing anchor.
 Implemented storage uses one derived SQLite database with `jobs`,
 `job_identities`, `source_state`, and `collection_runs`. Persistent evidence is
 stored under `JOBDISCO_STORE` (default `data/store`) as daily `.ndjson.gz` files,
-checksum manifests and `source_state.json`. SQLite is not committed to Git.
+size-bounded same-day shards, checksum manifests and `source_state.json`. SQLite
+is not committed to Git.
 
 New and changed jobs share the same event stream across direct and JSearch
 sources. Compact seen events preserve `last_seen`; `first_seen` means observed
-by this collector, not necessarily posted today. Finalized daily files are
-immutable. Rebuild the derived database from the restored private log with
+by this collector, not necessarily posted today. Finalized daily files and
+shards are immutable. The active UTC day rolls to a numbered shard before an
+append would exceed 90 MB, keeping every Git blob below GitHub's 100 MB hard
+limit. Rebuild the derived database from the restored private log with
 `python -m jobdisco.store --bootstrap` on a fresh runner.
 
 A first source pass is full. Later passes may use conditional HTTP, a configured

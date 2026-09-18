@@ -24,7 +24,7 @@ Run the data-handling workflow privately so logs and artifacts stay private.
 | --- | --- |
 | Source code and config | Checkout the reviewed code revision and install the package |
 | JSEARCH_API_KEY | Map the private Actions Secret into the process environment |
-| JOBDISCO_STORE/runs/*.ndjson.gz | Restore immutable private daily event history |
+| JOBDISCO_STORE/runs/*.ndjson.gz | Restore immutable private daily event history and numbered shards |
 | JOBDISCO_STORE/manifests/*.json | Restore private checksums and run statistics |
 | JOBDISCO_STORE/source_state.json | Restore the private source checkpoint |
 | data/db/job_discovery.sqlite | Rebuild locally; never commit this derived database |
@@ -72,6 +72,9 @@ Use concurrency control to prohibit overlapping writers. Multiple passes may
 append to the current UTC day and refresh its manifest. Once the UTC date
 changes, the prior log is sealed and cannot be rewritten. Do not discard
 history or reset usage during recovery.
+Before an append would take the current file above 90 MB, it becomes a numbered
+same-day shard with its own checksum manifest. This keeps blobs below GitHub's
+100 MB limit without rewriting or dropping events.
 The bounded transport test used one credit and succeeded before paid scheduling
 was enabled. The billing anchor is day 16, the day the provider resets. A page
 is reserved before it is
@@ -92,6 +95,10 @@ means partial or paused sources; unexpected nonzero exits still fail the job.
 A dry run emits an explicit notice with new, closed, and seen counts, restores
 tracked durable files, and removes untracked daily files before the runner exits.
 Only the safety ledgers and the retention-limited triage report survive it.
+Paid paging also has a graceful runtime ceiling: 25 minutes in the daily pass
+and 50 minutes in the end-of-cycle sweep. The ceiling is checked before buying
+the next page so the job can seal and push its partial progress before the
+120-minute Actions timeout.
 
 ## Actions minutes
 

@@ -372,6 +372,7 @@ DROP_FIELDS = {
 LOG_FIELDS = ['url', 'company_key', 'provider_key', 'title', 'location', 'source_job_id',
               'posted_at', 'posted_relative', 'lastmod', 'first_seen', 'last_seen', 'closed_at',
               'relevance', 'raw']
+MAX_DAILY_LOG_BYTES = 90_000_000
 
 
 def merge_raw(previous, incoming):
@@ -437,6 +438,90 @@ def manifest_path(stamp):
     return LOG / 'manifests' / f'{stamp[:10]}.json'
 
 
+def _file_facts(path):
+    sha = hashlib.sha256()
+    with path.open('rb') as handle:
+        for block in iter(lambda: handle.read(1 << 20), b''):
+            sha.update(block)
+    with gzip.open(path, 'rt', encoding='utf-8') as handle:
+        records = sum(1 for line in handle if line.strip())
+    return sha.hexdigest(), records
+
+
+def _file_digest(path):
+    sha = hashlib.sha256()
+    with path.open('rb') as handle:
+        for block in iter(lambda: handle.read(1 << 20), b''):
+            sha.update(block)
+    return sha.hexdigest()
+
+
+def _write_json_atomic(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    temporary.write_text(
+        json.dumps(value, ensure_ascii=True, indent=1, sort_keys=True) + '\n',
+        encoding='utf-8')
+    temporary.replace(path)
+
+
+def shard_daily_log(stamp):
+    """Move the current UTC day's main log to the next immutable shard."""
+    path = daily_log(stamp)
+    if not path.is_file() or not path.stat().st_size:
+        return None
+    day = stamp[:10]
+    numbers = []
+    for existing in (LOG / 'runs').glob(f'{day}-*.ndjson.gz'):
+        suffix = existing.name[len(day) + 1:-len('.ndjson.gz')]
+        if suffix.isdigit():
+            numbers.append(int(suffix))
+    number = max(numbers, default=0) + 1
+    shard = path.with_name(f'{day}-{number:04d}.ndjson.gz')
+    shard_manifest = (LOG / 'manifests' / shard.name.removesuffix('.ndjson.gz')).with_suffix('.json')
+    digest, records = _file_facts(path)
+    current_manifest = manifest_path(stamp)
+    if current_manifest.is_file():
+        manifest = json.loads(current_manifest.read_text(encoding='utf-8'))
+    else:
+        manifest = {'run_date': day, 'collected_at': stamp,
+                    'sources_completed': 0, 'sources_unchanged': 0,
+                    'sources_incomplete': 0, 'sources_failed': 0,
+                    'requests': 0, 'open_jobs': None}
+    manifest.update({'file': str(shard.relative_to(LOG)).replace('\\', '/'),
+                     'sha256': digest, 'records': records, 'shard': number,
+                     'sharded_at': stamp})
+    temporary = shard_manifest.with_suffix('.json.tmp')
+    temporary.parent.mkdir(parents=True, exist_ok=True)
+    temporary.write_text(
+        json.dumps(manifest, ensure_ascii=True, indent=1, sort_keys=True) + '\n',
+        encoding='utf-8')
+    path.replace(shard)
+    temporary.replace(shard_manifest)
+    current_manifest.unlink(missing_ok=True)
+    return shard
+
+
+def _append_records(stamp, records):
+    if not records:
+        return
+    path = daily_log(stamp)
+    member = gzip.compress((''.join(json.dumps(r, ensure_ascii=True, sort_keys=True) + '\n'
+                                    for r in records)).encode('utf-8'), mtime=0)
+    if path.exists() and path.stat().st_size + len(member) > MAX_DAILY_LOG_BYTES:
+        shard_daily_log(stamp)
+    size = path.stat().st_size if path.exists() else 0
+    try:
+        with path.open('ab') as handle:
+            handle.write(member)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError:
+        with path.open('r+b') as handle:
+            handle.truncate(size)
+        raise
+
+
 def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None):
     """Append this pass's discoveries and closures to the day's durable file.
 
@@ -471,18 +556,29 @@ def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None):
         state = db.execute('SELECT * FROM source_state WHERE source_id=?', (source_id,)).fetchone()
         if state:
             records.append({'type': 'source_state', 'state': dict(state)})
-    member = gzip.compress((''.join(json.dumps(r, ensure_ascii=True, sort_keys=True) + '\n'
-                                    for r in records)).encode('utf-8'), mtime=0)
-    size = path.stat().st_size if path.exists() else 0
-    try:
-        with path.open('ab') as handle:
-            handle.write(member)
-            handle.flush()
-            os.fsync(handle.fileno())
-    except OSError:
-        with path.open('r+b') as handle:
-            handle.truncate(size)
-        raise
+    _append_records(stamp, records)
+
+
+def append_scores(db, stamp, urls=None):
+    """Persist compact score corrections without rewriting historical jobs."""
+    if sealed(stamp):
+        raise FileExistsError('Daily log is sealed; refusing to change a day that is over')
+    path = daily_log(stamp)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if urls is None:
+        rows = db.execute('SELECT url, relevance FROM jobs WHERE relevance IS NOT NULL ORDER BY url')
+    else:
+        values = sorted(set(urls))
+        rows = []
+        for start in range(0, len(values), 400):
+            chunk = values[start:start + 400]
+            rows.extend(db.execute(
+                'SELECT url, relevance FROM jobs WHERE relevance IS NOT NULL AND url IN (%s) ORDER BY url'
+                % ','.join('?' * len(chunk)), chunk))
+    records = [{'type': 'score', 'url': row['url'], 'relevance': row['relevance']}
+               for row in rows]
+    _append_records(stamp, records)
+    return len(records)
 
 
 def write_manifest(db, stamp, reports, jsearch_stats=None):
@@ -501,13 +597,7 @@ def write_manifest(db, stamp, reports, jsearch_stats=None):
     manifest_path(stamp).parent.mkdir(parents=True, exist_ok=True)
     digest = records = None
     if path.is_file():
-        sha = hashlib.sha256()
-        with path.open('rb') as f:
-            for block in iter(lambda: f.read(1 << 20), b''):
-                sha.update(block)
-        digest = sha.hexdigest()
-        with gzip.open(path, 'rt', encoding='utf-8') as f:
-            records = sum(1 for line in f if line.strip())
+        digest, records = _file_facts(path)
     manifest = {
         'run_date': stamp[:10],
         'collected_at': stamp,
@@ -525,31 +615,32 @@ def write_manifest(db, stamp, reports, jsearch_stats=None):
     }
     if jsearch_stats:
         manifest.update(jsearch_stats)
-    temporary = manifest_path(stamp).with_suffix('.json.tmp')
-    temporary.write_text(
-        json.dumps(manifest, ensure_ascii=True, indent=1, sort_keys=True) + '\n',
-        encoding='utf-8')
-    temporary.replace(manifest_path(stamp))
+    _write_json_atomic(manifest_path(stamp), manifest)
     return manifest
 
 
 def verify(stamp=None):
     """Check each day's file against the digest recorded in its manifest."""
     results = []
+    referenced = set()
     for path in sorted((LOG / 'manifests').glob('*.json')):
         manifest = json.loads(path.read_text(encoding='utf-8'))
         if stamp and manifest['run_date'] != stamp[:10]:
             continue
         data = LOG / (manifest.get('file') or '')
+        if manifest.get('file'):
+            referenced.add(data.resolve())
         if not manifest.get('sha256') or not data.is_file():
-            results.append((manifest['run_date'], 'missing'))
+            results.append((path.stem, 'missing'))
             continue
-        sha = hashlib.sha256()
-        with data.open('rb') as f:
-            for block in iter(lambda: f.read(1 << 20), b''):
-                sha.update(block)
-        results.append((manifest['run_date'],
-                        'ok' if sha.hexdigest() == manifest['sha256'] else 'MISMATCH'))
+        digest = _file_digest(data)
+        results.append((path.stem,
+                        'ok' if digest == manifest['sha256'] else 'MISMATCH'))
+    for data in sorted((LOG / 'runs').glob('*.ndjson.gz')):
+        if stamp and not data.name.startswith(stamp[:10]):
+            continue
+        if data.resolve() not in referenced:
+            results.append((data.name.removesuffix('.ndjson.gz'), 'missing-manifest'))
     return results
 
 
@@ -624,6 +715,11 @@ def rebuild(path=DB):
                     continue
                 if r.get('type') == 'closed':
                     db.execute('UPDATE jobs SET closed_at=? WHERE url=?', (r['at'], r['url']))
+                    counts['events'] += 1
+                    continue
+                if r.get('type') == 'score':
+                    db.execute('UPDATE jobs SET relevance=? WHERE url=?',
+                               (r['relevance'], r['url']))
                     counts['events'] += 1
                     continue
                 raw = r.get('raw')

@@ -5,6 +5,7 @@ import math
 from datetime import date
 import os
 import re
+import time
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import requests
@@ -382,7 +383,7 @@ def tier_rank(tier):
 
 
 def collect(queries, client, settings, companies, persist, backfill=False,
-            checkpoint=None):
+            checkpoint=None, deadline=None):
     """Page through each query adaptively, breadth first within a tier.
 
     Depth is discovered rather than declared, so the budget is spent in the
@@ -449,12 +450,23 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             stats['jsearch_confidence'].append(confidence)
             rows.append(row)
 
+    original_order = {query.key: index for index, query in enumerate(queries)}
     for tier in sorted({q.tier for q in queries}, key=tier_rank):
         active = [q for q in queries if q.tier == tier and not state[q.key]['done']]
+        if backfill:
+            # A small sweep may end before every query gets one page. Resume the
+            # shallowest cursors first on the next run so the same leading
+            # queries cannot consume every deliberately bounded invocation.
+            active.sort(key=lambda q: (state[q.key]['page'], original_order[q.key]))
         while active and not stop:
             for query in list(active):
                 entry = state[query.key]
                 detail = entry['detail']
+                if deadline is not None and time.monotonic() >= deadline:
+                    detail['status'] = 'query_limited'
+                    detail['reason'] = 'JSearch runtime limit reached before this page'
+                    stop = True
+                    break
                 # The guard has to bind before the credit is spent, not after:
                 # a resumed sweep can start already past its own cap.
                 if entry['page'] > query.pages:
