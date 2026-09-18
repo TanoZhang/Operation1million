@@ -138,9 +138,13 @@ def fallback_plan(config, sources, max_aliases=1):
 
 
 class SearchFailure(Exception):
-    def __init__(self, message, stop=False):
+    def __init__(self, message, stop=False, budget=False):
         super().__init__(message)
         self.stop = stop
+        # Reaching the budget is how an adaptive run is meant to end, now that
+        # a query pages until the provider runs short rather than to a declared
+        # depth. Counting it as a failure would make the failure count useless.
+        self.budget = budget
 
 
 PAGE_SIZE = 10
@@ -167,18 +171,10 @@ class Client:
         self.session.close()
 
     def fetch_page(self, query, page):
-        """Retrieve exactly one page, and say whether the query is exhausted.
+        """Retrieve one page as (items, exhausted).
 
-        Asking for many pages at once timed out at the provider and was charged
-        in full, so the widest asks were also the most expensive to lose: four
-        calls of 11 to 18 pages returned HTTP 504 and took 61 page credits with
-        them. One page per call makes a page the unit of both billing and loss,
-        and removes the need to guess a query's depth before seeing it -- the
-        provider states no total, so any guess was either waste or truncation.
-
-        Returns (items, exhausted). A short page is the real end-of-results
-        signal. A page identical to the one before it means the provider is
-        looping rather than advancing, which no amount of further paging fixes.
+        A short page is the end-of-results signal; the provider states no total,
+        so it is the only one. See `load_plan` for why a call asks for one page.
         """
         items = self.fetch_batch(replace(query, pages=1), first_page=page)
         return items, len(items) < PAGE_SIZE
@@ -231,7 +227,7 @@ class Client:
                 raise SearchFailure('Expected search-v2 data.jobs list')
             return data['jobs']
         except QuotaExhausted as exc:
-            raise SearchFailure(str(exc), stop=True) from None
+            raise SearchFailure(str(exc), stop=True, budget=True) from None
         except (requests.RequestException, ValueError):
             raise SearchFailure('JSearch transport or JSON error; reserved credits retained') from None
         finally:
@@ -461,27 +457,32 @@ def collect(queries, client, settings, companies, persist, backfill=False):
                 # The guard has to bind before the credit is spent, not after:
                 # a resumed sweep can start already past its own cap.
                 if entry['page'] > query.pages:
+                    stats['jsearch_queries_completed'] += 1
                     detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
                     detail['reason'] = f'Runaway guard stopped paging at {query.pages} pages'
                     entry['done'] = True
                     active.remove(query)
                     continue
                 before = client.guard.credits
+                failure = None
                 try:
                     items, exhausted = client.fetch_page(query, entry['page'])
                 except SearchFailure as exc:
-                    stats['jsearch_failures'] += 1
-                    detail['status'], detail['reason'] = 'failed', str(exc)
-                    stop = exc.stop
+                    failure = exc
+                spent = client.guard.credits - before
+                detail['pages_used'] += spent
+                stats['jsearch_pages_used'] += spent
+                if failure is not None:
+                    if not failure.budget:
+                        stats['jsearch_failures'] += 1
+                    detail['status'] = 'query_limited' if failure.budget else 'failed'
+                    detail['reason'] = str(failure)
+                    stop = failure.stop
                     entry['done'] = True
                     active.remove(query)
-                    detail['pages_used'] += client.guard.credits - before
-                    stats['jsearch_pages_used'] += client.guard.credits - before
                     if stop:
                         break
                     continue
-                detail['pages_used'] += client.guard.credits - before
-                stats['jsearch_pages_used'] += client.guard.credits - before
                 identities = page_identity(items)
                 looping = identities is not None and identities == entry['previous']
                 entry['previous'] = identities
@@ -502,8 +503,6 @@ def collect(queries, client, settings, companies, persist, backfill=False):
 
     for entry in state.values():
         query, detail, rows = entry['query'], entry['detail'], entry['rows']
-        if backfill:
-            detail['resumed_from'] = entry['detail'].get('resumed_from', 1)
         if not entry['done'] and not detail['reason']:
             detail['reason'] = 'Account stop condition from an earlier query'
         detail['jobs_accepted'] = len(rows)

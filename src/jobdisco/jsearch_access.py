@@ -32,7 +32,7 @@ class RequestGuard:
     """
     def __init__(self, path=STATE, limit=10000, interval=0.25, daily_limit=None,
                  target_limit=None, cycle_start='2026-09-16', cycle_days=30,
-                 ignore_daily_limit=False):
+                 ignore_daily_limit=False, run_limit=None):
         self.attempts = 0
         self.credits = 0
         self.path = Path(path)
@@ -49,6 +49,11 @@ class RequestGuard:
         # daily slice -- which is only a way of pacing the month -- must not
         # stop it. The monthly target still binds, and always does.
         self.ignore_daily_limit = ignore_daily_limit
+        # What this one run may spend. The durable limits pace a day and a
+        # cycle; they cannot express "a third of what is left", which is what
+        # keeps an early sweep from taking the remainder a later day may need.
+        # Depth is discovered while paging, so nothing else bounds a run.
+        self.run_limit = run_limit
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with connect(self.path, timeout=30) as db:
             db.execute('CREATE TABLE IF NOT EXISTS usage (id INTEGER PRIMARY KEY CHECK(id=1), used INTEGER NOT NULL, last_sent REAL NOT NULL)')
@@ -142,21 +147,17 @@ class RequestGuard:
         """What is spent and what is left, right now, from durable state."""
         period, day = self.period()
         with connect(self.path) as db:
-            spent = db.execute(
-                'SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?', (period,)).fetchone()[0]
-            base = db.execute(
-                'SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', (period,)).fetchone()[0]
-            today = db.execute(
-                'SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', (day,)).fetchone()[0]
-            wasted = db.execute(
-                """SELECT COALESCE(SUM(credits), 0) FROM credit_events
-                   WHERE period=? AND outcome NOT LIKE 'http:2%'""", (period,)).fetchone()[0]
-            reported = db.execute(
-                """SELECT provider_remaining FROM credit_events
-                   WHERE provider_remaining IS NOT NULL ORDER BY id DESC LIMIT 1""").fetchone()
-        monthly = spent + base
-        return {'period': period, 'day': day, 'period_used': monthly,
-                'period_remaining': max(0, self.target_limit - monthly),
+            one = lambda sql, *args: db.execute(sql, args).fetchone()[0]
+            used = (one('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?', period)
+                    + one('SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', period))
+            today = one('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', day)
+            wasted = one("""SELECT COALESCE(SUM(credits), 0) FROM credit_events
+                            WHERE period=? AND outcome NOT LIKE 'http:2%'""", period)
+            reported = db.execute("""SELECT provider_remaining FROM credit_events
+                                     WHERE provider_remaining IS NOT NULL
+                                     ORDER BY id DESC LIMIT 1""").fetchone()
+        return {'period': period, 'day': day, 'period_used': used,
+                'period_remaining': max(0, self.target_limit - used),
                 'day_used': today,
                 'day_remaining': max(0, self.daily_limit - today) if self.daily_limit is not None else None,
                 'period_unproductive': wasted,
@@ -171,7 +172,8 @@ class RequestGuard:
             daily = db.execute('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', (day,)).fetchone()[0]
             over_daily = (not self.ignore_daily_limit and self.daily_limit is not None
                           and daily + credits > self.daily_limit)
-            if monthly + credits > self.target_limit or over_daily:
+            over_run = self.run_limit is not None and self.credits + credits > self.run_limit
+            if monthly + credits > self.target_limit or over_daily or over_run:
                 raise QuotaExhausted('JSearch page-credit budget reached; no request sent')
             pause = db.execute('SELECT retry_at FROM account_pause WHERE id=1').fetchone()
             if pause and pause[0] > time.time():
@@ -207,14 +209,14 @@ class RequestGuard:
     def settle(self, event, outcome, headers=None):
         remaining = None
         for name in self.REMAINING_HEADERS:
-            value = (headers or {}).get(name) or (headers or {}).get(name.title())
-            if value is not None:
-                try:
-                    remaining = int(str(value).strip())
-                except ValueError:
-                    remaining = None
-                if remaining is not None:
-                    break
+            # requests' header mapping is case-insensitive; a plain dict in a
+            # test is not, so try the capitalised spelling too.
+            value = (headers or {}).get(name, (headers or {}).get(name.title()))
+            try:
+                remaining = int(str(value).strip())
+                break
+            except (TypeError, ValueError):
+                remaining = None
         with connect(self.path, timeout=120) as db:
             db.execute('UPDATE credit_events SET outcome=?, provider_remaining=? WHERE id=?',
                        (outcome, remaining, event))

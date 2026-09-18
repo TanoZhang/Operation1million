@@ -364,6 +364,41 @@ class DiscoveryTests(unittest.TestCase):
                 self.assertEqual(guard.period()[0], start, today)
                 self.assertEqual(guard.days_until_reset(), left, today)
 
+    def test_a_run_budget_binds_now_that_depth_is_discovered(self):
+        """A declared plan used to bound a run; adaptive paging does not.
+
+        The sum of a plan's pages once guaranteed the spend, so a budget only
+        had to be checked before the run. With depth discovered while paging,
+        nothing stops a run at its share unless the guard itself does.
+        """
+        guard = RequestGuard(path=self.root / 'runcap.sqlite', limit=10000,
+                             target_limit=9600, daily_limit=320,
+                             cycle_start='2026-09-16', cycle_days=30,
+                             ignore_daily_limit=True, run_limit=4)
+        client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
+        # Distinct jobs per page, so only the budget can end this query.
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job(f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}') for i in range(10)])
+        _, stats = jsearch.collect([jsearch.Query('RTL Design Engineer', 200, 'A')],
+                                   client, self.settings, {}, self.persist)
+        # Four pages, not two hundred, and not the cycle's whole remainder.
+        self.assertEqual(guard.credits, 4)
+        self.assertEqual(stats['jsearch_pages_used'], 4)
+
+    def test_reaching_the_budget_is_not_counted_as_a_failure(self):
+        """It is how an adaptive run ends, so counting it would hide real ones."""
+        guard = RequestGuard(path=self.root / 'endofrun.sqlite', limit=10000,
+                             target_limit=9600, daily_limit=320,
+                             cycle_start='2026-09-16', cycle_days=30, run_limit=2)
+        client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job(f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}') for i in range(10)])
+        _, stats = jsearch.collect([jsearch.Query('RTL Design Engineer', 200, 'A')],
+                                   client, self.settings, {}, self.persist)
+        self.assertEqual(stats['jsearch_failures'], 0)
+        self.assertEqual(stats['jsearch_queries'][0]['status'], 'query_limited')
+        self.assertIn('budget', stats['jsearch_queries'][0]['reason'])
+
     def test_backfill_budget_splits_the_remainder_over_the_days_that_remain(self):
         """An early sweep must leave something for a day that has to retry."""
         settings = dict(self.settings, monthly_target=9600)

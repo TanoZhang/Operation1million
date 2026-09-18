@@ -142,7 +142,9 @@ jobs:
       - name: Backfill sweep
         id: backfill
         continue-on-error: true
-        if: ${{ steps.sweep_window.outputs.run == 'true' }}
+        # A dry run discards what it collected, so a sweep under one would
+        # spend the cycle's remaining credits and throw the results away.
+        if: ${{ steps.sweep_window.outputs.run == 'true' && inputs.dry_run != true }}
         env:
           JOBDISCO_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
@@ -233,6 +235,13 @@ jobs:
           path: runs/*/company_results.csv
           retention-days: 14
           if-no-files-found: warn
+
+      # The sweep carries continue-on-error so its partial results still reach
+      # the commit, which would otherwise leave a broken sweep silently green --
+      # and the sweep is the pass that spends what the cycle has left.
+      - name: Report backfill failure
+        if: ${{ always() && steps.backfill.outcome == 'failure' }}
+        run: exit 1
 
       - name: Report unexpected collection failure
         if: ${{ always() && steps.collect.outcome == 'failure' && steps.collect.outputs.exit_code != '2' }}

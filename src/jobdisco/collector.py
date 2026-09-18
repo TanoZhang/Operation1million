@@ -675,18 +675,18 @@ def main():
                                  daily_limit=settings['daily_budget'],
                                  cycle_start=settings['cycle_start'],
                                  cycle_days=settings['cycle_days'],
-                                 ignore_daily_limit=args.backfill)
+                                 ignore_daily_limit=args.backfill,
+                                 run_limit=run_budget if enabled else None)
     if args.backfill:
         # Spread what is left over the days that are left, so an early sweep
-        # cannot take the whole remainder and leave a failed day unrecoverable.
-        # On the final day there is no later day to save for.
+        # cannot take a remainder a later day may need to recover in. An
+        # explicit budget only lowers that share, which is how the path is
+        # tested without spending the cycle.
         left = request_guard.balance()['period_remaining']
         days = max(1, request_guard.days_until_reset())
         run_budget = left if days <= 1 else left // days
-        # An explicit budget only ever lowers the sweep's own share, so a test
-        # run can exercise the path without spending the cycle's remainder.
-        if args.jsearch_budget > 0:
-            run_budget = min(run_budget, args.jsearch_budget)
+        run_budget = min(run_budget, args.jsearch_budget or run_budget)
+        request_guard.run_limit = run_budget
         print(f'backfill: {left} credits left in the cycle, {days} days to reset, '
               f'spending up to {run_budget}', flush=True)
     args.jsearch_guard = request_guard
