@@ -103,6 +103,12 @@ therefore separates credits that returned jobs from credits a 504 consumed, and
 `RequestGuard.balance()` answers used/remaining from durable state at any moment
 rather than at the end of a run.
 
+The provider states what a call cost, not what is left:
+`X-RapidAPI-Billing: Queries=1; Requests=1`. That is recorded per page, so
+`provider_drift` is nonzero the moment a charge differs from the credit
+reserved -- the only way that would ever be visible. Measured live on
+2026-09-18: one page asked, one charged.
+
 `credit_baseline` holds credits the provider counted that this ledger never saw.
 It currently carries 218 for the period beginning 2026-10-16's predecessor: the
 ledger was rebuilt and had drifted to 4 against the provider's 218.

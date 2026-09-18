@@ -643,7 +643,9 @@ def main():
     search = config('sources_search.toml')['search']['jsearch']
     company_queries = jsearch.fallback_plan(discovery, all_sources, args.fallback_queries) if enabled and not args.jsearch_only else []
     company_queries = [q for q in company_queries if q.company_key in {s.company_key for s in sources}]
-    functional_queries = functional_queries if args.jsearch or args.jsearch_plan else []
+    # A sweep is a functional pass too, and it is the one that spends what the
+    # cycle has left: leaving it out here emptied the plan and made it a no-op.
+    functional_queries = functional_queries if args.jsearch or args.jsearch_plan or args.backfill else []
     planned_queries = functional_queries + company_queries
     jsearch.validate_budget(planned_queries, run_budget)
     if args.jsearch_plan:

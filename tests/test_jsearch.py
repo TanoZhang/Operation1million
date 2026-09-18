@@ -331,7 +331,7 @@ class DiscoveryTests(unittest.TestCase):
             seen.append(RequestGuard(path=self.root / 'live.sqlite', limit=100,
                                    target_limit=100, daily_limit=10,
                                    cycle_start="2026-09-16", cycle_days=30).balance())
-            return Mock(status_code=200, headers={'x-ratelimit-requests-remaining': '77'})
+            return Mock(status_code=200, headers={'X-RapidAPI-Billing': 'Queries=1; Requests=1'})
 
         session = Mock()
         session.get.side_effect = dispatch
@@ -348,7 +348,8 @@ class DiscoveryTests(unittest.TestCase):
         # A failed page is charged, and is visible as charged-but-unproductive.
         self.assertEqual(after['period_used'], 2)
         self.assertEqual(after['period_unproductive'], 1)
-        self.assertEqual(after['provider_remaining'], 77)
+        # The provider charged what was reserved for the page it answered.
+        self.assertEqual(after['provider_drift'], 0)
 
     def test_rolling_cycle_tracks_thirty_days_not_a_calendar_day(self):
         guard = RequestGuard(path=self.root / 'cycle.sqlite',
@@ -560,6 +561,37 @@ class DiscoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             store.rebuild(fresh)
         self.assertFalse(fresh.exists())
+
+    def test_backfill_alone_still_carries_the_functional_plan(self):
+        """`--backfill` on its own must not be a silent no-op.
+
+        `--jsearch-only` sets `--jsearch`, so the workflow's sweep was never
+        affected, but selecting the functional queries listed only the flags
+        that turn paid search on. A bare `--backfill` therefore ran no queries
+        and reported success for doing nothing.
+        """
+        asked = []
+        self.session.get.side_effect = lambda url, **kw: (
+            asked.append(parse_qs(urlsplit(url).query)['query'][0])
+            or self.response([job(employer_name='Sample')]))
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        argv = ['collector', '--backfill', '--jsearch-budget', '2',
+                '--db', str(self.db_path), '--output', str(self.root / 'sweep')]
+        with (
+            patch.object(collector, 'load_sources', return_value=[]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(jsearch, 'load_plan',
+                         return_value=(self.settings, [replace(self.plan[0], pages=1)])),
+            patch.object(jsearch.requests, 'Session', return_value=self.session),
+            patch.object(store, 'now', return_value=STAMP),
+            patch('sys.argv', argv),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            collector.main()
+        self.assertEqual(asked, [self.plan[0].query])
 
     def test_collector_runs_direct_then_functional_then_configured_company(self):
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})

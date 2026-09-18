@@ -1,6 +1,7 @@
 """Local credentials and a conservative, persistent JSearch request guard."""
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -68,7 +69,10 @@ class RequestGuard:
                               id INTEGER PRIMARY KEY, at REAL NOT NULL, period TEXT NOT NULL,
                               day TEXT NOT NULL, credits INTEGER NOT NULL,
                               outcome TEXT NOT NULL DEFAULT 'reserved',
-                              provider_remaining INTEGER)''')
+                              provider_charged INTEGER)''')
+            columns = {r[1] for r in db.execute('PRAGMA table_info(credit_events)')}
+            if 'provider_charged' not in columns:
+                db.execute('ALTER TABLE credit_events RENAME COLUMN provider_remaining TO provider_charged')
             # Credits spent outside this ledger -- a console test, a lost run, a
             # ledger rebuilt from scratch -- are real against the provider's
             # count and must not read as available here.
@@ -153,15 +157,18 @@ class RequestGuard:
             today = one('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', day)
             wasted = one("""SELECT COALESCE(SUM(credits), 0) FROM credit_events
                             WHERE period=? AND outcome NOT LIKE 'http:2%'""", period)
-            reported = db.execute("""SELECT provider_remaining FROM credit_events
-                                     WHERE provider_remaining IS NOT NULL
-                                     ORDER BY id DESC LIMIT 1""").fetchone()
+            charged = one("""SELECT COALESCE(SUM(provider_charged), 0) FROM credit_events
+                             WHERE period=? AND provider_charged IS NOT NULL""", period)
+            reserved = one("""SELECT COALESCE(SUM(credits), 0) FROM credit_events
+                              WHERE period=? AND provider_charged IS NOT NULL""", period)
         return {'period': period, 'day': day, 'period_used': used,
                 'period_remaining': max(0, self.target_limit - used),
                 'day_used': today,
                 'day_remaining': max(0, self.daily_limit - today) if self.daily_limit is not None else None,
                 'period_unproductive': wasted,
-                'provider_remaining': reported[0] if reported else None}
+                # Nonzero means the provider charged something other than what
+                # this ledger reserved, which nothing else would reveal.
+                'provider_drift': charged - reserved}
 
     def _get_locked(self, session, url, credits=1, **kwargs):
         with connect(self.path, timeout=120) as db:
@@ -201,22 +208,17 @@ class RequestGuard:
         self.settle(event, f'http:{response.status_code}', response.headers)
         return response
 
-    # A provider that states its own remaining quota is the only authority on
-    # the number; record it so drift against this ledger is visible.
-    REMAINING_HEADERS = ('x-ratelimit-requests-remaining', 'x-ratelimit-remaining',
-                         'x-quota-remaining', 'x-requests-remaining')
+    # The provider states what a call cost, not what is left, as
+    # `X-RapidAPI-Billing: Queries=1; Requests=1`. Recording it is how a charge
+    # that differs from the credit we reserved becomes visible at all.
+    BILLING_HEADER = 'X-RapidAPI-Billing'
 
     def settle(self, event, outcome, headers=None):
-        remaining = None
-        for name in self.REMAINING_HEADERS:
-            # requests' header mapping is case-insensitive; a plain dict in a
-            # test is not, so try the capitalised spelling too.
-            value = (headers or {}).get(name, (headers or {}).get(name.title()))
-            try:
-                remaining = int(str(value).strip())
-                break
-            except (TypeError, ValueError):
-                remaining = None
+        # requests' header mapping is case-insensitive; a plain dict is not.
+        raw = (headers or {}).get(self.BILLING_HEADER,
+                                  (headers or {}).get(self.BILLING_HEADER.lower()))
+        found = re.search(r'Queries\s*=\s*(\d+)', str(raw or ''))
+        charged = int(found.group(1)) if found else None
         with connect(self.path, timeout=120) as db:
-            db.execute('UPDATE credit_events SET outcome=?, provider_remaining=? WHERE id=?',
-                       (outcome, remaining, event))
+            db.execute('UPDATE credit_events SET outcome=?, provider_charged=? WHERE id=?',
+                       (outcome, charged, event))
