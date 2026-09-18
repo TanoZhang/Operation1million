@@ -493,6 +493,44 @@ class LogRoundTripTests(unittest.TestCase):
         with closing(store.connect(fresh)) as rebuilt:
             self.assertEqual(rebuilt.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 3)
 
+    def test_replay_applies_the_current_noise_policy(self):
+        """A rebuild must hold what a live pass would, not what the log recorded.
+
+        A runner rebuilds from the log every run. A line written before a field
+        became noise still carries it, so replaying it verbatim put the field
+        back, the next pass saw a difference that was only the policy, and the
+        posting was rewritten -- every run, for ever. Amazon restated 15,148
+        postings and 88 MB the pass after the field was dropped.
+        """
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        store.record_source(db, SOURCE, [row('https://x/1', raw={'description': 'Work'})],
+                            'complete', 'full', 1)
+        db.commit()
+        store.append_log(db, ['https://x/1'], [], store.now())
+        # Rewrite the logged line as one recorded before the field was noise.
+        log = store.daily_log(store.now())
+        lines = gzip.decompress(log.read_bytes()).decode('utf-8').splitlines()
+        aged = []
+        for line in lines:
+            record = json.loads(line)
+            if record.get('type', 'job') == 'job':
+                record['raw'] = dict(record['raw'], updated_time='8 days')
+            aged.append(json.dumps(record, sort_keys=True))
+        body = ''.join(line + chr(10) for line in aged)
+        log.write_bytes(gzip.compress(body.encode('utf-8'), mtime=0))
+        store.write_manifest(db, store.now(), [])
+
+        fresh = Path(self.dir.name) / 'policy.sqlite'
+        with closing(sqlite3.connect(fresh)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.migrate(fresh)
+        store.rebuild(fresh)
+        with closing(store.connect(fresh)) as rebuilt:
+            stored = json.loads(rebuilt.execute(
+                'SELECT raw FROM jobs WHERE url=?', ('https://x/1',)).fetchone()[0])
+        self.assertNotIn('updated_time', stored)
+
     def test_verify_reports_a_log_without_a_manifest(self):
         path = self.log / 'runs' / '2026-09-18.ndjson.gz'
         path.parent.mkdir(parents=True)

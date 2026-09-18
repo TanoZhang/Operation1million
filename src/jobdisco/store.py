@@ -749,7 +749,12 @@ def rebuild(path=DB):
                      r.get('location') or '', r.get('source_job_id'), r.get('posted_at'),
                      r.get('posted_relative'), r.get('lastmod'), r['first_seen'],
                      r.get('last_seen', r['first_seen']), r.get('closed_at'),
-                     relevance, json.dumps(raw, ensure_ascii=True)))
+                     # Slimmed on the way in, as a live pass would store it.
+                     # A log line written before a field became noise still
+                     # carries it, and replaying it verbatim put the field back
+                     # -- so the next pass saw a difference that was only the
+                     # policy, and rewrote the posting again. Every run.
+                     relevance, json.dumps(slim(raw), ensure_ascii=True)))
                 identities = r.get('identities')
                 # Logs written before identity tracking have no identities key,
                 # so infer their primary identity for backward compatibility.
