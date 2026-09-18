@@ -24,6 +24,10 @@ class QuotaExhausted(Exception):
     pass
 
 
+class AccountPaused(QuotaExhausted):
+    """A provider refusal is a failure, not ordinary budget completion."""
+
+
 class RequestGuard:
     """Reserve page credits before sending, including failures.
 
@@ -184,7 +188,7 @@ class RequestGuard:
                 raise QuotaExhausted('JSearch page-credit budget reached; no request sent')
             pause = db.execute('SELECT retry_at FROM account_pause WHERE id=1').fetchone()
             if pause and pause[0] > time.time():
-                raise QuotaExhausted('JSearch account cooldown is active; no request sent')
+                raise AccountPaused('JSearch account cooldown is active; no request sent')
             monthly_base = db.execute(
                 'SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', (period,)).fetchone()[0]
             if monthly + monthly_base + credits > self.target_limit:

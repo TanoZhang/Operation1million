@@ -655,6 +655,19 @@ class DiscoveryTests(unittest.TestCase):
         jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
         self.assertEqual(self.guard.resume_page(self.cursor(query)), (3, True))
 
+    def test_repeated_page_is_retried_by_the_next_sweep(self):
+        query = jsearch.Query('RTL Design Engineer', 40, 'A')
+        full = [job(f'p1-{i}') for i in range(10)]
+        self.session.get.side_effect = [self.response(full), self.response(full)]
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (2, False))
+        self.session.get.side_effect = [self.response([job('recovered')])]
+        rows, _ = jsearch.collect([query], self.client, self.settings, {}, self.persist,
+                                 backfill=True)
+        self.assertEqual([r['source_job_id'] for r in rows], ['recovered'])
+        params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
+        self.assertEqual(params['page'], ['2'])
+
     def test_a_query_with_nothing_at_all_settles_on_its_first_page(self):
         """An empty first page is a genuine empty result set, not a hiccup."""
         self.session.get.return_value = self.response([])
@@ -824,6 +837,15 @@ class DiscoveryTests(unittest.TestCase):
         restarted = RequestGuard(self.root / 'usage.sqlite')
         with self.assertRaises(QuotaExhausted):
             restarted.get(self.session, 'https://example')
+
+    def test_persisted_cooldown_is_reported_as_failure_not_budget_completion(self):
+        self.guard.pause(900)
+        _, stats = self.collect(self.plan[:2])
+        self.session.get.assert_not_called()
+        self.assertEqual(stats['jsearch_pages_used'], 0)
+        self.assertEqual(stats['jsearch_failures'], 1)
+        self.assertEqual(stats['jsearch_queries'][0]['status'], 'failed')
+        self.assertIn('cooldown', stats['jsearch_queries'][0]['reason'])
 
     def test_a_day_that_is_over_cannot_be_changed(self):
         # Sealing follows the calendar, not the run: a finished pass does not lock

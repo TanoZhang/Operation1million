@@ -254,7 +254,9 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         latest = dict(db.execute('SELECT * FROM jobs WHERE url=?', (url,)).fetchone())
         if old and any(old[k] != latest[k] for k in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at', 'raw', 'closed_at')):
             changed.append(url)
-    live = set(listed) if listed is not None else seen
+    # Identity resolution can retain an old canonical URL after a sitemap slug
+    # changes. Successfully read rows remain live under that canonical URL too.
+    live = set(listed) | seen if listed is not None else seen
     # Postings the board still lists but this pass skipped fetching are alive.
     for start in range(0, len(live - seen), 400):
         chunk = sorted(live - seen)[start:start + 400]

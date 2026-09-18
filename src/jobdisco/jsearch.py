@@ -16,7 +16,7 @@ except ImportError:
 
 from .paths import CONFIG
 from .collection_policy import retry_after_seconds
-from .jsearch_access import QuotaExhausted
+from .jsearch_access import AccountPaused, QuotaExhausted
 
 
 @dataclass(frozen=True)
@@ -244,6 +244,8 @@ class Client:
             if not isinstance(data, dict) or not isinstance(data.get('jobs'), list):
                 raise SearchFailure('Expected search-v2 data.jobs list')
             return data['jobs']
+        except AccountPaused as exc:
+            raise SearchFailure(str(exc), stop=True) from None
         except QuotaExhausted as exc:
             raise SearchFailure(str(exc), stop=True, budget=True) from None
         except (requests.RequestException, ValueError):
@@ -565,11 +567,11 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # skipped query costs everything after it. A page that came
                     # back short but not empty, and a first page with nothing on
                     # it at all, are both genuine ends.
-                    settled = looping or (exhausted and (bool(items) or asked == 1))
+                    settled = not looping and (exhausted and (bool(items) or asked == 1))
                     # An unsettled empty page is the one page that must not be
                     # stepped over: nothing was persisted from it, so the cursor
                     # stays where it is and the next day asks for it again.
-                    resume = entry['page'] if (items or settled) else asked
+                    resume = entry['page'] if not looping and (items or settled) else asked
                     client.guard.advance(entry['cursor'], resume, exhausted=settled)
                 if exhausted or looping:
                     if detail['status'] != 'failed':

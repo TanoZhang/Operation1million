@@ -1,10 +1,8 @@
 name: Daily collection
 
 # A scheduled run is queued, not guaranteed: GitHub names "the start of every
-# hour" as a high-load time and says to ask for a different minute. So the ask
-# is an odd minute, and it is early enough that the result is still ready by
-# seven even after a long wait -- a collection takes 25 to 40 minutes, and the
-# one scheduled run so far started four hours late.
+# hour" as a high-load time and says to ask for a different minute.
+# Use the authorized local time; GitHub handles daylight saving transitions.
 # Private repositories are not auto-disabled for inactivity.
 on:
   schedule:
@@ -61,13 +59,19 @@ jobs:
           path: data-repo
 
       - name: Restore operational safety state
+        id: restore_state
         run: |
           mkdir -p .local
           for name in source_access.sqlite jsearch_usage.sqlite; do
-            if [ -f "data-repo/operational/$name" ]; then
-              cp "data-repo/operational/$name" ".local/$name"
+            if [ ! -s "data-repo/operational/$name" ]; then
+              echo "::error::Required operational ledger is missing or empty: $name"
+              exit 1
             fi
+            cp "data-repo/operational/$name" ".local/$name"
           done
+          if [ -f .local/jsearch_usage.sqlite ]; then
+            cp .local/jsearch_usage.sqlite .local/jsearch_usage.before.sqlite
+          fi
 
       - uses: actions/setup-python@v5
         with:
@@ -149,7 +153,7 @@ jobs:
         continue-on-error: true
         # A dry run discards what it collected, so a sweep under one would
         # spend the cycle's remaining credits and throw the results away.
-        if: ${{ steps.sweep_window.outputs.run == 'true' && inputs.dry_run != true }}
+        if: ${{ steps.sweep_window.outputs.run == 'true' && inputs.dry_run != true && (github.event_name == 'schedule' || inputs.enable_jsearch) }}
         env:
           JOBDISCO_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
@@ -164,7 +168,7 @@ jobs:
             --jsearch-max-seconds 3000 "${budget[@]}"
 
       - name: Save operational safety state
-        if: ${{ always() && steps.data_checkout.outcome == 'success' }}
+        if: ${{ always() && steps.restore_state.outcome == 'success' }}
         run: |
           mkdir -p data-repo/operational
           for name in source_access.sqlite jsearch_usage.sqlite; do
@@ -180,6 +184,7 @@ jobs:
         if: ${{ always() && steps.data_checkout.outcome == 'success' && steps.rebuild.outcome == 'success' }}
         working-directory: data-repo
         run: |
+          publication_failed=0
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           # The data repository ignores SQLite generally because the job database
@@ -220,20 +225,24 @@ jobs:
           sys.exit(1 if bad else 0)
           "; then
               echo '::warning::Collected postings were not committed; the store did not verify.'
+              publication_failed=1
+              python -m jobdisco.workflow_state operational/jsearch_usage.sqlite ../.local/jsearch_usage.before.sqlite
+              if [ -f operational/jsearch_usage.sqlite ]; then
+                git add -f operational/jsearch_usage.sqlite
+              fi
             else
               git add runs manifests source_state.json
             fi
           fi
           if git diff --cached --quiet; then
             echo 'No durable state changed.'
-            exit 0
+            exit "$publication_failed"
           fi
           git commit -m "Checkpoint collection $(date -u +%Y-%m-%d)"
-          # A concurrent push is unlikely under the concurrency group, but rebasing
-          # is safe here: the day files are append-only and the manifests are
-          # per-day, so there is nothing to merge by hand.
-          git pull --rebase --autostash origin main
+          # A changed remote may contain reservations absent from this runner.
+          # Reject the push rather than merging independent quota histories.
           git push origin main
+          exit "$publication_failed"
 
       - name: Summarise
         if: ${{ always() && steps.data_checkout.outcome == 'success' }}

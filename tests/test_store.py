@@ -173,9 +173,12 @@ class StoreTests(unittest.TestCase):
         store.record_source(db, source, [before], 'complete', 'full', 1)
         after = posting('https://jobs.renesas.com/job/senior-rtl-engineer-in-osaka-japan-jid-6866',
                         'Senior RTL Engineer', 'Osaka', 'Rewritten text', '6866')
-        delta = store.record_source(db, source, [after], 'complete', 'full', 1)
+        delta = store.record_source(db, source, [after], 'complete', 'full', 1,
+                                    listed={after['url']})
 
         self.assertEqual((delta['new'], delta['closed']), (0, 0))
+        self.assertEqual(delta['status'], 'complete')
+        self.assertEqual(delta['closure_candidates'], 0)
         held = db.execute('SELECT url, title, location, raw FROM jobs').fetchall()
         self.assertEqual(len(held), 1)
         self.assertEqual(held[0]['title'], 'Senior RTL Engineer')

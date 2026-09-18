@@ -45,7 +45,7 @@ collection, endpoint investigation, or change to daily discovery behavior.
 - A complete inventory pass may retire at most 25% of the open jobs for its
   company/provider. A larger candidate closure must be blocked, downgraded to
   partial, and reported; never bypass this fuse when publishing private state.
-- The authorized hosted schedule runs once daily at 06:17
+- The authorized hosted schedule runs once daily at 04:38
   `America/Los_Angeles`. Scheduled runs execute the fixed JSearch plan; manual
   dispatches require an explicit paid-search toggle. Do not install a local
   startup task or create another schedule.
