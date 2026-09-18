@@ -435,6 +435,37 @@ class LogRoundTripTests(unittest.TestCase):
         with closing(store.connect(fresh)) as rebuilt:
             self.assertEqual(rebuilt.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 2)
 
+    def test_a_shard_replays_before_the_day_it_was_cut_from(self):
+        """A shard holds the earlier records, so it has to be replayed first.
+
+        The order comes from sorting the file names, where `2026-09-18-0001`
+        precedes `2026-09-18` only because `-` sorts below `.`. Replaying them
+        the other way round would resurrect what the rest of the day closed.
+        """
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        live = [row(f'https://x/{i}') for i in range(5)]
+        opened = store.record_source(db, SOURCE, live, 'complete', 'full', 1)
+        with patch.object(store, 'MAX_DAILY_LOG_BYTES', 1):
+            store.append_log(db, opened['new_urls'], [], opened['stamp'])
+            store.write_manifest(db, opened['stamp'], [])
+            # One posting drops off the board, so its closure lands in the day's
+            # file, after the shard holding the row that opened it was cut.
+            closed = store.record_source(db, SOURCE, live[:4], 'complete', 'full', 1)
+            store.append_log(db, [], closed['closed_urls'], closed['stamp'])
+            store.write_manifest(db, closed['stamp'], [])
+        db.commit()
+        self.assertEqual(closed['closed_urls'], ['https://x/4'])
+
+        fresh = Path(self.dir.name) / 'ordered.sqlite'
+        with closing(sqlite3.connect(fresh)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.migrate(fresh)
+        store.rebuild(fresh)
+        with closing(store.connect(fresh)) as rebuilt:
+            self.assertIsNotNone(rebuilt.execute(
+                'SELECT closed_at FROM jobs WHERE url=?', ('https://x/4',)).fetchone()[0])
+
     def test_verify_reports_a_log_without_a_manifest(self):
         path = self.log / 'runs' / '2026-09-18.ndjson.gz'
         path.parent.mkdir(parents=True)
