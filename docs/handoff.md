@@ -73,6 +73,34 @@ now checkpointed to the data repository so a hosted runner cannot reset them.
 Every path collected is permitted: the Eightfold sites explicitly
 `Allow: /api/pcsx`, and Micron whitelists `IndeedJobBot` beside it.
 
+## Known and unfixed
+
+Written down because each of these is invisible until it bites, and none of
+them is scheduled.
+
+**A hard kill between sharding and sealing leaves a log with no manifest.**
+`shard_daily_log` moves the day's file aside, writes the shard's manifest and
+deletes the day's; the active file that replaces it has no manifest until the
+run seals it on the way out. Every ordinary exit seals, including a failure,
+but a process killed outright -- a runner timeout, a cancelled job -- does not.
+`Commit durable state` runs on cancellation, so the unmanifested file can reach
+the data repository, and the next run's `--bootstrap --verify` refuses it. The
+repair is to reseal that day's manifest by hand, as on 2026-09-18.
+
+**The 38,849 postings logged before the score travelled with them cannot be
+given one.** Sealed days are not rewritten. A fresh rebuild ranks them as
+irrelevant until `job-store --rescore` runs, which costs 129 seconds.
+`job-store` prints the count so an empty ranking is not a mystery.
+
+**The daily schedule has never completed.** Every successful pass so far has
+been a manual dispatch. The only scheduled run, on 2026-09-17, failed on
+`Bad credentials` before the token was replaced.
+
+**A backfill sweep can spend its whole budget on tier A.** Fifteen tier A
+queries at 200 pages each is 3,000, and a sweep's share of the cycle is about
+3,127, so tiers B and C may never start. The cursor makes it worse across days:
+tier A resumes deeper while the rest stay at page one.
+
 ## Current limitations
 
 **Microsoft no longer makes the whole collection single-threaded.** Its source
