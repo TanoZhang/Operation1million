@@ -226,11 +226,23 @@ History already holds 168 MB against a 123 MB working tree, because appending
 to a gzip file writes a whole new object each time. Deleting old logs in a new
 commit does not shrink a clone; only rewriting history would, and that is
 destructive. At this rate GitHub's 5 GB guidance arrives in roughly eight
-months. The answer when it does is a state snapshot -- every open posting with
-its true `first_seen`, so a rebuild can start there instead of at the
-beginning -- after which old logs really can be dropped. The compact `score`
-event is the same shape and a working precedent. Not urgent, and better sized
-against a real growth curve than guessed at now.
+months.
+
+The owner has decided this is not worth a snapshot design: the point of the
+thing is to apply to what is open today, postings close within weeks anyway,
+and a posting lost from deep history is a posting that would have closed. So
+the intended answer is a rolling window -- keep the last N days of log, let a
+rebuild reach back only that far, and accept that `first_seen` for anything
+older would be wrong if the store ever had to be rebuilt from nothing. On a
+machine that keeps its disk this only matters after a total loss, because the
+live SQLite is the working state and the log is a backup rather than the daily
+mechanism.
+
+Two things do not fall under that. `operational/applications.ndjson` is a
+record of decisions, not of the world: nothing regenerates what has been
+applied for, and it must be kept whatever else is pruned. And the pruning has
+to be a fresh repository or a history rewrite to actually reclaim anything,
+which is a deliberate act, not a `git rm`.
 
 **The daily schedule has never completed.** Every successful pass so far has
 been a manual dispatch. The only scheduled run, on 2026-09-17, failed on
