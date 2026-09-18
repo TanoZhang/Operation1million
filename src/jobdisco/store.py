@@ -600,12 +600,16 @@ def rebuild(path=DB):
                      r.get('location') or '', r.get('source_job_id'), r.get('posted_at'),
                      r.get('posted_relative'), r.get('lastmod'), r['first_seen'],
                      r.get('last_seen', r['first_seen']), r.get('closed_at'), json.dumps(r.get('raw'), ensure_ascii=True)))
-                identities = r.get('identities', [])
-                if not identities and r.get('source_job_id'):
+                identities = r.get('identities')
+                # Logs written before identity tracking have no identities key,
+                # so infer their primary identity for backward compatibility.
+                # A present but empty list is authoritative: the URL is a stale
+                # duplicate and must not take an identity from a newer URL.
+                if identities is None and r.get('source_job_id'):
                     identities = [{'provider_key': r['provider_key'],
                                    'scope': '' if r['provider_key'] == 'jsearch' else r['company_key'],
                                    'source_job_id': str(r['source_job_id'])}]
-                for identity in identities:
+                for identity in identities or []:
                     db.execute('INSERT OR REPLACE INTO job_identities VALUES (?, ?, ?, ?)',
                                (identity['provider_key'], identity['scope'], identity['source_job_id'], r['url']))
                 counts['jobs'] += 1
@@ -756,4 +760,3 @@ def ranked(path=DB, limit=40, since=None, minimum=None):
             ' FROM jobs j LEFT JOIN companies c USING(company_key)'
             ' WHERE ' + ' AND '.join(clauses) +
             ' ORDER BY confidence DESC, j.posted_at DESC, j.first_seen DESC LIMIT ?', params)]
-

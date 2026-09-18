@@ -225,6 +225,36 @@ class LogRoundTripTests(unittest.TestCase):
         self.assertEqual(store.slim({'someNewProviderField': 'v'}),
                          {'someNewProviderField': 'v'})
 
+    def test_explicit_empty_identities_do_not_replace_the_canonical_url(self):
+        import gzip
+        base = {
+            'type': 'job', 'company_key': 'matx', 'provider_key': 'ashby',
+            'title': 'Engineer', 'location': 'Mountain View',
+            'source_job_id': 'same-id', 'posted_at': None,
+            'posted_relative': None, 'lastmod': None,
+            'first_seen': '2026-09-17T00:00:00+00:00',
+            'last_seen': '2026-09-18T00:00:00+00:00',
+            'closed_at': None, 'raw': {'id': 'same-id'},
+        }
+        canonical = dict(base, url='https://x/current', identities=[{
+            'provider_key': 'ashby', 'scope': 'matx',
+            'source_job_id': 'same-id',
+        }])
+        stale = dict(base, url='https://x/stale', identities=[])
+        path = self.log / 'runs' / '2026-09-18.ndjson.gz'
+        path.parent.mkdir(parents=True)
+        with gzip.open(path, 'wt', encoding='utf-8') as handle:
+            handle.write(json.dumps(canonical) + '\n')
+            handle.write(json.dumps(stale) + '\n')
+
+        store.rebuild(self.db_path)
+
+        with closing(store.connect(self.db_path)) as db:
+            mapped = db.execute(
+                'SELECT url FROM job_identities WHERE provider_key=? AND scope=? AND source_job_id=?',
+                ('ashby', 'matx', 'same-id')).fetchone()
+        self.assertEqual(mapped['url'], 'https://x/current')
+
 
 class EarlyStopTests(unittest.TestCase):
     def collector(self, source, strategy, watermark):
