@@ -188,9 +188,11 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           # The data repository ignores SQLite generally because the job database
-          # is derived. These two small databases are different: they are the
-          # authoritative quota and cooldown ledgers and must survive a runner.
-          for name in operational/source_access.sqlite operational/jsearch_usage.sqlite; do
+          # is derived. These are different: the quota and cooldown ledgers are
+          # authoritative and must survive a runner, and the applications log is
+          # the record of what has been applied for -- the one thing here that
+          # cannot be collected again if it is lost.
+          for name in operational/source_access.sqlite operational/jsearch_usage.sqlite operational/applications.ndjson; do
             if [ -f "$name" ]; then
               git add -f "$name"
             fi
