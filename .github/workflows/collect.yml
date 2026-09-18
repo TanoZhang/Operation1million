@@ -106,7 +106,8 @@ jobs:
           args=(
             --workers "${{ inputs.workers || '3' }}"
             --delay 1.0
-            --jsearch-max-seconds 1500
+            --jsearch-max-seconds 2100
+            --jsearch-timeout 30
           )
           if [ "$ENABLE_JSEARCH" = 'true' ]; then
             job-collect --jsearch-only --jsearch-plan

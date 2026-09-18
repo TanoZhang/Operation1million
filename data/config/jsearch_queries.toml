@@ -25,16 +25,21 @@ employment_types = ["FULLTIME", "INTERN"]
 # ask for six hundred against a budget of three hundred and twenty, so a single
 # depth for everyone meant B, C and the internships were never reached at all.
 #
-# Sized so the whole plan fits even if every page comes back full:
-#   A 15*10=150 + intern 11*6=66 + B 13*4=52 + C 13*3=39  =  307 of 320
+# Sized against the time a page costs rather than the credit. The first full
+# pass measured 11.7 seconds a page, so the 25-minute runtime limit bought 128
+# pages of the 307 the credits allowed -- tier A took all of them and B, C and
+# the internships were reached with nothing left, which is the starvation the
+# tier depths exist to prevent, arriving by the other door.
 #
-# Measured against real supply these are generous: across 52 live queries at a
-# week-wide window, not one filled even eighteen pages.
+#   A 15*4=60 + intern 11*3=33 + B 13*2=26 + C 13*2=26  =  145 pages
+#   145 * 11.7s = 28 minutes, against a limit of 35
+#
+# The credit budget is untouched at 320: money was never what bound this.
 [tier_pages]
-A = 10
-intern = 6
-B = 4
-C = 3
+A = 4
+intern = 3
+B = 2
+C = 2
 
 # The same shape, against a sweep's share of the cycle rather than a day:
 #   A 15*100=1500 + intern 11*60=660 + B 13*40=520 + C 13*30=390  =  3,070
