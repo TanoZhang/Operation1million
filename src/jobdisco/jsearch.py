@@ -111,10 +111,14 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     defaults = {'min_confidence': 25, 'certain_strong_hits': 6, 'half_score': 15,
                 'strong_weight': 3, 'common_weight': 1, 'title_multiplier': 2,
                 'min_description_chars': 1500}
+    # Zero is meaningful for one of them: it turns the short-circuit off and
+    # leaves the curve to separate postings a fixed cut would have tied.
+    floors = dict.fromkeys(defaults, 1)
+    floors['certain_strong_hits'] = 0
     for name, default in defaults.items():
         rules.setdefault(name, default)
-        if type(rules[name]) is not int or rules[name] < 1:
-            raise ValueError(f'Filter setting {name} must be a positive integer')
+        if type(rules[name]) is not int or rules[name] < floors[name]:
+            raise ValueError(f'Filter setting {name} must be an integer of at least {floors[name]}')
     if not 1 <= rules['min_confidence'] <= 100:
         raise ValueError('Filter min_confidence must fall between 1 and 100')
     return config, queries
@@ -327,7 +331,12 @@ def relevance(row, rules):
             score += weight * (multiplier if in_title else 1)
             strong_hits += is_strong
             matched.append(hit.group(0).lower())
-    if strong_hits >= rules.get('certain_strong_hits', 6):
+    # A short-circuit at a fixed number of strong terms stops the count exactly
+    # where it starts being informative: everything from six distinct terms to
+    # thirty-four read 100 alike, 798 postings deep, with nothing at all between
+    # 70 and 99. Set `certain_strong_hits` to 0 to let the curve keep running.
+    certain = rules.get('certain_strong_hits', 6)
+    if certain and strong_hits >= certain:
         return 100, matched
     half = rules.get('half_score', 15)
     return (round(100 * score / (score + half)) if score else 0), matched

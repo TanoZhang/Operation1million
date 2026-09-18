@@ -902,10 +902,31 @@ class RelevanceScoringTests(unittest.TestCase):
         self.assertLess(self.jsearch.relevance(one, self.rules)[0],
                         self.jsearch.relevance(several, self.rules)[0])
 
-    def test_enough_strong_terms_is_certain(self):
+    def test_more_distinct_terms_scores_higher_without_a_ceiling(self):
+        """The count has to keep meaning something past the first few terms.
+
+        A short-circuit at a fixed number of strong terms stopped it exactly
+        where it started being informative: 798 live postings all read 100, the
+        terms behind them ranging from six distinct to thirty-four, and nothing
+        scored between 70 and 99. With it off, a posting that uses more of the
+        vocabulary outranks one that uses less.
+        """
+        self.assertEqual(self.rules['certain_strong_hits'], 0)
+        few = self.posting('Engineer', job_description='RTL, UVM, SystemVerilog.')
+        many = self.posting('Engineer', job_description=(
+            'RTL, UVM, SystemVerilog, AXI, testbench, tape-out, PrimeTime, '
+            'SerDes, floorplan, synthesis, scan chain, coverage closure.'))
+        lean = self.jsearch.relevance(few, self.rules)[0]
+        rich = self.jsearch.relevance(many, self.rules)[0]
+        self.assertGreater(rich, lean)
+        self.assertLess(rich, 100)
+
+    def test_the_short_circuit_still_works_when_it_is_asked_for(self):
+        """Turning it off is a setting, not the removal of the mechanism."""
+        rules = dict(self.rules, certain_strong_hits=6)
         loaded = self.posting('Engineer', job_description=(
             'RTL, UVM, SystemVerilog, AXI, testbench, tape-out, PrimeTime.'))
-        self.assertEqual(self.jsearch.relevance(loaded, self.rules)[0], 100)
+        self.assertEqual(self.jsearch.relevance(loaded, rules)[0], 100)
 
     def test_a_title_term_outweighs_the_same_term_in_the_body(self):
         in_title = self.posting('RTL Engineer', job_description='General duties.')

@@ -59,7 +59,11 @@ C = 30
 # expressions matched case-insensitively against the title and the description.
 # Bound a term with \b at both ends so it does not match inside a longer word.
 min_confidence = 25
-certain_strong_hits = 6
+# 0 leaves the curve running instead of flattening every posting that reaches
+# a fixed number of strong terms onto 100. Measured: 798 postings read 100,
+# the terms behind them ranging from 6 distinct to 34, and nothing at all
+# scored between 70 and 99.
+certain_strong_hits = 0
 half_score = 15
 strong_weight = 3
 common_weight = 1
@@ -153,6 +157,14 @@ reject_title_patterns = [
   '\btechnician\b', '\bfield\s+application\b', '\bclinical\b',
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
   '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
+
+  # Software roles at hardware companies. Checked after the keep list, so a
+  # title that also names the trade survives: post-silicon validation,
+  # low-power verification and FPGA-accelerated RTL simulation stay, while
+  # kernel drivers, benchmarking and ML performance do not.
+  '\bsoftware\s+(?:engineer|developer|development)\b',
+  '\bweb\s+developer\b', '\bfront.?end\b', '\bback.?end\b', '\bfull.?stack\b',
+  '\bdata\s+(?:engineer|scientist)\b', '\bdevops\b', '\bsite\s+reliability\b',
 ]
 
 [[query]]
