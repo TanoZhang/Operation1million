@@ -42,8 +42,10 @@ if [ ! -f "$ENV_FILE" ]; then
 # credential set the pass needs. Nothing here belongs in either repository.
 #
 # JSEARCH_API_KEY   RapidAPI key for the fixed JSearch plan.
-# GITHUB_TOKEN      Fine-grained PAT: Contents read on the code repository,
-#                   Contents read+write on the data repository.
+# GITHUB_TOKEN      Fine-grained PAT selecting both repositories, Contents:
+#                   read and write. One permission set covers every repository
+#                   a fine-grained token selects, so this carries write on the
+#                   code repository too; the pass only ever reads that one.
 # HEALTHCHECK_URL   Healthchecks.io ping URL for the production check. Leaving
 #                   this blank silences the heartbeat, which is what a
 #                   diagnostic machine should do -- but on the production box a

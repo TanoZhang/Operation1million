@@ -39,8 +39,14 @@ again:
 | Variable | What it is |
 | --- | --- |
 | `JSEARCH_API_KEY` | RapidAPI key for the fixed JSearch plan |
-| `GITHUB_TOKEN` | Fine-grained PAT: Contents read on the code repository, Contents read **and write** on the data repository |
+| `GITHUB_TOKEN` | Fine-grained PAT scoped to both repositories, Contents: read and write |
 | `HEALTHCHECK_URL` | Healthchecks.io ping URL for the production check |
+
+A fine-grained PAT applies one permission set to every repository it selects,
+so the token carries write on the code repository as well even though the pass
+only ever reads it and only ever pushes to the data repository. Splitting that
+would take two tokens and a per-repository helper, which is more moving parts
+than the difference buys on a machine that already holds the JSearch key.
 
 The token is handed to git by a credential helper that reads it from the
 environment at run time, so it is never written into `.git/config` and never
