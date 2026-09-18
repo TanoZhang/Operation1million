@@ -1,13 +1,12 @@
 name: Daily collection
 
-# A scheduled run is queued, not guaranteed: GitHub names "the start of every
-# hour" as a high-load time and says to ask for a different minute.
-# Use the authorized local time; GitHub handles daylight saving transitions.
-# Private repositories are not auto-disabled for inactivity.
+# The daily pass runs on the VPS; see docs/vps-deployment.md. This workflow no
+# longer fires on its own, because two schedules at 04:38 Pacific would spend
+# the same credit budget twice and race each other's push. It is kept, and costs
+# nothing kept, as the clean-room way to run a pass while the VPS is being
+# changed or is suspect -- a runner starts from the committed log and needs
+# nothing this machine holds.
 on:
-  schedule:
-    - cron: '38 4 * * *'
-      timezone: America/Los_Angeles
   workflow_dispatch:
     inputs:
       workers:

@@ -479,17 +479,25 @@ class DiscoveryTests(unittest.TestCase):
         different halves of the year. 04:38 is eleven hours from one in both
         offsets, and a pass runs at most ninety minutes.
         """
-        # Read the two values out of the file rather than parsing the whole
-        # workflow: a test that needs a YAML library needs it installed on the
-        # runner, and the runner installs what the package declares.
-        text = (Path(__file__).resolve().parents[1] / '.github/workflows/collect.yml'
-                ).read_text(encoding='utf-8')
-        crons = re.findall(r"^\s*- cron: '([^']+)'", text, re.M)
-        zones = re.findall(r'^\s*timezone: (\S+)', text, re.M)
-        self.assertEqual(len(crons), 1, 'exactly one pass a day')
-        self.assertEqual(zones, ['America/Los_Angeles'])
-        minute, hour = (int(f) for f in crons[0].split()[:2])
+        # The schedule moved from the Actions cron to the systemd timer when the
+        # pass moved to the VPS; the invariant moved with it. Read the value out
+        # of the unit rather than parsing it properly: a test that needs a
+        # parsing library needs it installed on the runner, and the runner
+        # installs what the package declares.
+        root = Path(__file__).resolve().parents[1]
+        unit = (root / 'deploy/vps/jobdisco-collect.timer').read_text(encoding='utf-8')
+        schedules = re.findall(r'^OnCalendar=(.+)$', unit, re.M)
+        self.assertEqual(len(schedules), 1, 'exactly one pass a day')
+        stamp, zone = schedules[0].rsplit(' ', 1)
+        self.assertEqual(zone, 'America/Los_Angeles')
+        hour, minute = (int(f) for f in stamp.split()[-1].split(':')[:2])
         local = hour * 60 + minute
+
+        # Two schedules would spend the same credit budget twice and race each
+        # other's push, so the workflow must no longer fire on its own.
+        workflow = (root / '.github/workflows/collect.yml').read_text(encoding='utf-8')
+        self.assertEqual(re.findall(r"^\s*- cron: '([^']+)'", workflow, re.M), [],
+                         'the workflow must not schedule a second daily pass')
         # Pacific is seven hours behind UTC in daylight time and eight in
         # standard time; the pass must clear midnight either way.
         for offset in (7, 8):

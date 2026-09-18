@@ -1,0 +1,32 @@
+[Unit]
+Description=Operation1million daily collection pass
+Documentation=file:/opt/jobdisco/code/docs/vps-deployment.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jobdisco
+Group=jobdisco
+Environment=HOME=/opt/jobdisco
+EnvironmentFile=/etc/jobdisco/env
+ExecStart=/opt/jobdisco/bin/daily-pass.sh
+# A full-depth pass is about 110 minutes; a sweep day is longer. This is a
+# backstop against a hung socket, not a budget the pass is expected to fit.
+TimeoutStartSec=10800
+Nice=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jobdisco
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

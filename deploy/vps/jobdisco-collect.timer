@@ -1,0 +1,15 @@
+[Unit]
+Description=Daily collection pass at 04:38 America/Los_Angeles
+
+[Timer]
+# systemd resolves the zone itself, including daylight saving. 04:38 Pacific is
+# eleven hours from a UTC date change in both offsets, so the transition cannot
+# move a pass onto another cycle day or across the log's daily seal.
+OnCalendar=*-*-* 04:38:00 America/Los_Angeles
+# A machine that was off at 04:38 runs the pass when it comes back, rather than
+# silently skipping a day.
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
