@@ -24,9 +24,16 @@ if [ -r "$ENV_FILE" ]; then
   . "$ENV_FILE"
   set +a
 fi
+PREFLIGHT=0
 for argument in "$@"; do
   case "$argument" in
     --no-heartbeat) unset HEALTHCHECK_URL ;;
+    # Everything the pass depends on, checked in the order the pass depends on
+    # it, and then stop before spending a credit or writing a row. This exists
+    # because the rest of this file runs unattended at 04:38 against the
+    # authoritative data, and the cheapest moment to find a broken token, a
+    # missing ledger or a full disk is any moment other than that one.
+    --preflight) PREFLIGHT=1; unset HEALTHCHECK_URL ;;
     *) echo "unknown argument: $argument" >&2; exit 64 ;;
   esac
 done
@@ -133,6 +140,17 @@ if [ ! -f "$CODE/data/db/job_discovery.sqlite" ] || [ ! -f "$READY" ] || [ "$(ca
   job-store --bootstrap --verify
 else
   job-store --verify
+fi
+
+if [ "$PREFLIGHT" -eq 1 ]; then
+  # The lock, the secrets, the disk, the pull, the ledgers and their ordering,
+  # the suite and the index have all been exercised by the time we reach here.
+  # What is left is the credential that only reveals itself at the very end of
+  # a pass, ninety minutes after anyone stopped watching.
+  echo '== Preflight: can the data repository be pushed to? =='
+  git -C "$DATA" push --dry-run origin main
+  echo '== Preflight OK: nothing was collected, charged or written. =='
+  exit 0
 fi
 
 job-collect --jsearch-only --jsearch-plan
