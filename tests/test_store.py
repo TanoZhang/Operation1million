@@ -255,6 +255,23 @@ class LogRoundTripTests(unittest.TestCase):
                 ('ashby', 'matx', 'same-id')).fetchone()
         self.assertEqual(mapped['url'], 'https://x/current')
 
+    def test_bootstrap_atomically_replaces_an_existing_derived_database(self):
+        db = self.open_existing_db()
+        db.execute("ALTER TABLE jobs ADD COLUMN impossible_stale_column TEXT")
+        db.commit()
+        db.close()
+
+        counts = store.bootstrap(self.db_path)
+
+        self.assertEqual(counts, {'jobs': 0, 'events': 0, 'sources': 0})
+        with closing(store.connect(self.db_path)) as rebuilt:
+            columns = {r['name'] for r in rebuilt.execute('PRAGMA table_info(jobs)')}
+        self.assertIn('relevance', columns)
+        self.assertNotIn('impossible_stale_column', columns)
+
+    def open_existing_db(self):
+        return store.connect(self.db_path)
+
 
 class EarlyStopTests(unittest.TestCase):
     def collector(self, source, strategy, watermark):

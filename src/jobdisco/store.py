@@ -537,15 +537,25 @@ def bootstrap(path=DB):
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(path)
-    con.isolation_level = None
+    temporary = path.with_name(f'.{path.name}.bootstrap.tmp')
+    temporary.unlink(missing_ok=True)
+    con = sqlite3.connect(temporary)
     try:
+        con.isolation_level = None
         con.executescript((CONFIG / 'schema.sql').read_text(encoding='utf-8'))
         for migration in sorted((CONFIG / 'migrations').glob('*.sql')):
             con.executescript(migration.read_text(encoding='utf-8'))
     finally:
         con.close()
-    return rebuild(path)
+    try:
+        counts = rebuild(temporary)
+        for suffix in ('-wal', '-shm'):
+            Path(str(path) + suffix).unlink(missing_ok=True)
+        temporary.replace(path)
+        return counts
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def rebuild(path=DB):
