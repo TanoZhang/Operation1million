@@ -23,6 +23,59 @@ JOBDISCO_STORE=<data repo> job-store --bootstrap
 The rebuild uses `schema.sql`, migrations and the append-only log. It has been
 verified from a fresh checkout, including scores, identities and closures.
 
+## Next: move the daily pass to a VPS
+
+An OVH VPS-1 has been bought for this — 2 vCPU, 4 GB, about $4.50 a month.
+Nothing has been deployed to it yet. This is the next piece of work, and it is
+worth doing before anything else because three of the constraints the code
+currently works around stop existing on a machine that keeps its disk.
+
+**Why, in measured terms.** A rebuild from the committed log allocates 639 MB
+at its peak and takes 21.5 seconds, and it happens on every hosted run because
+an Actions runner starts with an empty disk. The collector only bootstraps when
+the database is absent (`collector.py`, `if not args.db.exists()`), so on a
+machine that persists, that cost is paid once and never again. The 2,000 free
+Actions minutes a month stop being an accounting problem — a full-depth pass is
+about 110 minutes a day, which is 3,300 a month and would cost roughly $7.80 in
+overage. The 120-minute job timeout stops bounding how deep a search may go.
+
+**What the VPS needs to hold.** Only the working set: the derived SQLite at
+about 198 MB, the last few days of logs, and a checkout of the data repository.
+Older logs can be pruned locally because GitHub holds the authoritative copy,
+so the VPS stays under a gigabyte rather than following the ~20 MB a day the
+history grows by.
+
+**What to build.** A systemd service and timer at 04:38 local, an
+`EnvironmentFile` with mode 600 for `JSEARCH_API_KEY` and the data repository
+token, a one-shot install script, and `docs/vps-deployment.md` covering install,
+update and triage. Four things need deciding as part of it rather than after:
+
+- *Nothing will tell you it died.* Actions emails on a failed run; a systemd
+  timer that stops, a disk that fills or a process the kernel kills are all
+  silent. A `OnFailure=` unit, or a heartbeat the run writes and something
+  checks, is not optional here.
+- *Secrets become files.* They are encrypted secrets on Actions and plain text
+  on a box. Mode 600, outside the repository, never in shell history.
+- *Disk.* Under a gigabyte if old logs are pruned; several gigabytes a year if
+  they are not. Decide the prune and put it in the timer, because a full disk
+  fails exactly where the store is least able to survive it.
+- *A fixed IP against 35 boards.* Actions runners rotate through Azure ranges;
+  a VPS does not. Collection is polite -- per-source intervals, `Crawl-delay`
+  honoured, cooldowns persisted -- and a predictable polite caller is usually
+  treated better than an unpredictable one, but this is the one thing that
+  could behave differently and it is worth watching for a fortnight.
+
+**Keep the workflow.** Drop its `schedule` and leave `workflow_dispatch`, so
+there is a clean-room way to run a pass when the VPS is being changed or is
+suspect. It costs nothing once it no longer fires on its own.
+
+**Do not follow the cloud product tree.** Container Apps, Lambda, scheduled VM
+start/stop and burstable CPU credits were all considered and are all more
+moving parts than this workload has problems. Azure's student tier was the
+closest call and fails on one number: B1s, B2pts v2 and B2ats v2 all have 1 GiB
+of memory against a 639 MB peak that grows with the log, and the failure mode
+is an OOM kill partway through a pass.
+
 ## Production audit, 2026-09-18
 
 Everything below was measured against the live store or exercised as a test,
@@ -65,16 +118,26 @@ below was measured, not assumed.
 | Scoring 25 or above | 4,845 |
 | Postings with no identity row | 899, all Renesas, which publishes no id |
 | Identities claimed by two open URLs | 0 |
-| Daily plan worst case | 307 page credits of 320, all four tiers reached |
-| Sweep plan worst case | 3,070 of a share near 3,127, all four tiers |
+| Daily plan cap | 456 pages, deliberately above the 320-credit ceiling |
+| First full pass | 128 pages bought, 1,165 postings, 9 of 15 tier A queries still capped |
+| A page costs | 11.7 seconds, which is what bounds a pass, not the credits |
 | Request rate | 4 a second against the plan's limit of 5 |
 | Monthly guard | stops at 9,600 of the 10,000 the plan includes |
-| Actions minutes | 226 of 2,000, a daily pass costs 14 to 27 |
+| Actions minutes | 269 of 2,000 spent, nearly all of it on debugging |
 
-**Nothing has yet run the shape the schedule runs.** Every hosted pass so far
-had paid search off, or on with a forced five-credit sweep. The pass at 04:38
-is the first with the full plan beside the direct boards. It is covered end to
-end offline, which is not the same as having happened.
+**The full shape has now run once**, on 2026-09-18: 725 new postings, 243
+closed, 30,767 seen, 1,165 of them from paid search, exit 0 and committed. It
+found the thing the offline tests could not: a page takes 11.7 seconds, so the
+runtime limit bought 128 pages of the 307 the credits allowed, tier A took all
+of them, and tiers B and C were reached with nothing left. The depths and the
+limit were resized afterwards and **that configuration has not run yet**.
+
+The first scheduled pass, earlier the same day, failed before collecting
+anything: a test imported PyYAML, which is installed on the machine it was
+written on and declared nowhere, so the runner could not load the suite. Tests
+run before collection so a broken build cannot reach the boards, and that is
+what happened, to a build broken by a test. Every import under `src` and
+`tests` is now checked against the declared dependencies.
 
 ## Current numbers
 
@@ -157,6 +220,17 @@ sweep, and the one scheduled run so far started four hours and twenty-two
 minutes late, so the window is narrow but not closed. Either the day's stamp
 should roll forward when it is overtaken, or a day should seal only once no run
 still holds it.
+
+**The data repository grows about 20 MB a day and git does not forget.**
+History already holds 168 MB against a 123 MB working tree, because appending
+to a gzip file writes a whole new object each time. Deleting old logs in a new
+commit does not shrink a clone; only rewriting history would, and that is
+destructive. At this rate GitHub's 5 GB guidance arrives in roughly eight
+months. The answer when it does is a state snapshot -- every open posting with
+its true `first_seen`, so a rebuild can start there instead of at the
+beginning -- after which old logs really can be dropped. The compact `score`
+event is the same shape and a working precedent. Not urgent, and better sized
+against a real growth curve than guessed at now.
 
 **The daily schedule has never completed.** Every successful pass so far has
 been a manual dispatch. The only scheduled run, on 2026-09-17, failed on
