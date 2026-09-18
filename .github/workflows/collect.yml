@@ -20,6 +20,14 @@ on:
         description: Collect without committing the result
         type: boolean
         default: false
+      force_backfill:
+        description: Run the sweep outside the cycle's final days, to test it
+        type: boolean
+        default: false
+      backfill_budget:
+        description: Cap the sweep's page credits; 0 uses its computed share
+        default: '0'
+        type: string
 
 permissions:
   contents: read
@@ -123,8 +131,9 @@ jobs:
                                cycle_start=settings['cycle_start'],
                                cycle_days=settings['cycle_days'])
           days = guard.days_until_reset()
+          forced = "${{ inputs.force_backfill }}" == 'true'
           print(f'days_until_reset={days}')
-          print(f'run={"true" if days <= 3 else "false"}')
+          print(f'run={"true" if days <= 3 or forced else "false"}')
           PY
 
       # Unused credits do not carry into the next cycle, so the last three days
@@ -139,7 +148,12 @@ jobs:
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
         run: |
           echo "::notice title=Backfill::${{ steps.sweep_window.outputs.days_until_reset }} days until the cycle resets"
-          job-collect --jsearch-only --backfill --workers 1 --delay 1.0
+          # A bare test under `bash -e` would end the step when it is false.
+          budget=()
+          if [ "${{ inputs.backfill_budget || '0' }}" != '0' ]; then
+            budget=(--jsearch-budget "${{ inputs.backfill_budget }}")
+          fi
+          job-collect --jsearch-only --backfill --workers 1 --delay 1.0 "${budget[@]}"
 
       - name: Save operational safety state
         if: ${{ always() && steps.data_checkout.outcome == 'success' }}

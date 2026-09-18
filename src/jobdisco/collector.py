@@ -683,6 +683,10 @@ def main():
         left = request_guard.balance()['period_remaining']
         days = max(1, request_guard.days_until_reset())
         run_budget = left if days <= 1 else left // days
+        # An explicit budget only ever lowers the sweep's own share, so a test
+        # run can exercise the path without spending the cycle's remainder.
+        if args.jsearch_budget > 0:
+            run_budget = min(run_budget, args.jsearch_budget)
         print(f'backfill: {left} credits left in the cycle, {days} days to reset, '
               f'spending up to {run_budget}', flush=True)
     args.jsearch_guard = request_guard

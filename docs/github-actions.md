@@ -91,3 +91,19 @@ means partial or paused sources; unexpected nonzero exits still fail the job.
 A dry run emits an explicit notice with new, closed, and seen counts, restores
 tracked durable files, and removes untracked daily files before the runner exits.
 Only the safety ledgers and the retention-limited triage report survive it.
+
+## Actions minutes
+
+The free allowance is 2,000 minutes a month, and a private repository's jobs are
+billed rounded up to the minute. The billing API needs the `user` token scope,
+which this checkout does not carry, so the figure below is summed from run
+durations instead:
+
+```bash
+gh api "repos/TanoZhang/Operation1million/actions/runs?per_page=100"   --jq '.workflow_runs[] | [.id, .created_at, .updated_at, .conclusion] | @tsv'
+```
+
+As of 2026-09-18: **88 minutes billed, 1,912 remaining.** Six runs, of which the
+46-minute one predates the Microsoft lock. A daily pass now costs 14 to 24
+minutes, so thirty of them is roughly 600, and three backfill days add to that.
+No alerting is wired for this yet; the number is recorded, not watched.
