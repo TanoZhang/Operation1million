@@ -11,10 +11,18 @@ on:
       workers:
         description: Concurrent sources
         default: '3'
+        type: string
+      enable_jsearch:
+        description: Run the paid fixed JSearch plan
+        type: boolean
+        default: false
       dry_run:
         description: Collect without committing the result
         type: boolean
         default: false
+
+permissions:
+  contents: read
 
 concurrency:
   # Two passes at once would both read the same watermarks and race the push.
@@ -24,7 +32,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - name: Check out the collector
         uses: actions/checkout@v4
@@ -56,6 +64,9 @@ jobs:
 
       - run: pip install -e .
 
+      - name: Run offline regression tests
+        run: python -m unittest discover -s tests -v
+
       - name: Rebuild the database from the committed log
         id: rebuild
         env:
@@ -70,13 +81,23 @@ jobs:
         env:
           JOBDISCO_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
+          # Scheduled runs perform paid discovery. Manual runs are free unless
+          # enable_jsearch is explicitly selected in workflow_dispatch.
+          ENABLE_JSEARCH: ${{ github.event_name == 'schedule' || inputs.enable_jsearch }}
         # Sources are committed to the store one at a time, so a timeout or a
         # cancelled run still keeps every board it finished.
         run: |
-          job-collect \
-            --workers "${{ inputs.workers || '3' }}" \
-            --delay 1.0 \
-            --jsearch-budget 0
+          args=(
+            --workers "${{ inputs.workers || '3' }}"
+            --delay 1.0
+          )
+          if [ "$ENABLE_JSEARCH" = 'true' ]; then
+            job-collect --jsearch-only --jsearch-plan
+            args+=(--jsearch)
+          else
+            args+=(--jsearch-budget 0)
+          fi
+          job-collect "${args[@]}"
 
       - name: Save operational safety state
         if: ${{ always() && steps.data_checkout.outcome == 'success' }}

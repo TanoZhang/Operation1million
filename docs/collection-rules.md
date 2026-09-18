@@ -110,8 +110,10 @@ endpoint without evidence of its order/date behavior. A posting absent from a
 `date_posted=today` search may simply be old or indexed late; search absence is
 not evidence of closure. Broader reconciliation is not automatically scheduled.
 
-No schedule or startup item is installed. Hosted execution must restore the
-private event history and operational ledgers before collection.
+The authorized private GitHub Actions schedule runs daily at 06:17
+`America/Los_Angeles`. It restores private event history and both operational
+ledgers before collection. Manual workflow dispatches keep JSearch off unless
+the paid-search input is explicitly enabled. No local startup item is installed.
 
 ## Maintenance and verification
 

@@ -16,7 +16,7 @@ values locally; never commit credentials.
 
 Read [Collection Rules](docs/collection-rules.md) for request intervals,
 cooldowns, direct source decisions, and the daily incremental behavior. Read
-[GitHub Actions](docs/github-actions.md) before enabling hosted runs.
+[GitHub Actions](docs/github-actions.md) before changing hosted runs.
 
 ```powershell
 .\.venv\Scripts\python.exe -m jobdisco.collector
@@ -82,6 +82,6 @@ Preview the 52-query, 310-page plan with `python -m jobdisco.collector
 --jsearch-plan`. Run `python -m jobdisco.collector --jsearch` to collect direct
 boards first, functional searches second, and configured company fallbacks last.
 The ceiling is 316 page credits/day and the monthly target is 9,500. Paid search
-is off without explicit flags. Finalized daily logs cannot be appended again.
-
-No live API test or hosted schedule is implied by these commands being documented.
+is off in local and manual commands without explicit flags. The private GitHub
+Actions workflow runs daily at 06:17 America/Los_Angeles and enables the fixed
+plan for scheduled runs. Finalized daily logs cannot be appended again.

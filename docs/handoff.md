@@ -74,9 +74,10 @@ non-dry hosted run.
 
 **Microsoft no longer makes the whole collection single-threaded.** Its source
 has a dedicated lock and keeps its 3-second request interval, while the other
-companies continue through the configured worker pool. This addresses the main
-cost observed in the 46-minute hosted dry run; the next dry run should measure
-the actual reduction.
+companies continue through the configured worker pool. A hosted dry run reduced
+the collection step from 45 minutes 48 seconds to 13 minutes 3 seconds. Microsoft
+received an immediate 429 in the faster run and stopped under the cooldown rule,
+so a future normal pass still needs to confirm full Microsoft pagination.
 
 **The JSearch plan leaves no headroom.** 310 pages against a 316-page daily
 budget, and the daily budget is a fixed slice of the month. Any manual testing
@@ -113,7 +114,10 @@ Committed, scheduled daily at 06:17 America/Los_Angeles, and it has run.
 A secret's value cannot be read back — `gh secret` has no `get` — so the only
 proof a token works is a run that gets past checkout.
 
-Paid search is disabled in the workflow (`--jsearch-budget 0`). A dry run
+Scheduled runs enable the fixed paid JSearch plan. Manual dispatches default to
+no paid calls and expose an explicit `enable_jsearch` toggle. A bounded live test
+used one credit for `Design Verification Engineer` over one week and returned 10
+raw jobs: 9 accepted, 1 rejected, and no malformed records or failures. A dry run
 checkpoints the operational ledgers but not collected postings.
 
 ## Lessons worth not relearning

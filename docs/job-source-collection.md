@@ -6,7 +6,8 @@ stop conditions, and the proposed daily incremental design.
 
 ## Run on Windows
 
-Use Python 3.10 or newer. No startup task, scheduled task, or service is installed.
+Use Python 3.10 or newer. No local startup task, scheduled task, or service is
+installed. The private repository has one authorized daily GitHub Actions run.
 
 ```powershell
 python -m venv .venv
@@ -107,8 +108,9 @@ Each invocation replaces the files in its output directory; use a different
 
 See [JSearch daily discovery](jsearch.md) for the executable 52-query functional
 plan, 310-page allocation, 316-credit daily ceiling and 9,500-credit monthly
-target. JSearch remains opt-in. The shared store deduplicates stable IDs across
-queries and preserves full descriptions, salary and useful unknown fields.
+target. JSearch remains opt-in locally and for manual workflow dispatches; the
+authorized daily schedule enables it. The shared store deduplicates stable IDs
+across queries and preserves full descriptions, salary and useful unknown fields.
 
 Supply JSEARCH_API_KEY through the environment or ignored `.env.local`. Missing
 credentials are reported without dispatching a request. `--jsearch-plan` previews

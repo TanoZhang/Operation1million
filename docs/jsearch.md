@@ -39,8 +39,8 @@ there are no city/state expansions or negative search terms.
 The quota is 10,000 page credits per billing period. The operating target is
 `floor(10000 * 0.95) = 9500`; `9500 // 30 = 316` is the daily ceiling.
 On a 31-day period the monthly guard may stop collection before the daily
-allocation is exhausted. `billing_cycle_start_day` defaults to 1: set it to the
-actual subscription billing anchor before hosted operation. Days use UTC.
+allocation is exhausted. `billing_cycle_start_day` is 17, matching the current
+subscription billing anchor. Days use UTC.
 
 `.local/jsearch_usage.sqlite` reserves the requested page count before sending.
 Reservations survive errors, timeouts and restarts. `jsearch_pages_used` reports
@@ -163,6 +163,8 @@ not a guarantee against delayed indexing or missed listings. Direct sources
 continue to supply independent coverage; no automatic wider-window search or
 extra paid pages are added.
 
-No schedule, deployment, UI, application automation, or live paid verification
-is enabled by this integration. See [GitHub Actions](github-actions.md) for the
-private state boundary and remaining deployment work.
+The private GitHub Actions workflow runs the fixed plan once daily at 06:17
+`America/Los_Angeles`. A bounded live transport test on 2026-09-17 used one
+credit and returned 10 raw jobs: 9 accepted, 1 rejected, and 0 malformed or
+failed. Manual dispatches keep paid discovery off unless explicitly enabled.
+See [GitHub Actions](github-actions.md) for the private state boundary.

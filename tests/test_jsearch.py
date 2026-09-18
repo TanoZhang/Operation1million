@@ -126,6 +126,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(sum(q.pages for q in self.plan), 310)
         self.assertEqual(self.settings['monthly_target'], 9500)
         self.assertEqual(self.settings['daily_budget'], 9500 // 30)
+        self.assertEqual(self.settings['billing_cycle_start_day'], 17)
         self.assertTrue(all(1 <= q.pages <= 20 for q in self.plan))
 
     def test_over_budget_refused_before_transport(self):

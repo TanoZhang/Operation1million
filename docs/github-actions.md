@@ -1,6 +1,6 @@
 # GitHub Actions operations
 
-This is the deployment contract, not an enabled workflow or schedule.
+This is the deployment contract for the enabled private daily workflow.
 The runner is temporary; every authoritative private input must be restored
 before collection and saved after successful checkpoints.
 
@@ -55,32 +55,32 @@ for collected data, regardless of whether download requires a login.
 1. Checkout reviewed code and restore the private data checkout and both ledgers.
 2. Set JOBDISCO_STORE to that checkout's store directory.
 3. Install dependencies and run `python -m jobdisco.store --bootstrap`.
-4. Run `python -m jobdisco.collector --jsearch-plan` and verify the budget.
-5. Run `python -m jobdisco.collector --jsearch` with one collector process.
-6. Verify checksums and inspect completion/failure metrics, including exit code 2.
-7. Save `operational/source_access.sqlite` and
+4. Run the offline regression suite.
+5. Run `python -m jobdisco.collector --jsearch-plan` and verify the budget.
+6. Run `python -m jobdisco.collector --jsearch` with one collector process.
+7. Verify checksums and inspect completion/failure metrics, including exit code 2.
+8. Save `operational/source_access.sqlite` and
    `operational/jsearch_usage.sqlite` even after collection failures: attempted
    credits remain spent and cooldowns remain active. These are the only SQLite
    files force-added despite the data repository's general SQLite ignore rule.
    Save valid source checkpoints and daily files privately; never rewrite an
    already sealed daily log. A dry run checkpoints only these safety ledgers,
    not collected jobs.
-8. Retain optional exports privately and publish only a non-sensitive summary.
+9. Retain optional exports privately and publish only a non-sensitive summary.
 
 Use concurrency control to prohibit overlapping writers. A sealed UTC day
 cannot be run again in the same store. Interrupted unsealed logs require
 inspection/recovery before retry; do not discard history or reset usage.
-First perform an explicitly authorized bounded manual deployment test to verify
-restore, write access, quota accounting, duration and crash/failure handling.
-Configure the real billing-cycle start day and choose a schedule time only after
-that test. The functional plan's 310 pages are reservations, not a guarantee of
-310 returned pages or complete job coverage.
+The bounded transport test used one credit and succeeded before paid scheduling
+was enabled. The billing anchor is day 17. The functional plan's 310 pages are
+reservations, not a guarantee of 310 returned pages or complete job coverage.
 
 ## Current status
 
-The integration includes offline regression tests, shared persistence and an
-API-free plan preview. The daily workflow is enabled but its first scheduled
-attempt failed while checking out the private data repository because
-`DATA_REPO_TOKEN` was rejected. Replace that secret before dispatching another
-run. The workflow now restores and checkpoints both operational ledgers; paid
-JSearch remains disabled in the workflow with `--jsearch-budget 0`.
+The workflow is scheduled daily at 06:17 `America/Los_Angeles`. It restores the
+private data repository, rebuilds the derived database, runs offline tests,
+previews the fixed JSearch plan, collects direct sources with three workers, and
+runs paid JSearch. It checkpoints both operational ledgers even on collection
+failure. Manual dispatches default to no paid search and expose an explicit
+`enable_jsearch` toggle. The data repository credential was replaced and later
+hosted runs completed checkout, collection, checkpointing, and report upload.

@@ -33,14 +33,14 @@ beyond conceptual documentation requires a new scope decision from the user.
   settings, SQLite files, run exports, and operational logs private. Durable
   job history uses daily `.ndjson.gz` files and manifests; SQLite is derived
   locally and must not return to Git.
-- Run future scheduled collection in the private repository. The public
+- Run scheduled collection in the private repository. The public
   overview repository has Actions disabled and receives no secrets.
 - Public Actions logs and artifacts are not private storage. A login requirement
   to download an artifact is not a per-user privacy boundary.
 - Preserve job identity, sync progress, cooldowns, and request quota state in
-  private durable storage across runs. Do not rely on an ephemeral runner or
-  an evictable cache as the only copy. Checkpoint storage and restore behavior
-  still need implementation before enabling the daily schedule.
+  private durable storage across runs. The enabled daily workflow restores and
+  checkpoints this state in the private data repository; do not replace it with
+  an ephemeral runner or an evictable cache.
 - Keep the public overview free of links that expose private reports or public
   download URLs for operating data. Synthetic examples must be labeled.
 
@@ -48,8 +48,8 @@ beyond conceptual documentation requires a new scope decision from the user.
 
 The implementation and existing history remain in the private repository.
 `JSEARCH_API_KEY` is an Actions Secret in that repository. The public repository
-is documentation only. Daily hosted discovery is not enabled yet; the required
-restore, checkpoint, and private-output workflow is documented separately.
+is documentation only. Daily hosted discovery is enabled in the private
+repository with private restore, checkpoint, and output handling.
 
 ## References
 
