@@ -672,6 +672,55 @@ class DiscoveryTests(unittest.TestCase):
         settled = {'complete', 'unchanged', 'query_limited', 'skipped'}
         self.assertTrue({q['status'] for q in stats['jsearch_queries']} <= settled)
 
+    def test_a_scheduled_pass_end_to_end_leaves_a_store_that_verifies(self):
+        """The shape the schedule actually runs, which nothing had exercised.
+
+        Every hosted run so far had paid search off, or on with a forced sweep
+        of five credits. The scheduled pass turns it on by itself and runs the
+        whole plan beside the direct boards, then seals the day and has to
+        leave a store the next run can rebuild from.
+        """
+        source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
+        board = Mock(jobs=[], rejected=[], requests=1, etag=None,
+                     last_modified=None, listed=None)
+        board.run.return_value = ('complete', '')
+        self.session.get.side_effect = lambda url, **kw: self.response([
+            job(f'{parse_qs(urlsplit(url).query)["query"][0]}-'
+                f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}',
+                job_description='RTL design and verification.') for i in range(10)])
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        self.guard.interval = 0
+        argv = ['collector', '--jsearch', '--db', str(self.db_path),
+                '--output', str(self.root / 'scheduled')]
+        with (
+            patch.object(collector, 'Collector', return_value=board),
+            patch.object(collector, 'load_sources', return_value=[source]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(jsearch.requests, 'Session', return_value=self.session),
+            patch.object(store, 'now', return_value=STAMP),
+            patch('sys.argv', argv),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            self.assertEqual(collector.main(), 0)
+
+        # The day is sealed and agrees with itself, which is what the next run
+        # rebuilds from and what the commit step refuses to publish without.
+        self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
+        manifest = json.loads(store.manifest_path(STAMP).read_text())
+        self.assertEqual(manifest['jsearch_queries_planned'], 52)
+        self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
+        self.assertEqual(manifest['jsearch_failures'], 0)
+        # Paid results reached the store, and every one of them carries a score.
+        with closing(store.connect(self.db_path)) as db:
+            stored, unscored = db.execute(
+                'SELECT COUNT(*), SUM(CASE WHEN relevance IS NULL THEN 1 ELSE 0 END)'
+                ' FROM jobs WHERE closed_at IS NULL').fetchone()
+        self.assertGreater(stored, 0)
+        self.assertEqual(unscored, 0)
+
     def test_internships_are_asked_before_the_wider_synonyms(self):
         """Priority is A, then intern, then B, then C."""
         order = [t for t in jsearch.TIER_ORDER if t != 'company']

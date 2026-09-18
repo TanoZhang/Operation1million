@@ -1,12 +1,14 @@
 name: Daily collection
 
-# GitHub queues scheduled runs, and the top of the hour is the busiest minute to
-# ask for: the one scheduled run so far started four hours and twenty-two
-# minutes late from an odd minute. The hour is the intent, not a guarantee.
+# A scheduled run is queued, not guaranteed: GitHub names "the start of every
+# hour" as a high-load time and says to ask for a different minute. So the ask
+# is an odd minute, and it is early enough that the result is still ready by
+# seven even after a long wait -- a collection takes 25 to 40 minutes, and the
+# one scheduled run so far started four hours late.
 # Private repositories are not auto-disabled for inactivity.
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '38 4 * * *'
       timezone: America/Los_Angeles
   workflow_dispatch:
     inputs:
