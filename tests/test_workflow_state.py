@@ -42,7 +42,7 @@ class WorkflowStateTests(unittest.TestCase):
             self.assertEqual(guard.balance()['period_used'], 100)
 
     def test_manual_sweep_requires_paid_opt_in(self):
-        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/collect.yml').read_text()
+        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/collect-backup.yml').read_text()
         step = workflow.split('- name: Backfill sweep', 1)[1].split('- name:', 1)[0]
         condition = next(line for line in step.splitlines() if line.strip().startswith('if:'))
         expression = condition.split('${{', 1)[1].split('}}', 1)[0].strip()
