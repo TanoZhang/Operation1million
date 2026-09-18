@@ -4,6 +4,8 @@ Nothing here touches the network. The transport is injected, and the shell
 contract is exercised against the file that actually ships, with a stub
 standing in for the pinger.
 """
+import contextlib
+import io
 import os
 from pathlib import Path
 import shutil
@@ -123,8 +125,13 @@ class ExitCodeTests(unittest.TestCase):
             self.assertEqual(heartbeat.main(['success']), 0)
 
     def test_the_cli_exits_zero_on_a_bad_event_rather_than_failing_the_pass(self):
-        self.assertEqual(heartbeat.main(['nonsense']), 0)
-        self.assertEqual(heartbeat.main([]), 0)
+        # Captured rather than printed: the suite runs inside the production
+        # pass, so anything it writes to stderr lands in the journal.
+        noise = io.StringIO()
+        with contextlib.redirect_stderr(noise):
+            self.assertEqual(heartbeat.main(['nonsense']), 0)
+            self.assertEqual(heartbeat.main([]), 0)
+        self.assertIn('usage:', noise.getvalue())
 
 
 @unittest.skipUnless(shutil.which('bash'), 'bash is required for the shell contract')
