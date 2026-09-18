@@ -84,9 +84,10 @@ for one page at a time and stops when the provider returns a short page, so the
 day's spend is measured rather than planned. The daily cap is 320
 page credits and the monthly operating target is 9,600 of the 10,000 quota,
 which is exactly 320 a day for thirty days.
-Each query reserves its fixed page count before sending, including failures.
-Preserve `.local/jsearch_usage.sqlite` across runners and configure the actual
-billing anchor. Never increase pages because a result is full.
+Each HTTP call reserves one page credit immediately before sending, including
+failures. A full page may advance within the query's runaway guard; a short page
+ends that query. Preserve `.local/jsearch_usage.sqlite` across runners and
+configure the actual billing anchor.
 
 ## Daily incremental discovery
 

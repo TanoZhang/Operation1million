@@ -6,6 +6,8 @@ complete pass may retire a posting.
 """
 import json
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 from argparse import Namespace
@@ -97,6 +99,21 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(state['last_status'], 'fallback')
         self.assertEqual(state['last_success_at'], first_success)
 
+    def test_partial_pass_closes_only_stale_urls_with_the_same_identity(self):
+        db = self.open_db()
+        old = dict(row('https://x/old'), source_job_id='stable-id')
+        distinct = dict(row('https://x/distinct'), source_job_id='other-id')
+        store.record_source(db, SOURCE, [old, distinct], 'complete', 'full', 1)
+        db.execute('DELETE FROM job_identities WHERE source_job_id=?', ('stable-id',))
+        current = dict(row('https://x/current'), source_job_id='stable-id')
+        store.record_source(db, SOURCE, [current], 'partial', 'full', 1)
+
+        states = {r['url']: r['closed_at'] for r in db.execute(
+            'SELECT url, closed_at FROM jobs ORDER BY url')}
+        self.assertIsNotNone(states['https://x/old'])
+        self.assertIsNone(states['https://x/current'])
+        self.assertIsNone(states['https://x/distinct'])
+
     def test_skipping_a_fetch_does_not_retire_a_listed_posting(self):
         db = self.open_db()
         baseline = [row(f'https://x/{i}') for i in range(1, 9)]
@@ -115,6 +132,21 @@ class StoreTests(unittest.TestCase):
         gone = store.record_source(db, SOURCE, [], 'complete', 'lastmod', 1,
                                    listed={f'https://x/{i}' for i in range(3, 10)})
         self.assertEqual(gone['closed'], 2)
+
+    def test_documented_module_entry_points_actually_run(self):
+        """`python -m jobdisco.store` is how a fresh machine is recovered.
+
+        Without a `__main__` guard the module imports, runs nothing and exits
+        zero, so the documented recovery step looked like it had worked and
+        left an empty database behind.
+        """
+        # Only the modules that parse arguments; `validate_sources` takes none
+        # and would contact every configured board.
+        for module in ('jobdisco.store', 'jobdisco.collector'):
+            done = subprocess.run([sys.executable, '-m', module, '--help'],
+                                  capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, module)
+            self.assertIn('usage', done.stdout.lower(), module)
 
     def test_a_rebuilt_database_keeps_the_scores(self):
         """A runner rebuilds from the log every run and never rescores.
@@ -138,6 +170,32 @@ class StoreTests(unittest.TestCase):
             self.assertEqual(
                 fresh.execute('SELECT relevance FROM jobs WHERE url=?', ('https://x/1',)).fetchone()[0],
                 scored)
+
+    def test_a_legacy_log_without_scores_is_scored_during_replay(self):
+        import gzip
+        db = self.open_db()
+        store.record_source(db, SOURCE, [row('https://x/1', title='ASIC Design Verification Engineer')],
+                            'complete', 'full', 1)
+        store.append_log(db, ['https://x/1'], [], store.now())
+        path = store.daily_log(store.now())
+        with gzip.open(path, 'rt', encoding='utf-8') as handle:
+            records = [json.loads(line) for line in handle]
+        for record in records:
+            record.pop('relevance', None)
+        path.write_bytes(gzip.compress(
+            ''.join(json.dumps(record) + '\n' for record in records).encode('utf-8'),
+            mtime=0))
+
+        rebuilt = Path(self.dir.name) / 'legacy-rebuilt.sqlite'
+        with closing(sqlite3.connect(rebuilt)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.migrate(rebuilt)
+        store.rebuild(rebuilt)
+
+        with closing(store.connect(rebuilt)) as fresh:
+            self.assertGreater(
+                fresh.execute('SELECT relevance FROM jobs WHERE url=?', ('https://x/1',)).fetchone()[0],
+                0)
 
     def test_unchanged_board_refreshes_without_closing(self):
         db = self.open_db()
@@ -668,6 +726,18 @@ class ScoreOnceTests(unittest.TestCase):
                                               self.silicon('https://x/2')],
                             'complete', 'full', 1)
         self.assertGreater(self.stored('https://x/2'), 0)
+
+    def test_rescore_ignores_a_stale_score_embedded_in_raw(self):
+        stale = dict(row('https://x/1', title='Accountant'),
+                     raw={'job_description': 'General ledger and tax reporting.',
+                          'relevance': {'confidence': 99, 'matched_terms': ['old']}})
+        store.record_source(self.db, SOURCE, [stale], 'complete', 'full', 1)
+        self.assertEqual(self.stored('https://x/1'), 99)
+        self.db.commit()
+
+        store.rescore(self.db_path)
+
+        self.assertEqual(self.stored('https://x/1'), 0)
 
 
 class BoardRowIdentityTests(unittest.TestCase):

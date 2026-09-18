@@ -118,6 +118,12 @@ def score_row(title, raw):
     stored = raw.get('relevance') if isinstance(raw, dict) else None
     if isinstance(stored, dict) and isinstance(stored.get('confidence'), int):
         return stored['confidence']
+    return calculate_score(title, raw)
+
+
+def calculate_score(title, raw):
+    """Compute from the current rules, ignoring any score embedded in raw."""
+    from . import jsearch
     return jsearch.relevance({'title': title or '', 'raw': raw}, filter_rules())[0]
 
 
@@ -223,6 +229,24 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
              score_row(row['title'], raw) if url not in known else None))
     for identity, url in pending_identities.items():
         db.execute('INSERT OR IGNORE INTO job_identities VALUES (?, ?, ?, ?)', (*identity, url))
+    # A stable provider ID may outlive a title-derived URL slug. Historical
+    # imports can therefore contain both the old and new URL even though the
+    # identity table correctly points at one canonical row. Closing those stale
+    # aliases is identity deduplication, not inventory retirement: it is safe on
+    # a partial pass because no distinct provider ID is inferred absent.
+    identity_duplicates = set()
+    for (provider_key, scope, source_job_id), canonical_url in pending_identities.items():
+        params = [provider_key, source_job_id, canonical_url]
+        company_clause = ''
+        if provider_key != 'jsearch':
+            company_clause = ' AND company_key=?'
+            params.append(scope)
+        identity_duplicates.update(r[0] for r in db.execute(
+            '''SELECT url FROM jobs WHERE provider_key=? AND source_job_id=?
+               AND url<>? AND closed_at IS NULL''' + company_clause, params))
+    if identity_duplicates:
+        db.executemany('UPDATE jobs SET closed_at=? WHERE url=?',
+                       [(stamp, url) for url in sorted(identity_duplicates)])
     fresh = sorted(set(u for u in incoming if u not in known))
     changed = []
     for url in seen - set(fresh):
@@ -237,7 +261,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         db.execute(
             'UPDATE jobs SET last_seen=? WHERE url IN (%s)' % ','.join('?' * len(chunk)),
             [stamp, *chunk])
-    closed_urls = []
+    closed_urls = sorted(identity_duplicates)
     closure_candidates = []
     closure_ratio = 0.0
     effective_status = status
@@ -256,7 +280,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                     'no jobs were retired')
             effective_note = '; '.join(filter(None, [note, fuse]))
         else:
-            closed_urls = closure_candidates
+            closed_urls.extend(closure_candidates)
             db.execute(
                 f'''UPDATE jobs SET closed_at=? WHERE company_key=? AND provider_key=? AND closed_at IS NULL
                     AND url NOT IN ({placeholders})''',
@@ -602,6 +626,8 @@ def rebuild(path=DB):
                     db.execute('UPDATE jobs SET closed_at=? WHERE url=?', (r['at'], r['url']))
                     counts['events'] += 1
                     continue
+                raw = r.get('raw')
+                relevance = r.get('relevance')
                 db.execute(
                     '''INSERT INTO jobs (url, company_key, provider_key, title, location,
                            source_job_id, posted_at, posted_relative, lastmod,
@@ -621,8 +647,7 @@ def rebuild(path=DB):
                      r.get('location') or '', r.get('source_job_id'), r.get('posted_at'),
                      r.get('posted_relative'), r.get('lastmod'), r['first_seen'],
                      r.get('last_seen', r['first_seen']), r.get('closed_at'),
-                     # Absent in logs written before the score was carried.
-                     r.get('relevance'), json.dumps(r.get('raw'), ensure_ascii=True)))
+                     relevance, json.dumps(raw, ensure_ascii=True)))
                 identities = r.get('identities')
                 # Logs written before identity tracking have no identities key,
                 # so infer their primary identity for backward compatibility.
@@ -647,6 +672,19 @@ def rebuild(path=DB):
                 db.execute('INSERT OR REPLACE INTO source_state (%s) VALUES (%s)'
                            % (columns, ','.join('?' * len(r))), list(r.values()))
                 counts['sources'] += 1
+        # Older logs predate durable relevance. Score only the final unique rows,
+        # after replay, rather than every historical version of each job event.
+        # A later append-only correction makes this fallback a no-op on hosted
+        # runs while keeping arbitrary legacy logs self-contained.
+        cursor = db.execute('SELECT url, title, raw FROM jobs WHERE relevance IS NULL')
+        while True:
+            rows = cursor.fetchmany(500)
+            if not rows:
+                break
+            db.executemany(
+                'UPDATE jobs SET relevance=? WHERE url=?',
+                [(calculate_score(r['title'], json.loads(r['raw'] or 'null')), r['url'])
+                 for r in rows])
     return counts
 
 
@@ -761,7 +799,7 @@ def rescore(path=DB, batch=500, progress=None):
             rows = cursor.fetchmany(batch)
             if not rows:
                 break
-            pending = [(score_row(r['title'], json.loads(r['raw'] or 'null')), r['url'])
+            pending = [(calculate_score(r['title'], json.loads(r['raw'] or 'null')), r['url'])
                        for r in rows]
             writer.executemany('UPDATE jobs SET relevance=? WHERE url=?', pending)
             writer.commit()
@@ -789,3 +827,7 @@ def ranked(path=DB, limit=40, since=None, minimum=None):
             ' FROM jobs j LEFT JOIN companies c USING(company_key)'
             ' WHERE ' + ' AND '.join(clauses) +
             ' ORDER BY confidence DESC, j.posted_at DESC, j.first_seen DESC LIMIT ?', params)]
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

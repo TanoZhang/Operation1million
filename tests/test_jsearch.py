@@ -591,6 +591,36 @@ class DiscoveryTests(unittest.TestCase):
             store.rebuild(fresh)
         self.assertFalse(fresh.exists())
 
+    def test_a_crash_mid_run_still_seals_the_day(self):
+        """Boards are committed one at a time, so a crash leaves the log longer.
+
+        A manifest that still describes the file as it was makes the store fail
+        its own integrity check, and the next run cannot rebuild from it. The
+        seal has to survive a failure anywhere, including before the search
+        block has bound the statistics it reports.
+        """
+        source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
+        direct = Mock(jobs=[], rejected=[], requests=1, etag=None, last_modified=None, listed=None)
+        direct.run.side_effect = RuntimeError('board exploded after the first store')
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        argv = ['collector', '--db', str(self.db_path), '--jsearch-budget', '0',
+                '--output', str(self.root / 'crash')]
+        with (
+            patch.object(collector, 'Collector', return_value=direct),
+            patch.object(collector, 'load_sources', return_value=[source]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(store, 'now', return_value=STAMP),
+            patch('sys.argv', argv),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            with self.assertRaises(BaseException):
+                collector.main()
+        # Sealed on the way out, so the store still verifies against itself.
+        self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
+
     def test_backfill_alone_still_carries_the_functional_plan(self):
         """`--backfill` on its own must not be a silent no-op.
 

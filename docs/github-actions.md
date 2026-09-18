@@ -68,9 +68,10 @@ for collected data, regardless of whether download requires a login.
    not collected jobs.
 9. Retain optional exports privately and publish only a non-sensitive summary.
 
-Use concurrency control to prohibit overlapping writers. A sealed UTC day
-cannot be run again in the same store. Interrupted unsealed logs require
-inspection/recovery before retry; do not discard history or reset usage.
+Use concurrency control to prohibit overlapping writers. Multiple passes may
+append to the current UTC day and refresh its manifest. Once the UTC date
+changes, the prior log is sealed and cannot be rewritten. Do not discard
+history or reset usage during recovery.
 The bounded transport test used one credit and succeeded before paid scheduling
 was enabled. The billing anchor is day 16, the day the provider resets. A page
 is reserved before it is

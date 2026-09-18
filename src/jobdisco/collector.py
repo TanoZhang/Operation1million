@@ -717,6 +717,10 @@ def main():
             print(f'{source.company_key}: {len(c.jobs)} jobs, {status}', flush=True)
             return source, c.jobs, status, reason, c.requests, c
     jobs, reports = [], []
+    # Bound before anything can fail: the seal that runs on the way out of a
+    # failed pass needs it, and the pass that motivated the seal died in the
+    # direct-source loop, long before the search block would have set it.
+    search_stats = {}
     run_id = args.output.name
     totals = {'seen': 0, 'new': 0, 'closed': 0}
 

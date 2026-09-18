@@ -56,13 +56,13 @@ there are no city/state expansions or negative search terms.
 The quota is 10,000 page credits per billing period. The operating target is
 `floor(10000 * 0.96) = 9600`; the configured daily ceiling is 320. On a 31-day
 period the monthly guard may stop collection before the daily
-allocation is exhausted. `billing_cycle_start_day` is 17, matching the current
-subscription billing anchor. Days use UTC.
+allocation is exhausted. `cycle_start` is `2026-09-16` and periods roll every
+30 days from that verified anchor. Days use UTC.
 
-`.local/jsearch_usage.sqlite` reserves the requested page count before sending.
+`.local/jsearch_usage.sqlite` reserves one page before each request.
 Reservations survive errors, timeouts and restarts. `jsearch_pages_used` reports
-these conservative reservations, not independently verified provider billing;
-an empty/failed batch may have a lower actual charge. No automatic refunds occur.
+these conservative reservations. When present, `X-RapidAPI-Billing` records the
+provider-reported charge for comparison; no automatic refunds occur.
 The manifest also includes raw/unique/rejected/malformed counts and per-query
 details. Unique counts are within this run, not newly inserted jobs; store deltas
 separately track new records across days.
@@ -78,7 +78,7 @@ Never delete the ledger to bypass a ceiling or cooldown.
 
 `--date-posted` accepts `all`, `today`, `3days`, `week`, and `month`.
 "Pull one week" means a temporary `week` search window, not seven repeated
-daily searches and not a permanent edit to the configured `today` default.
+daily searches and not a permanent edit to the configured `3days` default.
 For a one-keyword test, default to one page and one reserved credit. Do not
 expand to all 52 keywords or retry paid failures without a new instruction.
 
@@ -185,11 +185,11 @@ source_state.json
 ```
 
 New and changed job records, compact seen/closed events, identity mappings, and
-source checkpoints are appended to the open day's gzip stream. Finalization
-writes an atomic checksum manifest and seals the day. A second persistent run
-on that UTC date is refused. Interrupted, unsealed days require inspection before
-retry; no automatic repair or overlapping writers are supported. API failures
-are recorded without discarding earlier successful source checkpoints.
+source checkpoints are appended to the open UTC day's gzip stream. Finalization
+writes an atomic checksum manifest for its current content. Additional passes on
+the same UTC day may append and rewrite that manifest; a day becomes immutable
+when the UTC date changes. Handled failures reseal the current day. Overlapping
+writers are unsupported.
 
 SQLite is a disposable local index. On a fresh runner, restore the private log
 root and run `python -m jobdisco.store --bootstrap`; checksum verification runs
