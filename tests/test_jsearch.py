@@ -134,10 +134,14 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.settings['cycle_start'], '2026-09-16')
         self.assertEqual(self.settings['cycle_days'], 30)
         self.assertEqual(self.settings['backfill_max_pages_per_query'], 200)
+        # Every tier is reachable even if every page comes back full.
+        self.assertEqual(self.settings['tier_pages'], {'A': 10, 'intern': 6, 'B': 4, 'C': 3})
+        worst = sum(q.pages for q in self.plan)
+        self.assertLessEqual(worst, self.settings['daily_budget'])
         self.assertEqual(self.settings['date_posted'], '3days')
         # No query declares a depth; each carries only the runaway guard.
         self.assertEqual(self.settings['max_pages_per_query'], 40)
-        self.assertTrue(all(q.pages == 40 for q in self.plan))
+        self.assertTrue(all(q.pages == self.settings['tier_pages'][q.tier] for q in self.plan))
 
     def test_more_queries_than_credits_refused_before_transport(self):
         """The tail of an oversized plan would be unreachable every day."""
@@ -655,15 +659,41 @@ class DiscoveryTests(unittest.TestCase):
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
         self.assertEqual(len(plan), 52)
-        # The ceiling holds exactly, and no query outran its own guard.
-        self.assertEqual(guard.credits, settings['daily_budget'])
-        self.assertEqual(stats['jsearch_pages_used'], settings['daily_budget'])
-        self.assertLessEqual(max(q['pages_used'] for q in stats['jsearch_queries']),
-                             settings['max_pages_per_query'])
+        # The whole plan fits inside the ceiling, and every tier is reached --
+        # a single depth for everyone let tier A alone spend all 320.
+        self.assertLessEqual(guard.credits, settings['daily_budget'])
+        self.assertEqual(stats['jsearch_pages_used'], guard.credits)
+        reached = {q['tier'] for q in stats['jsearch_queries'] if q['pages_used']}
+        self.assertEqual(reached, {'A', 'intern', 'B', 'C'})
+        for q in stats['jsearch_queries']:
+            self.assertLessEqual(q['pages_used'], settings['tier_pages'][q['tier']], q['query'])
         self.assertEqual(stats['jsearch_failures'], 0)
         # Nothing may report a status a run is not allowed to finish on.
         settled = {'complete', 'unchanged', 'query_limited', 'skipped'}
         self.assertTrue({q['status'] for q in stats['jsearch_queries']} <= settled)
+
+    def test_internships_are_asked_before_the_wider_synonyms(self):
+        """Priority is A, then intern, then B, then C."""
+        order = [t for t in jsearch.TIER_ORDER if t != 'company']
+        self.assertEqual(order, ['A', 'intern', 'B', 'C'])
+        self.session.get.return_value = self.response([job()])
+        plan = [jsearch.Query('c query', 1, 'C'), jsearch.Query('intern query', 1, 'intern'),
+                jsearch.Query('b query', 1, 'B'), jsearch.Query('a query', 1, 'A')]
+        jsearch.collect(plan, self.client, self.settings, {}, self.persist)
+        asked = [parse_qs(urlsplit(c.args[0]).query)['query'][0]
+                 for c in self.session.get.call_args_list]
+        self.assertEqual(asked, ['a query', 'intern query', 'b query', 'c query'])
+
+    def test_a_sweep_restates_the_daily_depths_with_its_own(self):
+        """The plan loads with daily depths, so a sweep has to replace them."""
+        settings, plan = jsearch.load_plan()
+        self.assertEqual({q.tier: q.pages for q in plan},
+                         {'A': 10, 'intern': 6, 'B': 4, 'C': 3})
+        deep = [replace(q, pages=settings['backfill_tier_pages'][q.tier]) for q in plan]
+        self.assertEqual({q.tier: q.pages for q in deep},
+                         {'A': 100, 'intern': 60, 'B': 40, 'C': 30})
+        # A sweep's whole plan still fits a sweep's share of the cycle.
+        self.assertLessEqual(sum(q.pages for q in deep), 3127)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
@@ -805,7 +835,12 @@ class DiscoveryTests(unittest.TestCase):
         ):
             collector.main()
 
-        self.assertEqual(observed, [self.settings['backfill_max_pages_per_query']] * len(self.plan))
+        # A sweep pages deeper than a daily pass, but per tier: one depth for
+        # everyone is what let tier A spend the budget before the rest began.
+        deep = self.settings['backfill_tier_pages']
+        self.assertEqual(observed, [deep[q.tier] for q in self.plan])
+        self.assertTrue(all(p > self.settings['tier_pages'][q.tier]
+                            for p, q in zip(observed, self.plan)))
 
     def test_backfill_rejects_no_store_before_any_paid_request(self):
         with patch('sys.argv', ['collector', '--backfill', '--no-store']), \

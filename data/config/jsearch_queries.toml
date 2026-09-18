@@ -11,13 +11,38 @@ cycle_start = "2026-09-16"
 cycle_days = 30
 country = "us"
 date_posted = "3days"
-# Runaway guard only, far above any real query depth: a provider that keeps
-# returning full pages must not be able to spend the whole day on one query.
+# Runaway guard only: the ceiling no tier's depth may exceed.
 max_pages_per_query = 40
+
 # A backfill sweep spends credits that expire with the cycle, so it pages far
 # deeper than a daily pass before its own runaway guard binds.
 backfill_max_pages_per_query = 200
+
 employment_types = ["FULLTIME", "INTERN"]
+
+# Priority is A -> intern -> B -> C, and a depth per tier is what keeps that a
+# preference rather than an exclusion. Fifteen tier A queries at forty pages can
+# ask for six hundred against a budget of three hundred and twenty, so a single
+# depth for everyone meant B, C and the internships were never reached at all.
+#
+# Sized so the whole plan fits even if every page comes back full:
+#   A 15*10=150 + intern 11*6=66 + B 13*4=52 + C 13*3=39  =  307 of 320
+#
+# Measured against real supply these are generous: across 52 live queries at a
+# week-wide window, not one filled even eighteen pages.
+[tier_pages]
+A = 10
+intern = 6
+B = 4
+C = 3
+
+# The same shape, against a sweep's share of the cycle rather than a day:
+#   A 15*100=1500 + intern 11*60=660 + B 13*40=520 + C 13*30=390  =  3,070
+[backfill_tier_pages]
+A = 100
+intern = 60
+B = 40
+C = 30
 
 [filter]
 # Relevance scoring. Terms only ever add; nothing is deducted for a term being

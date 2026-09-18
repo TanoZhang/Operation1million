@@ -67,11 +67,27 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     config.setdefault('max_pages_per_query', 40)
     if type(config['max_pages_per_query']) is not int or not 1 <= config['max_pages_per_query'] <= 100:
         raise ValueError('max_pages_per_query must be between 1 and 100')
+    # One depth for every tier starves the lower ones: fifteen tier A queries at
+    # forty pages can ask for six hundred against a budget of three hundred and
+    # twenty, so B, C and the internships are never reached at all. A tier's own
+    # depth keeps the order a preference rather than an exclusion.
+    for name in ('tier_pages', 'backfill_tier_pages'):
+        table = config.setdefault(name, {})
+        if not isinstance(table, dict):
+            raise ValueError(f'{name} must be a table of tier to page cap')
+        ceiling = config['max_pages_per_query' if name == 'tier_pages'
+                         else 'backfill_max_pages_per_query']
+        for tier, depth in table.items():
+            if type(depth) is not int or not 1 <= depth <= ceiling:
+                raise ValueError(f'{name}.{tier} must be between 1 and {ceiling}')
     config.setdefault('country', 'us')
     config.setdefault('date_posted', 'today')
     config.setdefault('employment_types', ['FULLTIME', 'INTERN'])
     if config['country'] != 'us' or not config['employment_types'] or not set(config['employment_types']) <= {'FULLTIME', 'INTERN'}:
         raise ValueError('Functional discovery requires US full-time/intern settings')
+    # Kept so a sweep can tell a depth the plan chose from one a row set itself.
+    config['max_pages_per_query_daily'] = config['max_pages_per_query']
+    config['tier_pages_daily'] = dict(config['tier_pages'])
     queries = []
     for row in config.get('query', []):
         if not row.get('enabled', True):
@@ -79,10 +95,11 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
         text = row.get('query', '').strip()
         # A query no longer declares its depth; it stops when the provider runs
         # out. A row may still lower its own guard below the global one.
-        pages = row.get('pages', config['max_pages_per_query'])
+        tier = row.get('tier', 'C')
+        pages = row.get('pages', config['tier_pages'].get(tier, config['max_pages_per_query']))
         if not text or type(pages) is not int or not 1 <= pages <= config['max_pages_per_query'] or re.search(r'(^|\s)-\w', text):
             raise ValueError('Queries require positive phrases and a cap within max_pages_per_query')
-        queries.append(Query(text, pages, row.get('tier', 'C')))
+        queries.append(Query(text, pages, tier))
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
     validate_budget(queries, config['daily_budget'])
@@ -375,7 +392,9 @@ def rejection_reason(row, rules):
     return 'off_domain'
 
 
-TIER_ORDER = ('A', 'B', 'C', 'intern', 'company')
+# Internships are seasonal and scarce, so they are asked before the wider
+# synonyms in B and C rather than after everything else.
+TIER_ORDER = ('A', 'intern', 'B', 'C', 'company')
 
 
 def tier_rank(tier):

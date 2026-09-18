@@ -1,10 +1,12 @@
 name: Daily collection
 
-# Scheduled runs are queued behind everyone else's at the top of the hour, so ask
-# for an odd minute. Private repositories are not auto-disabled for inactivity.
+# GitHub queues scheduled runs, and the top of the hour is the busiest minute to
+# ask for: the one scheduled run so far started four hours and twenty-two
+# minutes late from an odd minute. The hour is the intent, not a guarantee.
+# Private repositories are not auto-disabled for inactivity.
 on:
   schedule:
-    - cron: '17 6 * * *'
+    - cron: '0 6 * * *'
       timezone: America/Los_Angeles
   workflow_dispatch:
     inputs:

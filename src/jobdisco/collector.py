@@ -613,9 +613,20 @@ def main():
         # slice -- that slice exists only to pace the month it is now ending.
         settings['date_posted'] = 'month'
         settings['max_pages_per_query'] = settings['backfill_max_pages_per_query']
+        settings['tier_pages'] = settings['backfill_tier_pages']
+        # The plan is loaded with the daily depths, so a sweep restates them
+        # with its own -- per tier, because one depth for everyone is what let
+        # tier A spend the whole budget before the rest were reached. A row
+        # that set its own depth, and a single --jsearch-query, stay as written.
+        def sweep_depth(query):
+            daily = settings['tier_pages_daily'].get(
+                query.tier, settings['max_pages_per_query_daily'])
+            if query.pages != daily:
+                return query
+            return replace(query, pages=settings['tier_pages'].get(
+                query.tier, settings['max_pages_per_query']))
         if not args.jsearch_query:
-            functional_queries = [replace(q, pages=settings['max_pages_per_query'])
-                                  for q in functional_queries]
+            functional_queries = [sweep_depth(q) for q in functional_queries]
         if not args.store:
             p.error('--backfill requires durable storage; it cannot be combined with --no-store')
     if args.date_posted:

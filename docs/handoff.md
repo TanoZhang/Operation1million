@@ -106,12 +106,17 @@ still holds it.
 been a manual dispatch. The only scheduled run, on 2026-09-17, failed on
 `Bad credentials` before the token was replaced.
 
-**A backfill sweep can spend its whole budget on tier A.** Fifteen tier A
-queries at 200 pages each is 3,000, and a sweep's share of the cycle is about
-3,127, so tiers B and C may never start. The cursor makes it worse across days:
-tier A resumes deeper while the rest stay at page one.
-
 ## Current limitations
+
+**Every tier is reachable, because depth is set per tier.** Priority runs
+A, intern, B, C, and one depth for all of them made that an exclusion rather
+than a preference: fifteen tier A queries at forty pages can ask for six
+hundred against a budget of three hundred and twenty, so measured on the real
+plan, tier A alone spent all 320 and the other 37 queries -- every internship
+among them -- were never reached. The depths now step down the priority order
+and the whole plan fits even if every page comes back full: 10, 6, 4, 3 for a
+day (307 of 320) and 100, 60, 40, 30 for a sweep (3,070 of about 3,127).
+
 
 **Microsoft no longer makes the whole collection single-threaded.** Its source
 has a dedicated lock and keeps its 3-second request interval, while the other
