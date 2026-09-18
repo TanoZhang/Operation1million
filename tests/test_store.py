@@ -134,6 +134,81 @@ class StoreTests(unittest.TestCase):
                                    listed={f'https://x/{i}' for i in range(3, 10)})
         self.assertEqual(gone['closed'], 2)
 
+    def open_db_for(self, company, name='catalog2.sqlite'):
+        """A catalog holding one company, for a source that is not MatX."""
+        path = Path(self.dir.name) / f'{company}-{name}'
+        with closing(sqlite3.connect(path)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            blank.execute('INSERT INTO companies VALUES (?, ?)', (company, company.title()))
+        store.migrate(path)
+        db = store.connect(path)
+        self.addCleanup(db.close)
+        return db
+
+    def test_a_requisition_keeps_one_posting_through_an_edit(self):
+        """Identity and content are separate questions, and both must hold.
+
+        A board may retitle a posting, move it, rewrite its description and
+        change the slug its URL is built from, all while it remains the same
+        opening. Recognising it requires the requisition; keeping it current
+        requires the write to update rather than ignore. Renesas publishes no
+        id of its own, so before the requisition was read out of the URL this
+        read as one arrival beside a posting nothing would list again.
+        """
+        source = Source('renesas', 'company_direct_sources', 'renesas', 'Renesas',
+                        'renesas_careers', '', {})
+
+        def posting(url, title, location, description, requisition):
+            return {'url': url, 'company_key': 'renesas', 'company_name': 'Renesas',
+                    'provider_key': 'renesas_careers', 'title': title,
+                    'location': location, 'source_job_id': requisition,
+                    'posted_at': None, 'raw': {'description': description}}
+
+        db = self.open_db_for('renesas')
+        before = posting('https://jobs.renesas.com/job/-in-tokyo-japan-jid-6866',
+                         'RTL Engineer', 'Tokyo', 'Original text', '6866')
+        store.record_source(db, source, [before], 'complete', 'full', 1)
+        after = posting('https://jobs.renesas.com/job/senior-rtl-engineer-in-osaka-japan-jid-6866',
+                        'Senior RTL Engineer', 'Osaka', 'Rewritten text', '6866')
+        delta = store.record_source(db, source, [after], 'complete', 'full', 1)
+
+        self.assertEqual((delta['new'], delta['closed']), (0, 0))
+        held = db.execute('SELECT url, title, location, raw FROM jobs').fetchall()
+        self.assertEqual(len(held), 1)
+        self.assertEqual(held[0]['title'], 'Senior RTL Engineer')
+        self.assertEqual(held[0]['location'], 'Osaka')
+        self.assertEqual(json.loads(held[0]['raw'])['description'], 'Rewritten text')
+
+        # Without the requisition the same edit is two postings, one of them
+        # no longer listed -- which is what reading it out of the URL prevents.
+        blind = self.open_db_for('renesas', name='blind.sqlite')
+        store.record_source(blind, source, [dict(before, source_job_id=None)],
+                            'complete', 'full', 1)
+        store.record_source(blind, source, [dict(after, source_job_id=None)],
+                            'complete', 'full', 1)
+        self.assertEqual(blind.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 2)
+
+    def test_renesas_identity_is_its_requisition_not_its_slug(self):
+        """Renesas publishes no id of its own and ends the slug with one.
+
+        Without reading it the identity is the whole slug, which carries the
+        title and the location, so a retitled or relocated posting reads as one
+        withdrawal and one arrival -- the shape that once retired 48% of
+        Apple's board. All 899 open Renesas postings carry the number.
+        """
+        from jobdisco.collector import html_job_id
+        moved = 'https://jobs.renesas.com/job/senior-rtl-engineer-in-tokyo-japan-jid-6866'
+        original = 'https://jobs.renesas.com/job/-in-hitachinaka-ibaraki-japan-jid-6866'
+        self.assertEqual(html_job_id(original, 'renesas_careers'), '6866')
+        self.assertEqual(html_job_id(moved, 'renesas_careers'), '6866')
+        # A URL without one keeps the old behaviour rather than losing its id.
+        plain = 'https://jobs.renesas.com/job/no-number-here'
+        self.assertEqual(html_job_id(plain, 'renesas_careers'), 'no-number-here')
+        # Another board's URLs are untouched.
+        self.assertEqual(
+            html_job_id('https://jobs.apple.com/en-us/details/200612345/us-manager', 'apple_jobs'),
+            '200612345')
+
     def test_documented_module_entry_points_actually_run(self):
         """`python -m jobdisco.store` is how a fresh machine is recovered.
 

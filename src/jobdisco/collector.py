@@ -196,6 +196,14 @@ def html_job_id(href, provider):
         found = re.search(r'/details/([0-9][\w-]*)', path)
         if found:
             return found.group(1)
+    if provider == 'renesas_careers':
+        # Renesas publishes no id of its own and ends the slug with the
+        # requisition: /job/-in-hitachinaka-ibaraki-japan-jid-6866. Without
+        # this the identity is the whole slug, so a retitled or relocated
+        # posting reads as one withdrawal and one arrival.
+        found = re.search(r'-jid-(\d+)$', path)
+        if found:
+            return found.group(1)
     return path.split('/')[-1]
 
 
