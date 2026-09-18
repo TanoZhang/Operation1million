@@ -36,13 +36,30 @@ A page is therefore the unit of both billing and loss. Four calls asking for 11
 to 18 pages once returned HTTP 504 and were charged 61 credits for nothing; the
 same failure now costs one credit.
 
-`max_pages_per_query` is a runaway guard, not an allocation. It stops a provider
-whose pages never run short -- or that repeats a page instead of advancing --
-from spending the whole day on one query. Set it far above any real depth.
+`max_pages_per_query` is the ceiling no tier's depth may exceed. It stops a
+provider whose pages never run short -- or that repeats a page instead of
+advancing -- from spending the whole day on one query.
 
-Tier A is paged to exhaustion before tier B begins, and within a tier every
-query takes one page per round. Spending the budget depth first would leave the
-tail of the plan unreached every day, always the same queries.
+Depth itself is set per tier, in `[tier_pages]`, and steps down the priority
+order A, intern, B, C. One depth for every query made that order an exclusion
+rather than a preference: measured on the real plan at the real ceiling,
+fifteen tier A queries at forty pages can ask for six hundred against a budget
+of three hundred and twenty, so tier A spent all of it and the other
+thirty-seven queries -- every internship among them -- were never reached. The
+depths are sized so the whole plan fits even if every page comes back full:
+10, 6, 4, 3 is 307 of 320. That figure is the arithmetic ceiling, the sum of
+each query's own cap, not a number sampled from a run.
+
+Within a tier every query takes one page per round. Spending the budget depth
+first would leave the tail of the plan unreached every day, always the same
+queries.
+
+A page is asked for once. An empty one ends the query for that run but is not
+taken as the end of the results -- a provider having a bad minute returns one
+too -- so a sweep's cursor neither settles on it nor steps past it, and the
+next day asks for that page again. Reading a page twice costs a credit;
+skipping one loses whatever was on it. A page that came back short but not
+empty, and a first page with nothing on it at all, are genuine ends.
 
 The plan is rejected before collection if it holds more queries than its
 configured daily budget has credits, because the tail could then never reach a
@@ -102,10 +119,20 @@ to `backfill_max_pages_per_query` (200) instead of 40, and is not held to the
 daily slice -- that slice only paces a month that is now ending. The monthly
 target still binds, and always does.
 
+`[backfill_tier_pages]` gives a sweep the same shape at its own scale: 100, 60,
+40, 30, which is 3,070 against a share of the cycle near 3,127.
+
 The sweep is one pass spread over those days, not three passes. A cursor per
 query and cycle records where paging stopped, so the next day resumes at the
 following page rather than re-buying pages the sweep already holds. A daily run
-never reads that cursor. When a bounded sweep cannot touch every query, the next
+never reads that cursor.
+
+A cursor is kept under the query *and* the shape of the search it belongs to --
+the window, the country and the employment types, all of which decide the
+result set. A page number means nothing once any of them changes, so such a
+cursor simply does not match and the sweep starts again at page one. `Query.key`
+cannot carry this itself: it is also the stored source id of every posting the
+query has found. When a bounded sweep cannot touch every query, the next
 run starts with the shallowest cursors instead of repeatedly favoring the first
 queries in the file.
 
@@ -213,7 +240,7 @@ window, not a guarantee against delayed indexing or missed listings. Direct sour
 continue to supply independent coverage; no automatic wider-window search or
 extra paid pages are added.
 
-The private GitHub Actions workflow runs the fixed plan once daily at 06:17
+The private GitHub Actions workflow runs the fixed plan once daily at 04:38
 `America/Los_Angeles`. A bounded live transport test on 2026-09-17 used one
 credit and returned 10 raw jobs: 9 accepted, 1 rejected, and 0 malformed or
 failed. Manual dispatches keep paid discovery off unless explicitly enabled.

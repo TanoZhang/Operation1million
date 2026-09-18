@@ -123,7 +123,7 @@ endpoint without evidence of its order/date behavior. A posting absent from a
 `date_posted=3days` search may still be old or indexed late; search absence is
 not evidence of closure. Broader reconciliation is not automatically scheduled.
 
-The authorized private GitHub Actions schedule runs daily at 06:17
+The authorized private GitHub Actions schedule runs daily at 04:38
 `America/Los_Angeles`. It restores private event history and both operational
 ledgers before collection. Manual workflow dispatches keep JSearch off unless
 the paid-search input is explicitly enabled. No local startup item is installed.
@@ -139,3 +139,18 @@ the paid-search input is explicitly enabled. No local startup item is installed.
 - Keep malformed records isolated, parse nested location objects recursively,
   and retain the original posting timestamp where the provider supplies one.
 - Do not alter historical counts or describe the 2026-09-15 run as today's board.
+
+## Board row identity
+
+A board row's identity is its requisition, not the words in its URL. Apple
+advertises one role at many stores, so postings share a slug and differ only in
+the requisition before it; taking the slug made forty of them one identity and
+retired thirty-nine. Renesas publishes no id of its own and puts the number at
+the end of the slug instead -- `/job/-in-hitachinaka-ibaraki-japan-jid-6866` --
+so all 899 of its postings were identified by a URL built from their title and
+location, and a retitled or relocated one read as a withdrawal beside an
+arrival. Both are read out of the URL now.
+
+Identity and content are separate questions. The same requisition retitled,
+relocated, rewritten and reslugged leaves one posting, current in every field,
+with nothing new and nothing closed.

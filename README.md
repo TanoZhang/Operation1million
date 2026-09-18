@@ -84,8 +84,11 @@ boards first, functional searches second, and configured company fallbacks last.
 Each call asks for a single page and a query stops when the provider runs
 short, so the number of pages a day uses is discovered, not declared; a runaway
 guard of 40 pages bounds any one query. Tier A is paged to exhaustion before
-tier B begins, so the tail of the plan is not starved. The ceiling is 320 page
+tier intern, then B, then C. Depth is set per tier so that order is a
+preference and not an exclusion: a single depth let tier A spend the whole
+budget while thirty-seven queries, every internship among them, went unasked.
+The ceiling is 320 page
 credits/day and the monthly target is 9,600. Paid search
 is off in local and manual commands without explicit flags. The private GitHub
-Actions workflow runs daily at 06:17 America/Los_Angeles and enables the fixed
+Actions workflow runs daily at 04:38 America/Los_Angeles and enables the fixed
 plan for scheduled runs. Finalized daily logs cannot be appended again.

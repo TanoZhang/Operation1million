@@ -83,7 +83,7 @@ floor on what was asked for, never a guarantee of returned pages or coverage.
 
 ## Current status
 
-The workflow is scheduled daily at 06:17 `America/Los_Angeles`. It restores the
+The workflow is scheduled daily at 04:38 `America/Los_Angeles`. It restores the
 private data repository, rebuilds the derived database, runs offline tests,
 previews the fixed JSearch plan, collects direct sources with three workers, and
 runs paid JSearch. It checkpoints both operational ledgers even on collection
@@ -95,6 +95,12 @@ means partial or paused sources; unexpected nonzero exits still fail the job.
 A dry run emits an explicit notice with new, closed, and seen counts, restores
 tracked durable files, and removes untracked daily files before the runner exits.
 Only the safety ledgers and the retention-limited triage report survive it.
+Sweeps require the same paid-search opt-in as daily discovery on manual runs.
+Missing or empty operational ledgers stop the workflow before collection. If
+collected history fails verification, publication restores the previous sweep
+cursors while retaining all new charges and cooldowns, and the job fails after
+saving those ledgers. A remote push conflict fails without rebasing independent
+quota histories; reconcile the private ledgers before retrying collection.
 Paid paging also has a graceful runtime ceiling: 25 minutes in the daily pass
 and 50 minutes in the end-of-cycle sweep. The ceiling is checked before buying
 the next page so the job can seal and push its partial progress before the
