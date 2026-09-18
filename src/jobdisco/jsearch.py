@@ -339,6 +339,10 @@ NON_PROSE_FIELDS = {
 }
 
 
+TAGS = re.compile(r'<[^>]{0,400}>')
+WHITESPACE = re.compile(r'\s+')
+
+
 def description_text(row):
     """Everything the posting says about the work, in whatever field it says it.
 
@@ -365,7 +369,11 @@ def description_text(row):
     for key, value in raw.items():
         if key not in NON_PROSE_FIELDS and key != 'relevance':
             walk(value)
-    return ' '.join(parts)
+    # Markup is not prose. A publisher's excerpt is kept rather than judged, on
+    # the grounds that a short description is truncation and not silence -- but
+    # a few hundred words of boilerplate wrapped in tags measured well past the
+    # length that decides it, so the excerpt was judged after all and dropped.
+    return WHITESPACE.sub(' ', TAGS.sub(' ', ' '.join(parts))).strip()
 
 
 def rejection_reason(row, rules):

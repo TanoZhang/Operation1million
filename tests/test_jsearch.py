@@ -431,6 +431,28 @@ class DiscoveryTests(unittest.TestCase):
                 budget = remaining if days <= 1 else remaining // days
             self.assertEqual((remaining, budget), (left, expected))
 
+    def test_markup_is_not_counted_as_description_length(self):
+        """A short description wrapped in tags must still read as short.
+
+        A publisher's excerpt is kept rather than judged, on the grounds that a
+        short description is truncation and not silence. A few hundred words of
+        boilerplate in markup measured well past the length that decides it, so
+        the excerpt was judged after all -- and a posting that says nothing
+        about the trade is dropped.
+        """
+        rules = dict(self.settings['filter'], min_description_chars=1500)
+        prose = 'Benefits and perks. ' * 60
+        wrapped = {'description': '<div class="a">' + ''.join(
+            f'<p class="para-{i}">Benefits and perks.</p>' for i in range(60)) + '</div>'}
+        self.assertGreater(len(wrapped['description']), 1500)
+        self.assertLess(len(jsearch.description_text({'raw': wrapped})), 1500)
+        # Which is what decides it: an excerpt that says nothing is kept.
+        self.assertEqual(jsearch.rejection_reason({'title': 'Engineer', 'raw': wrapped}, rules), '')
+        # A genuinely long description that says nothing is still dropped.
+        self.assertEqual(
+            jsearch.rejection_reason({'title': 'Engineer', 'raw': {'description': prose * 3}}, rules),
+            'off_domain')
+
     def test_an_empty_page_does_not_settle_a_sweep_cursor(self):
         """A provider hiccup must not skip the rest of a query for the cycle.
 
