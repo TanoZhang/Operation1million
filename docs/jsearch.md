@@ -218,3 +218,24 @@ The private GitHub Actions workflow runs the fixed plan once daily at 06:17
 credit and returned 10 raw jobs: 9 accepted, 1 rejected, and 0 malformed or
 failed. Manual dispatches keep paid discovery off unless explicitly enabled.
 See [GitHub Actions](github-actions.md) for the private state boundary.
+
+## Rate limits and overage
+
+The Pro plan the monthly quota matches allows **5 requests per second**, and
+10,000 requests a month with overage charged at $0.003 each beyond it. Both
+limits are held structurally rather than by hoping:
+
+- `RequestGuard.interval` has a floor of 0.25 seconds, taken under the same
+  lock that reserves the credit, so requests leave at most 4 a second however
+  many workers a run uses -- 20% under the provider's limit. One page per call
+  raised a daily pass from about 30 requests to as many as 320, which is 80
+  seconds of throttle and no closer to the limit.
+- `monthly_target` stops the guard at 9,600 of the 10,000 the plan includes, so
+  no request is ever the one that starts being charged. The provider's own FAQ
+  names "automated retries" as the usual cause of an overage bill; a failed page
+  here is charged once and never retried.
+
+A 429 or 503 pauses the account for 15 minutes and a 401 or 403 for 24 hours,
+both persisted, so a cooldown outlives the runner that earned it. Either one
+stops the rest of the pass and exits nonzero: an account-level refusal is not
+something a run should carry on through quietly.

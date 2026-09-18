@@ -23,6 +23,30 @@ JOBDISCO_STORE=<data repo> job-store --bootstrap
 The rebuild uses `schema.sql`, migrations and the append-only log. It has been
 verified from a fresh checkout, including scores, identities and closures.
 
+## Verified state, 2026-09-18
+
+The last check before the first scheduled pass under this code. Everything
+below was measured, not assumed.
+
+| | |
+| --- | --- |
+| Offline tests | 132 pass |
+| Store rebuilds from the data repository | 9.9s, three manifests verify |
+| Open / total / unscored | 38,893 / 39,694 / 0 |
+| Scoring 25 or above | 4,845 |
+| Postings with no identity row | 899, all Renesas, which publishes no id |
+| Identities claimed by two open URLs | 0 |
+| Daily plan worst case | 307 page credits of 320, all four tiers reached |
+| Sweep plan worst case | 3,070 of a share near 3,127, all four tiers |
+| Request rate | 4 a second against the plan's limit of 5 |
+| Monthly guard | stops at 9,600 of the 10,000 the plan includes |
+| Actions minutes | 226 of 2,000, a daily pass costs 14 to 27 |
+
+**Nothing has yet run the shape the schedule runs.** Every hosted pass so far
+had paid search off, or on with a forced five-credit sweep. The pass at 04:38
+is the first with the full plan beside the direct boards. It is covered end to
+end offline, which is not the same as having happened.
+
 ## Current numbers
 
 | | |
