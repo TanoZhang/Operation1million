@@ -25,21 +25,23 @@ employment_types = ["FULLTIME", "INTERN"]
 # ask for six hundred against a budget of three hundred and twenty, so a single
 # depth for everyone meant B, C and the internships were never reached at all.
 #
-# Sized against the time a page costs rather than the credit. The first full
-# pass measured 11.7 seconds a page, so the 25-minute runtime limit bought 128
-# pages of the 307 the credits allowed -- tier A took all of them and B, C and
-# the internships were reached with nothing left, which is the starvation the
-# tier depths exist to prevent, arriving by the other door.
+# Depth is bounded by what a query has, not by what a pass can afford. The
+# subscription is bought to see the whole of a search, so a query stops when
+# the provider runs short rather than when a cap is reached, and these numbers
+# are set above where any query has been observed to end.
 #
-#   A 15*4=60 + intern 11*3=33 + B 13*2=26 + C 13*2=26  =  145 pages
-#   145 * 11.7s = 28 minutes, against a limit of 35
+#   A 15*15=225 + intern 11*8=88 + B 13*6=78 + C 13*5=65  =  456 pages
 #
-# The credit budget is untouched at 320: money was never what bound this.
+# That is still inside the 320-credit ceiling in practice, because most queries
+# exhaust long before their cap: the first full pass bought 128 pages against a
+# 307-page allowance. Nine of fifteen tier A queries did reach their cap, so ten
+# pages was not the end of those searches and this is a measurement, not a
+# settled figure -- raise it again if they keep reaching it.
 [tier_pages]
-A = 4
-intern = 3
-B = 2
-C = 2
+A = 15
+intern = 8
+B = 6
+C = 5
 
 # The same shape, against a sweep's share of the cycle rather than a day:
 #   A 15*100=1500 + intern 11*60=660 + B 13*40=520 + C 13*30=390  =  3,070

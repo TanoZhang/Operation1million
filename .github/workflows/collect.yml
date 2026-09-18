@@ -106,7 +106,7 @@ jobs:
           args=(
             --workers "${{ inputs.workers || '3' }}"
             --delay 1.0
-            --jsearch-max-seconds 2100
+            --jsearch-max-seconds 6000
             --jsearch-timeout 30
           )
           if [ "$ENABLE_JSEARCH" = 'true' ]; then
