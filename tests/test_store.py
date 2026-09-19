@@ -81,11 +81,18 @@ class StoreTests(unittest.TestCase):
     def test_new_then_unchanged_then_closed(self):
         db = self.open_db()
         baseline = [row(f'https://x/{i}') for i in range(1, 5)]
-        first = store.record_source(db, SOURCE, baseline, 'complete', 'full', 2)
+        # Explicit stamps rather than the wall clock. Three passes in a test
+        # finish inside one clock tick on a platform whose now() is coarser
+        # than a microsecond, and then first_seen == last_seen and an assertion
+        # about time fails for a reason that has nothing to do with the store.
+        first = store.record_source(db, SOURCE, baseline, 'complete', 'full', 2,
+                                    stamp='2026-09-17T00:00:00+00:00')
         self.assertEqual((first['seen'], first['new'], first['closed']), (4, 4, 0))
-        again = store.record_source(db, SOURCE, baseline, 'complete', 'full', 2)
+        again = store.record_source(db, SOURCE, baseline, 'complete', 'full', 2,
+                                    stamp='2026-09-18T00:00:00+00:00')
         self.assertEqual((again['seen'], again['new'], again['closed']), (4, 0, 0))
-        gone = store.record_source(db, SOURCE, baseline[:3], 'complete', 'full', 1)
+        gone = store.record_source(db, SOURCE, baseline[:3], 'complete', 'full', 1,
+                                   stamp='2026-09-19T00:00:00+00:00')
         self.assertEqual((gone['new'], gone['closed']), (0, 1))
         self.assertIsNotNone(
             db.execute("SELECT closed_at FROM jobs WHERE url='https://x/4'").fetchone()[0])
@@ -357,9 +364,11 @@ class StoreTests(unittest.TestCase):
     def test_unchanged_board_refreshes_without_closing(self):
         db = self.open_db()
         store.record_source(db, SOURCE, [row('https://x/1'), row('https://x/2')],
-                            'complete', 'full', 2, etag='W/"one"')
+                            'complete', 'full', 2, etag='W/"one"',
+                            stamp='2026-09-18T00:00:00+00:00')
         before = db.execute('SELECT MAX(last_seen) FROM jobs').fetchone()[0]
-        delta = store.touch_source(db, SOURCE, 'conditional', 1)
+        delta = store.touch_source(db, SOURCE, 'conditional', 1,
+                                   stamp='2026-09-19T00:00:00+00:00')
         self.assertEqual((delta['seen'], delta['new'], delta['closed']), (2, 0, 0))
         self.assertGreater(db.execute('SELECT MIN(last_seen) FROM jobs').fetchone()[0], before)
         self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL')

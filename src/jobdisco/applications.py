@@ -137,11 +137,30 @@ def queue(db_path=DB, path=None, now=None):
                             COALESCE(j.relevance, 0) AS confidence
                             FROM jobs j LEFT JOIN companies c USING(company_key)'''
 
+        # Both checks are pure functions of a string, and the strings repeat.
+        # Measured on 39,765 open postings: 413 distinct company keys and 29,088
+        # distinct titles, against 2.5 million regex searches a request. The
+        # rules do not change inside one call, so remembering an answer is the
+        # same answer.
+        titles, employers = {}, {}
+
         def collect_into(target, rows):
             for row in rows:
                 job = dict(row)
                 job['title'] = clean_title(job['title'], job['location'])
-                if jsearch.employer_excluded(job, rules) or jsearch.excluded(job['title'], rules):
+                # Keyed on what employer_excluded actually reads -- the display
+                # name -- not on company_key. One key can carry several names:
+                # the select COALESCEs a catalog name, the provider's
+                # employer_name and the key itself, so caching by key would
+                # answer for "AMD" with the answer for "Advanced Micro Devices".
+                employer = job.get('company')
+                if employer not in employers:
+                    employers[employer] = jsearch.employer_excluded(job, rules)
+                if employers[employer]:
+                    continue
+                if job['title'] not in titles:
+                    titles[job['title']] = jsearch.excluded(job['title'], rules)
+                if titles[job['title']]:
                     continue
                 key = decision_key(job)
                 group = target.setdefault(key, {'id': key, 'company': job['company'],
