@@ -244,13 +244,13 @@ class DiscoveryTests(unittest.TestCase):
         self.assertNotIn('descriptionHtml', store.slim(
             {'description': 'Full text', 'descriptionHtml': '<p>Full text</p>'}))
 
-    def test_filter_uses_title_not_employer_and_keeps_ambiguous_experience(self):
+    def test_filter_preserves_plain_titles_but_rejects_explicit_seniority(self):
         self.session.get.return_value = self.response([
             job('1'), job('2', job_title='Analog IC Designer'),
             job('3', job_title='Engineer'), job('4', job_title='Senior FPGA Engineer')])
         rows, stats = self.collect([replace(self.plan[0], pages=1)])
-        self.assertEqual([r['source_job_id'] for r in rows], ['1', '3', '4'])
-        self.assertEqual(stats['jsearch_jobs_rejected'], 1)
+        self.assertEqual([r['source_job_id'] for r in rows], ['1', '3'])
+        self.assertEqual(stats['jsearch_jobs_rejected'], 2)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM companies').fetchone()[0], 1)
         self.assertEqual(jsearch.rejection_reason({'title': 'RF Engineer'}, self.settings['filter']), 'excluded')
 
@@ -562,6 +562,45 @@ class DiscoveryTests(unittest.TestCase):
         # Four pages, not two hundred, and not the cycle's whole remainder.
         self.assertEqual(guard.credits, 4)
         self.assertEqual(stats['jsearch_pages_used'], 4)
+
+    def test_a_rejected_job_is_seen_before_it_is_filtered(self):
+        """The whole point: the filter must not be what decides whether we remember.
+
+        A posting the filter throws away used to leave nothing but a counter, so
+        the next pass could not tell it from one never fetched. Recording happens
+        first now, and the decision travels with the record.
+        """
+        recorded = []
+        self.session.get.side_effect = lambda url, **kw: self.response([
+            job('keep-me', job_title='RTL Design Engineer'),
+            job('drop-me', job_title='Registered Nurse'),
+        ])
+        _, stats = jsearch.collect(self.plan[:1], self.client, self.settings, {},
+                                   self.persist, record_seen=recorded.extend)
+        by_id = {row['source_job_id']: row for row in recorded}
+        self.assertIn('drop-me', by_id, 'a rejected job left no trace')
+        self.assertIn('keep-me', by_id)
+        self.assertEqual(by_id['keep-me']['decision'], '')
+        self.assertTrue(by_id['drop-me']['decision'],
+                        'a rejected job must carry the reason it was rejected')
+        self.assertGreaterEqual(stats['jsearch_jobs_rejected'], 1)
+
+    def test_what_is_recorded_is_light_enough_to_keep_for_everything(self):
+        recorded = []
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job('x', job_title='Registered Nurse')])
+        jsearch.collect(self.plan[:1], self.client, self.settings, {},
+                        self.persist, record_seen=recorded.extend)
+        self.assertEqual(set(recorded[0]), {'provider_key', 'source_job_id', 'url', 'title',
+                                            'employer', 'decision', 'confidence',
+                                            'filter_version'})
+
+    def test_the_filter_configuration_is_named_beside_each_decision(self):
+        """So a changed filter can later be told from an unchanged one."""
+        first = jsearch.filter_fingerprint(self.settings['filter'])
+        changed = dict(self.settings['filter'], min_confidence=99)
+        self.assertNotEqual(first, jsearch.filter_fingerprint(changed))
+        self.assertEqual(first, jsearch.filter_fingerprint(dict(self.settings['filter'])))
 
     def test_reaching_the_budget_is_not_counted_as_a_failure(self):
         """It is how an adaptive run ends, so counting it would hide real ones."""

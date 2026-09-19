@@ -49,6 +49,55 @@ def migrate(path=DB):
         applied = {r[0] for r in db.execute('SELECT migration_key FROM catalog_migrations')}
         if '004_relevance' not in applied:
             db.executescript((CONFIG / 'migrations/004_relevance.sql').read_text(encoding='utf-8'))
+        if '005_seen_jobs' not in applied:
+            db.executescript((CONFIG / 'migrations/005_seen_jobs.sql').read_text(encoding='utf-8'))
+
+
+def record_seen(db, rows, stamp=None):
+    """Note that a provider returned these jobs, whatever was decided about them.
+
+    Called before the filter, so a posting that is about to be rejected still
+    leaves something behind. The question this answers is only "have we seen
+    this before"; the answer to "is it worth applying to" lives in `jobs`.
+
+    `first_seen` is written once and never moved. Everything else is refreshed,
+    because a posting can be retitled, and because a filter change can turn
+    yesterday's rejection into today's acceptance.
+    """
+    stamp = stamp or now()
+    payload = [(row.get('provider_key') or 'jsearch',
+                row.get('source_job_id') or row.get('url') or '',
+                row.get('url') or '', row.get('title') or '',
+                row.get('employer') or '', stamp, stamp,
+                row.get('decision') or '', row.get('confidence'),
+                row.get('filter_version') or '')
+               for row in rows
+               if (row.get('source_job_id') or row.get('url'))]
+    if not payload:
+        return 0
+    db.executemany(
+        '''INSERT INTO seen_jobs (provider_key, source_job_id, url, title, employer,
+               first_seen, last_seen, decision, confidence, filter_version)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(provider_key, source_job_id) DO UPDATE SET
+               url=excluded.url, title=excluded.title, employer=excluded.employer,
+               last_seen=excluded.last_seen, decision=excluded.decision,
+               confidence=excluded.confidence, filter_version=excluded.filter_version''',
+        payload)
+    return len(payload)
+
+
+def already_seen(db, provider_key, identities):
+    """Which of these the provider has returned before, as a set of identities."""
+    found = set()
+    identities = list(identities)
+    for start in range(0, len(identities), 500):
+        batch = identities[start:start + 500]
+        rows = db.execute(
+            'SELECT source_job_id FROM seen_jobs WHERE provider_key=? AND source_job_id IN (%s)'
+            % ','.join('?' * len(batch)), [provider_key, *batch])
+        found.update(r[0] for r in rows)
+    return found
 
 
 def connect(path=DB):

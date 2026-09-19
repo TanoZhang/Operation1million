@@ -839,6 +839,18 @@ def main():
                             'requests': count, 'failure_reason': detail['reason'],
                             'fallback_status': 'configured' if query.company_key else '',
                             'next_step': detail['reason'] or 'Query-limited discovery; no closure inference'})
+        def record_seen(rows):
+            """Note every job the provider returned, accepted or not.
+
+            Lightweight by design: identity, title, employer, the decision and
+            when it was seen. No description and no raw payload, because a
+            rejected posting is worth recognising rather than storing.
+            """
+            if db is None:
+                return
+            with db:
+                store.record_seen(db, rows)
+
         companies = {employer_normalize(s.company_name): s.company_key for s in all_sources}
         for key, entry in fallbacks.items():
             companies.update({employer_normalize(a): key for a in entry.get('employer_aliases', [])})
@@ -850,7 +862,7 @@ def main():
                 functional_queries + eligible, client, settings, companies, persist_query,
                 backfill=args.backfill,
                 checkpoint=checkpoint_query if db is not None else None,
-                deadline=deadline)
+                deadline=deadline, record_seen=record_seen)
         finally:
             client.close()
         # Same IDs appearing under multiple phrases get one presentation row.

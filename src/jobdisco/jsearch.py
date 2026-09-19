@@ -448,8 +448,20 @@ def tier_rank(tier):
     return TIER_ORDER.index(tier) if tier in TIER_ORDER else len(TIER_ORDER)
 
 
+def filter_fingerprint(rules):
+    """A short stable name for the filter configuration that made a decision.
+
+    Recorded beside each decision so a changed filter can later be told from an
+    unchanged one. Nothing reads it yet; re-evaluating old rejections is not
+    implemented, and this exists so that it can be without a migration.
+    """
+    import json
+    return hashlib.sha256(
+        json.dumps(rules, sort_keys=True, default=str).encode()).hexdigest()[:12]
+
+
 def collect(queries, client, settings, companies, persist, backfill=False,
-            checkpoint=None, deadline=None):
+            checkpoint=None, deadline=None, record_seen=None):
     """Page through each query adaptively, breadth first within a tier.
 
     Depth is discovered rather than declared, so the budget is spent in the
@@ -474,6 +486,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
     # outage that never happened.
     stop_reason = None
     rules = settings.get('filter', {})
+    filter_version = filter_fingerprint(rules)
 
     space = search_space(settings)
     state = {}
@@ -483,7 +496,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
         cursor = query.key + ':' + space
         start, finished = client.guard.resume_page(cursor) if backfill else (1, False)
         state[query.key] = {
-            'query': query, 'cursor': cursor, 'rows': [], 'page': start,
+            'query': query, 'cursor': cursor, 'rows': [], 'seen': [], 'page': start,
             'previous': None, 'done': finished,
             'detail': {'source_id': query.key, 'query': query.query, 'tier': query.tier,
                        'date_posted': settings['date_posted'], 'country': settings['country'],
@@ -514,6 +527,18 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             reason = rejection_reason(row, rules)
             if query.aliases and not employer_matches(row['company_name'], query.aliases):
                 reason = 'employer_mismatch'
+            # Recorded before the decision, not after it. A rejected posting used
+            # to leave nothing but a counter, so the same job was fetched,
+            # normalized, scored and rejected again on every pass and nothing
+            # could say whether it had been seen before. This keeps only what
+            # dedup needs -- no description, no raw payload.
+            entry['seen'].append({
+                'provider_key': 'jsearch',
+                'source_job_id': row['source_job_id'] or row['url'],
+                'url': row['url'], 'title': row.get('title') or '',
+                'employer': row.get('company_name') or '',
+                'decision': reason, 'confidence': confidence,
+                'filter_version': filter_version})
             if reason:
                 detail['rejected'] += 1
                 continue
@@ -630,6 +655,10 @@ def collect(queries, client, settings, companies, persist, backfill=False,
         stats['jsearch_jobs_rejected'] += detail['rejected']
         stats['jsearch_jobs_malformed'] += detail['malformed']
         # A successful search is still query-limited, never a full board scan.
+        # Before persisting the accepted rows, so that a store which recorded
+        # what it had seen but crashed before storing is the harmless ordering.
+        if record_seen and entry['seen']:
+            record_seen(entry['seen'])
         persist(query, rows, detail)
         stats['jsearch_queries'].append(detail)
         all_rows.extend(rows)
