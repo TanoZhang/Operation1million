@@ -1,3 +1,41 @@
+# Working alongside another agent
+
+Claude Code and Codex both work this repository, sometimes at the same time and
+sometimes on the same problem. That is deliberate: the point is a second
+independent reading, so two agents reaching the same fix is a signal the fix is
+real, and two agents disagreeing is where the interesting information is. This
+file is the shared rulebook for both; `CLAUDE.md` only points here.
+
+Overlapping work is therefore expected and is not waste. Losing one of the two
+answers is.
+
+- **Fetch before you plan, not before you push.** `git fetch origin main` in the
+  first minute, and check `git log HEAD..origin/main`. The other agent pushes
+  small commits while you work, and a session that reads the repository once
+  and then works for four hours is working from a snapshot that has since
+  stopped being true. This has already cost a whole feature built twice.
+- **Never touch changes you did not make.** Uncommitted edits in the tree may
+  belong to a session that is still running. No `stash`, `checkout --`, `reset`
+  or `merge` over a file you did not modify; that file is someone's live work.
+  If it blocks you, work in a separate worktree (`git worktree add -b <name>
+  ../<dir>`) and say so.
+- **Do not push to `main` while the other agent is active.** Branch from a named
+  base commit and leave the merge to a moment when both sides can be seen at
+  once. Two agents fast-forwarding `main` in turn is how one of the two answers
+  disappears without anyone reading it.
+- **When your work overlaps theirs, compare; do not quietly prefer your own.**
+  Read their version, find the point where the two disagree, and settle it by
+  testing rather than by reasoning about it. Then report the difference and what
+  decided it. The disagreement is the output being paid for.
+- A claim believed confidently is not a tested claim. A snapshot command was
+  documented here as requiring `sudo` because a read-only WAL connection "has
+  to" take a read mark in the `-shm` file. Running it as `ubuntu` on the VPS
+  copied all 41,029 postings and took five seconds to find out.
+- Author fields tell the two apart in history: Codex commits as
+  `Daichi Zhang <132003493+TanoZhang@...>`, Claude Code as
+  `TanoZhang <tanozhang@users.noreply.github.com>`. When you commit work the
+  other agent wrote, say so in the message, because the field will not.
+
 # Project Language and Encoding
 
 - Conversation may use the user's preferred language. Use English for all authored project artifacts.
