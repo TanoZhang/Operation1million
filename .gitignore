@@ -20,9 +20,11 @@ __pycache__/
 
 # Derived database. Rebuilt in ~2s by `job-store --bootstrap` from schema.sql,
 # migrations and the committed run log, so no binary belongs in Git.
-/data/db/*.sqlite
-/data/db/*.sqlite-shm
-/data/db/*.sqlite-wal
+# Everything derived, not just the three suffixes a rebuild happens to write.
+# A hand-made copy taken before a risky change -- job_discovery.sqlite.bak --
+# matched none of them, landed inside the checkout, and made the tree dirty on a
+# machine whose installer wants it clean.
+/data/db/*
 
 # Collected data lives in the private companion repository, reached through
 # JOBDISCO_STORE. This path is only the default for a single-machine setup.
