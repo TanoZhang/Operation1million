@@ -134,11 +134,15 @@ class QueueRulesTests(unittest.TestCase):
             db.executescript('''CREATE TABLE companies(company_key TEXT, name TEXT);
                 INSERT INTO companies VALUES ('sample', 'Sample');
                 CREATE TABLE jobs(url TEXT, company_key TEXT, title TEXT, location TEXT,
+                    source_job_id TEXT,
                     first_seen TEXT, posted_at TEXT, provider_key TEXT, relevance INTEGER,
                     closed_at TEXT, raw TEXT);''')
-            db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, NULL, ?, 100, NULL, ?)',
+            # A real JSearch row always carries the provider's job id. It is what
+            # keeps a decision attached when the title gains "Posted 2 days ago"
+            # and the url is rewritten underneath it.
+            db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 100, NULL, ?)',
                        ('https://example.test/job', 'sample', 'RTL Engineer', 'Minneapolis, Minnesota, US',
-                        datetime.now(timezone.utc).isoformat(), 'jsearch', '{}'))
+                        'provider-req-1', datetime.now(timezone.utc).isoformat(), 'jsearch', '{}'))
 
     def queue(self):
         return applications.queue(self.db, self.ledger)

@@ -1,0 +1,27 @@
+[Unit]
+Description=Back up the application decision ledger to GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jobdisco
+Group=jobdisco
+Environment=HOME=/opt/jobdisco
+EnvironmentFile=/etc/jobdisco/env
+ExecStart=/opt/jobdisco/code/deploy/vps/backup-applications.sh
+TimeoutStartSec=300
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jobdisco
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

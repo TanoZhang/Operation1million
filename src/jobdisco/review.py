@@ -67,7 +67,7 @@ def make_server(db, ledger, port=8765):
                     raise ValueError('Invalid request size')
                 data = json.loads(self.rfile.read(size))
                 state = applications.queue(db, ledger)
-                group = next((group for status in ('pending', 'applied', 'skipped')
+                group = next((group for status in ('pending', 'backlog', 'applied', 'skipped')
                               for group in state[status] if group['id'] == data.get('id')), None)
                 if group is None:
                     return self.send({'error': 'This item changed. Refresh the queue.'}, 409)

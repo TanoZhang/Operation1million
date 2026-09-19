@@ -19,8 +19,35 @@ def ledger_path():
 
 
 def group_key(company, title):
+    """The old company-and-title identity. Kept only to replay old decisions.
+
+    It is no longer what a decision applies to. See `decision_key`.
+    """
     normalize = lambda value: ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
     return hashlib.sha256(json.dumps([normalize(company), normalize(clean_title(title))]).encode()).hexdigest()
+
+
+def decision_key(job):
+    """One requisition: what a decision may cover, and nothing wider.
+
+    Company and title used to be the identity, on the reasoning that one role
+    advertised in eleven locations should not be answered eleven times. It is
+    the right thought about the wrong rows. Measured on the live queue, 1,656
+    groups held more jobs than locations -- Apple's Design Verification
+    Engineer was 48 postings across 14 locations, so at least 34 of them were
+    separate requisitions -- and skipping that group once would have silently
+    buried all 48.
+
+    So the identity is the provider's requisition id, and the url only where a
+    provider publishes no id of its own. Several rows may still share a
+    decision, but only when they carry the same id, which is the one case where
+    they are provably the same opening. The cost is that a role genuinely listed
+    once per location now appears once per location; showing a posting twice is
+    recoverable, and hiding one is not.
+    """
+    requisition = str(job.get('source_job_id') or '').strip() or job['url']
+    return hashlib.sha256(
+        json.dumps([job.get('provider_key') or '', requisition]).encode()).hexdigest()
 
 
 @contextmanager
@@ -97,7 +124,12 @@ def queue(db_path=DB, path=None, now=None):
         if snapshot and snapshot.get('jobs') and not event.get('group_id', '').startswith('legacy:'):
             first = snapshot['jobs'][0]
             title = clean_title(snapshot['title'], first.get('location', ''))
-            key = group_key(first['company_key'], title)
+            # Re-keyed through the current identity, so a decision keeps hold of
+            # its requisition when the provider rewrites the url underneath it
+            # or grows the title another "Posted 2 days ago". Recomputing rather
+            # than trusting the stored id is also what lets decisions written
+            # under the old company-and-title key land on the right rows now.
+            key = decision_key(first)
             event = dict(event, group_id=key, group=dict(snapshot, id=key, title=title))
         if event.get('group_id'):
             group_states[event['group_id']] = event
@@ -105,27 +137,40 @@ def queue(db_path=DB, path=None, now=None):
         for job in event.get('group', {}).get('jobs', []):
             url_states[job['url']] = event
     uri = Path(db_path).resolve().as_uri() + '?mode=ro'
-    groups, legacy_history = {}, []
+    groups, backlog, legacy_history = {}, {}, []
     rules = jsearch.load_plan()[0]['filter']
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
-        select = '''SELECT j.url, j.company_key,
+        select = '''SELECT j.url, j.company_key, j.source_job_id,
                             COALESCE(c.name, json_extract(j.raw, '$.employer_name'), j.company_key) AS company,
                             j.title, j.location, j.first_seen, j.posted_at, j.provider_key,
                             COALESCE(j.relevance, 0) AS confidence
                             FROM jobs j LEFT JOIN companies c USING(company_key)'''
-        rows = db.execute(select + ''' WHERE j.closed_at IS NULL AND julianday(j.first_seen) >= julianday(?)
-                            AND julianday(j.first_seen) <= julianday(?)
-                            ORDER BY confidence DESC, j.first_seen DESC, j.url''', (since, now.isoformat()))
-        for row in rows:
-            job = dict(row)
-            job['title'] = clean_title(job['title'], job['location'])
-            if jsearch.employer_excluded(job, rules) or jsearch.excluded(job['title'], rules):
-                continue
-            key = group_key(job['company_key'], job['title'])
-            group = groups.setdefault(key, {'id': key, 'company': job['company'], 'title': job['title'],
-                                           'confidence': job['confidence'], 'jobs': []})
-            group['jobs'].append(job)
+
+        def collect_into(target, rows):
+            for row in rows:
+                job = dict(row)
+                job['title'] = clean_title(job['title'], job['location'])
+                if jsearch.employer_excluded(job, rules) or jsearch.excluded(job['title'], rules):
+                    continue
+                key = decision_key(job)
+                group = target.setdefault(key, {'id': key, 'company': job['company'],
+                                                'title': job['title'],
+                                                'confidence': job['confidence'], 'jobs': []})
+                group['jobs'].append(job)
+
+        collect_into(groups, db.execute(
+            select + ''' WHERE j.closed_at IS NULL AND julianday(j.first_seen) >= julianday(?)
+                         AND julianday(j.first_seen) <= julianday(?)
+                         ORDER BY confidence DESC, j.first_seen DESC, j.url''',
+            (since, now.isoformat())))
+        # Anything still open and still undecided, from before the recent window.
+        # A three-day queue is a working rhythm, not an expiry: a posting nobody
+        # got to on Friday was silently gone by Monday, with no view that could
+        # still reach it.
+        collect_into(backlog, db.execute(
+            select + ''' WHERE j.closed_at IS NULL AND julianday(j.first_seen) < julianday(?)
+                         ORDER BY confidence DESC, j.first_seen DESC, j.url''', (since,)))
         for url, event in url_states.items():
             if event.get('group_id') or event['status'] == 'pending':
                 continue
@@ -136,15 +181,24 @@ def queue(db_path=DB, path=None, now=None):
                     'id': 'legacy:' + hashlib.sha256(url.encode()).hexdigest(),
                     'company': job['company'], 'title': job['title'], 'confidence': job['confidence'],
                     'jobs': [job], 'at': event['at'], 'reason': event.get('reason', '')}))
-    result = {'pending': [], 'applied': [], 'skipped': [], 'ledger': str(path.resolve())}
-    for key, group in groups.items():
-        decision = group_states.get(key)
-        if decision and decision['status'] != 'pending':
-            continue
-        group['jobs'] = [job for job in group['jobs']
-                         if url_states.get(job['url'], {}).get('status', 'pending') == 'pending']
-        if group['jobs']:
-            result['pending'].append(group)
+    result = {'pending': [], 'backlog': [], 'applied': [], 'skipped': [],
+              'ledger': str(path.resolve())}
+
+    def undecided(source):
+        """Groups nobody has ruled on, with any already-ruled listing removed."""
+        out = []
+        for key, group in source.items():
+            decision = group_states.get(key)
+            if decision and decision['status'] != 'pending':
+                continue
+            group['jobs'] = [job for job in group['jobs']
+                             if url_states.get(job['url'], {}).get('status', 'pending') == 'pending']
+            if group['jobs']:
+                out.append(group)
+        return out
+
+    result['pending'] = undecided(groups)
+    result['backlog'] = undecided(backlog)
     for key, event in group_states.items():
         if event['status'] != 'pending':
             result[event['status']].append(dict(event['group'], at=event['at'], reason=event.get('reason', '')))

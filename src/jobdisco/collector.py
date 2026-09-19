@@ -839,17 +839,29 @@ def main():
                             'requests': count, 'failure_reason': detail['reason'],
                             'fallback_status': 'configured' if query.company_key else '',
                             'next_step': detail['reason'] or 'Query-limited discovery; no closure inference'})
+        seen_totals = {'fetched': 0, 'new_seen': 0, 'existing_seen': 0}
+
         def record_seen(rows):
             """Note every job the provider returned, accepted or not.
 
             Lightweight by design: identity, title, employer, the decision and
             when it was seen. No description and no raw payload, because a
             rejected posting is worth recognising rather than storing.
+
+            The counts are taken here because the upsert cannot report them: the
+            split between a posting never seen before and one the provider keeps
+            listing is the number that says whether a pass found anything new,
+            and it is the first thing to look at when a total looks wrong.
             """
+            seen_totals['fetched'] += len(rows)
             if db is None:
                 return
+            before = db.execute('SELECT count(*) FROM seen_jobs').fetchone()[0]
             with db:
                 store.record_seen(db, rows)
+            added = db.execute('SELECT count(*) FROM seen_jobs').fetchone()[0] - before
+            seen_totals['new_seen'] += added
+            seen_totals['existing_seen'] += len(rows) - added
 
         companies = {employer_normalize(s.company_name): s.company_key for s in all_sources}
         for key, entry in fallbacks.items():
@@ -865,6 +877,15 @@ def main():
                 deadline=deadline, record_seen=record_seen)
         finally:
             client.close()
+        # One line that has to add up: everything fetched was either seen for
+        # the first time or seen again, and was either accepted or rejected.
+        search_stats.update(
+            seen_fetched=seen_totals['fetched'],
+            seen_new=seen_totals['new_seen'],
+            seen_existing=seen_totals['existing_seen'],
+            seen_accepted=seen_totals['fetched'] - search_stats.get('jsearch_jobs_rejected', 0),
+            seen_rejected=search_stats.get('jsearch_jobs_rejected', 0),
+            seen_malformed=search_stats.get('jsearch_jobs_malformed', 0))
         # Same IDs appearing under multiple phrases get one presentation row.
         presented = set()
         for row in discovered:

@@ -1,4 +1,4 @@
-let state = {pending: [], applied: [], skipped: []};
+let state = {pending: [], backlog: [], applied: [], skipped: []};
 let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLimit = 75;
 const $ = selector => document.querySelector(selector);
 const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -26,6 +26,7 @@ function render() {
   $('#applied').textContent = state.applied.length;
   $('#skipped').textContent = state.skipped.length;
   $('#pending-count').textContent = state.pending.length;
+  $('#backlog-count').textContent = state.backlog.length;
   const groups = filtered();
   if (!groups.some(group => group.id === selected)) selected = groups[0]?.id ?? null;
   $('#count').textContent = `${groups.length} positions`;
@@ -66,7 +67,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${tab === 'pending' ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(job.provider_key)}</span></span><a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a></div>`).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${tab === 'pending' || tab === 'backlog' ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(job.provider_key)}</span></span><a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a></div>`).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';

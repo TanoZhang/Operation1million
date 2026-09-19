@@ -126,6 +126,8 @@ install -m 644 "$ROOT/code/deploy/vps/jobdisco-collect.timer" /etc/systemd/syste
 # updated, which is how its checkout came to be serving a filter the collector
 # had moved on from.
 install -m 644 "$ROOT/code/deploy/vps/jobdisco-review.service" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/jobdisco-backup.service" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/jobdisco-backup.timer" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now jobdisco-collect.timer
 # Restarted, not merely enabled: the running process holds the modules it
@@ -133,6 +135,7 @@ systemctl enable --now jobdisco-collect.timer
 # serving the code it was started with.
 systemctl enable jobdisco-review.service
 systemctl restart jobdisco-review.service
+systemctl enable --now jobdisco-backup.timer
 
 echo
 echo "Installed. Next run:"

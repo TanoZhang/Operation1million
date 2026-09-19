@@ -1,0 +1,14 @@
+[Unit]
+Description=Back up application decisions every fifteen minutes
+
+[Timer]
+# The ledger is the one file here that cannot be collected again, and it used to
+# reach GitHub only when a pass published -- a window of up to a day on a single
+# disk. Fifteen minutes is the window now.
+OnBootSec=5min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

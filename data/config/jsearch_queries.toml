@@ -102,6 +102,13 @@ exclude_title_patterns = [
   '\bdirector\b', '\bmanaging\s+director\b', '\bmanagers?\b',
   '\bvice\s+president\b', '\bVP\b', '\bSVP\b', '\bEVP\b', '\bhead\s+of\b',
   '\bchief\b', '\bC[TEIF]O\b',
+  # Functions that are not the trade at all. These were soft rejects, and a soft
+  # reject is only consulted when confidence falls below min_confidence -- but a
+  # sales or technician posting at a semiconductor company is written in the
+  # trade's vocabulary, so it clears the threshold and the soft reject never
+  # fires. Measured on the live queue: 423 sales, 151 marketing and 633
+  # technician postings were surviving exactly that way.
+  '\bsales\b', '\bmarketing\b', '\btechnician\b',
   # Levels above what an early-career application reaches
   '\bsenior\b', '\bsr\b\.?',
   '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
@@ -170,8 +177,8 @@ reject_title_patterns = [
   '\banalog(?:\s+ic)?\b', '\brf(?:ic)?\b', '\bpcb\b', '\bboard\s+design\b',
   '\bpower\s+electronics\b', '\bprocess\s+engineer\b',
   '\bmanufacturing\s+engineer\b', '\byield\s+engineer\b',
-  '\bsales\b', '\bmarketing\b', '\brecruit', '\bquality\s+engineer\b',
-  '\btechnician\b', '\bfield\s+application\b', '\bclinical\b',
+  '\brecruit', '\bquality\s+engineer\b',
+  '\bfield\s+application\b', '\bclinical\b',
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
   '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
 
