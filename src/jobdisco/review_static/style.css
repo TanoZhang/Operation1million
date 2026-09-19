@@ -9,3 +9,26 @@
 .band-3{background:#f2efe6;color:#6d5c2e}
 .flagged{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;margin-left:6px;background:#fbf0e6;color:#8a531d}
 .detail .band{margin:0}
+/* Give the workspace more screen area without changing typography. */
+header{height:64px;padding:0 20px}
+main{max-width:none;padding:16px 20px 12px}
+.overview{padding-bottom:16px}
+.list-label{padding:12px 16px}
+.job{padding:14px 16px;min-height:104px}
+.job.selected{padding-left:13px}
+.detail{padding:20px 22px}
+.actions{padding-bottom:18px}
+.locations{margin-top:18px}
+.description-head{margin-top:20px}
+@media(min-width:751px){
+  .workspace{height:max(570px,calc(100dvh - 235px))}
+  .queue{display:flex;flex-direction:column;min-height:0}
+  #list{height:auto;flex:1;min-height:0}
+  .detail{height:100%}
+}
+@media(max-width:750px){
+  header{padding:0 12px}
+  main{padding:16px 10px 12px}
+  .overview{gap:14px}
+  .detail{padding:20px 14px}
+}
