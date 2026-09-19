@@ -13,10 +13,15 @@ __pycache__/
 # Persistent local quota ledger
 .local/
 
-# Generated discovery runs
-/runs/*
-!/runs/
-!/runs/latest.json
+# Generated discovery runs. latest.json used to be excepted, and it was a
+# pointer to a run directory that this ignore rule keeps out of the repository:
+# it named 20260915T190602Z, which exists in no checkout, and the only function
+# that reads it is called by nothing. A pointer into a cache is cache.
+/runs/
+
+# Output of `job-validate-sources`, which regenerates it by re-running the
+# probes. Committing a report means every re-run shows as a change to review.
+/data/raw/
 
 # Derived database. Rebuilt in ~2s by `job-store --bootstrap` from schema.sql,
 # migrations and the committed run log, so no binary belongs in Git.
