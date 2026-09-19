@@ -1,0 +1,22 @@
+[Unit]
+Description=Private job application review
+After=network.target
+
+[Service]
+Type=simple
+User=jobdisco
+Group=jobdisco
+WorkingDirectory=/opt/jobdisco/review-code
+Environment=JOBDISCO_STORE=/opt/jobdisco/data
+Environment=PYTHONPATH=/opt/jobdisco/review-code/src
+ExecStart=/opt/jobdisco/venv/bin/python -m jobdisco.review --db /opt/jobdisco/code/data/db/job_discovery.sqlite --port 8765
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jobdisco/data/operational /opt/jobdisco/code/data/db
+
+[Install]
+WantedBy=multi-user.target

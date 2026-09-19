@@ -32,7 +32,8 @@ def make_server(db, ledger, port=8765):
             self.wfile.write(data)
 
         def do_GET(self):
-            if self.headers.get('Host') not in {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}:
+            # An SSH tunnel may use a different local port than the server.
+            if urlsplit('http://' + self.headers.get('Host', '')).hostname not in {'127.0.0.1', 'localhost'}:
                 return self.send({'error': 'Local access only'}, 403)
             route = urlsplit(self.path)
             try:

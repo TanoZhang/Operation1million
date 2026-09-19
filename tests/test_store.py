@@ -36,6 +36,12 @@ def row(url, title='Engineer', posted=None, raw=None):
 
 
 class StoreTests(unittest.TestCase):
+    def test_verify_cli_fails_on_an_invalid_manifest(self):
+        with patch.object(store, 'verify', return_value=[('2026-09-18', 'MISMATCH')]), \
+             patch.object(store, 'summary', return_value={}), \
+             patch('sys.argv', ['job-store', '--verify']):
+            self.assertEqual(store.main(), 1)
+
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.dir.cleanup)

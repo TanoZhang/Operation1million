@@ -10,6 +10,8 @@ import unicodedata
 import uuid
 
 from .paths import DB, DATA
+from .job_text import clean_title
+from . import jsearch
 
 
 def ledger_path():
@@ -18,7 +20,7 @@ def ledger_path():
 
 def group_key(company, title):
     normalize = lambda value: ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
-    return hashlib.sha256(json.dumps([normalize(company), normalize(title)]).encode()).hexdigest()
+    return hashlib.sha256(json.dumps([normalize(company), normalize(clean_title(title))]).encode()).hexdigest()
 
 
 @contextmanager
@@ -89,6 +91,14 @@ def queue(db_path=DB, path=None, now=None):
         events = read_events(path)
     group_states, url_states = {}, {}
     for event in events:
+        # Replay old snapshots through the same normalization without rewriting
+        # the append-only ledger or losing decisions made before title cleanup.
+        snapshot = event.get('group')
+        if snapshot and snapshot.get('jobs') and not event.get('group_id', '').startswith('legacy:'):
+            first = snapshot['jobs'][0]
+            title = clean_title(snapshot['title'], first.get('location', ''))
+            key = group_key(first['company_key'], title)
+            event = dict(event, group_id=key, group=dict(snapshot, id=key, title=title))
         if event.get('group_id'):
             group_states[event['group_id']] = event
         url_states[event['url']] = event
@@ -96,6 +106,7 @@ def queue(db_path=DB, path=None, now=None):
             url_states[job['url']] = event
     uri = Path(db_path).resolve().as_uri() + '?mode=ro'
     groups, legacy_history = {}, []
+    rules = jsearch.load_plan()[0]['filter']
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
         select = '''SELECT j.url, j.company_key,
@@ -108,6 +119,9 @@ def queue(db_path=DB, path=None, now=None):
                             ORDER BY confidence DESC, j.first_seen DESC, j.url''', (since, now.isoformat()))
         for row in rows:
             job = dict(row)
+            job['title'] = clean_title(job['title'], job['location'])
+            if jsearch.employer_excluded(job, rules) or jsearch.excluded(job['title'], rules):
+                continue
             key = group_key(job['company_key'], job['title'])
             group = groups.setdefault(key, {'id': key, 'company': job['company'], 'title': job['title'],
                                            'confidence': job['confidence'], 'jobs': []})

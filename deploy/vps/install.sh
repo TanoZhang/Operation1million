@@ -3,7 +3,7 @@
 # again after a code change and it updates the checkout, the virtualenv and the
 # units without touching the database, the ledgers or the secrets.
 #
-#   sudo ./install.sh
+#   sudo bash install.sh
 #
 # The secrets are never arguments and never reach the shell history. The first
 # run writes /etc/jobdisco/env with blanks and stops; you fill it in with an
@@ -33,15 +33,22 @@ if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
   useradd --system --create-home --home-dir "$ROOT" --shell /usr/sbin/nologin "$SERVICE_USER"
 fi
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 755 "$ROOT" "$ROOT/bin"
+touch "$ROOT/collection.lock"
+chown "$SERVICE_USER:$SERVICE_USER" "$ROOT/collection.lock"
+exec 9>"$ROOT/collection.lock"
+if ! flock -n 9; then
+  echo 'Collection or another deployment is active; try again after it finishes.' >&2
+  exit 75
+fi
 
 echo "== Secrets =="
 install -d -o root -g root -m 755 /etc/jobdisco
 if [ ! -f "$ENV_FILE" ]; then
   cat > "$ENV_FILE" <<'TEMPLATE'
-# Mode 600, root-owned, readable by the jobdisco group. These are the whole
+# Mode 640, root-owned, readable by the jobdisco group. These are the whole
 # credential set the pass needs. Nothing here belongs in either repository.
 #
-# JSEARCH_API_KEY   RapidAPI key for the fixed JSearch plan.
+# JSEARCH_API_KEY   OpenWeb Ninja API key for the fixed JSearch plan.
 # GITHUB_TOKEN      Fine-grained PAT selecting both repositories, Contents:
 #                   read and write. One permission set covers every repository
 #                   a fine-grained token selects, so this carries write on the
@@ -82,24 +89,25 @@ echo "== Repositories =="
 # environment, so it is never written into .git/config and never appears in a
 # remote URL that `git remote -v` or a process listing would show.
 HELPER='!f() { echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f'
+export GITHUB_TOKEN
 clone_or_update() {
   local url=$1 path=$2
   if [ ! -d "$path/.git" ]; then
-    sudo -u "$SERVICE_USER" GITHUB_TOKEN="$GITHUB_TOKEN" \
+    sudo --preserve-env=GITHUB_TOKEN -u "$SERVICE_USER" \
       git -c credential.helper="$HELPER" clone "$url" "$path"
   fi
   sudo -u "$SERVICE_USER" git -C "$path" config credential.helper "$HELPER"
-  sudo -u "$SERVICE_USER" GITHUB_TOKEN="$GITHUB_TOKEN" \
+  sudo --preserve-env=GITHUB_TOKEN -u "$SERVICE_USER" \
     git -C "$path" fetch --quiet origin
 }
 clone_or_update "$CODE_REPO" "$ROOT/code"
 clone_or_update "$DATA_REPO" "$ROOT/data"
-# The code checkout tracks the remote exactly; the data checkout is only ever
-# fast-forwarded, because it holds commits this machine made.
+# Ignore only the executable-bit change made by older installers. Refuse to
+# discard source edits or merge independent operational histories.
+sudo -u "$SERVICE_USER" git -C "$ROOT/code" -c core.filemode=false diff --exit-code --quiet HEAD
 sudo -u "$SERVICE_USER" git -C "$ROOT/code" checkout --quiet main
-sudo -u "$SERVICE_USER" git -C "$ROOT/code" reset --hard --quiet origin/main
-sudo -u "$SERVICE_USER" git -C "$ROOT/data" merge --ff-only --quiet origin/main || \
-  echo "NOTE: the data checkout could not fast-forward; resolve it before the next pass." >&2
+sudo -u "$SERVICE_USER" git -C "$ROOT/code" merge --ff-only --quiet origin/main
+sudo -u "$SERVICE_USER" git -C "$ROOT/data" merge --ff-only --quiet origin/main
 
 echo "== Virtualenv =="
 if [ ! -x "$ROOT/venv/bin/python" ]; then
@@ -110,7 +118,6 @@ sudo -u "$SERVICE_USER" "$ROOT/venv/bin/pip" install --quiet -e "$ROOT/code"
 
 echo "== Entry point =="
 ln -sfn "$ROOT/code/deploy/vps/daily-pass.sh" "$ROOT/bin/daily-pass.sh"
-chmod +x "$ROOT/code/deploy/vps/daily-pass.sh"
 
 echo "== Units =="
 install -m 644 "$ROOT/code/deploy/vps/jobdisco-collect.service" /etc/systemd/system/

@@ -9,7 +9,13 @@ The queue contains open jobs first discovered in the preceding 72 hours, using
 `first_seen`, not a provider's potentially missing or ambiguous posting date.
 Company identity and normalized title merge location variants into one position.
 Positions are ordered by their stored relevance score. There is no additional
-score cutoff. Use the listing links to apply, then choose **Mark applied**, or
+score cutoff. Current hard title and employer exclusions also apply to existing
+records. Publisher "Posted ..." suffixes and known trailing locations do not
+participate in title identity; original provider text stays in raw evidence.
+Posting dates are displayed separately, with a "Posted today" marker when the
+structured date matches the browser's local day. Missing dates are not guessed.
+Old ledger snapshots are normalized during replay without rewriting them.
+Use the listing links to apply, then choose **Mark applied**, or
 choose **Skip** with an optional reason. Both actions handle the whole position,
 including future location variants under that same company and title.
 
@@ -42,3 +48,21 @@ No application status lives in SQLite. The review server replays the ledger,
 so rebuilding the job database with `job-store --bootstrap` cannot erase decisions.
 To recover on another machine, restore the private job logs and application
 ledger, rebuild the job database, and start the review server.
+
+## VPS review
+
+`deploy/vps/jobdisco-review.service` serves only `127.0.0.1:8765` on the VPS.
+Its code snapshot lives in `/opt/jobdisco/review-code`, independently of an
+in-flight collector. It reads `/opt/jobdisco/code/data/db/job_discovery.sqlite`
+and writes `/opt/jobdisco/data/operational/applications.ndjson`. The collection
+publisher includes this ledger in the next private data-repository checkpoint.
+Decisions made after that checkpoint remain local to the VPS until the next one.
+
+Access it with an SSH tunnel, not a public port:
+
+```text
+ssh -N -L 8767:127.0.0.1:8765 <configured-vps-host>
+```
+
+Then open `http://127.0.0.1:8767`. Keep one authoritative ledger on the VPS;
+the earlier standalone local ledger is not automatically merged into it.

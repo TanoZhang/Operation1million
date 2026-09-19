@@ -115,6 +115,8 @@ def score_row(title, raw):
     as a search result does.
     """
     from . import jsearch
+    if jsearch.employer_excluded({'raw': raw}, filter_rules()) or jsearch.excluded(title, filter_rules()):
+        return 0
     stored = raw.get('relevance') if isinstance(raw, dict) else None
     if isinstance(stored, dict) and isinstance(stored.get('confidence'), int):
         return stored['confidence']
@@ -871,8 +873,11 @@ def main():
                 (row['posted_at'] or row['posted_relative'] or row['first_seen'] or '')[:10]))
             print('       %s' % row['url'])
     if args.verify:
-        for day, state in verify():
+        results = verify()
+        for day, state in results:
             print(f'  {day}: {state}')
+        if any(state != 'ok' for _, state in results):
+            return 1
     print('summary:', summary(args.db))
     return 0
 

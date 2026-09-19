@@ -47,7 +47,7 @@ fifteen tier A queries at forty pages can ask for six hundred against a budget
 of three hundred and twenty, so tier A spent all of it and the other
 thirty-seven queries -- every internship among them -- were never reached. The
 depths are sized so the whole plan fits even if every page comes back full:
-10, 6, 4, 3 is 307 of 320. That figure is the arithmetic ceiling, the sum of
+12, 6, 3, 2 is 311 of 320. That figure is the arithmetic ceiling, the sum of
 each query's own cap, not a number sampled from a run.
 
 Within a tier every query takes one page per round. Spending the budget depth
@@ -195,7 +195,9 @@ state before the 120-minute job limit.
 
 Reject obvious unrelated title directions from configured patterns. Keep
 ambiguous mixed titles containing verification, RTL, FPGA, digital, formal or
-DFT. Employer names are not blacklisted. Missing experience, ordinary Engineer
+DFT. Configured defense-contractor exclusions are matched against employer names
+before scoring and title keep rules. The review queue reapplies these exclusions
+to existing stored records without deleting historical evidence. Missing experience, ordinary Engineer
 titles and seniority labels do not cause automatic rejection. No ML ranking is
 performed. Rejected rows are counted; accepted rows enter the shared store.
 

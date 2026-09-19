@@ -61,7 +61,10 @@ def ping(event, url=None, attempts=ATTEMPTS, timeout=TIMEOUT, opener=None,
     for attempt in range(1, attempts + 1):
         try:
             with opener(target, timeout=timeout) as response:
-                getattr(response, 'read', lambda: b'')()
+                # The service can return HTTP 200 with "OK (not found)".
+                # Only the exact acknowledgement means the check accepted it.
+                if response.read().strip() != b'OK':
+                    raise ValueError('Heartbeat endpoint did not acknowledge the event')
             return True
         except Exception as exc:  # noqa: BLE001 - a monitor may not raise
             if attempt == attempts:

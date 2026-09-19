@@ -26,7 +26,7 @@ Everything lives under `/opt/jobdisco`, owned by a system account with no login:
 On the box:
 
     git clone https://github.com/TanoZhang/Operation1million.git
-    sudo ./Operation1million/deploy/vps/install.sh
+    sudo bash ./Operation1million/deploy/vps/install.sh
 
 The first run writes `/etc/jobdisco/env` with blank values and stops. Fill it in
 with an editor **on the box** — not by passing values on a command line, which
@@ -34,11 +34,11 @@ puts them in your shell history and in the process list — and run the script
 again:
 
     sudo nano /etc/jobdisco/env
-    sudo ./Operation1million/deploy/vps/install.sh
+    sudo bash ./Operation1million/deploy/vps/install.sh
 
 | Variable | What it is |
 | --- | --- |
-| `JSEARCH_API_KEY` | RapidAPI key for the fixed JSearch plan |
+| `JSEARCH_API_KEY` | OpenWeb Ninja API key for the fixed JSearch plan |
 | `GITHUB_TOKEN` | Fine-grained PAT scoped to both repositories, Contents: read and write |
 | `HEALTHCHECK_URL` | Healthchecks.io ping URL for the production check |
 
@@ -97,12 +97,11 @@ rather be paged on it, change the final `exit` handling in `daily-pass.sh`.
 
 ## Update
 
-    sudo /opt/jobdisco/code/deploy/vps/install.sh
+    sudo bash /opt/jobdisco/code/deploy/vps/install.sh
 
-The code checkout is reset hard to `origin/main`, so local edits on the box are
-discarded by design: the repository is the source of truth and a machine that
-has drifted from it is the thing you are trying to avoid. The data checkout is
-only ever fast-forwarded, because it holds commits this machine made.
+Both checkouts advance only by fast-forward. Local source edits or divergent
+history stop installation instead of being discarded. Installation and daily
+collection use the same lock, so an update cannot replace running collector code.
 
 ## Triage
 
@@ -114,7 +113,7 @@ only ever fast-forwarded, because it holds commits this machine made.
 To run a pass by hand **without** disturbing the monitor:
 
     sudo -u jobdisco HOME=/opt/jobdisco \
-      /opt/jobdisco/code/deploy/vps/daily-pass.sh --no-heartbeat
+      bash /opt/jobdisco/code/deploy/vps/daily-pass.sh --no-heartbeat
 
 Note that this is a real pass: it spends credits, writes the log and pushes. It
 differs from a production pass only in staying silent to Healthchecks. There is

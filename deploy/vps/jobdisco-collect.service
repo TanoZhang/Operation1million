@@ -10,7 +10,7 @@ User=jobdisco
 Group=jobdisco
 Environment=HOME=/opt/jobdisco
 EnvironmentFile=/etc/jobdisco/env
-ExecStart=/opt/jobdisco/bin/daily-pass.sh
+ExecStart=/bin/bash /opt/jobdisco/bin/daily-pass.sh
 # A full-depth pass is about 110 minutes; a sweep day is longer. This is a
 # backstop against a hung socket, not a budget the pass is expected to fit.
 TimeoutStartSec=10800

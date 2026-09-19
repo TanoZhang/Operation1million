@@ -61,7 +61,20 @@ publish_state() {
   git config user.email 'jobdisco-vps@users.noreply.github.com'
   publication_failed=0
   if job-store --verify; then
-    git add runs manifests source_state.json
+    # The published log is a rolling backup, not the working state: this box
+    # keeps the derived index, and anything genuinely missed is collected again
+    # rather than recovered from an archive.
+    #
+    # The ordering is the load-bearing part. Pruning here puts the deletions in
+    # this commit, so the READY fingerprint written below -- which hashes
+    # HEAD:runs -- describes the tree as it now stands. A prune that landed
+    # after that fingerprint would read on the next pass as history this
+    # machine has not replayed, trigger `job-store --bootstrap`, and rebuild
+    # from the truncated log. That would shrink the live database and not only
+    # the backup, because `seen` and `closed` events are UPDATE statements: a
+    # posting whose job line was pruned is not recreated by them, it is gone.
+    python -m jobdisco.prune --store "$DATA" --keep "${JOBDISCO_KEEP_DAYS:-14}"
+    git add -A runs manifests source_state.json
   else
     publication_failed=1
     echo 'Collected history did not verify; publishing charges without unpublished cursors.' >&2
@@ -80,7 +93,27 @@ publish_state() {
   fi
   # Retry an earlier unpushed commit even when this pass added no new changes.
   git push origin main
+  report_history_size
   return "$publication_failed"
+}
+
+report_history_size() {
+  # Pruning the working tree reclaims nothing. Appending to a gzip file writes a
+  # whole new object every pass, so every byte the log has ever held is still in
+  # the history, and deleting a file in a new commit only adds to it. Measured
+  # three days in: 199 MB of working tree against 307 MB of history.
+  #
+  # Reclaiming means replacing the history, which means a force-push, which is
+  # irreversible and removes the one place a bad prune could be recovered from.
+  # That is a thing to do while looking at it, not at 04:38 with nobody awake,
+  # so this only says when it is due. `deploy/vps/compact-history.sh` does it.
+  local limit size
+  limit=${JOBDISCO_HISTORY_LIMIT_MB:-2048}
+  size=$(du -sm .git 2>/dev/null | cut -f1)
+  if [ -n "$size" ] && [ "$size" -ge "$limit" ]; then
+    echo "NOTE: the data repository's history is ${size} MiB against a ${limit} MiB" >&2
+    echo "      limit. Run deploy/vps/compact-history.sh to replace it." >&2
+  fi
 }
 
 finish() {

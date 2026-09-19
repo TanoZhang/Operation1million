@@ -17,6 +17,7 @@ except ImportError:
 from .paths import CONFIG
 from .collection_policy import retry_after_seconds
 from .jsearch_access import AccountPaused, QuotaExhausted
+from .job_text import clean_title
 
 
 @dataclass(frozen=True)
@@ -104,7 +105,7 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
         raise ValueError('Duplicate JSearch query configuration')
     validate_budget(queries, config['daily_budget'])
     rules = config.setdefault('filter', {})
-    for group in ('exclude_title_patterns', 'reject_title_patterns',
+    for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
                   'keep_title_patterns', 'strong_terms', 'common_terms'):
         for expression in rules.get(group, []):
             re.compile(expression, re.I)
@@ -282,6 +283,7 @@ def normalize_job(item, query, companies):
         'location': ', '.join(str(item[k]) for k in ('job_city', 'job_state', 'job_country') if item.get(k)),
         'posted_at': item.get('job_posted_at_datetime_utc')})
     row['raw'] = dict(item)
+    row['title'] = clean_title(row['title'], row['location'])
     row['raw']['discovery_queries'] = [query.query]
     return row
 
@@ -297,6 +299,13 @@ def excluded(title, rules):
                for p in rules.get('exclude_title_patterns', []))
 
 
+def employer_excluded(row, rules):
+    raw = row.get('raw') if isinstance(row.get('raw'), dict) else {}
+    employer = row.get('company_name') or row.get('company') or raw.get('employer_name') or ''
+    return any(re.search(pattern, str(employer), re.I)
+               for pattern in rules.get('exclude_employer_patterns', []))
+
+
 def relevance(row, rules):
     """Score how much of the trade's vocabulary a posting uses, from 0 to 100.
 
@@ -310,7 +319,7 @@ def relevance(row, rules):
     prints by accident.
     """
     title = row.get('title') or ''
-    if excluded(title, rules):
+    if excluded(title, rules) or employer_excluded(row, rules):
         # Score zero rather than high, so an excluded posting sinks in any ranking
         # that reads the stored number without re-applying the rules. Answered
         # from the title alone, before the rest of the posting is even read.
@@ -397,6 +406,8 @@ def rejection_reason(row, rules):
     description is a publisher's excerpt, not silence, so it is kept.
     """
     title = row.get('title') or ''
+    if employer_excluded(row, rules):
+        return 'excluded_employer'
     if excluded(title, rules):
         return 'excluded'
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):

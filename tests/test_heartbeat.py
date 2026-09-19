@@ -118,6 +118,12 @@ class DeliveryTests(unittest.TestCase):
                                              sleep=lambda seconds: None,
                                              log=lambda message: None), False)
 
+    def test_http_200_without_acknowledgement_is_not_success(self):
+        opener = Opener()
+        opener.read = lambda: b'OK (not found)'
+        self.assertFalse(heartbeat.ping('success', url='https://example.test/u', opener=opener,
+                                        attempts=1, log=lambda message: None))
+
 
 class ExitCodeTests(unittest.TestCase):
     """A monitor that fails the run it monitors is worse than no monitor."""

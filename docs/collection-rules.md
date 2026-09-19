@@ -123,10 +123,11 @@ endpoint without evidence of its order/date behavior. A posting absent from a
 `date_posted=3days` search may still be old or indexed late; search absence is
 not evidence of closure. Broader reconciliation is not automatically scheduled.
 
-The authorized private GitHub Actions schedule runs daily at 04:38
-`America/Los_Angeles`. It restores private event history and both operational
-ledgers before collection. Manual workflow dispatches keep JSearch off unless
-the paid-search input is explicitly enabled. No local startup item is installed.
+The authorized VPS systemd timer runs daily at 04:38
+`America/Los_Angeles`. Collection preserves private event history and operational
+ledgers. GitHub Actions is a manual fallback, not a second daily schedule;
+manual workflow dispatches keep JSearch off unless the paid-search input is
+explicitly enabled. No local startup item is installed.
 
 ## Maintenance and verification
 

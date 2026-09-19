@@ -25,23 +25,14 @@ employment_types = ["FULLTIME", "INTERN"]
 # ask for six hundred against a budget of three hundred and twenty, so a single
 # depth for everyone meant B, C and the internships were never reached at all.
 #
-# Depth is bounded by what a query has, not by what a pass can afford. The
-# subscription is bought to see the whole of a search, so a query stops when
-# the provider runs short rather than when a cap is reached, and these numbers
-# are set above where any query has been observed to end.
-#
-#   A 15*15=225 + intern 11*8=88 + B 13*6=78 + C 13*5=65  =  456 pages
-#
-# That is still inside the 320-credit ceiling in practice, because most queries
-# exhaust long before their cap: the first full pass bought 128 pages against a
-# 307-page allowance. Nine of fifteen tier A queries did reach their cap, so ten
-# pages was not the end of those searches and this is a measurement, not a
-# settled figure -- raise it again if they keep reaching it.
+# Every functional query is reachable even when every page is full:
+# A 15*12 + intern 11*6 + B 13*3 + C 13*2 = 311 of 320 credits.
+# The remaining nine credits are available to configured company fallbacks.
 [tier_pages]
-A = 15
-intern = 8
-B = 6
-C = 5
+A = 12
+intern = 6
+B = 3
+C = 2
 
 # The same shape, against a sweep's share of the cycle rather than a day:
 #   A 15*100=1500 + intern 11*60=660 + B 13*40=520 + C 13*30=390  =  3,070
@@ -85,8 +76,19 @@ min_description_chars = 1500
 # still a director. Everything below this point only decides how relevant a
 # posting is, never whether it is acceptable.
 #
-# Scanned against the title only. An employer name in this list still catches the
-# many postings that carry the programme or division in their title.
+# Company exclusions are matched against employer identity, not job titles.
+exclude_employer_patterns = [
+  '\bLockheed\s+Martin\b', '\bNorthrop\s+Grumman\b',
+  '\bRaytheon\b', '\bGeneral\s+Dynamics\b', '\bBAE\s+Systems\b',
+  '\bL3Harris\b', '\bLeidos\b', '\bAnduril\b',
+  '\bBoeing\b', '\bCACI\b', '\bAmentum\b', '\bPeraton\b',
+  # Ambiguous abbreviations require an exact name or a known corporate suffix.
+  '^\s*RTX(?:\s+(?:Corporation|Corp\.?|Inc\.?))?\s*$',
+  '^\s*SAIC(?:\s+(?:Corporation|Corp\.?|Inc\.?))?\s*$',
+  '\bScience\s+Applications\s+International\s+Corporation\b',
+]
+
+# Role and programme exclusions apply to titles.
 exclude_title_patterns = [
   # Defence and weapons programmes
   '\bdefen[cs]e\b', '\bmilitary\b', '\bDoD\b', '\bDepartment\s+of\s+Defen[cs]e\b',
@@ -95,17 +97,24 @@ exclude_title_patterns = [
   '\bfire\s+control\b', '\btargeting\b', '\bguidance\s+systems?\b',
   '\bcombat\s+systems?\b', '\btactical\s+systems?\b', '\bmission\s+systems?\b',
   '\bdefen[cs]e\s+contractor\b', '\bgovernment\s+clearance\b',
-  '\bsecurity\s+clearance\b', '\bLockheed\s+Martin\b', '\bNorthrop\s+Grumman\b',
-  # Full names only: RTX is Raytheon's ticker and also NVIDIA's GPU line, so the
-  # abbreviation would decline GPU work.
-  '\bRaytheon\b', '\bGeneral\s+Dynamics\b', '\bBAE\s+Systems\b', '\bL3Harris\b',
-  '\bLeidos\b', '\bAnduril\b',
+  '\bsecurity\s+clearance\b',
   # Management: not an individual-contributor track
   '\bdirector\b', '\bmanaging\s+director\b', '\bmanagers?\b',
   '\bvice\s+president\b', '\bVP\b', '\bSVP\b', '\bEVP\b', '\bhead\s+of\b',
   '\bchief\b', '\bC[TEIF]O\b',
   # Levels above what an early-career application reaches
   '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
+  # Unrelated disciplines: title-only exclusions, before explicit trade keeps.
+  '\bphotonics?\b', '\boptical\s+engineer\b', '\boptics\s+engineer\b',
+  '\boptoelectronics?\b', '\blaser\s+engineer\b',
+  '\bprocess\s+(?:engineer|integration)\b', '\bsemiconductor\s+process\b',
+  '\bdevice\s+(?:engineer|integration)\b', '\byield\s+engineer\b',
+  '\b(?:fab|fabrication)\s+engineer\b', '\blithography\b', '\bthin[-\s]+films?\b',
+  '\b(?:etch|deposition)\s+engineer\b',
+  '\bmaterials\s+(?:engineer|scientist)\b', '\b(?:chemical|battery)\s+engineer\b',
+  '\belectrochem(?:ical|istry)\b',
+  '\b(?:mechanical|thermal|structural|civil|construction|manufacturing|industrial)\s+engineer\b',
+  '\brf\s+engineer\b', '\brf\s*ic\b', '\b(?:microwave|antenna)\s+engineer\b',
 ]
 
 # Trade-exclusive vocabulary: languages, methodology, protocols, EDA tools and
@@ -149,13 +158,13 @@ common_terms = [
 
 # Titles that settle the question on their own, before any scoring runs.
 keep_title_patterns = [
-  '\bverification\b', '\brtl\b', '\bfpga\b', '\bdigital\b', '\bformal\b',
+  '\b(?:design|hardware|functional|low[-\s]+power)\s+verification\b',
+  '\bpre[-\s]?silicon\s+verification\b', '\bformal\s+verification\b',
+  '\brtl\b', '\bfpga\b', '\b(?:digital|logic)\s+(?:ic\s+)?design\b',
   '\bdft\b', '\basic\b', '\bvlsi\b', '\bsoc\b', '\bphysical\s+design\b',
-  '\bsilicon\b',
 ]
 
-# Applied only when confidence falls below min_confidence, so strong positive
-# evidence always outranks a title that merely reads the wrong way.
+# Applied after explicit title keeps and before relevance scoring.
 reject_title_patterns = [
   '\banalog(?:\s+ic)?\b', '\brf(?:ic)?\b', '\bpcb\b', '\bboard\s+design\b',
   '\bpower\s+electronics\b', '\bprocess\s+engineer\b',
