@@ -86,7 +86,14 @@ publish_state() {
   # does not treat every previously rejected posting as new -- and kept under
   # operational/, outside the fourteen-day window, because that memory has to
   # outlast the log it was built from.
-  python -m jobdisco.store --export-seen || true
+  # Loudly, but never fatally. Aborting publication over a snapshot would throw
+  # away a whole pass of collected postings to protect a convenience; staying
+  # quiet would leave a stale snapshot looking like a current one, which is the
+  # failure this table exists to prevent. So: keep the data, say it plainly.
+  if ! python -m jobdisco.store --export-seen; then
+    echo 'WARNING: the seen-jobs snapshot was not refreshed; it is now stale and' >&2
+    echo '         a rebuilt machine would treat old rejections as new.' >&2
+  fi
   for name in operational/source_access.sqlite operational/jsearch_usage.sqlite \
               operational/applications.ndjson operational/seen_jobs.ndjson.gz; do
     if [ -f "$name" ]; then git add -f "$name"; fi
