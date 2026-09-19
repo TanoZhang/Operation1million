@@ -18,10 +18,15 @@ working rhythm, not an expiry, so a posting missed on Friday is still reachable
 on Monday.
 
 A position is one requisition: the provider's own job id, and the URL only where
-a provider publishes no id. Several listings share a position only when they
-carry the same id, which is the one case where they are provably the same
-opening. A role genuinely advertised once per location therefore appears once
-per location. That is deliberate -- showing a posting twice is recoverable and
+a provider publishes no id. The id is scoped the way the store scopes
+`job_identities` -- JSearch ids hold across the provider, a direct source's ids
+only within that company's own board -- so two boards that both number a
+requisition `12345` stay two positions. Several listings share a position only
+when they carry the same scoped id, which is the one case where they are
+provably the same opening.
+
+A role genuinely advertised once per location therefore appears once per
+location. That is deliberate -- showing a posting twice is recoverable and
 hiding one is not, and company-and-title grouping was burying 48 Apple
 requisitions behind a single Skip.
 
@@ -95,30 +100,33 @@ the ledger there. Back up or commit this file to that private repository; a file
 stored only locally is not a remote backup. Never put it in the public overview.
 
 Each line is an immutable decision with URL, UTC timestamp, status, optional
-reason, stable company/title group ID, and a snapshot of the grouped listings.
-The last event in append order determines the current status. Undo is another
-event, never a rewrite. URL-only events with `url`, `at`, and `status` are also
-accepted for compatibility.
+reason, requisition-level group ID, and a snapshot of the grouped listings. The
+last event in append order determines the current status. Undo is another event,
+never a rewrite. URL-only events with `url`, `at`, and `status` are also accepted
+for compatibility.
 
 Writes are serialized with an OS file lock, flushed and fsynced before returning
 success. Do not run simultaneous writers on separate Git checkouts or manually
 merge competing histories. A malformed or interrupted line stops replay and
-writes with its line number, preserving evidence for explicit recovery.
-The adjacent `.lock` file is disposable and should not be committed.
+writes with its line number, preserving evidence for explicit recovery. The
+adjacent `.lock` file is disposable and should not be committed.
 
-No application status lives in SQLite. The review server replays the ledger,
-so rebuilding the job database with `job-store --bootstrap` cannot erase decisions.
+No application status lives in SQLite. The review server replays the ledger, so
+rebuilding the job database with `job-store --bootstrap` cannot erase decisions.
 To recover on another machine, restore the private job logs and application
-ledger, rebuild the job database, and start the review server.
+ledger, rebuild or restore the job database, and start the review server.
 
 ## VPS review
 
 `deploy/vps/jobdisco-review.service` serves only `127.0.0.1:8765` on the VPS.
-Its code snapshot lives in `/opt/jobdisco/review-code`, independently of an
-in-flight collector. It reads `/opt/jobdisco/code/data/db/job_discovery.sqlite`
-and writes `/opt/jobdisco/data/operational/applications.ndjson`. The collection
-publisher includes this ledger in the next private data-repository checkpoint.
-Decisions made after that checkpoint remain local to the VPS until the next one.
+It runs from `/opt/jobdisco/code`, the same checkout the collector uses, so the
+Review queue and the collector use the same filter rules. It reads
+`/opt/jobdisco/code/data/db/job_discovery.sqlite` and writes
+`/opt/jobdisco/data/operational/applications.ndjson`. The collection publisher
+includes this ledger in the next private data-repository checkpoint, and
+`jobdisco-backup.timer` backs the ledger up more frequently. Decisions made
+after the most recent checkpoint remain local to the VPS until the next backup
+or collection publication.
 
 Access it with an SSH tunnel, not a public port:
 
@@ -126,5 +134,5 @@ Access it with an SSH tunnel, not a public port:
 ssh -N -L 8767:127.0.0.1:8765 <configured-vps-host>
 ```
 
-Then open `http://127.0.0.1:8767`. Keep one authoritative ledger on the VPS;
-the earlier standalone local ledger is not automatically merged into it.
+Then open `http://127.0.0.1:8767`. Keep one authoritative ledger on the VPS; the
+earlier standalone local ledger is not automatically merged into it.
