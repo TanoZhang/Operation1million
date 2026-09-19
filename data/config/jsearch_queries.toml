@@ -9,6 +9,18 @@ daily_budget = 320
 # The plan renews every 30 days from this date, not on a day of the month.
 cycle_start = "2026-09-16"
 cycle_days = 30
+
+# The daily budget exists to give the scheduled pass its allowance, so the day
+# it paces begins when that pass does -- not at a UTC midnight, which falls at
+# 17:00 Pacific and handed the next morning's credits to anything run in the
+# evening. Measured once before this was written: a catch-up run at 18:05 and
+# 20:10 Pacific took 296 of 320 credits, and the pass eleven hours later got 24
+# and reached fifteen of its fifty-two queries.
+#
+# Keep these in step with deploy/vps/jobdisco-collect.timer. If the timer moves,
+# these move with it, or the budget will again reset at a time nothing observes.
+budget_timezone = "America/Los_Angeles"
+budget_day_resets_at = "04:38"
 country = "us"
 date_posted = "3days"
 # Runaway guard only: the ceiling no tier's depth may exceed.
@@ -20,14 +32,19 @@ backfill_max_pages_per_query = 200
 
 employment_types = ["FULLTIME", "INTERN"]
 
-# Priority is A -> intern -> B -> C, and a depth per tier is what keeps that a
+# Priority is intern -> A -> B -> C, and a depth per tier is what keeps that a
 # preference rather than an exclusion. Fifteen tier A queries at forty pages can
 # ask for six hundred against a budget of three hundred and twenty, so a single
 # depth for everyone meant B, C and the internships were never reached at all.
 #
 # Every functional query is reachable even when every page is full:
-# A 15*12 + intern 11*6 + B 13*3 + C 13*2 = 311 of 320 credits.
+# intern 11*6 + A 15*12 + B 13*3 + C 13*2 = 311 of 320 credits.
 # The remaining nine credits are available to configured company fallbacks.
+#
+# The internships go first because they are the point of the search, and
+# because "second" was not a priority: tier A asks for 180 before they are
+# reached, and the two passes this plan has run spent all 144 of their credits
+# inside tier A without sending a single internship query.
 [tier_pages]
 A = 12
 intern = 6

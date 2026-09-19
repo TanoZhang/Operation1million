@@ -1,10 +1,11 @@
 """Local credentials and a conservative, persistent JSearch request guard."""
 from contextlib import contextmanager
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time as clock, timedelta, timezone
 import re
 import sqlite3
 import time
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .local_config import load_credentials
 from .paths import ROOT
 STATE = ROOT / '.local/jsearch_usage.sqlite'
@@ -37,7 +38,8 @@ class RequestGuard:
     """
     def __init__(self, path=STATE, limit=10000, interval=0.25, daily_limit=None,
                  target_limit=None, cycle_start='2026-09-16', cycle_days=30,
-                 ignore_daily_limit=False, run_limit=None):
+                 ignore_daily_limit=False, run_limit=None,
+                 day_zone='America/Los_Angeles', day_resets_at='04:38'):
         self.attempts = 0
         self.credits = 0
         self.path = Path(path)
@@ -50,6 +52,23 @@ class RequestGuard:
         # crosses February or a 31-day month.
         self.cycle_start = date.fromisoformat(str(cycle_start))
         self.cycle_days = max(1, int(cycle_days))
+        # A budget day begins when the scheduled pass does, not at a midnight
+        # that belongs to nobody. The daily slice exists to give that pass its
+        # allowance, so the two have to mean the same thing by "today".
+        try:
+            self.day_zone = ZoneInfo(str(day_zone))
+        except ZoneInfoNotFoundError:
+            # Never quietly fall back to UTC here. UTC is precisely the wrong
+            # answer -- it is the boundary this exists to stop using -- and a
+            # silent one would look like working software while spending the
+            # scheduled pass's budget the evening before.
+            raise ValueError(
+                f'No time zone data for {day_zone!r}; install tzdata '
+                '(it is a declared dependency) or set a zone this host knows') from None
+        hour, _, minute = str(day_resets_at).partition(':')
+        if not hour.isdigit() or (minute and not minute.isdigit()):
+            raise ValueError('Budget day reset must be written as HH:MM')
+        self.day_resets_at = clock(int(hour), int(minute or 0))
         # A backfill exists to spend credits that expire with the cycle, so the
         # daily slice -- which is only a way of pacing the month -- must not
         # stop it. The monthly target still binds, and always does.
@@ -97,18 +116,53 @@ class RequestGuard:
                 old = db.execute('SELECT used FROM usage WHERE id=1').fetchone()[0]
                 db.execute('INSERT INTO credit_usage VALUES (?, ?, ?)', (period, day, old))
 
-    def period(self):
-        """The current cycle's first day, and today, both as ISO dates."""
+    def _cycle(self):
+        """The cycle's first day and the UTC date, which is what dates it.
+
+        The cycle stands in for the provider's own monthly quota, so it counts
+        plain UTC days from a fixed anchor and never moves with daylight
+        saving. That is load-bearing: 04:38 Pacific is eleven hours clear of a
+        UTC date change in either offset, which is what keeps a pass from
+        landing on a different cycle day twice a year.
+        """
         today = datetime.fromtimestamp(time.time(), timezone.utc).date()
         elapsed = (today - self.cycle_start).days
         cycles = elapsed // self.cycle_days if elapsed >= 0 else -((-elapsed + self.cycle_days - 1) // self.cycle_days)
-        start = self.cycle_start + timedelta(days=cycles * self.cycle_days)
-        return start.isoformat(), today.isoformat()
+        return self.cycle_start + timedelta(days=cycles * self.cycle_days), today
+
+    def budget_day(self):
+        """Which day's page-credit allowance is being spent right now.
+
+        A budget day runs from one scheduled pass to the next, in the timezone
+        the schedule is written in. It is not a UTC day and not a local
+        midnight: the daily slice exists to fund the scheduled pass, so it has
+        to begin when that pass does.
+
+        Under UTC the day turned over at 17:00 Pacific, eleven hours before the
+        pass it was meant to fund, so anything run on a Pacific evening spent
+        the next morning's credits. Measured once, on 2026-09-19: a catch-up
+        run at 18:05 and 20:10 Pacific took 296 of 320, and the scheduled pass
+        eleven hours later got 24 and reached fifteen of its fifty-two queries.
+        """
+        local = datetime.fromtimestamp(time.time(), self.day_zone)
+        day = local.date()
+        if local.time() < self.day_resets_at:
+            # Before this morning's reset, so still yesterday's allowance.
+            day -= timedelta(days=1)
+        return day
+
+    def period(self):
+        """The cycle's first day, and the budget day, both as ISO dates.
+
+        The two are anchored differently on purpose; see `_cycle` and
+        `budget_day` for why each is the clock it is.
+        """
+        return self._cycle()[0].isoformat(), self.budget_day().isoformat()
 
     def days_until_reset(self):
         """Days left in this cycle, counting today. 1 means today is the last."""
-        start, today = self.period()
-        return self.cycle_days - (date.fromisoformat(today) - date.fromisoformat(start)).days
+        start, today = self._cycle()
+        return self.cycle_days - (today - start).days
 
     def pause(self, seconds):
         with connect(self.path) as db:

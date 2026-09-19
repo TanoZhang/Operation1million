@@ -7,6 +7,7 @@ import os
 import re
 import time
 from urllib.parse import urlencode, urlsplit, urlunsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 try:
@@ -56,6 +57,19 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
         raise ValueError('cycle_start must be an ISO date') from None
     if type(config['cycle_days']) is not int or not 1 <= config['cycle_days'] <= 366:
         raise ValueError('cycle_days must be between 1 and 366')
+    # A budget day runs from one scheduled pass to the next, so these two say
+    # when that is. Validated here rather than at the guard so a typo stops the
+    # plan from loading instead of surfacing halfway through a paid run.
+    config.setdefault('budget_timezone', 'America/Los_Angeles')
+    config.setdefault('budget_day_resets_at', '04:38')
+    if not re.fullmatch(r'([01]\d|2[0-3]):[0-5]\d', str(config['budget_day_resets_at'])):
+        raise ValueError('budget_day_resets_at must be a 24-hour HH:MM time')
+    try:
+        ZoneInfo(str(config['budget_timezone']))
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError(
+            f"Unknown budget_timezone {config['budget_timezone']!r}; "
+            'install tzdata or name a zone this host knows') from None
     # A sweep runs deeper than a daily pass because it is spending credits that
     # expire with the cycle rather than pacing a month.
     config.setdefault('backfill_max_pages_per_query', 200)
@@ -479,9 +493,19 @@ def rejection_reason(row, rules):
 HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer'})
 
 
-# Internships are seasonal and scarce, so they are asked before the wider
-# synonyms in B and C rather than after everything else.
-TIER_ORDER = ('A', 'intern', 'B', 'C', 'company')
+# Internships are what this search is for, so they are asked first -- before
+# the roles in A, not after them.
+#
+# They used to sit second, which reads as a high priority and is not one. A is
+# fifteen queries twelve pages deep, so it asks for 180 of a 320-credit day
+# before the internships are reached at all, and any day that opens with less
+# than that in hand reaches none of them. That was every day: across the two
+# passes this plan has run, 144 page credits were spent, all 144 of them in
+# tier A, and the eleven internship queries had never once been sent.
+#
+# First costs nothing it did not already cost. The internships are 11 queries
+# at 6 pages, 66 credits, and A follows with whatever remains of its 180.
+TIER_ORDER = ('intern', 'A', 'B', 'C', 'company')
 
 
 def search_space(settings):

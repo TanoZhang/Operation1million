@@ -552,6 +552,66 @@ class DiscoveryTests(unittest.TestCase):
             self.assertGreater(margin, 3 * 60,
                                'too close to a UTC date change at UTC-%d' % offset)
 
+    def test_the_budget_day_begins_when_the_scheduled_pass_does(self):
+        """The daily allowance belongs to the pass it exists to fund.
+
+        Replayed from the real ledger of 2026-09-19, where a UTC budget day cut
+        at 17:00 Pacific: a catch-up run that evening took 296 of 320 credits,
+        and the scheduled pass the next morning got 24 and reached fifteen of
+        its fifty-two queries.
+        """
+        guard = RequestGuard(path=self.root / 'budget-day.sqlite',
+                             cycle_start='2026-09-16', cycle_days=30)
+
+        def day_at(stamp):
+            when = datetime.fromisoformat(stamp).timestamp()
+            with patch.object(jsearch_access.time, 'time', return_value=when):
+                return guard.period()[1]
+
+        # The two catch-up runs, Pacific evening, belong to that Pacific day.
+        self.assertEqual(day_at('2026-09-19T01:05:00+00:00'), '2026-09-18')
+        self.assertEqual(day_at('2026-09-19T03:10:00+00:00'), '2026-09-18')
+        # One minute before the reset is still the old day; the pass is not.
+        self.assertEqual(day_at('2026-09-19T11:37:00+00:00'), '2026-09-18')
+        self.assertEqual(day_at('2026-09-19T11:55:00+00:00'), '2026-09-19')
+        # And the evening after the pass shares that pass's allowance.
+        self.assertEqual(day_at('2026-09-20T02:00:00+00:00'), '2026-09-19')
+
+    def test_the_budget_day_holds_its_hour_across_daylight_saving(self):
+        """The boundary is a wall clock time, not a fixed offset from UTC."""
+        guard = RequestGuard(path=self.root / 'budget-dst.sqlite',
+                             cycle_start='2026-09-16', cycle_days=30)
+
+        def day_at(stamp):
+            when = datetime.fromisoformat(stamp).timestamp()
+            with patch.object(jsearch_access.time, 'time', return_value=when):
+                return guard.period()[1]
+
+        # Daylight time: 04:38 Pacific is 11:38 UTC.
+        self.assertEqual(day_at('2026-09-19T11:30:00+00:00'), '2026-09-18')
+        self.assertEqual(day_at('2026-09-19T11:45:00+00:00'), '2026-09-19')
+        # Standard time: the same wall clock is 12:38 UTC, an hour later.
+        self.assertEqual(day_at('2026-12-10T12:30:00+00:00'), '2026-12-09')
+        self.assertEqual(day_at('2026-12-10T12:45:00+00:00'), '2026-12-10')
+
+    def test_the_budget_day_and_the_timer_are_configured_from_one_place(self):
+        """A boundary that drifts from the schedule is the bug coming back."""
+        root = Path(__file__).resolve().parents[1]
+        unit = (root / 'deploy/vps/jobdisco-collect.timer').read_text(encoding='utf-8')
+        stamp, zone = re.findall(r'^OnCalendar=(.+)$', unit, re.M)[0].rsplit(' ', 1)
+        hour, minute = stamp.split()[-1].split(':')[:2]
+        self.assertEqual(self.settings['budget_timezone'], zone)
+        self.assertEqual(self.settings['budget_day_resets_at'], f'{hour}:{minute}')
+
+    def test_a_missing_time_zone_is_refused_rather_than_silently_utc(self):
+        """UTC is the wrong answer here, so it is never the fallback."""
+        with self.assertRaises(ValueError) as caught:
+            RequestGuard(path=self.root / 'nozone.sqlite', day_zone='Mars/Olympus')
+        self.assertIn('tzdata', str(caught.exception))
+        for bad in ('0438', '4:38pm', '25:00', ''):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                RequestGuard(path=self.root / 'badtime.sqlite', day_resets_at=bad)
+
     def test_rolling_cycle_tracks_thirty_days_not_a_calendar_day(self):
         guard = RequestGuard(path=self.root / 'cycle.sqlite',
                              cycle_start='2026-09-16', cycle_days=30)
@@ -1164,17 +1224,47 @@ class DiscoveryTests(unittest.TestCase):
         self.assertGreater(stored, 0)
         self.assertEqual(unscored, 0)
 
-    def test_internships_are_asked_before_the_wider_synonyms(self):
-        """Priority is A, then intern, then B, then C."""
+    def test_internships_are_asked_before_everything_else(self):
+        """Priority is intern, then A, then B, then C."""
         order = [t for t in jsearch.TIER_ORDER if t != 'company']
-        self.assertEqual(order, ['A', 'intern', 'B', 'C'])
+        self.assertEqual(order, ['intern', 'A', 'B', 'C'])
         self.session.get.return_value = self.response([job()])
         plan = [jsearch.Query('c query', 1, 'C'), jsearch.Query('intern query', 1, 'intern'),
                 jsearch.Query('b query', 1, 'B'), jsearch.Query('a query', 1, 'A')]
         jsearch.collect(plan, self.client, self.settings, {}, self.persist)
         asked = [parse_qs(urlsplit(c.args[0]).query)['query'][0]
                  for c in self.session.get.call_args_list]
-        self.assertEqual(asked, ['a query', 'intern query', 'b query', 'c query'])
+        self.assertEqual(asked, ['intern query', 'a query', 'b query', 'c query'])
+
+    def test_a_budget_too_small_for_the_plan_still_reaches_the_internships(self):
+        """The failure this ordering exists to prevent.
+
+        Tier A asks for 180 credits of a 320-credit day before the internships
+        used to be reached, so a day that opened with less than that in hand
+        reached none of them. That was every day the plan had run: 144 credits
+        spent, all 144 inside tier A, and the eleven internship queries had
+        never once been sent.
+        """
+        # A full page, so no query runs out early and the budget is what binds
+        # -- which is the situation tier A used to win.
+        self.session.get.return_value = self.response(
+            [job(str(n)) for n in range(jsearch.PAGE_SIZE)])
+        plan = ([jsearch.Query(f'a {n}', 12, 'A') for n in range(15)] +
+                [jsearch.Query(f'intern {n}', 6, 'intern') for n in range(11)])
+        guard = RequestGuard(self.root / 'small.sqlite', daily_limit=24, target_limit=9600)
+        client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
+        jsearch.collect(plan, client, self.settings, {}, self.persist)
+        asked = [parse_qs(urlsplit(c.args[0]).query)['query'][0]
+                 for c in self.session.get.call_args_list]
+        self.assertTrue(asked, 'no query was sent at all')
+        # Every internship is asked, and all of them before tier A is reached.
+        # That is the property: on a day too small for the plan, the queries
+        # that get cut are A's deep tail and never the internships.
+        interns = {q for q in asked if q.startswith('intern')}
+        self.assertEqual(len(interns), 11, f'an internship was starved: {sorted(interns)}')
+        last_intern = max(i for i, q in enumerate(asked) if q.startswith('intern'))
+        first_a = next((i for i, q in enumerate(asked) if q.startswith('a ')), len(asked))
+        self.assertLess(last_intern, first_a, f'tier A cut in: {asked}')
 
     def test_a_sweep_restates_the_daily_depths_with_its_own(self):
         """The plan loads with daily depths, so a sweep has to replace them."""

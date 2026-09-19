@@ -35,7 +35,9 @@ def credits_recorded(path, settings=None):
     guard = RequestGuard(path=path,
                          target_limit=settings['monthly_target'],
                          cycle_start=settings['cycle_start'],
-                         cycle_days=settings['cycle_days'])
+                         cycle_days=settings['cycle_days'],
+                         day_zone=settings['budget_timezone'],
+                         day_resets_at=settings['budget_day_resets_at'])
     return guard.balance()['period_used']
 
 

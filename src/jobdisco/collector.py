@@ -743,6 +743,8 @@ def main():
                                  daily_limit=settings['daily_budget'],
                                  cycle_start=settings['cycle_start'],
                                  cycle_days=settings['cycle_days'],
+                                 day_zone=settings['budget_timezone'],
+                                 day_resets_at=settings['budget_day_resets_at'],
                                  ignore_daily_limit=args.backfill,
                                  run_limit=run_budget if enabled else None)
     if args.backfill:
