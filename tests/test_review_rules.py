@@ -46,13 +46,69 @@ class FilterPolicyTests(unittest.TestCase):
             'Battery Engineer', 'Electrochemical Engineer', 'Electrochemistry Scientist',
             'Mechanical Engineer', 'Thermal Engineer', 'Structural Engineer',
             'Civil Engineer', 'Construction Engineer', 'Manufacturing Engineer',
-            'Industrial Engineer', 'RF Engineer', 'RFIC Engineer', 'RF IC Engineer',
-            'Microwave Engineer', 'Antenna Engineer', 'FPGA Photonics Engineer',
+            'Industrial Engineer', 'FPGA Photonics Engineer',
         )
         for title in titles:
             with self.subTest(title=title):
                 row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
                 self.assertEqual(jsearch.rejection_reason(row, self.rules), 'excluded')
+
+    def test_device_is_only_rejected_as_an_explicit_fab_phrase(self):
+        """`device` is not a fab word; the phrases built around it are."""
+        for title in ('Semiconductor Device Engineer', 'Device Integration Engineer',
+                      'Device Physics Engineer', 'Device Process Engineer',
+                      'Device Characterization Engineer', 'Principal Process/Device Engineer',
+                      'NAND Cell Device Engineer', 'Foundry Device Engineer',
+                      'CMOS Device Integration Team'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.excluded(title, self.rules))
+        # Each of these reads as the trade to someone in it, and a bare
+        # `device engineer` rule took all of them to reach the fab postings.
+        for title in ('Device Validation Engineer', 'Silicon Device Validation Engineer',
+                      'Embedded Device Engineer', 'PCIe Device Engineer',
+                      'Hardware Device Engineer', 'Device Driver Engineer',
+                      'Device Engineer', 'Staff Device Engineer'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
+
+    def test_evidence_titles_are_admitted_only_by_their_description(self):
+        """RF is answered by the posting's text, in neither direction by its name."""
+        for title in ('RF Engineer', 'RFIC Engineer', 'RF IC Engineer',
+                      'Microwave Engineer', 'Antenna Engineer',
+                      'RFIC Digital Verification Engineer'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules), 'no longer a hard reject')
+                self.assertTrue(jsearch.needs_evidence(title, self.rules))
+                trade = {'title': title,
+                         'raw': {'description': 'RTL ASIC FPGA UVM SystemVerilog ' * 200}}
+                self.assertEqual(jsearch.rejection_reason(trade, self.rules), '')
+                # Silence is not evidence. This is the one place the filter is
+                # stricter than the score, which keeps a short description.
+                for raw in ({}, {'description': 'Antenna tuning and spectrum planning.'}):
+                    self.assertEqual(
+                        jsearch.rejection_reason({'title': title, 'raw': raw}, self.rules),
+                        'no_evidence')
+
+    def test_an_evidence_title_cannot_escape_the_check_through_a_keep(self):
+        """The check runs before the keeps, or the name would answer for itself."""
+        row = {'title': 'RFIC Digital Design Engineer', 'raw': {'description': 'Short.'}}
+        self.assertTrue(self.matches_keep(row['title']))
+        self.assertEqual(jsearch.rejection_reason(row, self.rules), 'no_evidence')
+
+    def test_software_survives_when_the_title_names_low_level_work(self):
+        for title in ('Embedded Software Engineer', 'Firmware Software Engineer',
+                      'Device Driver Software Engineer', 'SoC Software Engineer',
+                      'Silicon Validation Software Engineer', 'FPGA Software Engineer',
+                      'Hardware Software Co-Design Engineer'):
+            with self.subTest(title=title):
+                row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
+                self.assertEqual(jsearch.rejection_reason(row, self.rules), '')
+        # Nothing in these names the hardware underneath, so they still go.
+        for title in ('Software Engineer', 'Software Engineer, Machine Learning',
+                      'Full Stack Software Engineer', 'Software Development Engineer II'):
+            with self.subTest(title=title):
+                row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
+                self.assertEqual(jsearch.rejection_reason(row, self.rules), 'title_mismatch')
 
     def test_target_titles_are_not_hard_rejected(self):
         for title in ('Silicon Validation Engineer', 'Pre-Silicon Validation Engineer',

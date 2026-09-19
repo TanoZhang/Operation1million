@@ -270,7 +270,13 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual([r['source_job_id'] for r in rows], ['1', '3'])
         self.assertEqual(stats['jsearch_jobs_rejected'], 2)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM companies').fetchone()[0], 1)
-        self.assertEqual(jsearch.rejection_reason({'title': 'RF Engineer'}, self.settings['filter']), 'excluded')
+        # RF is no longer answered by the title: it is admitted only on a
+        # description that carries the trade's vocabulary, and a row with no
+        # description carries none. See `needs_evidence`.
+        self.assertEqual(jsearch.rejection_reason({'title': 'RF Engineer'}, self.settings['filter']),
+                         'no_evidence')
+        self.assertEqual(jsearch.rejection_reason({'title': 'Photonics Engineer'},
+                                                  self.settings['filter']), 'excluded')
 
     def test_company_fallback_requires_exact_employer_alias(self):
         self.session.get.return_value = self.response([job(), job('2', employer_name='Sample')])

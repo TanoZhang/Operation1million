@@ -567,6 +567,41 @@ def fallback(source, aliases, args, budget, search):
     return rows, 'query_limited', f'First page of {len(names)} employer-name queries; {rejected} employer mismatches rejected'
 
 
+def summary_block(search, facts, totals):
+    """The dozen numbers that say how a pass went, in one place.
+
+    Every line either adds up or is a count of something that went wrong.
+    `fetched` is what the provider returned before any judgement: it splits
+    into new and already-known, and independently into accepted and the two
+    kinds of rejection. A reader who finds these disagreeing has found a bug.
+    """
+    rejected_hard = search.get('jsearch_rejected_hard', 0)
+    rejected_other = search.get('jsearch_rejected_other', 0)
+    reasons = search.get('jsearch_rejections') or {}
+    lines = [
+        '== Pass summary ==',
+        '  fetched        %6d   unique %6d   new_seen %6d   existing_seen %6d' % (
+            search.get('seen_fetched', 0), search.get('jsearch_jobs_unique', 0),
+            search.get('seen_new', 0), search.get('seen_existing', 0)),
+        '  hard_rejected  %6d   other_rejected %6d   accepted %6d   malformed %6d' % (
+            rejected_hard, rejected_other,
+            search.get('jsearch_jobs_accepted', 0), search.get('jsearch_jobs_malformed', 0)),
+        '  persisted      %6d   source_errors  %6d   credits_used %5d   duration %5ds' % (
+            facts.get('jobs_persisted', 0), facts.get('source_errors', 0),
+            search.get('jsearch_pages_used', 0), round(facts.get('duration_seconds', 0))),
+        '  store          %6d new  %6d closed  %6d seen' % (
+            totals.get('new', 0), totals.get('closed', 0), totals.get('seen', 0)),
+    ]
+    if reasons:
+        lines.append('  rejections     ' + ', '.join(
+            f'{name} {count}' for name, count in sorted(reasons.items())))
+    if facts.get('source_errors'):
+        # Louder than the exit code, which a wrapper script may well swallow.
+        lines.append('  WARNING: %d source(s) could not be read; see the reports above.'
+                     % facts['source_errors'])
+    return '\n'.join(lines)
+
+
 def write_csv(path, rows, fields):
     with path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=fields)
@@ -692,6 +727,7 @@ def main():
                           'monthly_target': settings['monthly_target']}, indent=2))
         return 0
     run_stamp = store.now()
+    started = time.monotonic()
     if args.store and store.sealed(run_stamp):
         p.error('That UTC day is over and sealed in the persistent store; refusing to modify it')
     load_credentials()
@@ -893,16 +929,29 @@ def main():
             if identity not in presented and row['url'] not in {r['url'] for r in jobs}:
                 jobs.append(row)
                 presented.add(identity)
+        pass_facts = {
+            'duration_seconds': round(time.monotonic() - started, 1),
+            'source_errors': sum(1 for r in reports
+                                 if r['direct_status'] in {'failed', 'paused'}),
+            'jobs_persisted': totals['new'],
+            'jsearch_jobs_accepted': len(discovered),
+        }
         if db is not None:
             store.finish_run(db, run_id, len(reports), totals['seen'], totals['new'],
                              totals['closed'], sum(r['requests'] for r in reports))
             store.export_state(db)
-            manifest = store.write_manifest(db, run_stamp, reports, search_stats)
+            manifest = store.write_manifest(db, run_stamp, reports, search_stats,
+                                            extra=pass_facts)
             db.commit()
             print('manifest: %s records=%s sha256=%s' % (
                 manifest['run_date'], manifest['records'], (manifest['sha256'] or '-')[:12]), flush=True)
             print(f"store: {totals['new']} new, {totals['closed']} closed, "
                   f"{totals['seen']} seen", flush=True)
+        # One block, always in the same shape, whether the pass was clean or
+        # not. A partial failure used to be a nonzero exit code and a line
+        # somewhere above sixty boards of output; the numbers that say what a
+        # pass actually did were spread across a manifest nobody opens.
+        print(summary_block(search_stats, pass_facts, totals), flush=True)
       except BaseException:
         # Whatever went wrong, the boards already stored must not be left behind
         # a manifest that disagrees with them.

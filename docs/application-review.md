@@ -1,23 +1,79 @@
-# Local application review
+# Application review
 
-Run `python -m jobdisco.review` and open `http://127.0.0.1:8765`.
-Use `--port` if that port is occupied, or `--db` to select a derived job index.
-The server binds only to the local machine. It never submits an application,
-collects jobs, buys credits, or automatically commits or pushes data.
+The review server runs on the VPS, which owns the index, the seen table and the
+decisions written through it. It binds only to `127.0.0.1` and is reached over
+an SSH tunnel; see **VPS review** below. Running it against a local checkout
+(`python -m jobdisco.review`, then `http://127.0.0.1:8765`) is for development,
+not for deciding: a decision written on a second machine is a second writer, and
+two copies of an append-only log do not reconcile. `--port` moves the port,
+`--db` selects a different index.
 
-The queue contains open jobs first discovered in the preceding 72 hours, using
-`first_seen`, not a provider's potentially missing or ambiguous posting date.
-Company identity and normalized title merge location variants into one position.
-Positions are ordered by their stored relevance score. There is no additional
-score cutoff. Current hard title and employer exclusions also apply to existing
-records. Publisher "Posted ..." suffixes and known trailing locations do not
-participate in title identity; original provider text stays in raw evidence.
-Posting dates are displayed separately, with a "Posted today" marker when the
-structured date matches the browser's local day. Missing dates are not guessed.
-Old ledger snapshots are normalized during replay without rewriting them.
-Use the listing links to apply, then choose **Mark applied**, or
-choose **Skip** with an optional reason. Both actions handle the whole position,
-including future location variants under that same company and title.
+It never submits an application, collects jobs, buys credits, or commits data.
+
+## What the queue holds
+
+**To review** is every open posting first seen in the last 72 hours.
+**Backlog** is everything older that nobody has ruled on yet -- three days is a
+working rhythm, not an expiry, so a posting missed on Friday is still reachable
+on Monday.
+
+A position is one requisition: the provider's own job id, and the URL only where
+a provider publishes no id. Several listings share a position only when they
+carry the same id, which is the one case where they are provably the same
+opening. A role genuinely advertised once per location therefore appears once
+per location. That is deliberate -- showing a posting twice is recoverable and
+hiding one is not, and company-and-title grouping was burying 48 Apple
+requisitions behind a single Skip.
+
+The hard title and employer exclusions are re-applied at read time, so a rule
+tightened after collection takes effect on rows already stored.
+
+## Ordering
+
+Positions are ranked by band first and by date second; `jobdisco/ranking.py`
+holds the rules and the reasoning.
+
+| Band | Contents |
+| --- | --- |
+| Intern / New Grad | The trade, open to the early career |
+| Core VLSI | The trade: RTL, ASIC, FPGA, SoC, DV, physical design, DFT, VLSI |
+| Related · Intern / New Grad | Adjacent hardware, open to the early career |
+| Related Hardware | Adjacent: embedded, firmware, validation, memory, PCIe |
+| Other | Kept, but naming neither |
+
+Relevance is decided before seniority, never the reverse: an internship that is
+not the trade stays below the trade, so `Software Marketing Intern` cannot climb
+over `RTL Design Engineer`. Within a band the order is the publication date
+newest first, then the relevance score, then discovery time, then a stable tie
+break.
+
+The score alone could not do this. It measures how much of the trade's
+vocabulary a posting uses, which says nothing about whether the posting is open
+to someone who has not graduated, and rates a staff-level opening exactly as it
+rates one a new graduate can take. It is kept for what it is good at: separating
+postings inside a band.
+
+**`first_seen` is not a publication date.** It is consulted only where the
+employer published none, and a position standing on that fallback sorts behind
+one of the same day that stated its date, because the first is an inference and
+the second is a statement. The first collection pass gave forty thousand
+postings the same `first_seen`; treating the two as interchangeable would have
+read every one of them as published that morning.
+
+A position marked **Adjacent** was admitted on its description rather than its
+title -- see `evidence_title_patterns` in `data/config/jsearch_queries.toml`.
+`RF Engineer` is not the trade and `RFIC Digital Verification Engineer` plainly
+is, so the title decides neither and the posting's own text decides both. A
+posting with no readable description has shown nothing and is not admitted.
+
+Publisher "Posted ..." suffixes and known trailing locations do not participate
+in title identity; the original provider text stays in raw evidence. Posting
+dates are displayed separately, with a "Posted today" marker when the structured
+date matches the browser's local day. Missing dates are not guessed. Old ledger
+snapshots are normalized during replay without rewriting them.
+
+Use the listing links to apply, then choose **Mark applied**, or **Skip** with
+an optional reason. Both cover the whole requisition and nothing wider.
 
 Applied and skipped views retain decision history, including jobs that have
 since closed or aged out. **Move to review** appends a `pending` event. A reopened

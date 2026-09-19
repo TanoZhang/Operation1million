@@ -10,7 +10,7 @@ import uuid
 
 from .paths import DB, DATA
 from .job_text import clean_title
-from . import jsearch
+from . import jsearch, ranking
 
 
 def ledger_path():
@@ -143,6 +143,14 @@ def queue(db_path=DB, path=None, now=None):
         # rules do not change inside one call, so remembering an answer is the
         # same answer.
         titles, employers = {}, {}
+        minimum = rules.get('min_confidence', 25)
+
+        def verdict(title):
+            """(refused outright, must be justified by its description)."""
+            if title not in titles:
+                titles[title] = (jsearch.excluded(title, rules),
+                                 jsearch.needs_evidence(title, rules))
+            return titles[title]
 
         def collect_into(target, rows):
             for row in rows:
@@ -158,14 +166,25 @@ def queue(db_path=DB, path=None, now=None):
                     employers[employer] = jsearch.employer_excluded(job, rules)
                 if employers[employer]:
                     continue
-                if job['title'] not in titles:
-                    titles[job['title']] = jsearch.excluded(job['title'], rules)
-                if titles[job['title']]:
+                refused, evidence = verdict(job['title'])
+                if refused:
+                    continue
+                # An evidence title was admitted on its description, so it has
+                # to go on earning that here. The queue cannot re-read a
+                # description -- selecting `raw` for 39,765 rows is the cost
+                # this endpoint was trimmed to avoid -- but the stored score is
+                # a reading of one, which is exactly the question being asked.
+                # A row scored under rules that hard-rejected these titles still
+                # holds a zero, so they stay hidden until the next pass rescores
+                # them; `job-store --rescore` does it in one go.
+                if evidence and job['confidence'] < minimum:
                     continue
                 key = decision_key(job)
                 group = target.setdefault(key, {'id': key, 'company': job['company'],
                                                 'title': job['title'],
-                                                'confidence': job['confidence'], 'jobs': []})
+                                                'confidence': job['confidence'],
+                                                'bucket': ranking.bucket(job['title']),
+                                                'flagged': bool(evidence), 'jobs': []})
                 group['jobs'].append(job)
 
         collect_into(groups, db.execute(
@@ -193,6 +212,12 @@ def queue(db_path=DB, path=None, now=None):
     result = {'pending': [], 'backlog': [], 'applied': [], 'skipped': [],
               'ledger': str(path.resolve())}
 
+    def label(group):
+        """Give a group its band and its evidence mark, in place."""
+        group['bucket'] = ranking.bucket(group.get('title'))
+        group['flagged'] = jsearch.needs_evidence(group.get('title'), rules)
+        return group
+
     def undecided(source):
         """Groups nobody has ruled on, with any already-ruled listing removed."""
         out = []
@@ -206,12 +231,22 @@ def queue(db_path=DB, path=None, now=None):
                 out.append(group)
         return out
 
-    result['pending'] = undecided(groups)
-    result['backlog'] = undecided(backlog)
+    # Ranked, not merely scored. The score cannot see an internship or a
+    # posting's date, and those are the two things that decide what is worth
+    # opening first; see `ranking` for why the bucket is asked before the score
+    # rather than folded into it.
+    result['pending'] = ranking.order(undecided(groups))
+    result['backlog'] = ranking.order(undecided(backlog))
     for key, event in group_states.items():
         if event['status'] != 'pending':
-            result[event['status']].append(dict(event['group'], at=event['at'], reason=event.get('reason', '')))
+            group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))
+            # Decided groups are replayed from their stored snapshot, which
+            # predates both marks; recomputing them keeps one vocabulary across
+            # every tab rather than leaving history unlabelled.
+            label(group)
+            result[event['status']].append(group)
     for status, group in legacy_history:
+        label(group)
         result[status].append(group)
     for status in ('applied', 'skipped'):
         result[status].sort(key=lambda group: group['at'], reverse=True)

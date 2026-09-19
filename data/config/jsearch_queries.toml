@@ -116,12 +116,35 @@ exclude_title_patterns = [
   '\bphotonics?\b', '\boptical\s+engineer\b', '\boptics\s+engineer\b',
   '\boptoelectronics?\b', '\blaser\s+engineer\b',
   '\bprocess\s+(?:engineer|integration)\b', '\bsemiconductor\s+process\b',
-  '\bdevice\s+(?:engineer|integration)\b', '\byield\s+engineer\b',
+  # "Device" on its own is not a fab word: Device Validation, Embedded Device,
+  # PCIe Device and Device Driver are all roles worth seeing, and a bare
+  # '\bdevice\s+engineer\b' killed them to reach the eighteen fab postings the
+  # store actually holds. So only the explicit phrases -- the work named after
+  # the transistor rather than after the chip -- and only where a fab process
+  # word stands next to it.
+  '\bdevice\s+(?:integration|physics|process|characteri[sz]ation|modell?ing)\b',
+  '\b(?:semiconductor|silicon|cmos|nand|dram|flash|oled|foundry|fab|wafer|transistor)\b(?:\s+\w+){0,2}\s+device\s+engineer\b',
+  '\b(?:process|technology)\s*/\s*device\b', '\bdevice\s*/\s*process\b',
+  '\byield\s+engineer\b',
   '\b(?:fab|fabrication)\s+engineer\b', '\blithography\b', '\bthin[-\s]+films?\b',
   '\b(?:etch|deposition)\s+engineer\b',
   '\bmaterials\s+(?:engineer|scientist)\b', '\b(?:chemical|battery)\s+engineer\b',
   '\belectrochem(?:ical|istry)\b',
   '\b(?:mechanical|thermal|structural|civil|construction|manufacturing|industrial)\s+engineer\b',
+]
+
+# Titles that may not be taken at their word in either direction: the trade is
+# not in the title, but the title is not proof of another trade either. They are
+# admitted only if the posting's own text carries the vocabulary, and a posting
+# with no readable description carries none -- which is the one place this
+# differs from `min_description_chars` below, where silence is given the benefit
+# of the doubt. RF is the case that motivated it: `RFIC Digital Verification
+# Engineer` and `AMS Verification Engineer (RFIC Engineering)` were being hard
+# rejected alongside the analogue-only roles the rule was aimed at.
+#
+# Whatever survives this is marked in the review queue rather than presented as
+# an ordinary result, because it got in on its description and not on its name.
+evidence_title_patterns = [
   '\brf\s+engineer\b', '\brf\s*ic\b', '\b(?:microwave|antenna)\s+engineer\b',
 ]
 
@@ -182,11 +205,15 @@ reject_title_patterns = [
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
   '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
 
-  # Software roles at hardware companies. Checked after the keep list, so a
-  # title that also names the trade survives: post-silicon validation,
-  # low-power verification and FPGA-accelerated RTL simulation stay, while
-  # kernel drivers, benchmarking and ML performance do not.
-  '\bsoftware\s+(?:engineer|developer|development)\b',
+  # Software roles at hardware companies -- but "software" is not by itself a
+  # reason to drop a posting. Embedded, firmware, drivers and silicon bring-up
+  # software are adjacent targets, and rejecting on the word alone removed 231
+  # such titles from the live store, `Embedded Software Engineer` among them.
+  # The lookahead lets any title that also names low-level work fall through to
+  # scoring instead; it is not a keep, so a cloud posting that happens to say
+  # "hardware" is still dropped by the score. Benchmarking, ML performance and
+  # web work name nothing of the sort and are still rejected here.
+  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design)\b).*\bsoftware\s+(?:engineer|developer|development)\b',
   '\bweb\s+developer\b', '\bfront.?end\b', '\bback.?end\b', '\bfull.?stack\b',
   '\bdata\s+(?:engineer|scientist)\b', '\bdevops\b', '\bsite\s+reliability\b',
 ]

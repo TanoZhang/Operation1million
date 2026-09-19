@@ -141,6 +141,49 @@ explicitly enabled. No local startup item is installed.
   and retain the original posting timestamp where the provider supplies one.
 - Do not alter historical counts or describe the 2026-09-15 run as today's board.
 
+## What the title filter may and may not decide
+
+The rules live in `[filter]` in `data/config/jsearch_queries.toml`, and
+`jsearch.rejection_reason` applies them in this order:
+
+| Stage | Question | On a match |
+| --- | --- | --- |
+| `exclude_employer_patterns` | An employer never to apply to | rejected |
+| `exclude_title_patterns` | A title that settles it against the posting | rejected |
+| `evidence_title_patterns` | A title trusted in neither direction | scored; kept only at or above `min_confidence` |
+| `keep_title_patterns` | A title that names the trade outright | kept, unscored |
+| `reject_title_patterns` | A title that names another trade | rejected |
+| relevance score | What the posting's own text says | kept at or above `min_confidence` |
+
+**A hard reject is for a title that alone settles it.** It runs before every
+keep and no description can overturn it, so a word with any ordinary reading in
+this trade does not belong in it. `device`, `process`, `test`, `validation`,
+`verification`, `silicon`, `hardware`, `software`, `digital`, `IC`, `memory`,
+`embedded` and `firmware` are all such words, and none of them appears in the
+list on its own: `Device Validation Engineer`, `Silicon Test Engineer` and
+`Embedded Software Engineer` are postings worth seeing. The list holds phrases
+-- `device integration`, `process engineer`, `thin film` -- and the seniority
+and function words that are unambiguous alone: `senior`, `manager`, `director`,
+`sales`, `marketing`, `technician`. `Staff` and `Principal` are deliberately
+not among them.
+
+**A hard keep is equally narrow**, because it skips scoring entirely. It holds
+`RTL`, `ASIC`, `FPGA`, `SoC`, `VLSI`, `DFT` and the named verification and
+design disciplines -- never a bare `silicon`, `hardware`, `validation` or
+`verification`, which every adjacent industry prints too.
+
+**Evidence titles are the middle case.** `RF Engineer` is not this trade and
+`RFIC Digital Verification Engineer` plainly is, so the name decides neither
+and the posting's own text decides both. A posting with no readable description
+has shown nothing and is not admitted -- the one place the filter is stricter
+than the score, which elsewhere reads a truncated description as a publisher's
+excerpt rather than as silence. Whatever survives is marked in the review queue,
+because it got in on its text and not on its name.
+
+When in doubt, keep the posting and let `jobdisco/ranking.py` sort it downward.
+A posting ranked too low is one scroll away; a hard-rejected one leaves no row
+in `jobs` at all, and only `seen_jobs` remembers it was ever offered.
+
 ## Board row identity
 
 A board row's identity is its requisition, not the words in its URL. Apple

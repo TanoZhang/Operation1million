@@ -106,7 +106,7 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     validate_budget(queries, config['daily_budget'])
     rules = config.setdefault('filter', {})
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
-                  'keep_title_patterns', 'strong_terms', 'common_terms'):
+                  'keep_title_patterns', 'evidence_title_patterns', 'strong_terms', 'common_terms'):
         for expression in rules.get(group, []):
             re.compile(expression, re.I)
     defaults = {'min_confidence': 25, 'certain_strong_hits': 6, 'half_score': 15,
@@ -322,6 +322,24 @@ def excluded(title, rules):
     return bool(combined and combined.search(title or ''))
 
 
+def needs_evidence(title, rules):
+    """Whether this title has to be justified by the posting's own text.
+
+    A middle answer between the two the filter had. `excluded` says the title
+    settles it against the posting and no description can argue; the score says
+    the title is ordinary and the description decides, but gives an unreadable
+    description the benefit of the doubt. RF titles are neither: `RF Engineer`
+    is not the trade, and `RFIC Digital Verification Engineer` plainly is, and
+    hard-rejecting the pattern took both.
+
+    So the title is let through and the posting is made to prove it -- with a
+    description that carries the vocabulary, or not at all. Silence is not
+    evidence here, which is the one way this is stricter than the score.
+    """
+    combined = any_of(rules.get('evidence_title_patterns', []))
+    return bool(combined and combined.search(title or ''))
+
+
 def employer_excluded(row, rules):
     raw = row.get('raw') if isinstance(row.get('raw'), dict) else {}
     employer = row.get('company_name') or row.get('company') or raw.get('employer_name') or ''
@@ -427,12 +445,21 @@ def rejection_reason(row, rules):
     not. Only titles that say nothing reach the score, and only a posting whose
     full text uses none of the trade's vocabulary is dropped there; a truncated
     description is a publisher's excerpt, not silence, so it is kept.
+
+    Between the two sits `needs_evidence`: a title trusted in neither
+    direction, which is admitted on its description alone and never on silence.
     """
     title = row.get('title') or ''
     if employer_excluded(row, rules):
         return 'excluded_employer'
     if excluded(title, rules):
         return 'excluded'
+    # Before the keeps, not after: the point of an evidence title is that its
+    # name is not trusted, and a title that also happens to match a keep would
+    # otherwise skip the check it exists for. A posting that really is the trade
+    # says so in its description and passes here anyway.
+    if needs_evidence(title, rules):
+        return '' if relevance(row, rules)[0] >= rules.get('min_confidence', 25) else 'no_evidence'
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):
         return ''
     if any(re.search(p, title, re.I) for p in rules.get('reject_title_patterns', [])):
@@ -443,6 +470,13 @@ def rejection_reason(row, rules):
     if len(description_text(row)) < rules.get('min_description_chars', 1500):
         return ''
     return 'off_domain'
+
+
+# Rejections nothing about a posting's own text could have changed: the title
+# or the employer answered it. Everything else -- a missing description, an
+# off-domain vocabulary, an evidence title that argued nothing -- is a judgement
+# the term lists can be asked to revisit.
+HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer'})
 
 
 # Internships are seasonal and scarce, so they are asked before the wider
@@ -506,6 +540,12 @@ def collect(queries, client, settings, companies, persist, backfill=False,
              'jsearch_pages_used': 0, 'jsearch_jobs_raw': 0, 'jsearch_jobs_unique': 0,
              'jsearch_failures': 0, 'jsearch_jobs_rejected': 0,
              'jsearch_jobs_malformed': 0, 'jsearch_confidence': [],
+             # One total cannot say whether a pass is working. A title the rules
+             # refuse outright and a posting whose description simply did not
+             # argue its case are different events, and only the second moves
+             # when the term lists are edited.
+             'jsearch_rejected_hard': 0, 'jsearch_rejected_other': 0,
+             'jsearch_rejections': {},
              'jsearch_queries': []}
     unique = set()
     all_rows = []
@@ -571,6 +611,10 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 'filter_version': filter_version})
             if reason:
                 detail['rejected'] += 1
+                stats['jsearch_rejections'][reason] = stats['jsearch_rejections'].get(reason, 0) + 1
+                key = ('jsearch_rejected_hard'
+                       if reason in HARD_REJECTIONS else 'jsearch_rejected_other')
+                stats[key] += 1
                 continue
             identity = ('id', row['source_job_id']) if row['source_job_id'] else ('url', row['url'])
             if identity not in unique:

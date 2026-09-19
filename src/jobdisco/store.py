@@ -690,11 +690,16 @@ def append_scores(db, stamp, urls=None):
     return len(records)
 
 
-def write_manifest(db, stamp, reports, jsearch_stats=None):
+def write_manifest(db, stamp, reports, jsearch_stats=None, extra=None):
     """Record what the day collected, and checksum the file that holds it.
 
     The digest is what later tells you a day's data is the data that was collected,
     not something edited or truncated afterwards.
+
+    `extra` carries the facts about the pass itself rather than about a source
+    or a search -- how long it ran, how many boards it could not read -- which
+    is the difference between a manifest that says a pass happened and one that
+    says how it went.
     """
     path = daily_log(stamp)
     if sealed(stamp):
@@ -724,6 +729,8 @@ def write_manifest(db, stamp, reports, jsearch_stats=None):
     }
     if jsearch_stats:
         manifest.update(jsearch_stats)
+    if extra:
+        manifest.update(extra)
     _write_json_atomic(manifest_path(stamp), manifest)
     return manifest
 

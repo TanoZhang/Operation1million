@@ -1,5 +1,15 @@
-let state = {pending: [], backlog: [], applied: [], skipped: []};
+let state = {pending: [], backlog: [], applied: [], skipped: [], labels: []};
 let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLimit = 75;
+// The band names come from the server so `ranking.LABELS` stays the only place
+// they are written down; a queue that predates them simply shows no chip.
+const band = group => Number.isInteger(group.bucket) ? group.bucket : 4;
+const bandLabel = group => state.labels?.[band(group)] ?? '';
+const bandChip = group => bandLabel(group)
+  ? `<span class="band band-${band(group)}">${escapeText(bandLabel(group))}</span>` : '';
+// Admitted on what the posting says rather than on what it is called, so it is
+// worth a second look rather than a second thought.
+const flagChip = group => group.flagged
+  ? '<span class="flagged" title="The title alone did not qualify this posting; its description carried the vocabulary.">Adjacent</span>' : '';
 const $ = selector => document.querySelector(selector);
 const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const safeLink = value => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? escapeText(url.href) : '#'; } catch { return '#'; } };
@@ -21,6 +31,16 @@ function filtered() {
   const text = $('#search').value.trim().toLowerCase();
   return state[tab].filter(group => `${group.company} ${group.title}`.toLowerCase().includes(text));
 }
+// Bands 0 and 2 are both early-career openings and read as one number here,
+// even though a core one has to sort above an adjacent one in the list itself.
+function bandSummary(groups) {
+  const counts = [0, 0, 0, 0, 0];
+  groups.forEach(group => counts[band(group)]++);
+  const parts = [['intern / new grad', counts[0] + counts[2]], ['core VLSI', counts[1]],
+                 ['related hardware', counts[3]], ['other', counts[4]]];
+  const text = parts.filter(([, total]) => total).map(([name, total]) => `${total} ${name}`).join(' · ');
+  return text ? ' · ' + text : '';
+}
 function render() {
   $('#remaining').textContent = state.pending.length;
   $('#applied').textContent = state.applied.length;
@@ -29,7 +49,7 @@ function render() {
   $('#backlog-count').textContent = state.backlog.length;
   const groups = filtered();
   if (!groups.some(group => group.id === selected)) selected = groups[0]?.id ?? null;
-  $('#count').textContent = `${groups.length} positions`;
+  $('#count').textContent = `${groups.length} positions` + bandSummary(groups);
   $('#list').replaceChildren();
   if (!groups.length) {
     $('#list').innerHTML = '<div class="empty">No matching positions</div>';
@@ -39,7 +59,7 @@ function render() {
     button.className = 'job' + (group.id === selected ? ' selected' : '');
     button.setAttribute('aria-pressed', group.id === selected);
     const locations = [...new Set(group.jobs.map(job => job.location).filter(Boolean))];
-    button.innerHTML = `<div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${group.jobs.length} listing${group.jobs.length === 1 ? '' : 's'}</div>`;
+    button.innerHTML = `<div>${bandChip(group)}${flagChip(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${group.jobs.length} listing${group.jobs.length === 1 ? '' : 's'}</div>`;
     if (group.jobs.some(postedToday)) {
       const mark = document.createElement('span');
       mark.className = 'posted-today';
@@ -67,7 +87,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${tab === 'pending' || tab === 'backlog' ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(job.provider_key)}</span></span><a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a></div>`).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${bandChip(group)}${flagChip(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${tab === 'pending' || tab === 'backlog' ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(job.provider_key)}</span></span><a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a></div>`).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';

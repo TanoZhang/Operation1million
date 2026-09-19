@@ -9,7 +9,7 @@ import sqlite3
 from urllib.parse import urlsplit, parse_qs
 
 from bs4 import BeautifulSoup
-from . import applications
+from . import applications, ranking
 from .paths import DB
 
 
@@ -26,7 +26,8 @@ from .paths import DB
 # `queue()` call and never from what the client sends back, so a decision is
 # still written against the full row. Adding a field to the page means adding
 # it here; leaving it out shows as undefined rather than as stale data.
-GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason')
+GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
+                'bucket', 'flagged')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at')
 
 
@@ -70,7 +71,10 @@ def make_server(db, ledger, port=8765):
             route = urlsplit(self.path)
             try:
                 if route.path == '/api/queue':
-                    return self.send(dict(slim(applications.queue(db, ledger)), token=token))
+                    # Added after `slim`, which would read a bare list of names
+                    # as a list of groups and project the strings away.
+                    return self.send(dict(slim(applications.queue(db, ledger)),
+                                          token=token, labels=list(ranking.LABELS)))
                 if route.path == '/api/job':
                     url = parse_qs(route.query).get('url', [''])[0]
                     with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:

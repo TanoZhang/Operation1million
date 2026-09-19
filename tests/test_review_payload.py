@@ -12,7 +12,7 @@ import json
 import re
 import unittest
 
-from jobdisco import review
+from jobdisco import ranking, review
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def group(**extra):
     return dict({
         'id': 'abc', 'company': 'Example Semiconductor', 'title': 'RTL Design Engineer',
-        'confidence': 80,
+        'confidence': 80, 'bucket': 1, 'flagged': False,
         'jobs': [{'url': 'https://example.test/1', 'location': 'Austin',
                   'provider_key': 'jsearch', 'first_seen': '2026-09-19T00:00:00+00:00',
                   'source_job_id': 'req-1', 'title': 'RTL Design Engineer',
@@ -31,9 +31,24 @@ def group(**extra):
 class SlimTests(unittest.TestCase):
     def test_it_keeps_everything_the_page_renders(self):
         out = review.slim({'pending': [group()], 'ledger': '/tmp/l'})['pending'][0]
-        self.assertEqual(set(out), {'id', 'company', 'title', 'confidence', 'jobs'})
+        self.assertEqual(set(out), {'id', 'company', 'title', 'confidence', 'jobs',
+                                    'bucket', 'flagged'})
         self.assertEqual(set(out['jobs'][0]),
                          {'url', 'location', 'provider_key', 'first_seen', 'posted_at'})
+
+    def test_the_band_and_its_mark_reach_the_page(self):
+        """Band 0 must survive the projection; a falsy value is still a value."""
+        out = review.slim({'pending': [group(bucket=0, flagged=True)]})['pending'][0]
+        self.assertEqual(out['bucket'], 0)
+        self.assertIs(out['flagged'], True)
+
+    def test_the_page_has_a_class_for_every_band_it_can_emit(self):
+        """A chip rendered into a class that does not exist is an invisible chip."""
+        css = (ROOT / 'src/jobdisco/review_static/style.css').read_text(encoding='utf-8')
+        self.assertIn('.band{', css, 'the base chip style carries bands with no rule of their own')
+        for index in range(len(ranking.LABELS)):
+            self.assertTrue(f'.band-{index}' in css or '.band{' in css)
+        self.assertIn('.flagged{', css)
 
     def test_it_drops_the_fields_that_only_the_decision_path_needs(self):
         out = review.slim({'pending': [group()]})['pending'][0]

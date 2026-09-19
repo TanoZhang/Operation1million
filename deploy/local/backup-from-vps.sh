@@ -14,6 +14,13 @@
 # but a copy that could not rebuild the index without a network round trip is a
 # worse copy, and the log is capped at fourteen days anyway.
 #
+# And it takes the index itself, which the data tree does not hold. Rebuilding
+# from the log only reconstructs what the fourteen-day window still carries:
+# `seen`, `closed` and `score` events are UPDATE statements, so a posting whose
+# job line has aged out of the window is not recreated by them. The rebuild
+# path stays the tested one, but a copy of the database is the difference
+# between losing a day and losing everything older than a fortnight.
+#
 # It uses tar over ssh rather than rsync: rsync has to exist at both ends, and a
 # Windows checkout has no rsync. tar transfers everything each time, which is
 # the cost of not needing anything installed.
@@ -22,6 +29,7 @@ set -euo pipefail
 HOST=${JOBDISCO_VPS:-ubuntu@40.160.142.175}
 KEY=${JOBDISCO_VPS_KEY:-$HOME/.ssh/op1m_vps}
 REMOTE=${JOBDISCO_VPS_DATA:-/opt/jobdisco/data}
+CODE=${JOBDISCO_VPS_CODE:-/opt/jobdisco/code}
 TARGET=${1:-${JOBDISCO_BACKUP_DIR:-$HOME/op1m-backup}}
 
 mkdir -p "$TARGET"
@@ -42,9 +50,25 @@ if [ ! -d "$tree/operational" ]; then
   exit 1
 fi
 
+# Taken through SQLite's backup API rather than copied, because the collector
+# may be writing to it right now; see deploy/vps/snapshot-database.sh. Not
+# fatal on its own: the log and operational/ are still the irreplaceable parts,
+# and a pull that kept those is worth keeping even if the index did not come.
+echo "== Snapshotting the job index =="
+index=$tree/job_discovery.sqlite
+if ssh -i "$KEY" -o BatchMode=yes "$HOST" \
+       "bash '$CODE/deploy/vps/snapshot-database.sh' --stdout" > "$index"; then
+  echo "  index:    $(du -h "$index" | cut -f1)"
+else
+  echo 'WARNING: no consistent index snapshot was taken; this copy can only be' >&2
+  echo '         rebuilt from the log, which reaches back fourteen days.' >&2
+  rm -f "$index"
+  missing_index=1
+fi
+
 # The four files nothing regenerates. A backup missing one of these is the kind
 # that is discovered to be useless at the moment it is needed.
-missing=0
+missing=${missing_index:-0}
 for name in applications.ndjson jsearch_usage.sqlite source_access.sqlite seen_jobs.ndjson.gz; do
   if [ ! -s "$tree/operational/$name" ]; then
     echo "WARNING: operational/$name is missing or empty in the copy." >&2
@@ -81,8 +105,11 @@ echo "  at:       $TARGET/current"
 echo "  size:     $(du -sh "$current" | cut -f1)"
 echo "  runs:     $runs files, $manifests manifests"
 echo "  decisions: $(wc -l < "$current/operational/applications.ndjson" 2>/dev/null || echo 0)"
+echo "  index:    $([ -s "$current/job_discovery.sqlite" ] && du -h "$current/job_discovery.sqlite" | cut -f1 || echo 'not taken')"
 echo "  pulled:   $(cat "$TARGET/last-pull")"
 echo
-echo "To rebuild the index from this copy:"
+echo "To restore, prefer the snapshot -- it holds postings older than the log:"
+echo "    cp $current/job_discovery.sqlite <checkout>/data/db/job_discovery.sqlite"
+echo "Or rebuild from the log alone, which reaches back fourteen days:"
 echo "    JOBDISCO_STORE=$current job-store --bootstrap --verify"
 exit "$missing"
