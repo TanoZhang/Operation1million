@@ -6,9 +6,17 @@ After=network.target
 Type=simple
 User=jobdisco
 Group=jobdisco
-WorkingDirectory=/opt/jobdisco/review-code
+# The same checkout the collector runs from, deliberately. The review queue
+# re-applies the hard exclusions at read time -- see applications.py, which
+# calls jsearch.load_plan() on every request -- so a second copy of the tree
+# means a second copy of the filter, and the queue starts showing what
+# collection has already excluded. That is not hypothetical: a hand-made copy
+# at /opt/jobdisco/review-code drifted within hours and was serving Boeing,
+# RTX and SAIC postings, Senior titles and photonics roles that the collector
+# was rejecting at the same moment.
+WorkingDirectory=/opt/jobdisco/code
 Environment=JOBDISCO_STORE=/opt/jobdisco/data
-Environment=PYTHONPATH=/opt/jobdisco/review-code/src
+Environment=PYTHONPATH=/opt/jobdisco/code/src
 ExecStart=/opt/jobdisco/venv/bin/python -m jobdisco.review --db /opt/jobdisco/code/data/db/job_discovery.sqlite --port 8765
 Restart=on-failure
 RestartSec=5

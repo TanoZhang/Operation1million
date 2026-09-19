@@ -122,8 +122,17 @@ ln -sfn "$ROOT/code/deploy/vps/daily-pass.sh" "$ROOT/bin/daily-pass.sh"
 echo "== Units =="
 install -m 644 "$ROOT/code/deploy/vps/jobdisco-collect.service" /etc/systemd/system/
 install -m 644 "$ROOT/code/deploy/vps/jobdisco-collect.timer" /etc/systemd/system/
+# The review unit too. Left out, it was installed by hand once and then never
+# updated, which is how its checkout came to be serving a filter the collector
+# had moved on from.
+install -m 644 "$ROOT/code/deploy/vps/jobdisco-review.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now jobdisco-collect.timer
+# Restarted, not merely enabled: the running process holds the modules it
+# imported at start, so a review server left running after an update keeps
+# serving the code it was started with.
+systemctl enable jobdisco-review.service
+systemctl restart jobdisco-review.service
 
 echo
 echo "Installed. Next run:"
