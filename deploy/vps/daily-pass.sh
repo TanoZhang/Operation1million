@@ -81,7 +81,14 @@ publish_state() {
     python -m jobdisco.workflow_state operational/jsearch_usage.sqlite \
       "$CODE/.local/jsearch_usage.before.sqlite"
   fi
-  for name in operational/source_access.sqlite operational/jsearch_usage.sqlite operational/applications.ndjson; do
+  # Knowing a job has been seen before lives in the derived index, which is
+  # gitignored and dies with this machine. Snapshotted here so a rebuilt box
+  # does not treat every previously rejected posting as new -- and kept under
+  # operational/, outside the fourteen-day window, because that memory has to
+  # outlast the log it was built from.
+  python -m jobdisco.store --export-seen || true
+  for name in operational/source_access.sqlite operational/jsearch_usage.sqlite \
+              operational/applications.ndjson operational/seen_jobs.ndjson.gz; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
   if ! git diff --cached --quiet; then

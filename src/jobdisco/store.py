@@ -53,6 +53,68 @@ def migrate(path=DB):
             db.executescript((CONFIG / 'migrations/005_seen_jobs.sql').read_text(encoding='utf-8'))
 
 
+SEEN_SNAPSHOT = 'operational/seen_jobs.ndjson.gz'
+SEEN_COLUMNS = ['provider_key', 'source_job_id', 'url', 'title', 'employer',
+                'first_seen', 'last_seen', 'decision', 'confidence', 'filter_version']
+
+
+def export_seen(db, root=None):
+    """Write the whole seen table to the data repository, for a machine that dies.
+
+    It lives under `operational/` rather than in the daily log, and that is the
+    whole point. The log is a fourteen-day rolling backup; knowing that a job
+    has been seen before must outlast it, or on the fifteenth day every posting
+    the provider still lists becomes new again and is scored and rejected from
+    scratch. The table is small enough that keeping all of it costs less than
+    the pass that would otherwise re-decide it.
+
+    A snapshot rather than an append, because the rows change: last_seen moves
+    and a decision can flip when the filter does.
+    """
+    root = Path(root) if root is not None else LOG
+    path = root / SEEN_SNAPSHOT
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix('.tmp')
+    written = 0
+    with gzip.open(temporary, 'wt', encoding='utf-8') as handle:
+        for row in db.execute('SELECT %s FROM seen_jobs ORDER BY provider_key, source_job_id'
+                              % ', '.join(SEEN_COLUMNS)):
+            handle.write(json.dumps(dict(zip(SEEN_COLUMNS, row)), ensure_ascii=True) + '\n')
+            written += 1
+    temporary.replace(path)
+    return written
+
+
+def import_seen(db, root=None):
+    """Restore the seen table from the snapshot, if the repository carries one."""
+    root = Path(root) if root is not None else LOG
+    path = root / SEEN_SNAPSHOT
+    if not path.exists():
+        return 0
+    restored = 0
+    with gzip.open(path, 'rt', encoding='utf-8') as handle:
+        batch = []
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            batch.append([row.get(name) for name in SEEN_COLUMNS])
+            if len(batch) >= 1000:
+                restored += _insert_seen(db, batch)
+                batch = []
+        restored += _insert_seen(db, batch)
+    return restored
+
+
+def _insert_seen(db, batch):
+    if not batch:
+        return 0
+    db.executemany(
+        'INSERT OR REPLACE INTO seen_jobs (%s) VALUES (%s)'
+        % (', '.join(SEEN_COLUMNS), ', '.join('?' * len(SEEN_COLUMNS))), batch)
+    return len(batch)
+
+
 def record_seen(db, rows, stamp=None):
     """Note that a provider returned these jobs, whatever was decided about them.
 
@@ -832,6 +894,10 @@ def rebuild(path=DB):
                 'UPDATE jobs SET relevance=? WHERE url=?',
                 [(calculate_score(r['title'], json.loads(r['raw'] or 'null')), r['url'])
                  for r in rows])
+        # The log cannot carry this: it is pruned to a rolling window and the
+        # memory of having seen a job has to outlast that window. It comes back
+        # from its own snapshot under operational/, which is never pruned.
+        counts['seen'] = import_seen(db)
     return counts
 
 
@@ -865,6 +931,8 @@ def main():
                         help='List the N most relevant open postings')
     parser.add_argument('--since', metavar='DATE',
                         help='With --ranked, only postings first seen on or after this date')
+    parser.add_argument('--export-seen', action='store_true',
+                        help='Snapshot the seen table into the data repository')
     parser.add_argument('--verify', action='store_true',
                         help='Check each day file against its manifest digest')
     parser.add_argument('--export', action='store_true',
@@ -897,6 +965,9 @@ def main():
                 write_manifest(db, f'{day}T00:00:00+00:00', [])
             export_state(db)
         print('exported:', len(urls), 'jobs,', len(closed), 'closures')
+    if args.export_seen:
+        with closing(connect(args.db)) as db, db:
+            print('seen snapshot:', export_seen(db), 'rows')
     if args.rescore:
         def tick(done):
             print('  rescored %d postings' % done, flush=True)

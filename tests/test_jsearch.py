@@ -585,6 +585,57 @@ class DiscoveryTests(unittest.TestCase):
                         'a rejected job must carry the reason it was rejected')
         self.assertGreaterEqual(stats['jsearch_jobs_rejected'], 1)
 
+    def collect_into_seen(self, seen_db, settings=None, titles=(('j1', 'Registered Nurse'),)):
+        """Run one whole pass and let it write into a real seen table."""
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job(ident, job_title=title) for ident, title in titles])
+        jsearch.collect(self.plan[:1], self.client, settings or self.settings, {},
+                        self.persist,
+                        record_seen=lambda rows: store.record_seen(seen_db, rows))
+        seen_db.commit()
+        return {r['source_job_id']: dict(r)
+                for r in seen_db.execute('SELECT * FROM seen_jobs')}
+
+    def test_the_same_job_tomorrow_updates_one_row_rather_than_adding_one(self):
+        """A posting the provider keeps listing must not accumulate rows."""
+        first = self.collect_into_seen(self.db)
+        self.assertEqual(len(first), 1)
+        second = self.collect_into_seen(self.db)
+        self.assertEqual(len(second), 1, 'a repeat sighting created a second row')
+        self.assertEqual(second['j1']['first_seen'], first['j1']['first_seen'],
+                         'first_seen moved on a repeat sighting')
+        self.assertGreaterEqual(second['j1']['last_seen'], first['j1']['last_seen'])
+
+    def test_a_filter_change_flips_a_rejection_into_a_stored_job(self):
+        """Yesterday rejected, today kept, because the filter moved -- not the job."""
+        rejecting = self.collect_into_seen(self.db)
+        self.assertTrue(rejecting['j1']['decision'], 'the job should start rejected')
+        stored_before = self.db.execute(
+            "SELECT count(*) FROM jobs WHERE url LIKE '%j1%'").fetchone()[0]
+
+        # The same posting, under a filter that no longer objects to the title.
+        relaxed = dict(self.settings)
+        rules = dict(self.settings['filter'])
+        rules['reject_title_patterns'] = []
+        rules['exclude_title_patterns'] = []
+        rules['keep_title_patterns'] = [r'\bnurse\b']
+        relaxed['filter'] = rules
+
+        after = self.collect_into_seen(self.db, settings=relaxed)
+        self.assertEqual(len(after), 1, 'the flip created a second seen row')
+        self.assertEqual(after['j1']['decision'], '', 'the decision did not flip')
+        self.assertNotEqual(after['j1']['filter_version'], rejecting['j1']['filter_version'])
+        stored_after = self.db.execute(
+            "SELECT count(*) FROM jobs WHERE url LIKE '%j1%'").fetchone()[0]
+        self.assertGreater(stored_after, stored_before,
+                           'a job that flipped to accepted never reached the jobs table')
+
+    def test_a_job_rejected_twice_leaves_exactly_one_row(self):
+        self.collect_into_seen(self.db)
+        again = self.collect_into_seen(self.db)
+        self.assertEqual(len(again), 1)
+        self.assertTrue(again['j1']['decision'])
+
     def test_what_is_recorded_is_light_enough_to_keep_for_everything(self):
         recorded = []
         self.session.get.side_effect = lambda url, **kw: self.response(

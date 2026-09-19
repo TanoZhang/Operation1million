@@ -451,7 +451,9 @@ class LogRoundTripTests(unittest.TestCase):
             blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
             blank.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
         counts = store.rebuild(fresh)
-        self.assertEqual(counts, {'jobs': 4, 'events': 1, 'sources': 1})
+        # `seen` counts rows restored from the snapshot under operational/,
+        # which a log-only fixture does not carry.
+        self.assertEqual(counts, {'jobs': 4, 'events': 1, 'sources': 1, 'seen': 0})
         self.assertEqual(self.snapshot(fresh), expected)
 
     def test_log_keeps_the_whole_posting_and_drops_only_noise(self):
@@ -674,7 +676,7 @@ class LogRoundTripTests(unittest.TestCase):
 
         counts = store.bootstrap(self.db_path)
 
-        self.assertEqual(counts, {'jobs': 0, 'events': 0, 'sources': 0})
+        self.assertEqual(counts, {'jobs': 0, 'events': 0, 'sources': 0, 'seen': 0})
         with closing(store.connect(self.db_path)) as rebuilt:
             columns = {r['name'] for r in rebuilt.execute('PRAGMA table_info(jobs)')}
         self.assertIn('relevance', columns)
