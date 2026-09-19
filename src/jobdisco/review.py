@@ -13,6 +13,38 @@ from . import applications
 from .paths import DB
 
 
+# What review_static/app.js actually reads. `queue()` carries more than this
+# because writing a decision needs it -- source_job_id is what decision_key is
+# computed from -- but the browser reads a fraction, and the difference is 3.6
+# of the 12.5 MB this endpoint returned before. Measured on 21,222 groups: the
+# five per-job fields nothing renders cost title 1.13, source_job_id 0.91,
+# company 0.65, company_key 0.53 and confidence 0.35 MB. posted_at stays: a
+# contract test below reads app.js and found the page showing it, which a
+# hand-audit of the field list had missed.
+#
+# Only the response is trimmed. `do_POST` rebuilds the group from its own
+# `queue()` call and never from what the client sends back, so a decision is
+# still written against the full row. Adding a field to the page means adding
+# it here; leaving it out shows as undefined rather than as stale data.
+GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason')
+JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at')
+
+
+def slim(state):
+    """Project the queue down to what the page renders."""
+    trimmed = {}
+    for key, value in state.items():
+        if not isinstance(value, list):
+            trimmed[key] = value
+            continue
+        trimmed[key] = [
+            dict({name: group[name] for name in GROUP_FIELDS if name in group},
+                 jobs=[{name: job[name] for name in JOB_FIELDS if name in job}
+                       for job in group.get('jobs', [])])
+            for group in value]
+    return trimmed
+
+
 def make_server(db, ledger, port=8765):
     token = secrets.token_urlsafe(32)
     assets = Path(__file__).with_name('review_static')
@@ -38,7 +70,7 @@ def make_server(db, ledger, port=8765):
             route = urlsplit(self.path)
             try:
                 if route.path == '/api/queue':
-                    return self.send(dict(applications.queue(db, ledger), token=token))
+                    return self.send(dict(slim(applications.queue(db, ledger)), token=token))
                 if route.path == '/api/job':
                     url = parse_qs(route.query).get('url', [''])[0]
                     with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
