@@ -71,8 +71,8 @@ class FilterPolicyTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.excluded(title, self.rules))
 
-    def test_evidence_titles_are_admitted_only_by_their_description(self):
-        """RF is answered by the posting's text, in neither direction by its name."""
+    def test_evidence_titles_use_prose_without_punishing_missing_prose(self):
+        """RF uses supplied prose, but absent publisher data is not a rejection."""
         for title in ('RF Engineer', 'RFIC Engineer', 'RF IC Engineer',
                       'Microwave Engineer', 'Antenna Engineer',
                       'RFIC Digital Verification Engineer'):
@@ -82,12 +82,28 @@ class FilterPolicyTests(unittest.TestCase):
                 trade = {'title': title,
                          'raw': {'description': 'RTL ASIC FPGA UVM SystemVerilog ' * 200}}
                 self.assertEqual(jsearch.rejection_reason(trade, self.rules), '')
-                # Silence is not evidence. This is the one place the filter is
-                # stricter than the score, which keeps a short description.
-                for raw in ({}, {'description': 'Antenna tuning and spectrum planning.'}):
-                    self.assertEqual(
-                        jsearch.rejection_reason({'title': title, 'raw': raw}, self.rules),
-                        'no_evidence')
+                self.assertEqual(jsearch.rejection_reason(
+                    {'title': title, 'raw': {}}, self.rules), '')
+                self.assertEqual(jsearch.rejection_reason(
+                    {'title': title,
+                     'raw': {'description': 'Antenna tuning and spectrum planning.'}},
+                    self.rules), 'no_evidence')
+
+    def test_a_repeated_raw_title_is_not_mistaken_for_a_description(self):
+        row = {'title': 'RF Engineer', 'raw': {'job_title': 'RF Engineer'}}
+        self.assertEqual(jsearch.description_text(row), '')
+        self.assertEqual(jsearch.rejection_reason(row, self.rules), '')
+        self.assertEqual(jsearch.description_text(
+            {'raw': {'skills': [{'name': 'SystemVerilog'}]}}), 'SystemVerilog')
+
+    def test_location_and_employment_metadata_do_not_replace_missing_description(self):
+        row = {'title': 'RF Engineer', 'raw': {
+            'job_title': 'RF Engineer', 'job_description': None,
+            'job_city': 'Austin', 'job_state': 'Texas', 'job_country': 'US',
+            'job_employment_type': 'FULLTIME',
+            'locations': [{'name': 'Austin, Texas'}]}}
+        self.assertEqual(jsearch.description_text(row), '')
+        self.assertEqual(jsearch.rejection_reason(row, self.rules), '')
 
     def test_an_evidence_title_cannot_escape_the_check_through_a_keep(self):
         """The check runs before the keeps, or the name would answer for itself."""

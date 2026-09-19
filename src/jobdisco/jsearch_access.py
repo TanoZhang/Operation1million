@@ -5,6 +5,7 @@ import re
 import sqlite3
 import time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from .local_config import load_credentials
 from .paths import ROOT
 STATE = ROOT / '.local/jsearch_usage.sqlite'
@@ -110,6 +111,32 @@ class RequestGuard:
         start, today = self.period()
         return self.cycle_days - (date.fromisoformat(today) - date.fromisoformat(start)).days
 
+    def daily_window(self):
+        """Budget day beginning at 04:38 Pacific, including DST changes."""
+        local = datetime.fromtimestamp(time.time(), ZoneInfo('America/Los_Angeles'))
+        start = local.replace(hour=4, minute=38, second=0, microsecond=0)
+        if local < start:
+            start -= timedelta(days=1)
+        end = start + timedelta(days=1)
+        return start.date().isoformat(), start.timestamp(), end.timestamp()
+
+    def daily_used(self, db):
+        """Recount timestamped history without rewriting the UTC audit ledger.
+
+        Older aggregate-only credits cannot be assigned an exact time. Charge
+        that residual conservatively to any overlapping budget window.
+        """
+        day, start, end = self.daily_window()
+        used = db.execute('SELECT COALESCE(SUM(credits), 0) FROM credit_events '
+                          'WHERE at>=? AND at<?', (start, end)).fetchone()[0]
+        first = datetime.fromtimestamp(start, timezone.utc).date().isoformat()
+        last = datetime.fromtimestamp(end - 1, timezone.utc).date().isoformat()
+        residual = db.execute('''SELECT COALESCE(SUM(MAX(0, u.used - COALESCE(e.used, 0))), 0)
+            FROM credit_usage u LEFT JOIN (
+                SELECT period, day, SUM(credits) AS used FROM credit_events GROUP BY period, day
+            ) e USING(period, day) WHERE u.day BETWEEN ? AND ?''', (first, last)).fetchone()[0]
+        return day, used + residual
+
     def pause(self, seconds):
         with connect(self.path) as db:
             db.execute('INSERT INTO account_pause VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET retry_at=MAX(retry_at, excluded.retry_at)',
@@ -158,7 +185,7 @@ class RequestGuard:
             one = lambda sql, *args: db.execute(sql, args).fetchone()[0]
             used = (one('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?', period)
                     + one('SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', period))
-            today = one('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', day)
+            day, today = self.daily_used(db)
             wasted = one("""SELECT COALESCE(SUM(credits), 0) FROM credit_events
                             WHERE period=? AND outcome NOT LIKE 'http:2%'""", period)
             charged = one("""SELECT COALESCE(SUM(provider_charged), 0) FROM credit_events
@@ -178,9 +205,10 @@ class RequestGuard:
         with connect(self.path, timeout=120) as db:
             db.execute('BEGIN IMMEDIATE')
             used, last = db.execute('SELECT used, last_sent FROM usage WHERE id=1').fetchone()
+            time.sleep(max(0, last + self.interval - time.time()))
             period, day = self.period()
             monthly = db.execute('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?', (period,)).fetchone()[0]
-            daily = db.execute('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE day=?', (day,)).fetchone()[0]
+            _, daily = self.daily_used(db)
             over_daily = (not self.ignore_daily_limit and self.daily_limit is not None
                           and daily + credits > self.daily_limit)
             over_run = self.run_limit is not None and self.credits + credits > self.run_limit
@@ -193,7 +221,6 @@ class RequestGuard:
                 'SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', (period,)).fetchone()[0]
             if monthly + monthly_base + credits > self.target_limit:
                 raise QuotaExhausted('JSearch page-credit budget reached; no request sent')
-            time.sleep(max(0, last + self.interval - time.time()))
             db.execute('UPDATE usage SET used=used+?, last_sent=? WHERE id=1', (credits, time.time()))
             db.execute('INSERT INTO credit_usage VALUES (?, ?, ?) ON CONFLICT(period, day) DO UPDATE SET used=used+excluded.used', (period, day, credits))
             event = db.execute('INSERT INTO credit_events (at, period, day, credits) VALUES (?, ?, ?, ?)',

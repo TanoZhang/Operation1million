@@ -63,21 +63,19 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
         raise ValueError('backfill_max_pages_per_query must be between 1 and 1000')
     # Every call asks for exactly one page, so a page is the unit of both billing
     # and loss: a provider timeout now costs one credit instead of the whole ask.
-    # Depth is discovered, not declared, so this is only a runaway guard for a
-    # cursor that never terminates -- set it far above any real query's depth.
+    # This global ceiling validates each authored query cap and guards manual
+    # queries. Actual use can stop earlier when the provider runs out.
     config.setdefault('max_pages_per_query', 40)
     if type(config['max_pages_per_query']) is not int or not 1 <= config['max_pages_per_query'] <= 100:
         raise ValueError('max_pages_per_query must be between 1 and 100')
-    # One depth for every tier starves the lower ones: fifteen tier A queries at
-    # forty pages can ask for six hundred against a budget of three hundred and
-    # twenty, so B, C and the internships are never reached at all. A tier's own
-    # depth keeps the order a preference rather than an exclusion.
-    for name in ('tier_pages', 'backfill_tier_pages'):
+    # Daily rows carry individual page caps so broad families can receive more
+    # depth without multiplying narrow query variants. Backfill retains a
+    # separate cap per priority tier because its sweep is deliberately deeper.
+    for name in ('backfill_tier_pages',):
         table = config.setdefault(name, {})
         if not isinstance(table, dict):
             raise ValueError(f'{name} must be a table of tier to page cap')
-        ceiling = config['max_pages_per_query' if name == 'tier_pages'
-                         else 'backfill_max_pages_per_query']
+        ceiling = config['backfill_max_pages_per_query']
         for tier, depth in table.items():
             if type(depth) is not int or not 1 <= depth <= ceiling:
                 raise ValueError(f'{name}.{tier} must be between 1 and {ceiling}')
@@ -86,24 +84,26 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     config.setdefault('employment_types', ['FULLTIME', 'INTERN'])
     if config['country'] != 'us' or not config['employment_types'] or not set(config['employment_types']) <= {'FULLTIME', 'INTERN'}:
         raise ValueError('Functional discovery requires US full-time/intern settings')
-    # Kept so a sweep can tell a depth the plan chose from one a row set itself.
     config['max_pages_per_query_daily'] = config['max_pages_per_query']
-    config['tier_pages_daily'] = dict(config['tier_pages'])
     queries = []
     for row in config.get('query', []):
         if not row.get('enabled', True):
             continue
         text = row.get('query', '').strip()
-        # A query no longer declares its depth; it stops when the provider runs
-        # out. A row may still lower its own guard below the global one.
-        tier = row.get('tier', 'C')
-        pages = row.get('pages', config['tier_pages'].get(tier, config['max_pages_per_query']))
+        tier = row.get('tier', 'A')
+        pages = row.get('pages', config['max_pages_per_query'])
         if not text or type(pages) is not int or not 1 <= pages <= config['max_pages_per_query'] or re.search(r'(^|\s)-\w', text):
             raise ValueError('Queries require positive phrases and a cap within max_pages_per_query')
         queries.append(Query(text, pages, tier))
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
     validate_budget(queries, config['daily_budget'])
+    pages_cap = sum(q.pages for q in queries)
+    if pages_cap > config['daily_budget']:
+        raise ValueError(
+            f'JSearch query caps total {pages_cap} pages; daily budget is '
+            f'{config["daily_budget"]}')
+    config['daily_pages_cap'] = pages_cap
     rules = config.setdefault('filter', {})
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
                   'keep_title_patterns', 'evidence_title_patterns', 'strong_terms', 'common_terms'):
@@ -128,10 +128,9 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
 def validate_budget(queries, budget):
     """Every query must be able to reach its first page.
 
-    Depth is no longer declared, so the old check -- the sum of the planned
-    pages against the budget -- has nothing to measure. What can still be
-    wrong is a plan with more queries than credits: the tail would be
-    unreachable every single day, always the same queries.
+    A deliberately smaller invocation cap is valid, and company fallbacks use
+    credits released by functional queries that stop early. The fixed plan's
+    sum is checked separately while loading its configuration.
     """
     if len(queries) > budget:
         raise ValueError(
@@ -164,9 +163,8 @@ class SearchFailure(Exception):
     def __init__(self, message, stop=False, budget=False):
         super().__init__(message)
         self.stop = stop
-        # Reaching the budget is how an adaptive run is meant to end, now that
-        # a query pages until the provider runs short rather than to a declared
-        # depth. Counting it as a failure would make the failure count useless.
+        # Reaching the budget is how an adaptive run is meant to end. Counting
+        # it as a transport failure would make the failure count useless.
         self.budget = budget
 
 
@@ -332,9 +330,10 @@ def needs_evidence(title, rules):
     is not the trade, and `RFIC Digital Verification Engineer` plainly is, and
     hard-rejecting the pattern took both.
 
-    So the title is let through and the posting is made to prove it -- with a
-    description that carries the vocabulary, or not at all. Silence is not
-    evidence here, which is the one way this is stricter than the score.
+    So the title is let through and, when the publisher supplies prose, that
+    prose is used to decide it. A missing description is not evidence against
+    the posting: it gets the same benefit of the doubt as any other unreadable
+    or truncated posting.
     """
     combined = any_of(rules.get('evidence_title_patterns', []))
     return bool(combined and combined.search(title or ''))
@@ -397,8 +396,12 @@ NON_PROSE_FIELDS = {
     'job_apply_link', 'job_google_link', 'apply_link', 'employer_website',
     'employer_logo', 'job_id', 'job_uid', 'job_posted_at_datetime_utc',
     'job_publisher', 'employer_name', 'job_latitude', 'job_longitude',
+    'job_city', 'job_state', 'job_country', 'job_location', 'job_employment_type',
+    'job_employment_types', 'job_posted_at_timestamp', 'job_posted_at',
+    'city', 'state', 'country', 'location', 'locations', 'employment_type',
+    'employment_types', 'posted_at', 'created_at', 'updated_at',
 }
-
+TITLE_FIELDS = {'title', 'job_title', 'name', 'position_name'}
 
 TAGS = re.compile(r'<[^>]{0,400}>')
 WHITESPACE = re.compile(r'\s+')
@@ -428,7 +431,10 @@ def description_text(row):
                 walk(item)
 
     for key, value in raw.items():
-        if key not in NON_PROSE_FIELDS and key != 'relevance':
+        # The title is scored separately with its higher title weight. Only
+        # suppress these names at the payload root: a nested skill `name` is
+        # useful prose and must remain searchable.
+        if key not in NON_PROSE_FIELDS and key not in TITLE_FIELDS and key != 'relevance':
             walk(value)
     # Markup is not prose. A publisher's excerpt is kept rather than judged, on
     # the grounds that a short description is truncation and not silence -- but
@@ -447,7 +453,8 @@ def rejection_reason(row, rules):
     description is a publisher's excerpt, not silence, so it is kept.
 
     Between the two sits `needs_evidence`: a title trusted in neither
-    direction, which is admitted on its description alone and never on silence.
+    direction. Supplied prose must justify it, while absent prose is kept
+    because missing publisher data is not a negative signal.
     """
     title = row.get('title') or ''
     if employer_excluded(row, rules):
@@ -459,6 +466,8 @@ def rejection_reason(row, rules):
     # otherwise skip the check it exists for. A posting that really is the trade
     # says so in its description and passes here anyway.
     if needs_evidence(title, rules):
+        if not description_text(row):
+            return ''
         return '' if relevance(row, rules)[0] >= rules.get('min_confidence', 25) else 'no_evidence'
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):
         return ''
@@ -479,9 +488,8 @@ def rejection_reason(row, rules):
 HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer'})
 
 
-# Internships are seasonal and scarce, so they are asked before the wider
-# synonyms in B and C rather than after everything else.
-TIER_ORDER = ('A', 'intern', 'B', 'C', 'company')
+# Internships are seasonal and scarce, so they precede every other tier.
+TIER_ORDER = ('intern', 'new_grad', 'early_career', 'A', 'company')
 
 
 def search_space(settings):
@@ -528,9 +536,9 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             checkpoint=None, deadline=None, record_seen=None):
     """Page through each query adaptively, breadth first within a tier.
 
-    Depth is discovered rather than declared, so the budget is spent in the
-    order the plan ranks its queries: every tier A query takes a page, then a
-    second, until tier A is exhausted, and only then does tier B begin. Running
+    Actual depth is discovered up to each configured cap, so the budget is
+    spent in priority order: every internship query takes a page, then
+    a second, until that tier is exhausted, before New Grad begins. Running
     a query to its own end before starting the next one would instead starve
     the tail of the plan -- the same queries, every day, would never be reached.
     """

@@ -173,16 +173,23 @@ def queue(db_path=DB, path=None, now=None):
                 refused, evidence = verdict(job['title'])
                 if refused:
                     continue
-                # An evidence title was admitted on its description, so it has
-                # to go on earning that here. The queue cannot re-read a
-                # description -- selecting `raw` for 39,765 rows is the cost
-                # this endpoint was trimmed to avoid -- but the stored score is
-                # a reading of one, which is exactly the question being asked.
+                # An evidence title with supplied prose has to earn its place.
+                # Missing prose is not evidence against a posting, so inspect
+                # raw before treating a low stored score as a rejection. Fetch
+                # it only for this small ambiguous subset; returning every full
+                # description made the review queue needlessly heavy.
                 # A row scored under rules that hard-rejected these titles still
                 # holds a zero, so they stay hidden until the next pass rescores
                 # them; `job-store --rescore` does it in one go.
                 if evidence and job['confidence'] < minimum:
-                    continue
+                    raw_row = db.execute('SELECT raw FROM jobs WHERE url=?',
+                                         (job['url'],)).fetchone()
+                    try:
+                        raw = json.loads((raw_row[0] if raw_row else None) or '{}')
+                    except (TypeError, ValueError):
+                        raw = {}
+                    if jsearch.description_text({'raw': raw}):
+                        continue
                 key = decision_key(job)
                 group = target.setdefault(key, {'id': key, 'company': job['company'],
                                                 'title': job['title'],

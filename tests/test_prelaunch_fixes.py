@@ -11,7 +11,7 @@ import shutil
 import tempfile
 import unittest
 
-from jobdisco import jsearch
+from jobdisco import collector, jsearch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -181,6 +181,17 @@ class BackupWiringTests(unittest.TestCase):
                 self.assertIn('flock -n 9', body)
 
 
+class LocalRecoveryBackupTests(unittest.TestCase):
+    """The remote SQLite snapshot command must survive two shell parsers."""
+
+    def test_snapshot_python_is_valid_and_passed_as_one_argument(self):
+        body = (ROOT / 'deploy/local/backup-from-vps.sh').read_text(encoding='utf-8')
+        match = re.search(r'^SNAPSHOT_CODE="(.*)"$', body, re.MULTILINE)
+        self.assertIsNotNone(match)
+        compile(match.group(1), '<snapshot-command>', 'exec')
+        self.assertIn('python3 -c \\"$SNAPSHOT_CODE\\"', body)
+
+
 class PassStatisticsTests(unittest.TestCase):
     """A6: the six numbers that have to add up."""
 
@@ -196,6 +207,11 @@ class PassStatisticsTests(unittest.TestCase):
         self.assertIn("seen_totals['fetched'] += len(rows)", source)
         self.assertIn("seen_totals['new_seen'] += added", source)
         self.assertIn("seen_totals['existing_seen'] += len(rows) - added", source)
+
+    def test_summary_reads_accepted_from_pass_facts(self):
+        report = collector.summary_block(
+            {'jsearch_jobs_accepted': 0}, {'jsearch_jobs_accepted': 17}, {})
+        self.assertRegex(report, r'accepted\s+17\b')
 
 
 if __name__ == '__main__':

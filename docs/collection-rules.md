@@ -79,9 +79,10 @@ functional discovery; configured company fallback runs last. Company fallback
 alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
-The functional plan contains 52 queries. No query declares a depth: each asks
-for one page at a time and stops when the provider returns a short page, so the
-day's spend is measured rather than planned. The daily cap is 320
+The functional plan contains 36 broad queries, each with a maximum page cap.
+Internships run first (105 pages), then New Grad (90), Early Career (70), and
+General (55). Each asks for one page at a time and stops when the provider
+returns a short page, so actual use may be below its cap. The daily cap is 320
 page credits and the monthly operating target is 9,600 of the 10,000 quota,
 which is exactly 320 a day for thirty days.
 Each HTTP call reserves one page credit immediately before sending, including
@@ -174,10 +175,9 @@ design disciplines -- never a bare `silicon`, `hardware`, `validation` or
 
 **Evidence titles are the middle case.** `RF Engineer` is not this trade and
 `RFIC Digital Verification Engineer` plainly is, so the name decides neither
-and the posting's own text decides both. A posting with no readable description
-has shown nothing and is not admitted -- the one place the filter is stricter
-than the score, which elsewhere reads a truncated description as a publisher's
-excerpt rather than as silence. Whatever survives is marked in the review queue,
+and the title and posting's own text provide relevance evidence. A posting with
+no readable description is retained; location and employment metadata do not
+count as description evidence. Whatever survives is marked in the review queue,
 because it got in on its text and not on its name.
 
 When in doubt, keep the posting and let `jobdisco/ranking.py` sort it downward.
