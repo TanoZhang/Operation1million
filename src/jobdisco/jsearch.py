@@ -451,9 +451,16 @@ def tier_rank(tier):
 def filter_fingerprint(rules):
     """A short stable name for the filter configuration that made a decision.
 
-    Recorded beside each decision so a changed filter can later be told from an
-    unchanged one. Nothing reads it yet; re-evaluating old rejections is not
-    implemented, and this exists so that it can be without a migration.
+    Not a mechanism for re-judging anything, because none is needed: every row
+    a provider returns is scored and decided again from scratch, so a changed
+    filter takes effect on the next pass that sees the job, and the record is
+    overwritten with the new decision.
+
+    What it marks is the one case that does not self-correct -- a job rejected
+    once and never returned again keeps whichever decision was current when it
+    was last seen. That is only ever observable in hindsight, and it cannot be
+    repaired by rescoring, because the record deliberately holds no description
+    to rescore. This says which filter to blame, and nothing more.
     """
     import json
     return hashlib.sha256(

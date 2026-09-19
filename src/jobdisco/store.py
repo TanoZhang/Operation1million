@@ -87,19 +87,6 @@ def record_seen(db, rows, stamp=None):
     return len(payload)
 
 
-def already_seen(db, provider_key, identities):
-    """Which of these the provider has returned before, as a set of identities."""
-    found = set()
-    identities = list(identities)
-    for start in range(0, len(identities), 500):
-        batch = identities[start:start + 500]
-        rows = db.execute(
-            'SELECT source_job_id FROM seen_jobs WHERE provider_key=? AND source_job_id IN (%s)'
-            % ','.join('?' * len(batch)), [provider_key, *batch])
-        found.update(r[0] for r in rows)
-    return found
-
-
 def connect(path=DB):
     db = sqlite3.connect(path, timeout=60)
     db.row_factory = sqlite3.Row

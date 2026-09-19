@@ -4,6 +4,10 @@ Before this, a rejected posting left nothing but a counter, so the same job was
 fetched, normalized, scored and rejected again on every pass and nothing could
 answer "have we seen this before". The record is deliberately light: it answers
 that question and no other.
+
+No lookup helper accompanies it, because nothing in the pipeline asks: every row
+a provider returns is scored and decided again from scratch, so the table is
+written to rather than consulted. A caller that needs to ask can query it.
 """
 from contextlib import closing
 from pathlib import Path
@@ -92,18 +96,6 @@ class SeenJobsTests(unittest.TestCase):
             written = store.record_seen(self.db, [dict(self.row('x'), source_job_id='', url='')])
         self.assertEqual(written, 0)
         self.assertEqual(self.seen(), {})
-
-    def test_already_seen_answers_for_a_mix_of_known_and_new(self):
-        with self.db:
-            store.record_seen(self.db, [self.row('k1'), self.row('k2', decision='excluded')])
-        found = store.already_seen(self.db, 'jsearch', ['k1', 'k2', 'never-fetched'])
-        self.assertEqual(found, {'k1', 'k2'})
-
-    def test_already_seen_handles_more_identities_than_one_query_can_bind(self):
-        many = [f'bulk-{n}' for n in range(1200)]
-        with self.db:
-            store.record_seen(self.db, [self.row(ident) for ident in many])
-        self.assertEqual(store.already_seen(self.db, 'jsearch', many + ['absent']), set(many))
 
     def test_two_providers_may_use_the_same_id_without_colliding(self):
         with self.db:

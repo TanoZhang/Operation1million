@@ -24,9 +24,13 @@ CREATE TABLE IF NOT EXISTS seen_jobs (
     -- '' when the job was accepted; otherwise the reason it was not.
     decision TEXT NOT NULL DEFAULT '',
     confidence INTEGER,
-    -- Which filter configuration produced that decision. Recorded so a changed
-    -- filter can be told from an unchanged one later; nothing reads it yet, and
-    -- re-evaluation is not implemented.
+    -- Which filter configuration produced that decision. Not a re-evaluation
+    -- mechanism and not a substitute for one: every row a provider returns is
+    -- scored and decided again from scratch, so a changed filter takes effect
+    -- on the next pass that sees the job and this column is overwritten with
+    -- it. It marks the one case that does not self-correct -- a job rejected
+    -- once and never returned again -- which cannot be rescored anyway, since
+    -- no description is kept here to rescore.
     filter_version TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (provider_key, source_job_id)
 );
