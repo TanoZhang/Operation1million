@@ -19,18 +19,19 @@ SQLite `search_queries` table is not executed by this collector.
 
 | Group | Queries |
 | --- | ---: |
-| A | 15 |
-| B | 13 |
-| C | 13 |
-| Internships | 11 |
-| Total | 52 |
+| Internships | 10 |
+| New Grad | 10 |
+| Early Career | 7 |
+| General | 9 |
+| Total | 36 |
 
-The daily ceiling is 320. No query declares a depth. Every call asks for
-`num_pages=1` and the next page is requested only when the last one came back
-full, so a query stops where the provider runs out rather than where a guess
-said it would. The provider states no total, so any declared allocation was
-either waste or truncation: measured over 52 queries, not one filled the pages
-it had reserved, and the plan used 43.5% of the capacity it paid for.
+The daily ceiling is 320. Each broad query declares a maximum depth, and those
+caps total 320: Intern 105, New Grad 90, Early Career 70, and General 55. Every
+call still asks for `num_pages=1`; a short page, empty page, repeated page,
+deadline or budget limit keeps its existing early-stop behavior. Unused credits
+from an early stop remain available to the next priority tier.
+Later queries still obey their own page caps: carry does not automatically
+increase them. A day may therefore end below 320 when results run out.
 
 A page is therefore the unit of both billing and loss. Four calls asking for 11
 to 18 pages once returned HTTP 504 and were charged 61 credits for nothing; the
@@ -40,15 +41,10 @@ same failure now costs one credit.
 provider whose pages never run short -- or that repeats a page instead of
 advancing -- from spending the whole day on one query.
 
-Depth itself is set per tier, in `[tier_pages]`, and steps down the priority
-order A, intern, B, C. One depth for every query made that order an exclusion
-rather than a preference: measured on the real plan at the real ceiling,
-fifteen tier A queries at forty pages can ask for six hundred against a budget
-of three hundred and twenty, so tier A spent all of it and the other
-thirty-seven queries -- every internship among them -- were never reached. The
-depths are sized so the whole plan fits even if every page comes back full:
-12, 6, 3, 2 is 311 of 320. That figure is the arithmetic ceiling, the sum of
-each query's own cap, not a number sampled from a run.
+The priority order is Intern, New Grad, Early Career, then General. Queries are
+broad role families; CPU, GPU, NPU, SRAM, ATPG and narrow verification variants
+do not receive separate recurring budget. Existing local title filtering and
+relevance scoring classify the broader results after retrieval.
 
 Within a tier every query takes one page per round. Spending the budget depth
 first would leave the tail of the plan unreached every day, always the same
@@ -75,7 +71,13 @@ The quota is 10,000 page credits per billing period. The operating target is
 `floor(10000 * 0.96) = 9600`; the configured daily ceiling is 320. On a 31-day
 period the monthly guard may stop collection before the daily
 allocation is exhausted. `cycle_start` is `2026-09-16` and periods roll every
-30 days from that verified anchor. Days use UTC.
+30 days from that verified UTC anchor. The daily budget resets at 04:38
+`America/Los_Angeles`, following daylight saving time. Timestamped reservations
+are counted within that window, including existing history; UTC audit day labels
+and monthly totals remain unchanged. Legacy credits without timestamps count
+conservatively in overlapping windows. Internships run first: with full pages,
+they can receive up to 105 credits before New Grad receives 90, Early Career
+70, and General 55.
 
 `.local/jsearch_usage.sqlite` reserves one page before each request.
 Reservations survive errors, timeouts and restarts. `jsearch_pages_used` reports
@@ -98,7 +100,7 @@ Never delete the ledger to bypass a ceiling or cooldown.
 "Pull one week" means a temporary `week` search window, not seven repeated
 daily searches and not a permanent edit to the configured `3days` default.
 For a one-keyword test, default to one page and one reserved credit. Do not
-expand to all 52 keywords or retry paid failures without a new instruction.
+expand to all 36 keywords or retry paid failures without a new instruction.
 
 ```powershell
 # One keyword, last week, at most one page/credit. Paid when executed.
@@ -106,7 +108,7 @@ expand to all 52 keywords or retry paid failures without a new instruction.
 
 # Add --jsearch-plan to preview the same command without any API call.
 
-# All 52 functional queries over one week, bounded by an explicit budget.
+# All 36 functional queries over one week, bounded by an explicit budget.
 # Direct sources and company fallbacks are skipped by --jsearch-only.
 .\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 320
 ```
@@ -119,8 +121,8 @@ to `backfill_max_pages_per_query` (200) instead of 40, and is not held to the
 daily slice -- that slice only paces a month that is now ending. The monthly
 target still binds, and always does.
 
-`[backfill_tier_pages]` gives a sweep the same shape at its own scale: 100, 60,
-40, 30, which is 3,070 against a share of the cycle near 3,127.
+`[backfill_tier_pages]` lets the same four priority tiers page deeper during a
+sweep: 60, 50, 40 and 30 pages per query respectively.
 
 The sweep is one pass spread over those days, not three passes. A cursor per
 query and cycle records where paging stopped, so the next day resumes at the

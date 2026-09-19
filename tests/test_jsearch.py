@@ -169,7 +169,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 52)
+        self.assertEqual(len(self.plan), 36)
         self.assertEqual(self.settings['monthly_target'], 9600)
         self.assertEqual(self.settings['daily_budget'], 320)
         # 320 a day for 30 days is exactly the month's target, and the anchor is
@@ -180,23 +180,53 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.settings['cycle_start'], '2026-09-16')
         self.assertEqual(self.settings['cycle_days'], 30)
         self.assertEqual(self.settings['backfill_max_pages_per_query'], 200)
-        # Every tier is reachable even if every page comes back full.
-        self.assertEqual(self.settings['tier_pages'], {'A': 12, 'intern': 6, 'B': 3, 'C': 2})
-        # Every query must be reachable even if all preceding pages are full.
+        # The authored caps spend the entire daily budget when every page is full.
         worst = sum(q.pages for q in self.plan)
-        self.assertEqual(worst, 311)
-        self.assertLessEqual(worst, self.settings['daily_budget'])
+        self.assertEqual(worst, self.settings['daily_budget'])
+        self.assertEqual(self.settings['daily_pages_cap'], 320)
+        self.assertEqual(
+            {tier: sum(q.pages for q in self.plan if q.tier == tier)
+             for tier in ('intern', 'new_grad', 'early_career', 'A')},
+            {'intern': 105, 'new_grad': 90, 'early_career': 70, 'A': 55})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
-        # No query declares a depth; each carries only the runaway guard.
         self.assertEqual(self.settings['max_pages_per_query'], 40)
-        self.assertTrue(all(q.pages == self.settings['tier_pages'][q.tier] for q in self.plan))
+
+    def test_catalog_is_the_four_broad_query_families(self):
+        expected = {
+            'intern': {
+                'ASIC Intern': 14, 'Design Verification Intern': 13,
+                'RTL Intern': 13, 'Digital Design Intern': 12, 'FPGA Intern': 12,
+                'SoC Intern': 11, 'Silicon Intern': 10,
+                'Hardware Engineering Intern': 9, 'Physical Design Intern': 6,
+                'DFT Intern': 5},
+            'new_grad': {
+                'ASIC New Grad': 12, 'Verification New Grad': 12,
+                'RTL New Grad': 11, 'Digital Design New Grad': 10,
+                'FPGA New Grad': 10, 'SoC New Grad': 9, 'Silicon New Grad': 9,
+                'Hardware New Grad': 8, 'Physical Design New Grad': 5,
+                'DFT New Grad': 4},
+            'early_career': {
+                'Design Verification Early Career': 12, 'RTL Early Career': 11,
+                'ASIC Early Career': 11, 'Digital Design Early Career': 10,
+                'FPGA Early Career': 10, 'Hardware Early Career': 9,
+                'Silicon Early Career': 7},
+            'A': {
+                'Design Verification Engineer': 10, 'RTL Engineer': 9,
+                'ASIC Engineer': 9, 'Digital Design Engineer': 8,
+                'FPGA Engineer': 7, 'Hardware Engineer': 6,
+                'Silicon Engineer': 4, 'Physical Design Engineer': 1,
+                'DFT Engineer': 1},
+        }
+        actual = {tier: {q.query: q.pages for q in self.plan if q.tier == tier}
+                  for tier in expected}
+        self.assertEqual(actual, expected)
 
     def test_more_queries_than_credits_refused_before_transport(self):
         """The tail of an oversized plan would be unreachable every day."""
-        jsearch.validate_budget(self.plan, 52)
+        jsearch.validate_budget(self.plan, 36)
         with self.assertRaises(ValueError):
-            jsearch.validate_budget(self.plan, 51)
+            jsearch.validate_budget(self.plan, 35)
         self.session.get.assert_not_called()
 
     def test_invalid_page_allocation_rejected(self):
@@ -205,6 +235,13 @@ class DiscoveryTests(unittest.TestCase):
             path.write_text(f'[[query]]\nquery="RTL Engineer"\npages={pages}\n', encoding='utf-8')
             with self.assertRaises(ValueError):
                 jsearch.load_plan(path)
+
+    def test_query_caps_cannot_exceed_the_daily_budget(self):
+        path = self.root / 'over-budget.toml'
+        path.write_text('daily_budget=1\n[[query]]\nquery="RTL Engineer"\npages=2\n',
+                        encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'caps total 2 pages'):
+            jsearch.load_plan(path)
 
     def test_request_defaults_and_multi_page_batch_without_expansion(self):
         self.session.get.return_value = self.response([job(str(i)) for i in range(20)])
@@ -270,11 +307,10 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual([r['source_job_id'] for r in rows], ['1', '3'])
         self.assertEqual(stats['jsearch_jobs_rejected'], 2)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM companies').fetchone()[0], 1)
-        # RF is no longer answered by the title: it is admitted only on a
-        # description that carries the trade's vocabulary, and a row with no
-        # description carries none. See `needs_evidence`.
+        # A publisher that omits the description must not turn missing data
+        # into negative evidence against an otherwise reviewable RF posting.
         self.assertEqual(jsearch.rejection_reason({'title': 'RF Engineer'}, self.settings['filter']),
-                         'no_evidence')
+                         '')
         self.assertEqual(jsearch.rejection_reason({'title': 'Photonics Engineer'},
                                                   self.settings['filter']), 'excluded')
 
@@ -377,7 +413,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview['queries_planned'], 52)
+        self.assertEqual(preview['queries_planned'], 36)
         self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
@@ -997,7 +1033,7 @@ class DiscoveryTests(unittest.TestCase):
         again = RequestGuard(self.root / 'small.sqlite', daily_limit=3, target_limit=4)
         with self.assertRaises(QuotaExhausted):
             again.get(self.session, 'https://example', credits=2)
-        with patch.object(again, 'period', return_value=(again.period()[0], '2099-01-02')):
+        with patch.object(again, 'daily_window', return_value=('2099-01-02', 4070995200, 4071081600)):
             again.get(self.session, 'https://example', credits=2)
             with self.assertRaises(QuotaExhausted):
                 again.get(self.session, 'https://example', credits=1)
@@ -1074,7 +1110,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertFalse(fresh.exists())
 
     def test_the_whole_daily_plan_within_the_daily_budget(self):
-        """The scheduled pass runs all 52 queries for real; nothing else has.
+        """The scheduled pass runs the complete configured plan.
 
         Every test so far ran a handful of queries or a budget of five. The
         pass that matters enables paid search by itself, takes the configured
@@ -1103,13 +1139,14 @@ class DiscoveryTests(unittest.TestCase):
             for i in range(10)])
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
-        self.assertEqual(len(plan), 52)
+        self.assertEqual(len(plan), 36)
         # The budget is never exceeded, whatever the caps add up to.
         self.assertLessEqual(guard.credits, settings['daily_budget'])
         self.assertEqual(stats['jsearch_pages_used'], guard.credits)
         for q in stats['jsearch_queries']:
             self.assertGreater(q['pages_used'], 0, q['query'])
-            self.assertLessEqual(q['pages_used'], settings['tier_pages'][q['tier']], q['query'])
+            cap = next(query.pages for query in plan if query.query == q['query'])
+            self.assertLessEqual(q['pages_used'], cap, q['query'])
         self.assertEqual(stats['jsearch_failures'], 0)
         # Nothing may report a status a run is not allowed to finish on.
         settled = {'complete', 'unchanged', 'query_limited', 'skipped'}
@@ -1153,7 +1190,7 @@ class DiscoveryTests(unittest.TestCase):
         # rebuilds from and what the commit step refuses to publish without.
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest['jsearch_queries_planned'], 52)
+        self.assertEqual(manifest['jsearch_queries_planned'], 36)
         self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
         self.assertEqual(manifest['jsearch_failures'], 0)
         # Paid results reached the store, and every one of them carries a score.
@@ -1165,25 +1202,44 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(unscored, 0)
 
     def test_internships_are_asked_before_the_wider_synonyms(self):
-        """Priority is A, then intern, then B, then C."""
+        """Internships precede every other functional tier."""
         order = [t for t in jsearch.TIER_ORDER if t != 'company']
-        self.assertEqual(order, ['A', 'intern', 'B', 'C'])
+        self.assertEqual(order, ['intern', 'new_grad', 'early_career', 'A'])
         self.session.get.return_value = self.response([job()])
-        plan = [jsearch.Query('c query', 1, 'C'), jsearch.Query('intern query', 1, 'intern'),
-                jsearch.Query('b query', 1, 'B'), jsearch.Query('a query', 1, 'A')]
+        plan = [jsearch.Query('general query', 1, 'A'),
+                jsearch.Query('intern query', 1, 'intern'),
+                jsearch.Query('early query', 1, 'early_career'),
+                jsearch.Query('new grad query', 1, 'new_grad')]
         jsearch.collect(plan, self.client, self.settings, {}, self.persist)
         asked = [parse_qs(urlsplit(c.args[0]).query)['query'][0]
                  for c in self.session.get.call_args_list]
-        self.assertEqual(asked, ['a query', 'intern query', 'b query', 'c query'])
+        self.assertEqual(asked, ['intern query', 'new grad query', 'early query', 'general query'])
+
+    def test_small_budgets_go_to_internships_first(self):
+        settings, plan = jsearch.load_plan()
+        for cap, expected in [(24, {'intern': 24}),
+                              (120, {'intern': 105, 'new_grad': 15})]:
+            with self.subTest(cap=cap):
+                guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
+                guard.interval = 0
+                client = jsearch.Client(SEARCH, settings, guard, session=self.session)
+                self.session.get.side_effect = lambda url, **kw: self.response([
+                    job(f'{url}-{i}', job_description='RTL design and verification.')
+                    for i in range(10)])
+                _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
+                spent = {}
+                for query in stats['jsearch_queries']:
+                    if query['pages_used']:
+                        spent[query['tier']] = spent.get(query['tier'], 0) + query['pages_used']
+                self.assertEqual(spent, expected)
 
     def test_a_sweep_restates_the_daily_depths_with_its_own(self):
         """The plan loads with daily depths, so a sweep has to replace them."""
         settings, plan = jsearch.load_plan()
-        self.assertEqual({q.tier: q.pages for q in plan},
-                         {'A': 12, 'intern': 6, 'B': 3, 'C': 2})
+        self.assertEqual(sum(q.pages for q in plan), 320)
         deep = [replace(q, pages=settings['backfill_tier_pages'][q.tier]) for q in plan]
         self.assertEqual({q.tier: q.pages for q in deep},
-                         {'A': 100, 'intern': 60, 'B': 40, 'C': 30})
+                         {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 30})
         # A sweep's whole plan still fits a sweep's share of the cycle.
         self.assertLessEqual(sum(q.pages for q in deep), 3127)
 
@@ -1213,7 +1269,7 @@ class DiscoveryTests(unittest.TestCase):
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             collector.main()
-        # All 52 queries are planned; the guard, not the plan check, bounds it.
+        # The whole plan is present; the guard bounds this invocation to five.
         self.assertLessEqual(self.guard.credits, 5)
 
     def test_spending_the_budget_is_not_a_failed_run(self):
@@ -1331,8 +1387,7 @@ class DiscoveryTests(unittest.TestCase):
         # everyone is what let tier A spend the budget before the rest began.
         deep = self.settings['backfill_tier_pages']
         self.assertEqual(observed, [deep[q.tier] for q in self.plan])
-        self.assertTrue(all(p > self.settings['tier_pages'][q.tier]
-                            for p, q in zip(observed, self.plan)))
+        self.assertTrue(all(p > q.pages for p, q in zip(observed, self.plan)))
 
     def test_backfill_rejects_no_store_before_any_paid_request(self):
         with patch('sys.argv', ['collector', '--backfill', '--no-store']), \
@@ -1406,7 +1461,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertNotIn('page', parse_qs(urlsplit(self.session.get.call_args.args[0]).query))
 
     def test_tiers_are_paged_breadth_first_in_rank_order(self):
-        """Tier A exhausts before tier B starts, and neither starves the other.
+        """One tier exhausts before the next, breadth first within each tier.
 
         Running one query to its end before the next begins would spend the
         budget depth first, so the tail of the plan would go unreached every
@@ -1417,13 +1472,12 @@ class DiscoveryTests(unittest.TestCase):
                  f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}')]
             if parse_qs(urlsplit(url).query).get('page', ['1'])[0] != '1'
             else [job(f'{parse_qs(urlsplit(url).query)["query"][0]}-{i}') for i in range(10)])
-        self.collect([jsearch.Query('first A', 40, 'A'), jsearch.Query('second A', 40, 'A'),
-                      jsearch.Query('only B', 40, 'B')])
+        self.collect([jsearch.Query('first intern', 40, 'intern'),
+                      jsearch.Query('second intern', 40, 'intern'),
+                      jsearch.Query('only new grad', 40, 'new_grad')])
         asked = [(parse_qs(urlsplit(c.args[0]).query)['query'][0],
                   parse_qs(urlsplit(c.args[0]).query).get('page', ['1'])[0])
                  for c in self.session.get.call_args_list]
-        # Both tier A queries take page 1 before either takes page 2, and tier B
-        # is not reached until tier A has finished.
-        self.assertEqual(asked, [('first A', '1'), ('second A', '1'),
-                                 ('first A', '2'), ('second A', '2'),
-                                 ('only B', '1'), ('only B', '2')])
+        self.assertEqual(asked, [('first intern', '1'), ('second intern', '1'),
+                                 ('first intern', '2'), ('second intern', '2'),
+                                 ('only new grad', '1'), ('only new grad', '2')])

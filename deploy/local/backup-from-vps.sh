@@ -36,11 +36,12 @@ echo "== Pulling $HOST:$REMOTE =="
 # The working tree is: runs, manifests, source_state.json and operational/.
 # The SQLite snapshot is made through sqlite3.Connection.backup(), so it is
 # consistent even if review or collection has the live WAL database open.
+SNAPSHOT_CODE="import sqlite3, sys; src, dst = sys.argv[1:3]; source = sqlite3.connect('file:' + src.replace('?', '%3f') + '?mode=ro', uri=True); target = sqlite3.connect(dst); source.backup(target); target.close(); source.close()"
 ssh -i "$KEY" -o BatchMode=yes "$HOST" \
     "tmp=\$(mktemp -d); \
      trap 'rm -rf \"\$tmp\"' EXIT; \
      mkdir -p \"\$tmp/sqlite\"; \
-     python3 -c 'import sqlite3, sys; src, dst = sys.argv[1:3]; source = sqlite3.connect("file:" + src + "?mode=ro", uri=True); target = sqlite3.connect(dst); source.backup(target); target.close(); source.close()' '$REMOTE_DB' \"\$tmp/sqlite/job_discovery.sqlite\"; \
+     python3 -c \"$SNAPSHOT_CODE\" '$REMOTE_DB' \"\$tmp/sqlite/job_discovery.sqlite\"; \
      tar czf - -C '$(dirname "$REMOTE")' --exclude=.git '$(basename "$REMOTE")' -C \"\$tmp\" sqlite" \
   | tar xzf - -C "$incoming"
 

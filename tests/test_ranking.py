@@ -222,7 +222,7 @@ class QueueOrderTests(unittest.TestCase):
         # score and a date that all point the other way.
         self.assertEqual(titles[0], 'RTL Design Intern')
         self.assertLess(titles.index('RTL Design Engineer'), titles.index('Hardware Engineer'))
-        self.assertEqual(titles[-1], 'Program Coordinator')
+        self.assertLess(titles.index('Program Coordinator'), titles.index('RF Engineer'))
 
     def test_every_group_carries_its_band_and_evidence_mark(self):
         for group in self.queue():
@@ -232,11 +232,17 @@ class QueueOrderTests(unittest.TestCase):
         self.assertTrue(flagged['RFIC Digital Verification Engineer'])
         self.assertFalse(flagged['RTL Design Engineer'])
 
-    def test_an_evidence_title_scoring_below_the_floor_is_not_shown(self):
-        """`RF Engineer` at 0 has nothing to show for itself; the RFIC row does."""
+    def test_missing_description_does_not_hide_an_evidence_title(self):
+        """A zero score with no prose is missing data, not negative evidence."""
         titles = [g['title'] for g in self.queue()]
-        self.assertNotIn('RF Engineer', titles)
+        self.assertIn('RF Engineer', titles)
         self.assertIn('RFIC Digital Verification Engineer', titles)
+
+    def test_supplied_off_domain_prose_still_filters_an_evidence_title(self):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET raw=? WHERE source_job_id='rf-weak'", (
+                '{"description":"Antenna tuning and spectrum planning."}',))
+        self.assertNotIn('RF Engineer', [g['title'] for g in self.queue()])
 
 
 if __name__ == '__main__':
