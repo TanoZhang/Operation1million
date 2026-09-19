@@ -76,6 +76,8 @@ exclude_employer_patterns = [
 
 # Role and programme exclusions apply to titles.
 exclude_title_patterns = [
+  # Human resources roles, not an HR contact mentioned in a description.
+  '\bHR\b', '\bhuman\s+resources?\b',
   # Defence and weapons programmes
   '\bdefen[cs]e\b', '\bmilitary\b', '\bDoD\b', '\bDepartment\s+of\s+Defen[cs]e\b',
   '\bwarfighter\b', '\bweapons?\b', '\bweapon\s+systems?\b', '\bmissile\b',
