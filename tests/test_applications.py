@@ -58,6 +58,7 @@ class ApplicationsTests(unittest.TestCase):
 
     def group_for(self, requisition, bucket='pending'):
         key = applications.decision_key({'provider_key': 'direct',
+                                         'company_key': 'sample',
                                          'source_job_id': requisition, 'url': ''})
         return next(g for g in self.queue()[bucket] if g['id'] == key)
 
@@ -67,6 +68,7 @@ class ApplicationsTests(unittest.TestCase):
         self.assertEqual(len(pending), 2, 'separate requisitions were merged')
         self.assertEqual({g['id'] for g in pending},
                          {applications.decision_key({'provider_key': 'direct',
+                                                     'company_key': 'sample',
                                                      'source_job_id': r, 'url': ''})
                           for r in ('req-a', 'req-b')})
 
@@ -84,7 +86,22 @@ class ApplicationsTests(unittest.TestCase):
         self.assertEqual(len(remaining), 1)
         self.assertEqual(remaining[0]['id'],
                          applications.decision_key({'provider_key': 'direct',
+                                                    'company_key': 'sample',
                                                     'source_job_id': 'req-b', 'url': ''}))
+
+    def test_direct_requisition_ids_are_scoped_to_the_company_board(self):
+        left = applications.decision_key({'provider_key': 'workday', 'company_key': 'left',
+                                          'source_job_id': 'R-123', 'url': 'https://left.test/job'})
+        right = applications.decision_key({'provider_key': 'workday', 'company_key': 'right',
+                                           'source_job_id': 'R-123', 'url': 'https://right.test/job'})
+        self.assertNotEqual(left, right)
+
+    def test_jsearch_requisition_ids_remain_provider_scoped(self):
+        left = applications.decision_key({'provider_key': 'jsearch', 'company_key': 'left',
+                                          'source_job_id': 'shared', 'url': 'https://left.test/job'})
+        right = applications.decision_key({'provider_key': 'jsearch', 'company_key': 'right',
+                                           'source_job_id': 'shared', 'url': 'https://right.test/job'})
+        self.assertEqual(left, right)
 
     def test_applied_survives_database_rebuild(self):
         group = self.group_for('req-a')

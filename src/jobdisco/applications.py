@@ -28,16 +28,20 @@ def decision_key(job):
     separate requisitions -- and skipping that group once would have silently
     buried all 48.
 
-    So the identity is the provider's requisition id, and the url only where a
-    provider publishes no id of its own. Several rows may still share a
-    decision, but only when they carry the same id, which is the one case where
-    they are provably the same opening. The cost is that a role genuinely listed
-    once per location now appears once per location; showing a posting twice is
-    recoverable, and hiding one is not.
+    So the identity is the provider's requisition id, scoped the same way the
+    store scopes job_identities: JSearch ids are provider-wide, while direct
+    source ids are only guaranteed within that company's board. The url is used
+    only where a provider publishes no id of its own. Several rows may still
+    share a decision, but only when they carry the same scoped id, which is the
+    one case where they are provably the same opening. The cost is that a role
+    genuinely listed once per location now appears once per location; showing a
+    posting twice is recoverable, and hiding one is not.
     """
+    provider = job.get('provider_key') or ''
     requisition = str(job.get('source_job_id') or '').strip() or job['url']
+    scope = '' if provider == 'jsearch' else (job.get('company_key') or '')
     return hashlib.sha256(
-        json.dumps([job.get('provider_key') or '', requisition]).encode()).hexdigest()
+        json.dumps([provider, scope, requisition]).encode()).hexdigest()
 
 
 @contextmanager
@@ -61,7 +65,7 @@ def locked(path):
                 handle.seek(0)
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:
-                fcntl.flock(handle, fcntl.LOCK_UN)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def read_events(path):
