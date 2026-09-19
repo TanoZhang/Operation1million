@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import sqlite3
-import unicodedata
 import uuid
 
 from .paths import DB, DATA
@@ -16,15 +15,6 @@ from . import jsearch
 
 def ledger_path():
     return Path(os.environ.get('JOBDISCO_STORE', DATA / 'store')) / 'operational/applications.ndjson'
-
-
-def group_key(company, title):
-    """The old company-and-title identity. Kept only to replay old decisions.
-
-    It is no longer what a decision applies to. See `decision_key`.
-    """
-    normalize = lambda value: ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
-    return hashlib.sha256(json.dumps([normalize(company), normalize(clean_title(title))]).encode()).hexdigest()
 
 
 def decision_key(job):
