@@ -1,6 +1,5 @@
-# Nationwide daily plan. Queries no longer declare a depth: each asks for one
-# page at a time and stops when the provider runs short, so the day's spend is
-# measured, not planned. Tier A is paged to exhaustion before tier B begins.
+# Nationwide daily plan. Each broad query has its own maximum depth, asks for
+# one page at a time, and stops early when the provider runs short.
 version = 1
 monthly_quota = 10000
 target_utilization = 0.96
@@ -32,32 +31,14 @@ backfill_max_pages_per_query = 200
 
 employment_types = ["FULLTIME", "INTERN"]
 
-# Priority is intern -> A -> B -> C, and a depth per tier is what keeps that a
-# preference rather than an exclusion. Fifteen tier A queries at forty pages can
-# ask for six hundred against a budget of three hundred and twenty, so a single
-# depth for everyone meant B, C and the internships were never reached at all.
-#
-# Every functional query is reachable even when every page is full:
-# intern 11*6 + A 15*12 + B 13*3 + C 13*2 = 311 of 320 credits.
-# The remaining nine credits are available to configured company fallbacks.
-#
-# The internships go first because they are the point of the search, and
-# because "second" was not a priority: tier A asks for 180 before they are
-# reached, and the two passes this plan has run spent all 144 of their credits
-# inside tier A without sending a single internship query.
-[tier_pages]
-A = 12
-intern = 6
-B = 3
-C = 2
-
-# The same shape, against a sweep's share of the cycle rather than a day:
-#   A 15*100=1500 + intern 11*60=660 + B 13*40=520 + C 13*30=390  =  3,070
+# Priority is intern -> new_grad -> early_career -> A. Daily query caps total
+# exactly 320; short and empty pages still stop a query before its cap.
+# A month-wide backfill uses separate deeper caps for the same four tiers.
 [backfill_tier_pages]
-A = 100
 intern = 60
-B = 40
-C = 30
+new_grad = 50
+early_career = 40
+A = 30
 
 [filter]
 # Relevance scoring. Terms only ever add; nothing is deducted for a term being
@@ -107,6 +88,8 @@ exclude_employer_patterns = [
 
 # Role and programme exclusions apply to titles.
 exclude_title_patterns = [
+  # Human resources roles, not an HR contact mentioned in a description.
+  '\bHR\b', '\bhuman\s+resources?\b',
   # Defence and weapons programmes
   '\bdefen[cs]e\b', '\bmilitary\b', '\bDoD\b', '\bDepartment\s+of\s+Defen[cs]e\b',
   '\bwarfighter\b', '\bweapons?\b', '\bweapon\s+systems?\b', '\bmissile\b',
@@ -236,161 +219,149 @@ reject_title_patterns = [
 ]
 
 [[query]]
-query = "Design Verification Engineer"
-tier = "A"
-[[query]]
-query = "ASIC Verification Engineer"
-tier = "A"
-[[query]]
-query = "SoC Verification Engineer"
-tier = "A"
-[[query]]
-query = "RTL Design Engineer"
-tier = "A"
-[[query]]
-query = "ASIC Design Engineer"
-tier = "A"
-[[query]]
-query = "Digital Design Engineer"
-tier = "A"
-[[query]]
-query = "SoC Design Engineer"
-tier = "A"
-[[query]]
-query = "FPGA Engineer"
-tier = "A"
-[[query]]
-query = "FPGA Design Engineer"
-tier = "A"
-[[query]]
-query = "Physical Design Engineer"
-tier = "A"
-[[query]]
-query = "Physical Implementation Engineer"
-tier = "A"
-[[query]]
-query = "Hardware Engineer RTL"
-tier = "A"
-[[query]]
-query = "Hardware Engineer ASIC"
-tier = "A"
-[[query]]
-query = "Hardware Engineer FPGA"
-tier = "A"
-[[query]]
-query = "Hardware Engineer SoC"
-tier = "A"
-
-[[query]]
-query = "Hardware Verification Engineer"
-tier = "B"
-[[query]]
-query = "Pre-Silicon Verification Engineer"
-tier = "B"
-[[query]]
-query = "Functional Verification Engineer"
-tier = "B"
-[[query]]
-query = "Digital IC Design Engineer"
-tier = "B"
-[[query]]
-query = "Logic Design Engineer"
-tier = "B"
-[[query]]
-query = "Silicon Design Engineer"
-tier = "B"
-[[query]]
-query = "Silicon Verification Engineer"
-tier = "B"
-[[query]]
-query = "ASIC Implementation Engineer"
-tier = "B"
-[[query]]
-query = "DFT Engineer"
-tier = "B"
-[[query]]
-query = "RTL Verification Engineer"
-tier = "B"
-[[query]]
-query = "FPGA Verification Engineer"
-tier = "B"
-[[query]]
-query = "Hardware Emulation Engineer"
-tier = "B"
-[[query]]
-query = "FPGA Prototyping Engineer"
-tier = "B"
-
-[[query]]
-query = "Formal Verification Engineer"
-tier = "C"
-[[query]]
-query = "STA Engineer ASIC"
-tier = "C"
-[[query]]
-query = "Timing Engineer ASIC"
-tier = "C"
-[[query]]
-query = "DFT Design Engineer"
-tier = "C"
-[[query]]
-query = "Scan ATPG Engineer"
-tier = "C"
-[[query]]
-query = "CPU Design Engineer RTL"
-tier = "C"
-[[query]]
-query = "GPU Design Engineer RTL"
-tier = "C"
-[[query]]
-query = "CPU Verification Engineer"
-tier = "C"
-[[query]]
-query = "GPU Verification Engineer"
-tier = "C"
-[[query]]
-query = "AI Accelerator RTL Engineer"
-tier = "C"
-[[query]]
-query = "NPU Design Engineer"
-tier = "C"
-[[query]]
-query = "Memory Design Engineer SRAM"
-tier = "C"
-[[query]]
-query = "SRAM Design Engineer"
-tier = "C"
-
+query = "ASIC Intern"
+tier = "intern"
+pages = 14
 [[query]]
 query = "Design Verification Intern"
 tier = "intern"
+pages = 13
 [[query]]
-query = "RTL Design Intern"
+query = "RTL Intern"
 tier = "intern"
-[[query]]
-query = "ASIC Design Intern"
-tier = "intern"
+pages = 13
 [[query]]
 query = "Digital Design Intern"
 tier = "intern"
+pages = 12
 [[query]]
 query = "FPGA Intern"
 tier = "intern"
+pages = 12
+[[query]]
+query = "SoC Intern"
+tier = "intern"
+pages = 11
+[[query]]
+query = "Silicon Intern"
+tier = "intern"
+pages = 10
+[[query]]
+query = "Hardware Engineering Intern"
+tier = "intern"
+pages = 9
 [[query]]
 query = "Physical Design Intern"
 tier = "intern"
-[[query]]
-query = "SoC Design Intern"
-tier = "intern"
-[[query]]
-query = "Hardware Engineering Intern ASIC"
-tier = "intern"
-[[query]]
-query = "Hardware Engineering Intern RTL"
-tier = "intern"
-[[query]]
-query = "Silicon Design Intern"
-tier = "intern"
+pages = 6
 [[query]]
 query = "DFT Intern"
 tier = "intern"
+pages = 5
+
+[[query]]
+query = "ASIC New Grad"
+tier = "new_grad"
+pages = 12
+[[query]]
+query = "Verification New Grad"
+tier = "new_grad"
+pages = 12
+[[query]]
+query = "RTL New Grad"
+tier = "new_grad"
+pages = 11
+[[query]]
+query = "Digital Design New Grad"
+tier = "new_grad"
+pages = 10
+[[query]]
+query = "FPGA New Grad"
+tier = "new_grad"
+pages = 10
+[[query]]
+query = "SoC New Grad"
+tier = "new_grad"
+pages = 9
+[[query]]
+query = "Silicon New Grad"
+tier = "new_grad"
+pages = 9
+[[query]]
+query = "Hardware New Grad"
+tier = "new_grad"
+pages = 8
+[[query]]
+query = "Physical Design New Grad"
+tier = "new_grad"
+pages = 5
+[[query]]
+query = "DFT New Grad"
+tier = "new_grad"
+pages = 4
+
+[[query]]
+query = "Design Verification Early Career"
+tier = "early_career"
+pages = 12
+[[query]]
+query = "RTL Early Career"
+tier = "early_career"
+pages = 11
+[[query]]
+query = "ASIC Early Career"
+tier = "early_career"
+pages = 11
+[[query]]
+query = "Digital Design Early Career"
+tier = "early_career"
+pages = 10
+[[query]]
+query = "FPGA Early Career"
+tier = "early_career"
+pages = 10
+[[query]]
+query = "Hardware Early Career"
+tier = "early_career"
+pages = 9
+[[query]]
+query = "Silicon Early Career"
+tier = "early_career"
+pages = 7
+
+[[query]]
+query = "Design Verification Engineer"
+tier = "A"
+pages = 10
+[[query]]
+query = "RTL Engineer"
+tier = "A"
+pages = 9
+[[query]]
+query = "ASIC Engineer"
+tier = "A"
+pages = 9
+[[query]]
+query = "Digital Design Engineer"
+tier = "A"
+pages = 8
+[[query]]
+query = "FPGA Engineer"
+tier = "A"
+pages = 7
+[[query]]
+query = "Hardware Engineer"
+tier = "A"
+pages = 6
+[[query]]
+query = "Silicon Engineer"
+tier = "A"
+pages = 4
+[[query]]
+query = "Physical Design Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "DFT Engineer"
+tier = "A"
+pages = 1

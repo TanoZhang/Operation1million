@@ -585,7 +585,7 @@ def summary_block(search, facts, totals):
             search.get('seen_new', 0), search.get('seen_existing', 0)),
         '  hard_rejected  %6d   other_rejected %6d   accepted %6d   malformed %6d' % (
             rejected_hard, rejected_other,
-            search.get('jsearch_jobs_accepted', 0), search.get('jsearch_jobs_malformed', 0)),
+            facts.get('jsearch_jobs_accepted', 0), search.get('jsearch_jobs_malformed', 0)),
         '  persisted      %6d   source_errors  %6d   credits_used %5d   duration %5ds' % (
             facts.get('jobs_persisted', 0), facts.get('source_errors', 0),
             search.get('jsearch_pages_used', 0), round(facts.get('duration_seconds', 0))),
@@ -656,17 +656,10 @@ def main():
         # slice -- that slice exists only to pace the month it is now ending.
         settings['date_posted'] = 'month'
         settings['max_pages_per_query'] = settings['backfill_max_pages_per_query']
-        settings['tier_pages'] = settings['backfill_tier_pages']
-        # The plan is loaded with the daily depths, so a sweep restates them
-        # with its own -- per tier, because one depth for everyone is what let
-        # tier A spend the whole budget before the rest were reached. A row
-        # that set its own depth, and a single --jsearch-query, stay as written.
+        # The daily plan gives each broad query its own cap. A month-wide sweep
+        # restates those caps with its separate per-tier backfill depths.
         def sweep_depth(query):
-            daily = settings['tier_pages_daily'].get(
-                query.tier, settings['max_pages_per_query_daily'])
-            if query.pages != daily:
-                return query
-            return replace(query, pages=settings['tier_pages'].get(
+            return replace(query, pages=settings['backfill_tier_pages'].get(
                 query.tier, settings['max_pages_per_query']))
         if not args.jsearch_query:
             functional_queries = [sweep_depth(q) for q in functional_queries]
@@ -714,8 +707,7 @@ def main():
     # not a misconfigured plan; the guard stops such a run at its own limit.
     jsearch.validate_budget(planned_queries, settings['daily_budget'])
     if args.jsearch_plan:
-        # Depth is discovered while paging, so a plan states how many queries it
-        # holds and what they may spend, never how many pages it will use.
+        # Caps state the maximum; early-stop conditions decide actual use.
         print(json.dumps({'queries': [q.__dict__ for q in planned_queries],
                           'queries_planned': len(planned_queries),
                           'max_pages_per_query': settings['max_pages_per_query'],
@@ -892,6 +884,15 @@ def main():
             and it is the first thing to look at when a total looks wrong.
             """
             seen_totals['fetched'] += len(rows)
+            # Keep mechanical decisions, including rejected rows, inspectable
+            # without expanding the durable identity-only seen_jobs schema.
+            with (args.output / 'experience_debug.jsonl').open('a', encoding='utf-8') as debug_file:
+                for row in rows:
+                    debug_file.write(json.dumps({
+                        'url': row.get('url'), 'title': row.get('title'),
+                        'decision': row.get('decision'),
+                        **row.get('experience_filter', {}),
+                    }, ensure_ascii=True) + '\n')
             if db is None:
                 return
             before = db.execute('SELECT count(*) FROM seen_jobs').fetchone()[0]

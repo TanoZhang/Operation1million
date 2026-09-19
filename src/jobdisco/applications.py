@@ -138,7 +138,7 @@ def queue(db_path=DB, path=None, now=None):
         select = '''SELECT j.url, j.company_key, j.source_job_id,
                             COALESCE(c.name, json_extract(j.raw, '$.employer_name'), j.company_key) AS company,
                             j.title, j.location, j.first_seen, j.posted_at, j.provider_key,
-                            COALESCE(j.relevance, 0) AS confidence
+                            COALESCE(j.relevance, 0) AS confidence, j.raw
                             FROM jobs j LEFT JOIN companies c USING(company_key)'''
 
         # Both checks are pure functions of a string, and the strings repeat.
@@ -173,16 +173,24 @@ def queue(db_path=DB, path=None, now=None):
                 refused, evidence = verdict(job['title'])
                 if refused:
                     continue
-                # An evidence title was admitted on its description, so it has
-                # to go on earning that here. The queue cannot re-read a
-                # description -- selecting `raw` for 39,765 rows is the cost
-                # this endpoint was trimmed to avoid -- but the stored score is
-                # a reading of one, which is exactly the question being asked.
+                try:
+                    raw = json.loads(job.pop('raw') or '{}')
+                except (TypeError, ValueError):
+                    raw = {}
+                experience = jsearch.experience_debug({'title': job['title'], 'raw': raw})
+                if experience['hard_pass_reason']:
+                    continue
+                job['experience_filter'] = experience
+                # An evidence title with supplied prose has to earn its place.
+                # Missing prose is not evidence against a posting, so inspect
+                # raw before treating a low stored score as a rejection. Raw is
+                # already loaded for experience checks, but never sent to the UI.
                 # A row scored under rules that hard-rejected these titles still
                 # holds a zero, so they stay hidden until the next pass rescores
                 # them; `job-store --rescore` does it in one go.
                 if evidence and job['confidence'] < minimum:
-                    continue
+                    if jsearch.description_text({'raw': raw}):
+                        continue
                 key = decision_key(job)
                 group = target.setdefault(key, {'id': key, 'company': job['company'],
                                                 'title': job['title'],
@@ -209,6 +217,7 @@ def queue(db_path=DB, path=None, now=None):
             row = db.execute(select + ' WHERE j.url=?', (url,)).fetchone()
             if row:
                 job = dict(row)
+                job.pop('raw', None)
                 legacy_history.append((event['status'], {
                     'id': 'legacy:' + hashlib.sha256(url.encode()).hexdigest(),
                     'company': job['company'], 'title': job['title'], 'confidence': job['confidence'],
