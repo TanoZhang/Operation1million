@@ -9,9 +9,8 @@ removes the 2,000-minute monthly budget and the 120-minute job timeout, and the
 timeout is what used to bound how deep a search could go.
 
 `.github/workflows/collect-backup.yml` stays, dispatch-only and titled as a
-backup. It costs
-nothing once it no longer fires on its own, and it is the clean-room way to run
-a pass while this machine is being changed or is suspect.
+backup. It costs nothing once it no longer fires on its own, and it is the
+clean-room way to run a pass while this machine is being changed or is suspect.
 
 ## Install
 

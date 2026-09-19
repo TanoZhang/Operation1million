@@ -23,7 +23,30 @@ from jobdisco.validate_sources import Source
 
 SEARCH = {'endpoint_template': 'https://api.openwebninja.com/jsearch/search-v2',
           'connection': {'auth_header': 'X-API-Key'}}
-STAMP = '2026-09-18T01:00:00+00:00'
+# A log day seals as soon as the clock passes it, so a literal date here is a
+# fuse: the suite runs green until the day it was written ends, then every test
+# that writes a log row fails with `Daily log is sealed`. That fired on
+# 2026-09-19 at 00:42 UTC, thirty-eight tests at once, and because the pass runs
+# the suite before collecting it would have failed every pass from then on.
+# Whatever day it is when the suite runs is the day these tests write to.
+STAMP = store.now()[:10] + 'T01:00:00+00:00'
+
+
+class SuiteClockTests(unittest.TestCase):
+    """The suite must be writable on the day it runs, every day.
+
+    This is the guard for the fuse itself. A stamp the store considers sealed
+    fails every test that writes a log row, and because the pass runs the suite
+    before collecting, a sealed suite stops production outright rather than
+    merely going red.
+    """
+
+    def test_the_stamp_the_suite_writes_with_is_never_a_day_that_is_over(self):
+        self.assertFalse(store.sealed(STAMP),
+                         f'{STAMP} has already sealed; the suite cannot write its own log')
+
+    def test_the_stamp_is_derived_from_the_clock_rather_than_written_down(self):
+        self.assertEqual(STAMP[:10], store.now()[:10])
 
 
 def job(ident='1', **extra):

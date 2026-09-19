@@ -493,13 +493,16 @@ class LogRoundTripTests(unittest.TestCase):
             'source_job_id': 'same-id',
         }])
         stale = dict(base, url='https://x/stale', identities=[])
-        path = self.log / 'runs' / '2026-09-18.ndjson.gz'
+        # Today, not a literal: a manifest may only be written for a day that
+        # has not ended, so a fixed date here is a fuse with a known burn time.
+        today = store.now()[:10]
+        path = self.log / 'runs' / f'{today}.ndjson.gz'
         path.parent.mkdir(parents=True)
         with gzip.open(path, 'wt', encoding='utf-8') as handle:
             handle.write(json.dumps(canonical) + '\n')
             handle.write(json.dumps(stale) + '\n')
         with closing(store.connect(self.db_path)) as db:
-            store.write_manifest(db, '2026-09-18T00:00:00+00:00', [])
+            store.write_manifest(db, f'{today}T00:00:00+00:00', [])
 
         store.rebuild(self.db_path)
 
