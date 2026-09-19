@@ -7,17 +7,22 @@ collects jobs, buys credits, or automatically commits or pushes data.
 
 The queue contains open jobs first discovered in the preceding 72 hours, using
 `first_seen`, not a provider's potentially missing or ambiguous posting date.
-Company identity and normalized title merge location variants into one position.
+Jobs are grouped only at requisition identity level: provider plus the provider
+requisition id, scoped by company for direct sources, and falling back to URL
+only when a provider publishes no stable id. Multiple locations for that same
+scoped requisition appear together. Different requisitions with the same company
+and title stay separate so one Apply, Skip, or note cannot hide another opening.
 Positions are ordered by their stored relevance score. There is no additional
 score cutoff. Current hard title and employer exclusions also apply to existing
 records. Publisher "Posted ..." suffixes and known trailing locations do not
-participate in title identity; original provider text stays in raw evidence.
-Posting dates are displayed separately, with a "Posted today" marker when the
-structured date matches the browser's local day. Missing dates are not guessed.
-Old ledger snapshots are normalized during replay without rewriting them.
-Use the listing links to apply, then choose **Mark applied**, or
-choose **Skip** with an optional reason. Both actions handle the whole position,
-including future location variants under that same company and title.
+participate in display title cleanup; original provider text stays in raw
+evidence. Posting dates are displayed separately, with a "Posted today" marker
+when the structured date matches the browser's local day. Missing dates are not
+guessed. Old ledger snapshots are normalized during replay without rewriting
+them.
+Use the listing links to apply, then choose **Mark applied**, or choose **Skip**
+with an optional reason. Both actions handle only the scoped requisition shown,
+including its current and future location variants.
 
 Applied and skipped views retain decision history, including jobs that have
 since closed or aged out. **Move to review** appends a `pending` event. A reopened
@@ -33,30 +38,33 @@ the ledger there. Back up or commit this file to that private repository; a file
 stored only locally is not a remote backup. Never put it in the public overview.
 
 Each line is an immutable decision with URL, UTC timestamp, status, optional
-reason, stable company/title group ID, and a snapshot of the grouped listings.
-The last event in append order determines the current status. Undo is another
-event, never a rewrite. URL-only events with `url`, `at`, and `status` are also
-accepted for compatibility.
+reason, requisition-level group ID, and a snapshot of the grouped listings. The
+last event in append order determines the current status. Undo is another event,
+never a rewrite. URL-only events with `url`, `at`, and `status` are also accepted
+for compatibility.
 
 Writes are serialized with an OS file lock, flushed and fsynced before returning
 success. Do not run simultaneous writers on separate Git checkouts or manually
 merge competing histories. A malformed or interrupted line stops replay and
-writes with its line number, preserving evidence for explicit recovery.
-The adjacent `.lock` file is disposable and should not be committed.
+writes with its line number, preserving evidence for explicit recovery. The
+adjacent `.lock` file is disposable and should not be committed.
 
-No application status lives in SQLite. The review server replays the ledger,
-so rebuilding the job database with `job-store --bootstrap` cannot erase decisions.
+No application status lives in SQLite. The review server replays the ledger, so
+rebuilding the job database with `job-store --bootstrap` cannot erase decisions.
 To recover on another machine, restore the private job logs and application
-ledger, rebuild the job database, and start the review server.
+ledger, rebuild or restore the job database, and start the review server.
 
 ## VPS review
 
 `deploy/vps/jobdisco-review.service` serves only `127.0.0.1:8765` on the VPS.
-Its code snapshot lives in `/opt/jobdisco/review-code`, independently of an
-in-flight collector. It reads `/opt/jobdisco/code/data/db/job_discovery.sqlite`
-and writes `/opt/jobdisco/data/operational/applications.ndjson`. The collection
-publisher includes this ledger in the next private data-repository checkpoint.
-Decisions made after that checkpoint remain local to the VPS until the next one.
+It runs from `/opt/jobdisco/code`, the same checkout the collector uses, so the
+Review queue and the collector use the same filter rules. It reads
+`/opt/jobdisco/code/data/db/job_discovery.sqlite` and writes
+`/opt/jobdisco/data/operational/applications.ndjson`. The collection publisher
+includes this ledger in the next private data-repository checkpoint, and
+`jobdisco-backup.timer` backs the ledger up more frequently. Decisions made
+after the most recent checkpoint remain local to the VPS until the next backup
+or collection publication.
 
 Access it with an SSH tunnel, not a public port:
 
@@ -64,5 +72,5 @@ Access it with an SSH tunnel, not a public port:
 ssh -N -L 8767:127.0.0.1:8765 <configured-vps-host>
 ```
 
-Then open `http://127.0.0.1:8767`. Keep one authoritative ledger on the VPS;
-the earlier standalone local ledger is not automatically merged into it.
+Then open `http://127.0.0.1:8767`. Keep one authoritative ledger on the VPS; the
+earlier standalone local ledger is not automatically merged into it.
