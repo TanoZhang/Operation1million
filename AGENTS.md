@@ -36,6 +36,18 @@ answers is.
   `TanoZhang <tanozhang@users.noreply.github.com>`. When you commit work the
   other agent wrote, say so in the message, because the field will not.
 
+# Where things are
+
+[docs/architecture.md](docs/architecture.md) maps every module to what it owns,
+the order the pipeline runs in, and the bugs already found and fixed. Read it
+before changing behaviour you have not traced, and before reporting a bug --
+the log at the bottom says whether it has been seen, and what evidence settled
+it.
+
+Keep it current in the same commit as the change. A moved responsibility, a new
+module, a changed pipeline order, or a fixed bug all belong there; a map that
+has quietly stopped being true is worse than none, because it is believed.
+
 # Project Language and Encoding
 
 - Conversation may use the user's preferred language. Use English for all authored project artifacts.
