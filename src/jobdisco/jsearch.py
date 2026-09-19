@@ -288,6 +288,29 @@ def normalize_job(item, query, companies):
     return row
 
 
+_ALTERNATIONS = {}
+
+
+def any_of(patterns):
+    """One compiled alternation for a list of patterns, or None for an empty list.
+
+    Asking "does any of these sixty patterns match" by trying sixty patterns
+    costs sixty passes over the string; asking it as one alternation costs one.
+    On the live queue that was 2.5 million searches a request. The answer is the
+    same -- a boolean `any` over `search` is exactly what an alternation of
+    non-capturing groups computes -- and `tests/test_exclusion_alternation.py`
+    checks it against every title the store holds rather than against examples.
+
+    Keyed by the pattern list, so a changed rule set compiles a new one and a
+    test that swaps rules is not served a stale answer.
+    """
+    key = tuple(patterns)
+    if key not in _ALTERNATIONS:
+        _ALTERNATIONS[key] = (re.compile('|'.join(f'(?:{p})' for p in key), re.I)
+                              if key else None)
+    return _ALTERNATIONS[key]
+
+
 def excluded(title, rules):
     """Whether the job is one to decline outright, whatever it involves.
 
@@ -295,15 +318,15 @@ def excluded(title, rules):
     still a defence programme when the work is verification, and a director is
     still a director, so no score can overturn it and it is checked first.
     """
-    return any(re.search(p, title or '', re.I)
-               for p in rules.get('exclude_title_patterns', []))
+    combined = any_of(rules.get('exclude_title_patterns', []))
+    return bool(combined and combined.search(title or ''))
 
 
 def employer_excluded(row, rules):
     raw = row.get('raw') if isinstance(row.get('raw'), dict) else {}
     employer = row.get('company_name') or row.get('company') or raw.get('employer_name') or ''
-    return any(re.search(pattern, str(employer), re.I)
-               for pattern in rules.get('exclude_employer_patterns', []))
+    combined = any_of(rules.get('exclude_employer_patterns', []))
+    return bool(combined and combined.search(str(employer)))
 
 
 def relevance(row, rules):
