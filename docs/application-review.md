@@ -36,16 +36,22 @@ holds the rules and the reasoning.
 | Band | Contents |
 | --- | --- |
 | Intern / New Grad | The trade, open to the early career |
-| Core VLSI | The trade: RTL, ASIC, FPGA, SoC, DV, physical design, DFT, VLSI |
 | Related · Intern / New Grad | Adjacent hardware, open to the early career |
+| Core VLSI | The trade: RTL, ASIC, FPGA, SoC, DV, physical design, DFT, VLSI |
 | Related Hardware | Adjacent: embedded, firmware, validation, memory, PCIe |
 | Other | Kept, but naming neither |
 
-Relevance is decided before seniority, never the reverse: an internship that is
-not the trade stays below the trade, so `Software Marketing Intern` cannot climb
-over `RTL Design Engineer`. Within a band the order is the publication date
-newest first, then the relevance score, then discovery time, then a stable tie
-break.
+Both early-career bands come before either regular one, because an internship
+is what this search is for: an adjacent internship is an opening it can take
+and a principal RTL role is not, so the internship is shown first even though
+the other is more squarely the trade.
+
+Early career never rescues a posting from outside the trade and its
+neighbourhood, though. `Software Marketing Intern` names neither, so it stays
+in the last band below every engineering posting in the queue -- the word
+"Intern" is not a lift out of it. Within a band the order is the publication
+date newest first, then the relevance score, then discovery time, then a stable
+tie break.
 
 The score alone could not do this. It measures how much of the trade's
 vocabulary a posting uses, which says nothing about whether the posting is open

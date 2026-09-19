@@ -4,8 +4,8 @@
    description rather than its title. Both are read at a glance down the list,
    so they are shape and weight before they are colour. */
 .band{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.02em;padding:2px 7px;border-radius:3px;margin-bottom:8px;background:#eef1ef;color:#5d6a61}
-.band-0,.band-2{background:#e4f1e8;color:#1f6341}
-.band-1{background:#e7eef6;color:#28527d}
+.band-0,.band-1{background:#e4f1e8;color:#1f6341}
+.band-2{background:#e7eef6;color:#28527d}
 .band-3{background:#f2efe6;color:#6d5c2e}
 .flagged{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;margin-left:6px;background:#fbf0e6;color:#8a531d}
 .detail .band{margin:0}

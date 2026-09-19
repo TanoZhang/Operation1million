@@ -14,10 +14,12 @@ who has not graduated yet. So the bucket asks the two questions the score
 cannot -- is this the trade, and is this an opening for the early career -- and
 the score is kept to break ties inside a bucket, where it is good at it.
 
-Early career never promotes a posting into a bucket it did not already earn:
-`Software Marketing Intern` names neither the trade nor anything adjacent, so it
-sorts below `RTL Design Engineer` regardless of the word "Intern". That ordering
-is the whole reason relevance is consulted after the bucket and not before it.
+Early career leads both bands it appears in, because an internship is what this
+search is actually for. It never rescues a posting from outside the trade and
+its neighbourhood, though: `Software Marketing Intern` names neither, so it
+sorts below every engineering posting in the queue regardless of the word
+"Intern". That ordering is the whole reason relevance is consulted after the
+band and not before it.
 """
 from datetime import date, datetime
 import re
@@ -81,30 +83,36 @@ EARLY_CAREER = re.compile(r"""\b(?:
 )\b""", re.I | re.X)
 
 
-# Index into these by bucket number. The first four are what the queue is for;
-# the last is everything the filter kept without being able to say why.
-LABELS = ('Intern / New Grad', 'Core VLSI', 'Related · Intern / New Grad',
+# Index into these by bucket number, which is also the order they are read in:
+# band 0 comes first. Both early-career bands precede either regular one. An
+# adjacent internship is an opening this search can actually take and a
+# principal RTL role is not, so the internship is the better thing to put in
+# front of someone even though the other is more squarely the trade.
+LABELS = ('Intern / New Grad', 'Related · Intern / New Grad', 'Core VLSI',
           'Related Hardware', 'Other')
 
 # What a pass reports, which is coarser than what the queue sorts by: the two
-# early-career buckets are one number to a reader, even though a core opening
-# has to outrank an adjacent one in the list itself.
-SUMMARY = (('intern_ng', (0, 2)), ('core_vlsi', (1,)),
+# early-career bands are one number to a reader, though a core opening still
+# leads an adjacent one inside them.
+SUMMARY = (('intern_ng', (0, 1)), ('core_vlsi', (2,)),
            ('related_hardware', (3,)), ('low_relevance', (4,)))
 
 
 def bucket(title):
     """Which band of the queue a title belongs in, 0 (first) to 4 (last).
 
-    Relevance is decided before seniority, never the other way round: an
-    internship that is not the trade is still not the trade.
+    Early career is what this search is for, so it outranks seniority across
+    the trade and its neighbourhood alike -- but it never rescues a posting
+    from outside both. `Software Marketing Intern` names neither, so it stays
+    in the last band below every engineering posting in the queue, which is the
+    ordering the bands exist to produce.
     """
     title = title or ''
     early = bool(EARLY_CAREER.search(title))
     if CORE.search(title):
-        return 0 if early else 1
+        return 0 if early else 2
     if RELATED.search(title):
-        return 2 if early else 3
+        return 1 if early else 3
     return 4
 
 

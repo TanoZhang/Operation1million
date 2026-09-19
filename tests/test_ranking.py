@@ -26,7 +26,7 @@ class BucketTests(unittest.TestCase):
                       'Pre-Silicon Verification Engineer', 'Static Timing Analysis Engineer',
                       'Design for Testability Engineer', 'Microarchitecture Engineer'):
             with self.subTest(title=title):
-                self.assertEqual(ranking.bucket(title), 1, title)
+                self.assertEqual(ranking.bucket(title), 2, title)
 
     def test_loose_trade_words_land_in_the_adjacent_band_not_the_core(self):
         for title in ('Hardware Engineer', 'Embedded Engineer', 'Firmware Engineer',
@@ -41,13 +41,20 @@ class BucketTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(ranking.bucket(title), 4, title)
 
-    def test_early_career_lifts_a_posting_within_its_band_and_never_across(self):
+    def test_early_career_leads_both_bands_but_rescues_neither_outsider(self):
         self.assertEqual(ranking.bucket('RTL Design Intern'), 0)
         self.assertEqual(ranking.bucket('ASIC Design Engineer, New Grad'), 0)
-        self.assertEqual(ranking.bucket('Hardware Engineering Intern'), 2)
-        # The example the whole ordering exists for.
+        self.assertEqual(ranking.bucket('Hardware Engineering Intern'), 1)
+        # An adjacent internship is an opening this search can take; a
+        # principal RTL role is not, so it comes first despite being less
+        # squarely the trade.
+        self.assertLess(ranking.bucket('Hardware Engineering Intern'),
+                        ranking.bucket('Principal RTL Design Engineer'))
+        # The example the whole ordering exists for: "Intern" is not a lift out
+        # of the last band when nothing else in the title qualifies.
         self.assertLess(ranking.bucket('RTL Design Engineer'),
                         ranking.bucket('Software Marketing Intern'))
+        self.assertEqual(ranking.bucket('Software Marketing Intern'), 4)
 
     def test_the_early_career_vocabulary_the_search_is_written_around(self):
         for title in ('Design Verification Intern', 'RTL Internship',
@@ -63,7 +70,7 @@ class BucketTests(unittest.TestCase):
     def test_soc_the_security_desk_is_not_soc_the_chip(self):
         for title in ('SOC Analyst', 'SOC Operations Engineer', 'SOC 2 Compliance Lead'):
             with self.subTest(title=title):
-                self.assertNotIn(ranking.bucket(title), (0, 1), title)
+                self.assertNotIn(ranking.bucket(title), (0, 2), title)
 
 
 class PostedDayTests(unittest.TestCase):
@@ -94,9 +101,22 @@ class OrderTests(unittest.TestCase):
             group('Hardware Engineer', confidence=100, posted='2026-09-19', id='related'),
             group('RTL Design Engineer', confidence=1, posted='2026-01-01', id='core'),
             group('Warehouse Associate', confidence=100, posted='2026-09-19', id='other'),
+            group('Hardware Engineering Intern', confidence=0, posted='2025-01-01',
+                  id='related-intern'),
             group('RTL Design Intern', confidence=0, posted='2025-01-01', id='intern'),
         ])
-        self.assertEqual([g['id'] for g in ordered], ['intern', 'core', 'related', 'other'])
+        self.assertEqual([g['id'] for g in ordered],
+                         ['intern', 'related-intern', 'core', 'related', 'other'])
+
+    def test_an_adjacent_internship_leads_a_core_role_it_could_not_apply_for(self):
+        """Both early-career bands come before either regular one."""
+        ordered = ranking.order([
+            group('Principal RTL Design Engineer', confidence=100, posted='2026-09-19',
+                  id='core-senior'),
+            group('Embedded Firmware Intern', confidence=0, posted='2025-01-01',
+                  id='adjacent-intern'),
+        ])
+        self.assertEqual([g['id'] for g in ordered], ['adjacent-intern', 'core-senior'])
 
     def test_inside_a_band_the_newest_posting_comes_first(self):
         ordered = ranking.order([

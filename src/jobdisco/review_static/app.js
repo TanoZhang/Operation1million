@@ -31,12 +31,12 @@ function filtered() {
   const text = $('#search').value.trim().toLowerCase();
   return state[tab].filter(group => `${group.company} ${group.title}`.toLowerCase().includes(text));
 }
-// Bands 0 and 2 are both early-career openings and read as one number here,
-// even though a core one has to sort above an adjacent one in the list itself.
+// Bands 0 and 1 are both early-career openings and read as one number here,
+// even though a core one still leads an adjacent one in the list itself.
 function bandSummary(groups) {
   const counts = [0, 0, 0, 0, 0];
   groups.forEach(group => counts[band(group)]++);
-  const parts = [['intern / new grad', counts[0] + counts[2]], ['core VLSI', counts[1]],
+  const parts = [['intern / new grad', counts[0] + counts[1]], ['core VLSI', counts[2]],
                  ['related hardware', counts[3]], ['other', counts[4]]];
   const text = parts.filter(([, total]) => total).map(([name, total]) => `${total} ${name}`).join(' · ');
   return text ? ' · ' + text : '';
