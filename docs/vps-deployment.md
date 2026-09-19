@@ -103,6 +103,44 @@ Both checkouts advance only by fast-forward. Local source edits or divergent
 history stop installation instead of being discarded. Installation and daily
 collection use the same lock, so an update cannot replace running collector code.
 
+## Reaching the review queue
+
+The review server binds to the loopback interface and has no authentication of
+its own: the token it issues is handed out by `GET /api/queue` to anyone who can
+reach the port. That is safe because nothing can reach the port, and it stops
+being safe the moment something can. So it is reached through ssh, not exposed.
+
+From a machine holding the deploy key:
+
+    ssh -N -L 8765:127.0.0.1:8765 ubuntu@<vps>
+
+Leave that running and open `http://localhost:8765`. The Host header the browser
+sends is `localhost:8765`, which is what the server already accepts, so nothing
+about the service changes.
+
+Opening it to the public internet is a different piece of work and has not been
+done: it needs authentication that survives someone finding the address,
+TLS, and a proxy in front. Until then a phone needs an ssh client that can hold
+a local forward, which is the awkward part of this arrangement and the reason to
+do the proxy properly rather than by loosening the bind address.
+
+## Backing it up to a workstation
+
+The VPS owns everything -- the scraper, the index, the seen table, the review UI
+and the decisions written through it. A workstation holds a copy in case that
+machine is lost, and never writes back: a second writer is how two copies of a
+decision log stop agreeing.
+
+    ./deploy/local/backup-from-vps.sh [target-dir]
+
+It pulls the whole data tree over ssh with tar, because rsync has to exist at
+both ends and a Windows checkout has no rsync. It checks that the four
+irreplaceable files under `operational/` arrived and that every run file still
+has its manifest before it replaces the previous copy, and keeps that previous
+copy until the next good pull. Rebuilding from it is the ordinary path:
+
+    JOBDISCO_STORE=<target>/current job-store --bootstrap --verify
+
 ## Triage
 
     systemctl list-timers jobdisco-collect.timer   # when it next fires
