@@ -150,6 +150,24 @@ class DiscoveryTests(unittest.TestCase):
     def collect(self, queries):
         return jsearch.collect(queries, self.client, self.settings, {}, self.persist)
 
+    def test_seen_rows_are_recorded_before_checkpoint_can_fail(self):
+        seen = []
+        self.session.get.return_value = self.response([
+            job('off-domain', job_title='Analog IC Designer')])
+
+        def checkpoint(query, rows, detail):
+            raise RuntimeError('checkpoint failed after page processing')
+
+        with self.assertRaises(RuntimeError):
+            jsearch.collect([jsearch.Query('RTL Design Engineer', 1, 'A')],
+                            self.client, self.settings, {}, self.persist,
+                            checkpoint=checkpoint, record_seen=seen.extend)
+
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0]['source_job_id'], 'off-domain')
+        self.assertEqual(seen[0]['decision'], 'title_mismatch')
+
+
     def test_fixed_catalog_and_budget_math(self):
         self.assertEqual(len(self.plan), 52)
         self.assertEqual(self.settings['monthly_target'], 9600)

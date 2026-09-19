@@ -357,6 +357,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     # Identity resolution can retain an old canonical URL after a sitemap slug
     # changes. Successfully read rows remain live under that canonical URL too.
     live = set(listed) | seen if listed is not None else seen
+    seen_count = len(live)
     # Postings the board still lists but this pass skipped fetching are alive.
     for start in range(0, len(live - seen), 400):
         chunk = sorted(live - seen)[start:start + 400]
@@ -405,8 +406,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                note=excluded.note''',
         (source.source_id, source.company_key, source.provider_key, etag,
          last_modified, stamp if effective_status == 'complete' else None, stamp,
-         effective_status, strategy, len(seen), requests, effective_note))
-    return {'seen': len(seen), 'new': new, 'closed': closed,
+         effective_status, strategy, seen_count, requests, effective_note))
+    return {'seen': seen_count, 'new': new, 'closed': closed,
             'new_urls': fresh, 'changed_urls': changed,
             'seen_urls': sorted(live - set(fresh) - set(changed)),
             'closed_urls': closed_urls, 'stamp': stamp,

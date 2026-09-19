@@ -635,10 +635,14 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 entry['previous'] = identities
                 if not looping:
                     before_rows = len(entry['rows'])
+                    before_seen = len(entry['seen'])
                     take(query, items)
+                    new_seen = entry['seen'][before_seen:]
                     # Paid results become durable before a resumable cursor can
                     # move past them. A crash after this callback may repeat a
                     # page, but it cannot skip jobs that existed only in memory.
+                    if record_seen is not None and new_seen:
+                        record_seen(new_seen)
                     if checkpoint is not None:
                         checkpoint(query, entry['rows'][before_rows:], detail)
                 entry['page'] += 1
@@ -684,11 +688,6 @@ def collect(queries, client, settings, companies, persist, backfill=False,
         detail['jobs_accepted'] = len(rows)
         stats['jsearch_jobs_rejected'] += detail['rejected']
         stats['jsearch_jobs_malformed'] += detail['malformed']
-        # A successful search is still query-limited, never a full board scan.
-        # Before persisting the accepted rows, so that a store which recorded
-        # what it had seen but crashed before storing is the harmless ordering.
-        if record_seen and entry['seen']:
-            record_seen(entry['seen'])
         persist(query, rows, detail)
         stats['jsearch_queries'].append(detail)
         all_rows.extend(rows)

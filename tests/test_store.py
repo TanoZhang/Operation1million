@@ -140,7 +140,9 @@ class StoreTests(unittest.TestCase):
         listed = {r['url'] for r in baseline} | {'https://x/9'}
         delta = store.record_source(db, SOURCE, [row('https://x/9')], 'complete', 'lastmod', 1,
                                     listed=listed)
-        self.assertEqual((delta['new'], delta['closed']), (1, 0))
+        self.assertEqual((delta['seen'], delta['new'], delta['closed']), (9, 1, 0))
+        self.assertEqual(db.execute('SELECT job_count FROM source_state WHERE source_id=?',
+                                    (SOURCE.source_id,)).fetchone()[0], 9)
         self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL')
                          .fetchone()[0], 9)
         # Skipped-but-listed postings still count as seen this pass.
