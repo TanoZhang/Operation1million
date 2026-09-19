@@ -19,6 +19,20 @@ class FilterPolicyTests(unittest.TestCase):
     def matches_keep(self, title):
         return any(re.search(p, title, re.I) for p in self.rules['keep_title_patterns'])
 
+    def test_explicit_seniority_is_hard_rejected_before_keep(self):
+        for title in ('Senior RTL Engineer', 'Sr. FPGA Engineer', 'Sr ASIC Engineer',
+                      'ASIC Engineer, Sr.', 'SENIOR Design Verification Engineer',
+                      'Director of RTL Design', 'FPGA Engineering Manager'):
+            with self.subTest(title=title):
+                row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
+                self.assertEqual(jsearch.rejection_reason(row, self.rules), 'excluded')
+        for title in ('Staff FPGA Engineer', 'Principal RTL Engineer', 'SRAM Design Engineer'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
+        self.assertEqual(jsearch.rejection_reason({
+            'title': 'RTL Engineer', 'raw': {'description': 'Work with Senior engineers and a Manager.'}
+        }, self.rules), '')
+
     def test_unrelated_titles_are_hard_rejected_even_with_trade_evidence(self):
         titles = (
             'Silicon Photonics Engineer', 'Photonic Engineer', 'Photonics Engineer',
@@ -136,7 +150,7 @@ class QueueRulesTests(unittest.TestCase):
         self.assertEqual(self.queue()['pending'], [])
 
     def test_old_noisy_snapshot_survives_date_and_url_changes(self):
-        role = 'Senior ASIC Design Verification Engineer'
+        role = 'ASIC Design Verification Engineer'
         old_title = role + ' Minneapolis, Minnesota, United States of America Posted a day ago'
         group = self.queue()['pending'][0]
         group['title'] = old_title

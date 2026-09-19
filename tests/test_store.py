@@ -1006,8 +1006,8 @@ class HardExclusionTests(unittest.TestCase):
                               job_description='RTL UVM SystemVerilog AXI testbench tape-out.')
         self.assertEqual(self.jsearch.relevance(loaded, self.rules)[0], 0)
 
-    def test_individual_contributor_titles_are_untouched(self):
-        for title in ('RTL Design Engineer', 'Senior Design Verification Engineer',
+    def test_allowed_individual_contributor_titles_are_untouched(self):
+        for title in ('RTL Design Engineer', 'Design Verification Engineer',
                       'Principal Engineer, SoC', 'Staff FPGA Engineer'):
             with self.subTest(title=title):
                 self.assertFalse(self.jsearch.excluded(title, self.rules))
