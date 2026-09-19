@@ -44,9 +44,12 @@ if git diff --cached --quiet -- "$LEDGER"; then
   exit 0
 fi
 
+# -m before --, because everything after -- is a pathspec: with the message
+# after it, git looked for files called "-m" and "Back up application
+# decisions ...", failed, and the backup never committed anything.
 git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
-    commit --quiet --only -- "$LEDGER" \
-    -m "Back up application decisions $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    commit --quiet --only -m "Back up application decisions $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    -- "$LEDGER"
 echo "Committed $(wc -l < "$LEDGER") decisions."
 
 if ! git push --quiet origin main; then
