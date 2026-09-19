@@ -1,5 +1,11 @@
 # Working alongside another agent
 
+**[docs/agent-protocol.md](docs/agent-protocol.md) holds the work register.
+Read it and claim your area before you write code.** The rules below are the
+short form; that file says who is working on what right now, which is the part
+that actually prevents two agents building the same thing twice.
+
+
 Claude Code and Codex both work this repository, sometimes at the same time and
 sometimes on the same problem. That is deliberate: the point is a second
 independent reading, so two agents reaching the same fix is a signal the fix is
