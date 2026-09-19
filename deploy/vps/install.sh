@@ -23,8 +23,17 @@ fi
 
 echo "== Packages =="
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq python3-venv python3-dev git curl ca-certificates
+# Wait for the dpkg lock rather than dying on it. unattended-upgrades runs on
+# its own schedule, holds the lock for minutes at a time, and made `apt-get`
+# exit 100 -- which under `set -e` aborted the whole deployment before it
+# reached the git step. Three updates in a row appeared to succeed and silently
+# changed nothing, because this script's output was being discarded. Nothing
+# here needs installing after the first run; it only has to not fail.
+APT_WAIT='-o DPkg::Lock::Timeout=300'
+# shellcheck disable=SC2086
+apt-get $APT_WAIT update -qq
+# shellcheck disable=SC2086
+apt-get $APT_WAIT install -y -qq python3-venv python3-dev git curl ca-certificates
 
 echo "== Service account =="
 # A system account with no login and no password: the pass needs a home for
@@ -138,7 +147,11 @@ systemctl restart jobdisco-review.service
 systemctl enable --now jobdisco-backup.timer
 
 echo
-echo "Installed. Next run:"
+# Printed because an update that changed nothing used to look exactly like one
+# that worked. If this is not the commit you just pushed, the update did not
+# happen, whatever else the output said.
+echo "Installed at $(sudo -u "$SERVICE_USER" git -C "$ROOT/code" log --oneline -1)"
+echo "Next run:"
 systemctl list-timers jobdisco-collect.timer --no-pager || true
 echo
 echo "The first pass builds the database from the committed log, which takes"
