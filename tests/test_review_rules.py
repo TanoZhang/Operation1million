@@ -3,6 +3,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+import json
 import re
 import tempfile
 import unittest
@@ -224,6 +225,23 @@ class QueueRulesTests(unittest.TestCase):
             db.execute("UPDATE companies SET name='Anduril-1'")
             db.execute('UPDATE jobs SET relevance=100')
         self.assertEqual(self.queue()['pending'], [])
+
+    def test_existing_jobs_apply_experience_without_deleting_history(self):
+        for title, description, kept in (
+                ('RTL Engineer', '3 years required', False),
+                ('RTL Engineer', 'BS+4 / MS+2', True),
+                ('RTL Intern', '5 years required', True),
+                ('HR Business Partner, Hardware', '', False),
+                ('RTL Engineer', '', True)):
+            with self.subTest(title=title, description=description):
+                with closing(sqlite3.connect(self.db)) as db, db:
+                    db.execute('UPDATE jobs SET title=?, raw=?', (title, json.dumps({'description': description})))
+                pending = self.queue()['pending']
+                self.assertEqual(bool(pending), kept)
+                if kept:
+                    self.assertIn('experience_filter', pending[0]['jobs'][0])
+                with closing(sqlite3.connect(self.db)) as db:
+                    self.assertEqual(db.execute('SELECT count(*) FROM jobs').fetchone()[0], 1)
 
     def test_old_noisy_snapshot_survives_date_and_url_changes(self):
         role = 'ASIC Design Verification Engineer'

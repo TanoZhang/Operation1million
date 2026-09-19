@@ -208,6 +208,32 @@ fields remain in `raw`. Known logos, reviews, benefits and presentation/debug
 noise are removed. Description HTML is removed only when equivalent full plain
 text is retained; HTML-only descriptions survive.
 
+### Required experience hard pass
+
+The deterministic experience gate runs before title keeps, and Review reapplies
+it to existing pending and backlog records without deleting history. It uses
+only supplied JD text, not an LLM or an inferred degree credit. Missing or
+unrecognized experience is retained. HR and human-resources titles are also
+hard excluded; an HR contact in an engineering description is not.
+
+An explicit intern, internship, new grad/graduate, new college grad/graduate or
+university graduate signal in the title or JD bypasses only this experience
+gate. Early career, entry level, junior and associate do not bypass it.
+Required experience above two years is rejected; ranges use their lower bound.
+Preferred, desired, nice-to-have, plus, bonus and ideally clauses/sections do
+not contribute. Roadmaps, degree durations and program durations are not work
+experience. Explicit BS/MS alternatives use the stated MS path; otherwise
+separate mandatory requirements use their maximum lower bound.
+
+Debug fields are `entry_override`, `required_experience_years` (the maximum
+unadjusted lower bound), `effective_experience_years` (after explicit MS
+alternatives), `matched_text`, and `hard_pass_reason`. Unknown bounds are null.
+Accepted JSearch raw records retain `experience_filter`; each collector run
+also writes `experience_debug.jsonl` alongside its manifest, including rejected
+results. Existing Review rows expose the same debug dictionary through the
+Python queue API, while the browser payload stays slim. Rejected stored rows
+can be inspected with `jsearch.experience_debug` without mutating the database.
+
 ## Shared durable history
 
 Direct and JSearch jobs use the same `jobs` table and daily log. Stable JSearch

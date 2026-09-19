@@ -407,7 +407,7 @@ TAGS = re.compile(r'<[^>]{0,400}>')
 WHITESPACE = re.compile(r'\s+')
 
 
-def description_text(row):
+def description_text(row, structured=False):
     """Everything the posting says about the work, in whatever field it says it.
 
     A provider may put the vocabulary in the description, in a skills array, or
@@ -424,7 +424,9 @@ def description_text(row):
             parts.append(value)
         elif isinstance(value, dict):
             for key, item in value.items():
-                if key not in NON_PROSE_FIELDS:
+                if key not in NON_PROSE_FIELDS and key not in {'relevance', 'experience_filter'}:
+                    if structured and re.search(r'preferred|desired|required|qualifications', key, re.I):
+                        parts.append(key.replace('_', ' '))
                     walk(item)
         elif isinstance(value, list):
             for item in value:
@@ -434,13 +436,24 @@ def description_text(row):
         # The title is scored separately with its higher title weight. Only
         # suppress these names at the payload root: a nested skill `name` is
         # useful prose and must remain searchable.
-        if key not in NON_PROSE_FIELDS and key not in TITLE_FIELDS and key != 'relevance':
+        if key not in NON_PROSE_FIELDS and key not in TITLE_FIELDS and key not in {'relevance', 'experience_filter'}:
+            if structured and re.search(r'preferred|desired|required|qualifications', key, re.I):
+                parts.append(key.replace('_', ' '))
             walk(value)
     # Markup is not prose. A publisher's excerpt is kept rather than judged, on
     # the grounds that a short description is truncation and not silence -- but
     # a few hundred words of boilerplate wrapped in tags measured well past the
     # length that decides it, so the excerpt was judged after all and dropped.
+    if structured:
+        text = '\n'.join(parts)
+        text = re.sub(r'</?(?:p|li|ul|ol|div|br|h[1-6])\b[^>]*>', '\n', text, flags=re.I)
+        return TAGS.sub(' ', text).strip()
     return WHITESPACE.sub(' ', TAGS.sub(' ', ' '.join(parts))).strip()
+
+
+def experience_debug(row):
+    from .experience import evaluate
+    return evaluate(row.get('title'), description_text(row, structured=True))
 
 
 def rejection_reason(row, rules):
@@ -461,6 +474,11 @@ def rejection_reason(row, rules):
         return 'excluded_employer'
     if excluded(title, rules):
         return 'excluded'
+    experience = experience_debug(row)
+    if isinstance(row.get('raw'), dict):
+        row['raw']['experience_filter'] = experience
+    if experience['hard_pass_reason']:
+        return experience['hard_pass_reason']
     # Before the keeps, not after: the point of an evidence title is that its
     # name is not trusted, and a title that also happens to match a keep would
     # otherwise skip the check it exists for. A posting that really is the trade
@@ -481,11 +499,9 @@ def rejection_reason(row, rules):
     return 'off_domain'
 
 
-# Rejections nothing about a posting's own text could have changed: the title
-# or the employer answered it. Everything else -- a missing description, an
-# off-domain vocabulary, an evidence title that argued nothing -- is a judgement
-# the term lists can be asked to revisit.
-HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer'})
+# Mechanical hard passes, including explicit required work experience.
+# Missing descriptions and domain-vocabulary judgements remain separate.
+HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'required_experience_over_2_years'})
 
 
 # Internships are seasonal and scarce, so they precede every other tier.
@@ -616,6 +632,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 'url': row['url'], 'title': row.get('title') or '',
                 'employer': row.get('company_name') or '',
                 'decision': reason, 'confidence': confidence,
+                'experience_filter': experience_debug(row),
                 'filter_version': filter_version})
             if reason:
                 detail['rejected'] += 1

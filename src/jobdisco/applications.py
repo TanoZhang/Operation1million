@@ -138,7 +138,7 @@ def queue(db_path=DB, path=None, now=None):
         select = '''SELECT j.url, j.company_key, j.source_job_id,
                             COALESCE(c.name, json_extract(j.raw, '$.employer_name'), j.company_key) AS company,
                             j.title, j.location, j.first_seen, j.posted_at, j.provider_key,
-                            COALESCE(j.relevance, 0) AS confidence
+                            COALESCE(j.relevance, 0) AS confidence, j.raw
                             FROM jobs j LEFT JOIN companies c USING(company_key)'''
 
         # Both checks are pure functions of a string, and the strings repeat.
@@ -173,21 +173,22 @@ def queue(db_path=DB, path=None, now=None):
                 refused, evidence = verdict(job['title'])
                 if refused:
                     continue
+                try:
+                    raw = json.loads(job.pop('raw') or '{}')
+                except (TypeError, ValueError):
+                    raw = {}
+                experience = jsearch.experience_debug({'title': job['title'], 'raw': raw})
+                if experience['hard_pass_reason']:
+                    continue
+                job['experience_filter'] = experience
                 # An evidence title with supplied prose has to earn its place.
                 # Missing prose is not evidence against a posting, so inspect
-                # raw before treating a low stored score as a rejection. Fetch
-                # it only for this small ambiguous subset; returning every full
-                # description made the review queue needlessly heavy.
+                # raw before treating a low stored score as a rejection. Raw is
+                # already loaded for experience checks, but never sent to the UI.
                 # A row scored under rules that hard-rejected these titles still
                 # holds a zero, so they stay hidden until the next pass rescores
                 # them; `job-store --rescore` does it in one go.
                 if evidence and job['confidence'] < minimum:
-                    raw_row = db.execute('SELECT raw FROM jobs WHERE url=?',
-                                         (job['url'],)).fetchone()
-                    try:
-                        raw = json.loads((raw_row[0] if raw_row else None) or '{}')
-                    except (TypeError, ValueError):
-                        raw = {}
                     if jsearch.description_text({'raw': raw}):
                         continue
                 key = decision_key(job)
@@ -216,6 +217,7 @@ def queue(db_path=DB, path=None, now=None):
             row = db.execute(select + ' WHERE j.url=?', (url,)).fetchone()
             if row:
                 job = dict(row)
+                job.pop('raw', None)
                 legacy_history.append((event['status'], {
                     'id': 'legacy:' + hashlib.sha256(url.encode()).hexdigest(),
                     'company': job['company'], 'title': job['title'], 'confidence': job['confidence'],

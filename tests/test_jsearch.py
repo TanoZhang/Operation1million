@@ -704,7 +704,11 @@ class DiscoveryTests(unittest.TestCase):
                         self.persist, record_seen=recorded.extend)
         self.assertEqual(set(recorded[0]), {'provider_key', 'source_job_id', 'url', 'title',
                                             'employer', 'decision', 'confidence',
-                                            'filter_version'})
+                                            'filter_version', 'experience_filter'})
+        self.assertEqual(set(recorded[0]['experience_filter']), {
+            'entry_override', 'required_experience_years', 'effective_experience_years',
+            'matched_text', 'hard_pass_reason'})
+        self.assertNotIn('raw', recorded[0])
 
     def test_the_filter_configuration_is_named_beside_each_decision(self):
         """So a changed filter can later be told from an unchanged one."""

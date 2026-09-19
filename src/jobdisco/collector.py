@@ -882,6 +882,15 @@ def main():
             and it is the first thing to look at when a total looks wrong.
             """
             seen_totals['fetched'] += len(rows)
+            # Keep mechanical decisions, including rejected rows, inspectable
+            # without expanding the durable identity-only seen_jobs schema.
+            with (args.output / 'experience_debug.jsonl').open('a', encoding='utf-8') as debug_file:
+                for row in rows:
+                    debug_file.write(json.dumps({
+                        'url': row.get('url'), 'title': row.get('title'),
+                        'decision': row.get('decision'),
+                        **row.get('experience_filter', {}),
+                    }, ensure_ascii=True) + '\n')
             if db is None:
                 return
             before = db.execute('SELECT count(*) FROM seen_jobs').fetchone()[0]
