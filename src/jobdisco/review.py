@@ -14,13 +14,14 @@ from .paths import DB
 
 
 # What review_static/app.js actually reads. `queue()` carries more than this
-# because writing a decision needs it -- source_job_id is what decision_key is
-# computed from -- but the browser reads a fraction, and the difference is 3.6
-# of the 12.5 MB this endpoint returned before. Measured on 21,222 groups: the
-# five per-job fields nothing renders cost title 1.13, source_job_id 0.91,
-# company 0.65, company_key 0.53 and confidence 0.35 MB. posted_at stays: a
-# contract test below reads app.js and found the page showing it, which a
-# hand-audit of the field list had missed.
+# because writing a decision needs the scoped requisition identity -- source_job_id
+# and company_key are what decision_key is computed from for direct sources --
+# but the browser reads a fraction, and the difference is 3.6 of the 12.5 MB this
+# endpoint returned before. Measured on 21,222 groups: the five per-job fields
+# nothing renders cost title 1.13, source_job_id 0.91, company 0.65, company_key
+# 0.53 and confidence 0.35 MB. posted_at stays: a contract test below reads
+# app.js and found the page showing it, which a hand-audit of the field list had
+# missed.
 #
 # Only the response is trimmed. `do_POST` rebuilds the group from its own
 # `queue()` call and never from what the client sends back, so a decision is
