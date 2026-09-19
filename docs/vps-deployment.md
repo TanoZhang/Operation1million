@@ -134,10 +134,16 @@ decision log stop agreeing.
     ./deploy/local/backup-from-vps.sh [target-dir]
 
 It pulls the whole data tree over ssh with tar, because rsync has to exist at
-both ends and a Windows checkout has no rsync. It checks that the four
-irreplaceable files under `operational/` arrived and that every run file still
-has its manifest before it replaces the previous copy, and keeps that previous
-copy until the next good pull. Rebuilding from it is the ordinary path:
+both ends and a Windows checkout has no rsync. It also asks the VPS to create a
+SQLite backup snapshot with Python's `sqlite3.Connection.backup()` and includes
+that snapshot under `sqlite/job_discovery.sqlite`, rather than copying the live
+WAL database files directly. The script checks that the four irreplaceable files
+under `operational/` arrived, that the SQLite snapshot is present, and that every
+run file still has its manifest before it replaces the previous copy. It keeps
+that previous copy until the next good pull.
+
+Fast restore can start from the copied SQLite snapshot. A slower rebuild from the
+rolling event history is still available:
 
     JOBDISCO_STORE=<target>/current job-store --bootstrap --verify
 
@@ -206,18 +212,19 @@ consequence of the disk persisting:
 40 GB total, about 36 GB free. The working set is small: the derived SQLite at
 roughly 198 MB, the data checkout at about 123 MB today, and the virtualenv.
 
-**The 14-day local retention discussed during planning is not implemented, and
-deliberately so.** Deleting old log files inside the data checkout would stage a
-deletion that the next `git add`/`commit` would publish, removing them from the
-authoritative copy on GitHub — the opposite of the intent. The safe equivalents
-(sparse-checkout with a pattern rewritten daily, or a shallow clone) are real
-machinery for a problem this machine does not yet have: at about 20 MB a day,
-tree and history together fill 36 GB in roughly two and a half years.
+Runs and manifests in the private data checkout are pruned to a rolling
+fourteen-day window after the store verifies. That window is only the compact
+recent event history. Pruning never touches the live SQLite database, the
+application ledger, the seen snapshot, source_state, cooldowns, quota ledgers,
+or anything under `operational/`. The local workstation backup also carries a
+SQLite backup snapshot, because a pruned event window is not meant to be the only
+way to recover the current live index.
 
-What is implemented instead is the 5 GiB floor: the pass refuses to start rather
-than failing partway through a write. Revisit retention when the data repository
-is reset, which the ~5 GB GitHub guidance forces in roughly eight months anyway
-and which is the deliberate act that actually reclaims anything.
+The pass keeps a 5 GiB free-space floor and refuses to start below it rather
+than failing partway through a write. Git history still grows until it is
+explicitly compacted: pruning the working tree removes old run files from the
+current checkout, but old blobs remain in repository history until
+`deploy/vps/compact-history.sh` replaces that history by hand.
 
 ## The fixed address
 
