@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Second offline audit of identity transitions, durable recovery, Review concurrency and paid malformed payloads; findings only. User owns fixes from the first audit.
+Files: docs/file-audit-round2-2026-09-20.md, docs/audit-repro-round2-2026-09-20.py, docs/agent-protocol.md
+Base commit: a7572bec2e09b14506b7fd42152414c809d2d465
+Last inspected main: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Date: 2026-09-20
+Status: claimed
+Next: Reproduce new boundary failures without editing application code or first-audit findings.
+```
+
+```text
+Owner: codex
 Scope: File-by-file offline audit; findings only, no behavior changes.
 Files: docs/file-audit-2026-09-20.md, docs/audit-repro-2026-09-20.py, docs/agent-protocol.md
 Base commit: b263553a7fe5ec47cd31c191134de8925a013c52
