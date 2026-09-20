@@ -1,3 +1,38 @@
+# Debug follow-up - 2026-09-19 Pacific (2026-09-20 UTC)
+
+Codex's offline audit is on `codex/deep-debug`, based on main `a960195` plus
+the collaboration protocol branch. These changes are pending review and are
+not deployed. The sections below remain historical snapshots.
+
+Four reproduced defects and their evidence are recorded at the top of the
+architecture bug log: reused Review URLs, multi-requisition legacy decisions,
+stale relevance after content changes, and missing seen snapshot export outside
+the VPS wrapper. New tests exercise ledger replay and fresh-database recovery.
+No paid requests or production changes were made.
+
+Validation: `python -m unittest discover -s tests -q` ran 384 tests, with 14
+environment-dependent skips and no failures. Tests imported this worktree's
+`src`, not the original checkout's editable install. Windows lacks some POSIX
+test prerequisites and this worktree has no production database. The new
+Actions publication shell tests did execute using Git Bash, covering verified,
+dry-run and failed-verification branches. `git diff --check` also passed.
+
+Corrections to the earlier uncertainty list:
+
+- The daily per-query caps total 105 / 90 / 70 / 55 across intern, new_grad,
+  early_career and A. Their sum is 320, enforced by plan validation. A tier
+  cannot consume the full daily allocation under this fixed plan; a partially
+  spent budget, deadline or provider stop can still prevent later tiers.
+- Seen deduplication has offline repeated-pass and restore coverage. The new
+  collector-level test replaces the database between passes and requires the
+  second manifest to report `seen_new=0`, `seen_existing=1`. This does not prove
+  production counters; it also does not avoid provider requests or re-scoring.
+- New query strings still require a real run. An empty tier alone cannot name
+  the cause: distinguish zero pages attempted, successful empty responses,
+  filtering, provider errors and budget/deadline stops in the manifest.
+- Production backlog behavior and a full-budget pass on the deployed code
+  remain unverified by this offline audit.
+
 # Handoff - 2026-09-19
 
 Read this section first; everything below it is the state as of 2026-09-18 and

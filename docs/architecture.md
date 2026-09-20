@@ -22,7 +22,7 @@ collection history, not the working state.
     scheduled pass (04:38 America/Los_Angeles)
       |
       +-- 35 company boards, direct          --> normalize --> store
-      +-- 52 JSearch queries, paid           --> normalize --> seen --> filter --> store
+      +-- 36 JSearch queries, paid           --> normalize --> score/filter --> seen --> store
                                                                           |
     review UI (127.0.0.1:8765)  <-- rank <-- open postings <---------------+
       |
@@ -45,6 +45,7 @@ collection history, not the working state.
 | File | Owns |
 | --- | --- |
 | `jsearch.py` | The JSearch plan, transport, and everything that decides whether a posting is kept. `load_plan` validates the config; `collect` pages the plan breadth-first within a tier; `rejection_reason` is the filter; `relevance` is the score. `TIER_ORDER` decides which queries get the budget first. |
+| `experience.py` | Deterministic required-experience parsing shared by discovery and Review, including explicit entry-level overrides and required versus preferred clauses. |
 | `jsearch_access.py` | Money. Reserves a page credit **before** the request leaves, so a crash or a timeout still shows it as spent. Owns the daily allowance, the 30-day cycle, the provider cooldown, and the resumable sweep cursor. `budget_day()` decides which day's allowance is being spent. |
 | `ledger_guard.py` | Refuses to start a pass whose local credit ledger is behind the published one, which would spend credits twice. |
 | `data/config/jsearch_queries.toml` | The plan and the filter rules, with the reasoning for each in comments. Editing a term list here changes what is collected on the next pass. |
@@ -92,11 +93,68 @@ collection history, not the working state.
 - **A credit is reserved before the request, not after.** Anything that sends a
   request outside `RequestGuard` is unbilled and invisible.
 - **SQLite is derived and disposable; the ledger and `operational/` are not.**
+- **Seen records include rejected jobs.** Scoring and filtering compute the
+  recorded decision; each page's seen rows are committed before its accepted-job
+  checkpoint. The collector exports their recovery snapshot on success and
+  handled failure; Actions publishes it alongside verified collection state.
+- **A cached score belongs to unchanged content.** A title or retained payload
+  change recalculates it without trusting an old score embedded in raw. A rules
+  change alone still requires `job-store --rescore` for unchanged postings.
 
 ## Bugs found and fixed
 
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
+
+### Seen recovery depended on the VPS wrapper
+
+The collector committed seen rows to disposable SQLite but did not export the
+recovery snapshot. Only the VPS publication script did; manual collection and
+the Actions fallback could finish with new rejections absent from durable state.
+Actions also did not stage the snapshot. This does not establish a failure of
+the VPS path, which already exported it.
+
+An offline two-pass test against `a960195` returned one identical rejected job
+per pass, replacing the database with a fresh replay in between. Both reports
+said one new and zero existing. Exporting at successful and handled-failure
+sealing changes the second report to zero new and one existing. A separate
+checkpoint-failure test recovers the rejected row on a fresh database. Actions
+now stages the snapshot only with verified, non-dry-run collection state.
+
+### Changed postings retained their first score forever
+
+`record_source` calculated relevance only for new URLs and preferred the old
+column on every update. A changed title or description therefore retained a
+score for content no longer present. Review's evidence gate uses that column.
+
+Offline fixtures on `a960195` showed a retitled Senior RTL role stuck at zero
+and an RF description changed to antenna work still scored 99. Both failed
+before the fix. Changed content now recalculates without trusting embedded raw
+scores; unchanged rows keep the cache. The updated score is logged, and a fresh
+database replay reproduces the corrected zero in the RF fixture.
+
+### Old decision snapshots retained only their first requisition identity
+
+Migration from company/title grouping re-keyed only the first job in each
+snapshot. The rest depended on URL matching: changing a later job's URL made
+an applied requisition pending again, and reopening the historical group could
+reopen several different requisitions together.
+
+An offline legacy snapshot containing two requisitions reproduced both failures
+on `a960195`. Replay now splits snapshots by each scoped requisition identity.
+Tests verify both identities remain decided after URL changes, reopening one
+leaves the other skipped, and the original ledger bytes remain untouched.
+
+### A reused URL inherited another requisition's decision
+
+Review checked URL decisions even when the ledger already supplied a scoped
+requisition identity. Skipping one requisition and replacing its database row
+with a new requisition at the same URL hid the new opening.
+
+The synthetic replacement fixture reproduced the missing pending row on
+`a960195`. Snapshot decisions now apply only through their identity; URL-only
+legacy events keep their fallback, with append order resolving later decisions.
+Tests cover replacement visibility, legacy reopen, and independent history.
 
 ### A literal date in a test was a fuse that stopped the whole pass
 

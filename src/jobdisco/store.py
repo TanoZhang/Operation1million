@@ -288,7 +288,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     new = len({u for u in incoming if u not in known})
     for row in rows:
         raw = slim(row.get('raw'))
-        current = db.execute('SELECT raw FROM jobs WHERE url=?', (row['url'],)).fetchone()
+        current = db.execute('SELECT raw, title, relevance FROM jobs WHERE url=?', (row['url'],)).fetchone()
         if current:
             raw = slim(merge_raw(json.loads(current['raw'] or 'null'), raw))
         posted_relative = lastmod = None
@@ -300,6 +300,15 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             lastmod = value if isinstance(value, str) else None
         url = row['url']
         seen.add(url)
+        # Cache only unchanged content. A retained embedded score may describe
+        # an older payload, so changed postings are calculated from current text.
+        encoded_raw = json.dumps(raw, ensure_ascii=True, default=str)
+        relevance = None
+        if current is None:
+            relevance = score_row(row['title'], raw)
+        elif (current['relevance'] is None or current['title'] != row['title']
+              or current['raw'] != encoded_raw):
+            relevance = calculate_score(row['title'], raw)
         db.execute(
             '''INSERT INTO jobs (url, company_key, provider_key, title, location,
                    source_job_id, posted_at, posted_relative, lastmod,
@@ -317,16 +326,11 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                    last_seen=excluded.last_seen,
                    closed_at=NULL,
                    raw=excluded.raw,
-                   relevance=COALESCE(jobs.relevance, excluded.relevance)''',
+                   relevance=COALESCE(excluded.relevance, jobs.relevance)''',
             (url, row['company_key'], row['provider_key'], row['title'],
              row.get('location') or '', row.get('source_job_id'), row.get('posted_at'),
              posted_relative, lastmod, stamp, stamp,
-             json.dumps(raw, ensure_ascii=True, default=str),
-             # Score a posting once, when it first arrives. Every pass re-reads the
-             # whole board, so re-scoring what has not changed would spend a minute
-             # a day recomputing the same numbers. `job-store --rescore` covers the
-             # case that does change them: an edit to the term lists.
-             score_row(row['title'], raw) if url not in known else None))
+             encoded_raw, relevance))
     for identity, url in pending_identities.items():
         db.execute('INSERT OR IGNORE INTO job_identities VALUES (?, ?, ?, ?)', (*identity, url))
     # A stable provider ID may outlive a title-derived URL slug. Historical
@@ -352,7 +356,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     for url in seen - set(fresh):
         old = before_rows[url]
         latest = dict(db.execute('SELECT * FROM jobs WHERE url=?', (url,)).fetchone())
-        if old and any(old[k] != latest[k] for k in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at', 'raw', 'closed_at')):
+        if old and any(old[k] != latest[k] for k in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at', 'raw', 'closed_at', 'relevance')):
             changed.append(url)
     # Identity resolution can retain an old canonical URL after a sitemap slug
     # changes. Successfully read rows remain live under that canonical URL too.

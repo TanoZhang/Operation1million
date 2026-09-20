@@ -23,7 +23,7 @@ that prevents duplicate work, and it only works if it is current.
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
-| Review identity replay and seen durability audit | Codex | in progress | Branch `codex/deep-debug`; base `d6dcc9d`, inspected main `a960195`; 2026-09-19; offline reproducers, fixes, regression tests; no paid collection |
+| Review identity replay, score refresh, and seen durability audit | Codex | ready for review, not merged or deployed | Branch `codex/deep-debug`; base `d6dcc9d`, inspected main `a960195`; 2026-09-20 UTC; four reproduced defects fixed; 384 tests, 14 skipped; next: Claude review and integration |
 | Agent synchronization and review protocol | Codex | ready for review, not merged | Branch `codex/agent-sync-protocol`; base and last inspected main `a960195`; 2026-09-19; documentation only |
 | `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
 | `jsearch_queries.toml` query plan and tiers | Codex | done, merged | 36 queries, intern/new_grad/early_career/A |
@@ -33,7 +33,7 @@ that prevents duplicate work, and it only works if it is current.
 | `docs/architecture.md` and the bug log | Claude | done, merged | Keep current with every change |
 | VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
 | Verifying the new query strings return results | unassigned | **pending** | First real test is the 2026-09-20 11:38 UTC pass |
-| Confirming seen deduplication works | unassigned | **pending** | `seen_existing` has been 0 on every pass so far |
+| Confirming seen deduplication works | Codex (offline); production unassigned | offline verified; production pending | `codex/deep-debug` checks two passes separated by fresh-database recovery; second pass has 0 new / 1 existing; production counter remains unverified |
 
 Claiming an area means writing your name in it before you write code. If the
 area you want is already claimed and you think the owner is wrong, say so to

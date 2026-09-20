@@ -132,6 +132,68 @@ class ApplicationsTests(unittest.TestCase):
         self.assertEqual(len(self.queue()['pending']), 2)
         self.assertEqual(self.queue()['skipped'], [])
 
+    def test_reused_url_does_not_inherit_another_requisitions_decision(self):
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'skipped')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET source_job_id='req-new' WHERE url='https://example.test/a'")
+        self.assertEqual(self.group_for('req-new')['jobs'][0]['url'], 'https://example.test/a')
+        self.assertEqual(len(self.queue()['skipped']), 1)
+
+    def old_title_group(self):
+        group = self.group_for('req-a')
+        group['id'] = 'old-company-title-key'
+        group['jobs'].extend(self.group_for('req-b')['jobs'])
+        return group
+
+    def test_old_multi_requisition_snapshot_splits_before_reopening(self):
+        applications.append_decision(self.ledger, self.old_title_group(), 'skipped')
+        original = self.ledger.read_bytes()
+        history = self.queue()['skipped']
+        self.assertEqual(len(history), 2)
+        first = self.group_for('req-a', 'skipped')
+        applications.append_decision(self.ledger, first, 'pending')
+        self.assertEqual({j['source_job_id'] for g in self.queue()['pending'] for j in g['jobs']},
+                         {'req-a'})
+        self.assertEqual(len(self.queue()['skipped']), 1)
+        self.assertTrue(self.ledger.read_bytes().startswith(original))
+
+    def test_all_requisitions_in_old_snapshot_survive_url_changes(self):
+        applications.append_decision(self.ledger, self.old_title_group(), 'applied')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET url=url || '-new' WHERE source_job_id='req-b'")
+        self.assertEqual(self.queue()['pending'], [])
+
+    def test_new_identity_decision_overrides_older_url_only_decision(self):
+        group = self.group_for('req-a')
+        self.ledger.parent.mkdir(exist_ok=True)
+        self.ledger.write_text(json.dumps({'url': group['jobs'][0]['url'],
+                                          'at': self.now.isoformat(), 'status': 'skipped'}) + '\n',
+                               encoding='utf-8')
+        applications.append_decision(self.ledger, group, 'pending')
+        self.assertEqual(len(self.group_for('req-a')['jobs']), 2)
+        self.assertEqual(self.queue()['skipped'], [])
+
+    def test_later_url_only_reopen_overrides_only_its_listing(self):
+        group = self.group_for('req-a')
+        applications.append_decision(self.ledger, group, 'applied')
+        with self.ledger.open('a', encoding='utf-8') as handle:
+            handle.write(json.dumps({'url': group['jobs'][0]['url'],
+                                     'at': self.now.isoformat(), 'status': 'pending'}) + '\n')
+        self.assertEqual(len(self.group_for('req-a')['jobs']), 1)
+        self.assertEqual(len(self.queue()['applied'][0]['jobs']), 1)
+
+    def test_url_only_history_can_reopen_after_being_saved_as_a_snapshot(self):
+        self.ledger.parent.mkdir(exist_ok=True)
+        self.ledger.write_text(json.dumps({'url': 'https://example.test/a',
+                                          'at': self.now.isoformat(), 'status': 'skipped'}) + '\n',
+                               encoding='utf-8')
+        history = self.queue()['skipped'][0]
+        applications.append_decision(self.ledger, history, 'applied')
+        applications.append_decision(self.ledger, self.queue()['applied'][0], 'pending')
+        self.assertEqual(len(self.group_for('req-a')['jobs']), 2)
+        self.assertEqual(self.queue()['applied'], [])
+        self.assertEqual(self.queue()['skipped'], [])
+
     def test_url_only_event_is_honored(self):
         self.ledger.parent.mkdir()
         self.ledger.write_text(json.dumps({'url': 'https://example.test/a', 'at': self.now.isoformat(),

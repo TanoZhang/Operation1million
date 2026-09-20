@@ -1272,6 +1272,63 @@ class DiscoveryTests(unittest.TestCase):
         self.assertGreater(stored, 0)
         self.assertEqual(unscored, 0)
 
+    def test_collector_seen_counts_survive_rebuild_between_passes(self):
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        self.session.get.side_effect = lambda *a, **kw: self.response([
+            job('repeat-rejection', job_title='Registered Nurse')])
+        results = []
+        for number in range(2):
+            output = self.root / f'seen-pass-{number}'
+            argv = ['collector', '--jsearch-only', '--jsearch-query', 'RTL Engineer',
+                    '--jsearch-budget', '1', '--db', str(self.db_path), '--output', str(output)]
+            with (
+                patch.object(collector, 'load_sources', return_value=[]),
+                patch.object(collector, 'config', side_effect=configs.__getitem__),
+                patch.object(collector, 'RequestGuard', return_value=self.guard),
+                patch.object(collector, 'load_credentials'),
+                patch.object(jsearch.requests, 'Session', return_value=self.session),
+                patch.object(store, 'now', return_value=STAMP),
+                patch('sys.argv', argv),
+                patch('sys.stdout', new_callable=io.StringIO),
+            ):
+                self.assertEqual(collector.main(), 0)
+            results.append(json.loads((output / 'manifest.json').read_text()))
+            if number == 0:
+                self.db_path = self.root / 'replacement-machine.sqlite'
+                self.create_database(self.db_path)
+                store.rebuild(self.db_path)
+        self.assertEqual([(r['seen_new'], r['seen_existing']) for r in results],
+                         [(1, 0), (0, 1)])
+
+    def test_seen_snapshot_survives_a_handled_checkpoint_failure(self):
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        self.session.get.side_effect = lambda *a, **kw: self.response([
+            job('rejected-before-failure', job_title='Registered Nurse')])
+        argv = ['collector', '--jsearch-only', '--jsearch-query', 'RTL Engineer',
+                '--jsearch-budget', '1', '--db', str(self.db_path),
+                '--output', str(self.root / 'seen-failure')]
+        with (
+            patch.object(collector, 'load_sources', return_value=[]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(jsearch.requests, 'Session', return_value=self.session),
+            patch.object(store, 'now', return_value=STAMP),
+            patch.object(store, 'append_log', side_effect=RuntimeError('checkpoint failed')),
+            patch('sys.argv', argv),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            with self.assertRaisesRegex(RuntimeError, 'checkpoint failed'):
+                collector.main()
+        rebuilt = self.root / 'failure-recovery.sqlite'
+        self.create_database(rebuilt)
+        store.rebuild(rebuilt)
+        with closing(store.connect(rebuilt)) as db:
+            row = db.execute('SELECT source_job_id, decision FROM seen_jobs').fetchone()
+            self.assertEqual(tuple(row), ('rejected-before-failure', 'title_mismatch'))
+
     def test_internships_are_asked_before_the_wider_synonyms(self):
         """Internships precede every other functional tier."""
         order = [t for t in jsearch.TIER_ORDER if t != 'company']

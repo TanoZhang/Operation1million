@@ -234,6 +234,11 @@ jobs:
               fi
             else
               git add runs manifests source_state.json
+              # The collector seals this snapshot on success and handled failure.
+              # Publish it only with verified, non-dry-run collection state.
+              if [ -f operational/seen_jobs.ndjson.gz ]; then
+                git add -f operational/seen_jobs.ndjson.gz
+              fi
             fi
           fi
           if git diff --cached --quiet; then

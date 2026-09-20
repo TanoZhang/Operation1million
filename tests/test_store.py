@@ -1068,6 +1068,33 @@ class ScoreOnceTests(unittest.TestCase):
                             'complete', 'full', 1)
         self.assertGreater(self.stored('https://x/2'), 0)
 
+    def test_retitle_refreshes_score_instead_of_preserving_a_hard_reject(self):
+        old = self.silicon('https://x/1', title='Senior RTL Design Engineer')
+        store.record_source(self.db, SOURCE, [old], 'complete', 'full', 1)
+        self.assertEqual(self.stored('https://x/1'), 0)
+        current = self.silicon('https://x/1')
+        store.record_source(self.db, SOURCE, [current], 'complete', 'full', 1)
+        self.assertGreater(self.stored('https://x/1'), 0)
+
+    def test_changed_description_ignores_old_embedded_score_and_survives_rebuild(self):
+        old = dict(row('https://x/1', title='RF Engineer'),
+                   raw={'job_description': 'UVM SystemVerilog AXI testbench tape-out.',
+                        'relevance': {'confidence': 99}})
+        store.record_source(self.db, SOURCE, [old], 'complete', 'full', 1)
+        current = dict(old, raw={'job_description': 'Antenna calibration and radio propagation.'})
+        delta = store.record_source(self.db, SOURCE, [current], 'complete', 'full', 1)
+        self.assertEqual(self.stored('https://x/1'), 0)
+        with patch.object(store, 'LOG', Path(self.dir.name) / 'store'):
+            store.append_log(self.db, delta['changed_urls'], [], delta['stamp'])
+            store.write_manifest(self.db, delta['stamp'], [])
+            self.db.commit()
+            rebuilt = Path(self.dir.name) / 'rebuilt.sqlite'
+            with closing(sqlite3.connect(rebuilt)) as db:
+                db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            store.rebuild(rebuilt)
+            with closing(store.connect(rebuilt)) as db:
+                self.assertEqual(db.execute('SELECT relevance FROM jobs').fetchone()[0], 0)
+
     def test_rescore_ignores_a_stale_score_embedded_in_raw(self):
         stale = dict(row('https://x/1', title='Accountant'),
                      raw={'job_description': 'General ledger and tax reporting.',

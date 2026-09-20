@@ -111,25 +111,35 @@ def queue(db_path=DB, path=None, now=None):
     with locked(path):
         events = read_events(path)
     group_states, url_states = {}, {}
-    for event in events:
+    for order, event in enumerate(events):
+        event = dict(event, replay_order=order)
         # Replay old snapshots through the same normalization without rewriting
         # the append-only ledger or losing decisions made before title cleanup.
         snapshot = event.get('group')
         if snapshot and snapshot.get('jobs') and not event.get('group_id', '').startswith('legacy:'):
-            first = snapshot['jobs'][0]
-            title = clean_title(snapshot['title'], first.get('location', ''))
-            # Re-keyed through the current identity, so a decision keeps hold of
-            # its requisition when the provider rewrites the url underneath it
-            # or grows the title another "Posted 2 days ago". Recomputing rather
-            # than trusting the stored id is also what lets decisions written
-            # under the old company-and-title key land on the right rows now.
-            key = decision_key(first)
-            event = dict(event, group_id=key, group=dict(snapshot, id=key, title=title))
-        if event.get('group_id'):
-            group_states[event['group_id']] = event
+            # Old title groups may contain several requisitions. Split every
+            # snapshot so each retains its decision across URL changes and can
+            # be reopened independently, without rewriting the ledger.
+            requisitions = {}
+            for job in snapshot['jobs']:
+                requisitions.setdefault(decision_key(job), []).append(job)
+            for key, jobs in requisitions.items():
+                first = jobs[0]
+                title = clean_title(snapshot['title'], first.get('location', ''))
+                group_states[key] = dict(event, group_id=key, group=dict(
+                    snapshot, id=key, title=title, jobs=jobs))
+            continue
+        # Only records without a scoped snapshot may fall back to URL identity.
+        # Applying a modern decision by URL too hides a replacement requisition
+        # when a board reuses an address.
         url_states[event['url']] = event
         for job in event.get('group', {}).get('jobs', []):
             url_states[job['url']] = event
+
+    def decision_for(job):
+        candidates = [event for event in (
+            group_states.get(decision_key(job)), url_states.get(job['url'])) if event]
+        return max(candidates, key=lambda event: event['replay_order'], default=None)
     uri = Path(db_path).resolve().as_uri() + '?mode=ro'
     groups, backlog, legacy_history = {}, {}, []
     rules = jsearch.load_plan()[0]['filter']
@@ -212,11 +222,16 @@ def queue(db_path=DB, path=None, now=None):
             select + ''' WHERE j.closed_at IS NULL AND julianday(j.first_seen) < julianday(?)
                          ORDER BY confidence DESC, j.first_seen DESC, j.url''', (since,)))
         for url, event in url_states.items():
-            if event.get('group_id') or event['status'] == 'pending':
+            if event['status'] == 'pending':
                 continue
-            row = db.execute(select + ' WHERE j.url=?', (url,)).fetchone()
+            snapshot_jobs = event.get('group', {}).get('jobs', [])
+            row = next((job for job in snapshot_jobs if job['url'] == url), None)
+            if row is None:
+                row = db.execute(select + ' WHERE j.url=?', (url,)).fetchone()
             if row:
                 job = dict(row)
+                if decision_for(job) is not event:
+                    continue
                 job.pop('raw', None)
                 legacy_history.append((event['status'], {
                     'id': 'legacy:' + hashlib.sha256(url.encode()).hexdigest(),
@@ -235,11 +250,8 @@ def queue(db_path=DB, path=None, now=None):
         """Groups nobody has ruled on, with any already-ruled listing removed."""
         out = []
         for key, group in source.items():
-            decision = group_states.get(key)
-            if decision and decision['status'] != 'pending':
-                continue
             group['jobs'] = [job for job in group['jobs']
-                             if url_states.get(job['url'], {}).get('status', 'pending') == 'pending']
+                             if (decision_for(job) or {}).get('status', 'pending') == 'pending']
             if group['jobs']:
                 out.append(group)
         return out
@@ -253,6 +265,9 @@ def queue(db_path=DB, path=None, now=None):
     for key, event in group_states.items():
         if event['status'] != 'pending':
             group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))
+            group['jobs'] = [job for job in group['jobs'] if decision_for(job) is event]
+            if not group['jobs']:
+                continue
             # Decided groups are replayed from their stored snapshot, which
             # predates both marks; recomputing them keeps one vocabulary across
             # every tab rather than leaving history unlabelled.

@@ -823,6 +823,7 @@ def main():
         store.export_state(db)
         store.write_manifest(db, run_stamp, reports, search_stats)
         db.commit()
+        store.export_seen(db)
 
     with closing(store.connect(args.db)) if args.store else nullcontext() as db:
       try:
@@ -946,6 +947,9 @@ def main():
             manifest = store.write_manifest(db, run_stamp, reports, search_stats,
                                             extra=pass_facts)
             db.commit()
+            # The collector owns recovery state for manual and Actions runs too.
+            # Relying on the VPS wrapper alone loses rejections on a fresh index.
+            store.export_seen(db)
             print('manifest: %s records=%s sha256=%s' % (
                 manifest['run_date'], manifest['records'], (manifest['sha256'] or '-')[:12]), flush=True)
             print(f"store: {totals['new']} new, {totals['closed']} closed, "
