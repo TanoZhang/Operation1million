@@ -1,4 +1,7 @@
-# Two agents, one repository
+# Agent protocol
+
+This document answers one startup question: who is changing what now? Completed
+work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 
@@ -6,202 +9,72 @@
 Owner:   codex
 Scope:   Reduce mandatory startup context and make current work mechanically visible.
 Files:   AGENTS.md, docs/agent-protocol.md, docs/architecture.md, docs/handoff.md, docs/collection-rules.md
-Base:    ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
-Status:  claimed
-Next:    Compare the compact Codex version with Claude's working-tree patch, then test links and invariants.
+Base commit: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Status:  review
+Next:    Claude compares this compact version with its working-tree patch and merges the chosen result.
 ```
 
-Claude Code and Codex both work here. Neither can see the other: each reads the
-repository once, forms a picture, and then works for hours against a picture
-that has since stopped being true. Everything below exists because that has
-already cost this project real work.
+## Claim format
 
-**What it has cost, so far.** The same SQLite snapshot built twice. The same
-two bugs -- internship queries never sent, the budget day resetting at a time
-nothing observes -- found and fixed twice, independently, in two different
-ways. Two review documents rewritten twice. Three merges that had to be
-reasoned through by hand.
+Add one block under **Active claims** before editing:
 
-Overlap itself is not the problem: finding the same bug twice is a signal the
-bug is real, and the two fixes disagreeing is where the interesting information
-is. The problem is finding it twice *without knowing*, and losing one of the
-two answers to whoever pushed last.
+```text
+Owner:   claude | codex
+Scope:   one sentence describing the behavior being changed
+Files:   exact paths expected to change
+Base commit: full commit SHA
+Status:  claimed | blocked | review | done
+Next:    one concrete action or blocking condition
+```
 
-## The register
+`Scope` and `Files` decide whether work overlaps. Disjoint claims proceed
+independently. Overlapping claims require a fetch, comparison of both diffs, and
+tests that settle the disagreement. Git is not a lock; the claim makes the
+collision visible.
 
-Every branch named in earlier revisions of this file has been merged into
-`main` and deleted; see **Branches**. Status here means status in `main`.
-
-**Update this before you start, and when you finish.** It is the one mechanism
-that prevents duplicate work, and it only works if it is current.
-
-| Area | Owner | Status | Notes |
-| --- | --- | --- | --- |
-| Incremental inventory reopening and conditional checkpoints | Codex, reviewed by Claude | merged and deployed | Its sitemap fix was the better of two competing implementations and was taken over this side's; see the bug log |
-| Review identity replay, score refresh, and seen durability audit | Codex, reviewed by Claude | merged | `1a03e63` merged into main; diffs read rather than rubber-stamped, 384 tests pass on the merged tree; next: deploy and confirm the live queue is unchanged in shape |
-| Agent synchronization and review protocol | Codex | merged | Came in with `1a03e63`; its ancestor `d6dcc9d` carried the documentation |
-| `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
-| `jsearch_queries.toml` query plan and tiers | Codex | done, merged | 36 queries, intern/new_grad/early_career/A |
-| `jsearch_access.py` budget accounting | shared | done, merged | Codex's window counting, Claude's configuration |
-| `ranking.py`, review bands and ordering | Claude | done, merged | |
-| `evidence_title_patterns`, hard-reject audit | Claude | done, merged | |
-| `docs/architecture.md` and the bug log | Claude | done, merged | Keep current with every change |
-| VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
-| Experience gate phrasing, and repeated payload extraction | Claude | merged and deployed | The two leads Codex reported before its usage ran out. Supervising an intern no longer reads as being one; a ceiling no longer reads as a floor; `rejection_reason` walks a payload twice instead of four times. Both directions tested. |
-| Verifying the new query strings return results | Claude | done, measured | 14 credits, one page each, `--no-store`: the whole `early_career` tier returned 15 postings and one survivor, so it now asks `Entry Level`. Intern and new_grad phrasings verified good. See the bug log |
-| Confirming seen deduplication works | offline done; production unassigned | **production pending** | The offline test (merged) replaces the database between two passes and requires the second to report 0 new / 1 existing. Production has reported 0 existing on three consecutive passes; the next pass is the first to run the same plan against a seen table holding its own rows |
-| Untimestamped JSearch credit budget-window accounting | Codex, reviewed by Claude | merged and deployed | Replayed the live ledger's four-credit residual: counted once on 2026-09-18 and zero on neighbouring windows, where both previously saw it. |
-| Incremental validators, sitemap updates, URL reuse, Review groups/descriptions, workstation backup rotation | Codex, reviewed by Claude | merged and deployed | Same branch, base `e09d9ed`, inspected main `9843350` on 2026-09-20. Each behavior reproduced offline before fixing; current results and remaining production checks are in `docs/handoff.md`. |
-
-Claiming an area means writing your name in it before you write code. If the
-area you want is already claimed and you think the owner is wrong, say so to
-the user rather than building a second answer in silence.
+Update the block when scope changes. Set it to `review` when the branch is ready,
+`blocked` only with a concrete blocker, and `done` promptly when the work is
+finished. Remove completed blocks after their result is merged and recorded in
+the handoff or architecture log. Do not leave dead claims in the active list.
 
 ## Branches
 
-**There are three, and only three: `main`, `codex`, `claude`.**
+There are three standing remote branches:
 
-| Branch | What it is |
+| Branch | Meaning |
 | --- | --- |
-| `main` | What is true. Reviewed, tested, deployable. |
-| `codex` | Everything Codex is working on, all of it, continuously. |
-| `claude` | The same for Claude Code. |
+| `main` | Reviewed, tested, deployable truth |
+| `codex` | Codex work awaiting review or integration |
+| `claude` | Claude work awaiting review or integration |
 
-Each agent works on its own standing branch and keeps working on it. When a
-piece is done and reviewed it merges into `main`, and the branch carries on
-from there -- it is not deleted and not replaced.
+Do not create a remote branch per problem. Use a worktree from your standing
+branch for isolation. Push the standing branch before stopping so the other
+agent can inspect it. A push does not mean merged or deployed.
 
-**Do not open a branch per problem.** That is what was happening, and within
-two days it produced `codex/agent-sync-protocol`,
-`codex/debug-untimestamped-credit`, `codex/deep-debug`,
-`codex/jsearch-broad-budget-fixes` and `codex/lean-cleanup`, four of which
-independently fixed overlapping things. Each one had to be found, read,
-compared against the others and merged by hand, and two of them contained
-competing implementations of the same fix that had to be chosen between. The
-branches were not where the work went wrong, but they are where the cost of it
-showed up.
+## Synchronization
 
-If something genuinely needs to be tried in isolation -- a rewrite, an
-experiment expected to be thrown away -- do it in a worktree off your own
-branch (`git worktree add ../<dir> <branch>`), not in a new remote branch. The
-remote keeps three names and no more, so a reader can see the whole state of
-the project without discovering that half of it was parked somewhere.
+- Before claiming, run `git fetch origin`, inspect `HEAD..origin/main`, all three
+  branch tips, the active claims, and the newest handoff.
+- A fetch updates remote references, not an old worktree. Test the exact SHA you
+  report and ensure imports come from that worktree.
+- Before editing overlapping files, after an interruption, and before reporting
+  or pushing, fetch again and inspect changes since the last known SHA.
+- Never alter uncommitted work you did not create. Use another worktree if it
+  blocks you.
+- Preserve both implementations until overlap is compared. Choose by behavior
+  and evidence, not authorship.
 
-A branch that has been merged is not deleted; it simply continues. A branch
-that turns out to be wrong is reset onto `main`, not abandoned under a new
-name.
+## Evidence and handoff
 
-## Synchronization before conclusions
+For a finding, record the inspected commit, file or function, trigger, expected
+and actual behavior, and reproducer. Use precise states: suspected, reproduced,
+fixed on branch, merged, deployed, or verified in production. An offline fixture
+does not prove production incidence or provider coverage.
 
-Both agents follow this procedure for reviews as well as implementation.
-Fetching updates remote references; it does not update the working files.
-An old worktree remains old after a successful fetch.
+Update `docs/architecture.md` in the same commit for changed ownership, pipeline
+order, protected decisions, or fixed bugs. Update only the newest handoff section
+with current operating facts; never rewrite older snapshots into current advice.
 
-1. Run `git fetch origin`, `git status --short`, `git log HEAD..origin/main`,
-   and `git ls-remote --heads origin` before choosing work. Record the full
-   local HEAD and remote main SHA with `git rev-parse HEAD origin/main`.
-   Read the register, current handoff, architecture bug log, and relevant
-   commits on unmerged remote branches. If fetch fails, label the review as
-   based on a stale snapshot; do not claim it describes current remote code.
-2. Claim a bounded area with owner, branch, base SHA, last inspected main SHA,
-   date, status, and next action. Commit and push the claim on the agent's
-   branch before implementation so the other agent can discover it. A claim
-   only on an unmerged branch is not visible in main's register: inspect the
-   register changes on remote branches too. Git is not an exclusive lock.
-   Concurrent claims require comparison and an explicit division of work.
-3. Work in a dedicated worktree from the recorded base. Never update another
-   session's checkout or modify its uncommitted changes. When reviewing newer
-   code, use a clean worktree at its exact SHA and ensure tests import that
-   worktree's source rather than an editable install from an older checkout.
-4. Fetch again before changing code for a suspected bug, after an interruption
-   or user notice of new work, at least every 15 minutes during active work,
-   and immediately before publishing findings or proposing a merge. Compare
-   changes since the last inspected SHA, including relevant branch tips.
-   Read overlapping changes and rerun the reproducer on the newer version.
-   Do not silently carry a finding forward from the old base.
-5. If the other agent already fixed it, record the fixing SHA and test result;
-   close the duplicate or review the existing fix. If two fixes differ, state
-   the behavioral difference and test it before choosing. Preserve both
-   branches until the comparison is complete.
-6. Finish by pushing the work branch and updating its register entry with
-   results and the next action. Keep `ready for review`, `merged`, `deployed`,
-   and `verified in production` distinct. Name the exact tested SHA and the
-   last fetched main SHA in the handoff. The agent integrating the change
-   carries the register update into main and checks both sides first.
-
-## Evidence required for a finding
-
-Every finding must identify the inspected commit, file/function, trigger,
-expected versus actual behavior, and reproduction command or test. State its
-status explicitly: suspected, reproduced on a named commit, fixed on a named
-branch, merged, or verified in production. Include the last synchronization
-time and whether relevant remote branch changes were inspected.
-
-An offline fixture establishes behavior for that fixture. It does not establish
-production incidence, provider coverage, deployed version, or successful paid
-collection. An empty result or a zero counter is evidence to investigate, not
-proof of its cause. Check executable configuration before repeating numeric
-claims from a handoff. Keep historical snapshots intact and place corrections
-in a dated current section with the evidence that supersedes the old claim.
-
-Remote branches cannot reveal uncommitted work on another machine. Say that
-limit when relevant; do not describe a fetch as proof that no other work exists.
-Use the shared register and pushed branches for coordination. Do not send
-external messages or start another agent session without user authorization.
-
-## Rules
-
-1. **Fetch before you plan, not before you push.** `git fetch origin` and
-   `git log HEAD..origin/main` in the first minute. Also check for branches:
-   `git ls-remote --heads origin`. Work is routinely parked on one.
-
-2. **Never commit in `/opt/jobdisco/code`.** That is the production checkout the
-   scheduled pass runs from, not a workspace. Committing there put two commits
-   on a single disk, left the checkout thirteen commits ahead of its origin,
-   and broke `install.sh`, which merges `--ff-only` and refuses to discard
-   them. Work in a clone or a worktree.
-
-3. **Push before you stop.** Work that exists on one machine is work that can
-   vanish with it. A branch is enough; it does not have to be `main`.
-
-4. **Branch, do not race `main`** -- onto your own standing branch, not a new
-   one. See **Branches** below. Two agents fast-forwarding `main` in turn is
-   how one of two answers disappears without anyone reading it.
-
-5. **When your work overlaps theirs, compare and test.** Do not quietly prefer
-   your own. Find the point where the two disagree and settle it by running
-   something. Then say what decided it. That comparison is the value being paid
-   for here, and it has already corrected a confident wrong claim in both
-   directions.
-
-6. **Record fixed bugs in `docs/architecture.md`.** Without the log, a decision
-   that was settled by evidence gets re-argued from scratch, and sometimes
-   "fixed" back. The daily budget resetting at a UTC midnight looked like a
-   design choice until the ledger was read; the cycle staying on UTC looks like
-   the same bug until you know a test already guards it.
-
-7. **Say which claims were tested.** "Tested on the VPS as ubuntu: it copies all
-   41,029 postings" and "a read-only WAL connection should need write access to
-   -shm" are different kinds of statement. This repository has already shipped a
-   wrong one of the second kind stated as the first.
-
-## Telling the two apart
-
-Author fields distinguish them in history:
-
-| Author | Agent |
-| --- | --- |
-| `TanoZhang <132003493+TanoZhang@...>` | Codex |
-| `TanoZhang <tanozhang@users.noreply.github.com>` | Claude Code |
-
-When you commit work the other agent wrote, say so in the message, because the
-field will not.
-
-## When they collide anyway
-
-1. Get both lines somewhere durable first. `git bundle create` over SSH, or a
-   branch push. Preserve before you reconcile.
-2. Find the merge base and read both sides of the divergence in full.
-3. Resolve by property, not by authorship: for each overlapping piece, decide
-   which is better and why, and say so in the merge message.
-4. Run the whole suite on the merged result before pushing.
+When two agents collide, preserve both tips, compare from their merge base, run
+the deciding tests, and record what resolved the difference. Commit authors
+distinguish the agents: Codex uses `TanoZhang`; Claude uses `TanoZhang`.

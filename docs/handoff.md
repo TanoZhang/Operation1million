@@ -1,3 +1,6 @@
+> **Startup rule:** Read the newest handoff first. Older handoffs are historical
+> evidence, not current instructions or an active backlog.
+
 # Iterative audit and equivalent optimization - 2026-09-20 UTC
 
 Code/test commit: `4c9e3448992026f42760fbbf6f78687c14fe2bae` on
