@@ -18,21 +18,15 @@ two answers to whoever pushed last.
 
 ## The register
 
-2026-09-20: Codex completed an iterative reproduction/fix and optimization audit on
-`codex/debug-untimestamped-credit`, based on `e09d9ed` and inspected main
-`9843350bf98f415a09f42a82c0415a7b5e8fb4d0`. Scope: quota boundaries,
-collection persistence/recovery, and Review decisions and presentation.
-Four new behavior fixes, three compared/imported fixes from `c035df4`, two
-equivalent loop optimizations, and test corrections are ready for review,
-not merged or deployed. Validation: 400 tests under an external-HTTP guard,
-no failures/errors, eight environment-dependent skips, exit 0. No paid calls.
+Every branch named in earlier revisions of this file has been merged into
+`main` and deleted; see **Branches**. Status here means status in `main`.
 
 **Update this before you start, and when you finish.** It is the one mechanism
 that prevents duplicate work, and it only works if it is current.
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
-| Incremental inventory reopening and conditional checkpoints | Codex | ready for review, not deployed | `codex/deep-debug`, base `1a03e63`, inspected main `1572285`; 2026-09-20 UTC; three defects fixed; 390 tests, 14 environment skips; next: Claude review and integration |
+| Incremental inventory reopening and conditional checkpoints | Codex, reviewed by Claude | merged and deployed | Its sitemap fix was the better of two competing implementations and was taken over this side's; see the bug log |
 | Review identity replay, score refresh, and seen durability audit | Codex, reviewed by Claude | merged | `1a03e63` merged into main; diffs read rather than rubber-stamped, 384 tests pass on the merged tree; next: deploy and confirm the live queue is unchanged in shape |
 | Agent synchronization and review protocol | Codex | merged | Came in with `1a03e63`; its ancestor `d6dcc9d` carried the documentation |
 | `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
@@ -44,9 +38,8 @@ that prevents duplicate work, and it only works if it is current.
 | VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
 | Experience gate phrasing, and repeated payload extraction | Claude | merged and deployed | The two leads Codex reported before its usage ran out. Supervising an intern no longer reads as being one; a ceiling no longer reads as a floor; `rejection_reason` walks a payload twice instead of four times. Both directions tested. |
 | Verifying the new query strings return results | Claude | done, measured | 14 credits, one page each, `--no-store`: the whole `early_career` tier returned 15 postings and one survivor, so it now asks `Entry Level`. Intern and new_grad phrasings verified good. See the bug log |
-| Confirming seen deduplication works | Codex (offline); production unassigned | offline verified; production pending | `codex/deep-debug` checks two passes separated by fresh-database recovery; second pass has 0 new / 1 existing; production counter remains unverified |
+| Confirming seen deduplication works | offline done; production unassigned | **production pending** | The offline test (merged) replaces the database between two passes and requires the second to report 0 new / 1 existing. Production has reported 0 existing on three consecutive passes; the next pass is the first to run the same plan against a seen table holding its own rows |
 | Untimestamped JSearch credit budget-window accounting | Codex, reviewed by Claude | merged and deployed | Replayed the live ledger's four-credit residual: counted once on 2026-09-18 and zero on neighbouring windows, where both previously saw it. |
-| Untimestamped JSearch credit budget-window accounting (original entry) | Codex | superseded by the row above | Branch `codex/debug-untimestamped-credit`; main `9843350`; residuals use one same-label window by policy. Legacy dates were UTC, so this does not recover exact historical daily attribution. The earlier full-suite claim is superseded by this audit's captured 400-test result. |
 | Incremental validators, sitemap updates, URL reuse, Review groups/descriptions, workstation backup rotation | Codex, reviewed by Claude | merged and deployed | Same branch, base `e09d9ed`, inspected main `9843350` on 2026-09-20. Each behavior reproduced offline before fixing; current results and remaining production checks are in `docs/handoff.md`. |
 
 Claiming an area means writing your name in it before you write code. If the
