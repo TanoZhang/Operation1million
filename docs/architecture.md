@@ -106,6 +106,27 @@ collection history, not the working state.
   on a lastmod board. Compare timestamp instants, not their ISO strings. A listed
   closed row reopens within its source, unless it is an alias of another identity.
 
+## Known and not fixed
+
+### The daily spend can count an untimestamped credit twice
+
+`RequestGuard.daily_used` counts the budget window from `credit_events`
+timestamps, and adds a residual for `credit_usage` rows that no event explains
+-- credits recorded before events existed, or by a run that died between the
+two writes. The residual is matched by UTC day, but a budget window runs 04:38
+Pacific to 04:38 Pacific and therefore spans two UTC days, so two consecutive
+windows both overlap the same UTC day and both add the same residual.
+
+Measured on the live ledger 2026-09-20: the residual is 4 credits, on UTC day
+2026-09-18, against a daily budget of 320. It is currently inert, because the
+window in force spans 2026-09-19 and 2026-09-20 and does not reach it.
+
+The effect when it is not inert is over-counting the day's spend, which
+under-collects rather than overspending -- the safe direction, which is why it
+is recorded rather than rushed. Fixing it means apportioning a residual that
+has no timestamp to apportion by, so the honest options are to charge it to one
+window by rule or to stop producing untimestamped credits at all.
+
 ## Bugs found and fixed
 
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
