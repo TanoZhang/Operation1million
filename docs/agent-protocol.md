@@ -52,6 +52,40 @@ Claiming an area means writing your name in it before you write code. If the
 area you want is already claimed and you think the owner is wrong, say so to
 the user rather than building a second answer in silence.
 
+## Branches
+
+**There are three, and only three: `main`, `codex`, `claude`.**
+
+| Branch | What it is |
+| --- | --- |
+| `main` | What is true. Reviewed, tested, deployable. |
+| `codex` | Everything Codex is working on, all of it, continuously. |
+| `claude` | The same for Claude Code. |
+
+Each agent works on its own standing branch and keeps working on it. When a
+piece is done and reviewed it merges into `main`, and the branch carries on
+from there -- it is not deleted and not replaced.
+
+**Do not open a branch per problem.** That is what was happening, and within
+two days it produced `codex/agent-sync-protocol`,
+`codex/debug-untimestamped-credit`, `codex/deep-debug`,
+`codex/jsearch-broad-budget-fixes` and `codex/lean-cleanup`, four of which
+independently fixed overlapping things. Each one had to be found, read,
+compared against the others and merged by hand, and two of them contained
+competing implementations of the same fix that had to be chosen between. The
+branches were not where the work went wrong, but they are where the cost of it
+showed up.
+
+If something genuinely needs to be tried in isolation -- a rewrite, an
+experiment expected to be thrown away -- do it in a worktree off your own
+branch (`git worktree add ../<dir> <branch>`), not in a new remote branch. The
+remote keeps three names and no more, so a reader can see the whole state of
+the project without discovering that half of it was parked somewhere.
+
+A branch that has been merged is not deleted; it simply continues. A branch
+that turns out to be wrong is reset onto `main`, not abandoned under a new
+name.
+
 ## Synchronization before conclusions
 
 Both agents follow this procedure for reviews as well as implementation.
@@ -125,9 +159,9 @@ external messages or start another agent session without user authorization.
 3. **Push before you stop.** Work that exists on one machine is work that can
    vanish with it. A branch is enough; it does not have to be `main`.
 
-4. **Branch, do not race `main`.** `codex/<topic>`, `claude/<topic>`. Two agents
-   fast-forwarding `main` in turn is how one of two answers disappears without
-   anyone reading it.
+4. **Branch, do not race `main`** -- onto your own standing branch, not a new
+   one. See **Branches** below. Two agents fast-forwarding `main` in turn is
+   how one of two answers disappears without anyone reading it.
 
 5. **When your work overlaps theirs, compare and test.** Do not quietly prefer
    your own. Find the point where the two disagree and settle it by running
