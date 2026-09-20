@@ -351,6 +351,10 @@ class StoreTests(unittest.TestCase):
                     # on 3.10, which this project also supports.
                     if top in sys.stdlib_module_names or top in {'jobdisco', 'tomllib'}:
                         continue
+                    # Python 3.10 uses the declared tomli fallback; tomllib is
+                    # standard-library code on the newer supported runtimes.
+                    if top == 'tomllib' and 'tomli' in declared:
+                        continue
                     if top.lower() not in declared:
                         outside.setdefault(top, set()).add(path.name)
         self.assertEqual(outside, {}, 'imported but not declared as a dependency')

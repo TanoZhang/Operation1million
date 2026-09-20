@@ -4,11 +4,10 @@ import csv
 import json
 import re
 import sqlite3
-import sys
 import time
+from contextlib import closing
 from dataclasses import dataclass
-from pathlib import Path
-from .paths import ROOT, DB, RAW
+from .paths import DB, RAW
 from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds
 from typing import Any
 from urllib.parse import urlencode
@@ -34,47 +33,32 @@ class Source:
 
 
 def load_sources() -> list[Source]:
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
     rows: list[Source] = []
-    queries = [
-        (
-            "company_sources",
-            "source_instance_id",
+    with closing(sqlite3.connect(DB_PATH)) as con:
+        con.row_factory = sqlite3.Row
+        for table_name, id_col in (
+            ("company_sources", "source_instance_id"),
+            ("company_direct_sources", "direct_source_id"),
+        ):
+            sql = f"""
+                SELECT s.{id_col} AS source_id, c.name AS company_name, s.*
+                FROM {table_name} s
+                JOIN companies c ON c.company_key = s.company_key
+                WHERE s.enabled = 1
+                ORDER BY s.provider_key, s.company_key
             """
-            SELECT s.source_instance_id AS source_id, c.name AS company_name, s.*
-            FROM company_sources s
-            JOIN companies c ON c.company_key = s.company_key
-            WHERE s.enabled = 1
-            ORDER BY s.provider_key, s.company_key
-            """,
-        ),
-        (
-            "company_direct_sources",
-            "direct_source_id",
-            """
-            SELECT s.direct_source_id AS source_id, c.name AS company_name, s.*
-            FROM company_direct_sources s
-            JOIN companies c ON c.company_key = s.company_key
-            WHERE s.enabled = 1
-            ORDER BY s.provider_key, s.company_key
-            """,
-        ),
-    ]
-    for table_name, _id_col, sql in queries:
-        for row in con.execute(sql):
-            fields = json.loads(row["instance_fields_json"] or "{}")
-            rows.append(
-                Source(
-                    source_id=row["source_id"],
-                    table_name=table_name,
-                    company_key=row["company_key"],
-                    company_name=row["company_name"],
-                    provider_key=row["provider_key"],
-                    access_url=row["access_url"],
-                    fields=fields,
+            for row in con.execute(sql):
+                rows.append(
+                    Source(
+                        source_id=row["source_id"],
+                        table_name=table_name,
+                        company_key=row["company_key"],
+                        company_name=row["company_name"],
+                        provider_key=row["provider_key"],
+                        access_url=row["access_url"],
+                        fields=json.loads(row["instance_fields_json"] or "{}"),
+                    )
                 )
-            )
     return rows
 
 
@@ -141,9 +125,7 @@ def request_for(source: Source) -> tuple[str, str, dict[str, Any] | None]:
 
 
 def json_items(provider: str, data: Any) -> list[Any]:
-    if provider == "greenhouse":
-        return data.get("jobs", []) if isinstance(data, dict) else []
-    if provider == "ashby":
+    if provider in {"greenhouse", "ashby"}:
         return data.get("jobs", []) if isinstance(data, dict) else []
     if provider == "smartrecruiters":
         return data.get("content", []) if isinstance(data, dict) else []
