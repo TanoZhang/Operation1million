@@ -1,3 +1,39 @@
+# Iterative audit and equivalent optimization - 2026-09-20 UTC
+
+Code/test commit: `4c9e3448992026f42760fbbf6f78687c14fe2bae` on
+`codex/debug-untimestamped-credit`; ready for review, not merged or deployed.
+Last fetched main: `9843350bf98f415a09f42a82c0415a7b5e8fb4d0`.
+
+Four new behavior fixes cover URL-reuse identity/content corruption, one
+requisition split across recent/backlog, missing plain-text Review descriptions,
+and invalid backup rotation. Three earlier fixes on `codex/deep-debug` commit
+`c035df4` cover incomplete validators, sitemap selection, and listed-only
+reopening. Its six tests were compared against this branch; the reopening
+implementation was imported after its test failed here. Both branches remain.
+See `docs/architecture.md` for exact reproducers and before/after evidence.
+
+Two loop optimizations preserve rows and ordering: maintain presentation URLs
+incrementally and sort listed-only inventory once. Synthetic equivalence checks
+compared 6,500 output rows and 50 inventory batches; results were identical.
+No search/filter/ranking policy or output field was changed by optimization.
+
+Validation: 400 tests in 88.503 seconds, exit 0, eight skips, with
+`requests.sessions.Session.request` patched to reject external HTTP. Skips are
+one real-database audit, one POSIX signal test, and six flock-dependent backup
+tests. Git Bash backup/heartbeat tests ran. `git diff --check` and backup shell
+syntax checks passed. Tests use this worktree's `src` via PYTHONPATH. Earlier
+unguarded suites had hidden robots.txt calls and an unsupported full-pass claim;
+this result supersedes those claims. No paid collection or deployment was run.
+
+Residual quota attribution is a same-date-label policy, not recovered event
+timing: legacy aggregate dates were UTC. Monthly charges remain unchanged.
+Production counters, actual provider coverage and deployed behavior remain
+unverified. Full sitemap recovery may fetch more details within existing caps.
+
+The concurrent `codex/lean-cleanup` branch at `ff16baf` was inspected before
+publication: it contains a dead-code audit claim only, no overlapping source
+change. Leave that work separate; this branch removes repeated loop work.
+
 # Debug follow-up - 2026-09-19 Pacific (2026-09-20 UTC)
 
 Codex's offline audit is on `codex/deep-debug`, based on main `a960195` plus
