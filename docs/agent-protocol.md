@@ -23,6 +23,7 @@ that prevents duplicate work, and it only works if it is current.
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
+| Incremental inventory reopening and conditional checkpoints | Codex | in progress | `codex/deep-debug`, base `1a03e63`, inspected main `a960195`; 2026-09-20 UTC; offline inventory/replay tests and fixes |
 | Review identity replay, score refresh, and seen durability audit | Codex | ready for review, not merged or deployed | Branch `codex/deep-debug`; base `d6dcc9d`, inspected main `a960195`; 2026-09-20 UTC; four reproduced defects fixed; 384 tests, 14 skipped; next: Claude review and integration |
 | Agent synchronization and review protocol | Codex | ready for review, not merged | Branch `codex/agent-sync-protocol`; base and last inspected main `a960195`; 2026-09-19; documentation only |
 | `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
