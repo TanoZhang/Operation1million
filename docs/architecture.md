@@ -149,6 +149,9 @@ along with its missing robots.txt stubs for offline collector fixtures. The
 dependency audit here additionally requires declared `tomli` before accepting
 `tomllib` on Python 3.10. Existing score-log and ranking helpers remain supported;
 absence of a production caller alone does not make them obsolete.
+An HTTP-blocked suite additionally caught four `CollectionTests` attempting
+robots.txt requests during collector construction. Their fixtures now stub
+robots lookup too; production robots enforcement is unchanged.
 
 ### Seen recovery depended on the VPS wrapper
 

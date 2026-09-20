@@ -16,6 +16,11 @@ class Response:
     def json(self): return self.data
 
 class CollectionTests(unittest.TestCase):
+    def setUp(self):
+        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots.start()
+        self.addCleanup(robots.stop)
+
     def source(self):
         return Source('test', 'company_sources', 'sample', 'Sample Inc.', 'workday', 'https://sample.wd1.myworkdayjobs.com/External', {'tenant':'sample','site':'External','workday_host':'wd1'})
     def args(self):
