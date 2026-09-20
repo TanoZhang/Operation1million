@@ -174,6 +174,10 @@ def plan(source, state):
     row = state.get(source.source_id) or {}
     if not row.get('last_success_at'):
         return 'full', None
+    # Older state may carry an ETag from an incomplete inventory. Retry it in
+    # full rather than letting a 304 permanently hide the unprocessed rows.
+    if row.get('last_status') not in (None, 'complete', 'unchanged'):
+        return 'full', None
     if row.get('etag'):
         return 'conditional', row['etag']
     if source.provider_key in MONOTONIC_NEWEST_FIRST:
@@ -191,7 +195,7 @@ def known_urls(db, company_key):
     we hold it or not.
     """
     return {r[0] for r in db.execute(
-        'SELECT url FROM jobs WHERE company_key=?', (company_key,))}
+        'SELECT url FROM jobs WHERE company_key=? AND closed_at IS NULL', (company_key,))}
 
 
 _FILTER_RULES = None
@@ -230,6 +234,20 @@ def calculate_score(title, raw):
 MAX_CLOSURE_FRACTION = 0.25
 
 
+def replaces_requisition(previous, incoming):
+    """A different explicit ID on the same provider is a different opening.
+
+    Cross-provider enrichment may legitimately add an alias; a missing ID is
+    not evidence that an opening changed.
+    """
+    return (previous is not None
+            and previous['provider_key'] == incoming['provider_key']
+            and bool(previous['source_job_id']) and bool(incoming.get('source_job_id'))
+            and (str(previous['source_job_id']) != str(incoming['source_job_id'])
+                 or (incoming['provider_key'] != 'jsearch'
+                     and previous['company_key'] != incoming['company_key'])))
+
+
 def record_source(db, source, rows, status, strategy, requests, etag=None,
                   last_modified=None, note='', stamp=None, listed=None):
     """Upsert one source's rows and close postings it no longer lists.
@@ -256,11 +274,26 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         identity = (row['provider_key'], scope, str(row['source_job_id'])) if row.get('source_job_id') else None
         mapped = db.execute('SELECT url FROM job_identities WHERE provider_key=? AND scope=? AND source_job_id=?', identity).fetchone() if identity else None
         if mapped:
+            canonical = db.execute('SELECT * FROM jobs WHERE url=?', (mapped[0],)).fetchone()
+            if canonical is None or replaces_requisition(canonical, row):
+                # Repair stale aliases written before URL reuse was handled.
+                db.execute('DELETE FROM job_identities WHERE provider_key=? AND scope=? AND source_job_id=?', identity)
+                mapped = None
+        if mapped:
             row['url'] = mapped[0]
         elif identity in pending_identities:
             row['url'] = pending_identities[identity]
         previous = db.execute('SELECT * FROM jobs WHERE url=?', (row['url'],)).fetchone()
         before_rows.setdefault(row['url'], dict(previous) if previous else None)
+        if replaces_requisition(previous, row):
+            # The current index has one row per URL; the prior job remains in
+            # append-only history. Reset its metadata instead of blending two
+            # requisitions, and release aliases before another discovery uses them.
+            db.execute('DELETE FROM job_identities WHERE url=?', (row['url'],))
+            db.execute('DELETE FROM jobs WHERE url=?', (row['url'],))
+            pending_identities = {key: url for key, url in pending_identities.items()
+                                  if url != row['url']}
+            previous = None
         if previous:
             old_raw = json.loads(previous['raw'] or 'null')
             if previous['provider_key'] != 'jsearch' and row['provider_key'] == 'jsearch':
@@ -363,8 +396,25 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     live = set(listed) | seen if listed is not None else seen
     seen_count = len(live)
     # Postings the board still lists but this pass skipped fetching are alive.
-    for start in range(0, len(live - seen), 400):
-        chunk = sorted(live - seen)[start:start + 400]
+    listed_only = sorted(live - seen)
+    for start in range(0, len(listed_only), 400):
+        chunk = listed_only[start:start + 400]
+        # A listed URL is positive evidence that this source's posting is open,
+        # even if its unchanged detail was skipped. Log a full job event when
+        # reopening; a compact seen event only restores last_seen on replay.
+        reopened = [r[0] for r in db.execute(
+            '''SELECT j.url FROM jobs j WHERE j.company_key=? AND j.provider_key=?
+               AND j.closed_at IS NOT NULL AND j.url IN (%s)
+               AND NOT EXISTS (
+                   SELECT 1 FROM job_identities i WHERE i.provider_key=j.provider_key
+                   AND i.scope=CASE WHEN j.provider_key='jsearch' THEN '' ELSE j.company_key END
+                   AND i.source_job_id=j.source_job_id AND i.url<>j.url)'''
+            % ','.join('?' * len(chunk)),
+            [source.company_key, source.provider_key, *chunk])
+            if r[0] not in identity_duplicates]
+        if reopened:
+            db.executemany('UPDATE jobs SET closed_at=NULL WHERE url=?', [(u,) for u in reopened])
+            changed.extend(reopened)
         db.execute(
             'UPDATE jobs SET last_seen=? WHERE url IN (%s)' % ','.join('?' * len(chunk)),
             [stamp, *chunk])
@@ -408,8 +458,10 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                job_count=excluded.job_count,
                requests=excluded.requests,
                note=excluded.note''',
-        (source.source_id, source.company_key, source.provider_key, etag,
-         last_modified, stamp if effective_status == 'complete' else None, stamp,
+        (source.source_id, source.company_key, source.provider_key,
+         etag if effective_status == 'complete' else None,
+         last_modified if effective_status == 'complete' else None,
+         stamp if effective_status == 'complete' else None, stamp,
          effective_status, strategy, seen_count, requests, effective_note))
     return {'seen': seen_count, 'new': new, 'closed': closed,
             'new_urls': fresh, 'changed_urls': changed,
@@ -844,6 +896,10 @@ def rebuild(path=DB):
                     continue
                 raw = r.get('raw')
                 relevance = r.get('relevance')
+                previous = db.execute('SELECT * FROM jobs WHERE url=?', (r['url'],)).fetchone()
+                if replaces_requisition(previous, r):
+                    db.execute('DELETE FROM job_identities WHERE url=?', (r['url'],))
+                    db.execute('DELETE FROM jobs WHERE url=?', (r['url'],))
                 db.execute(
                     '''INSERT INTO jobs (url, company_key, provider_key, title, location,
                            source_job_id, posted_at, posted_relative, lastmod,
@@ -870,6 +926,10 @@ def rebuild(path=DB):
                      # policy, and rewrote the posting again. Every run.
                      relevance, json.dumps(slim(raw), ensure_ascii=True)))
                 identities = r.get('identities')
+                if identities is not None:
+                    # This log row is a full identity snapshot for its URL.
+                    # Replaying additions alone resurrects aliases it removed.
+                    db.execute('DELETE FROM job_identities WHERE url=?', (r['url'],))
                 # Logs written before identity tracking have no identities key,
                 # so infer their primary identity for backward compatibility.
                 # A present but empty list is authoritative: the URL is a stale

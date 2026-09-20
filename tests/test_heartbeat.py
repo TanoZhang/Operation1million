@@ -9,6 +9,7 @@ import io
 import os
 from pathlib import Path
 import shutil
+import shlex
 import signal
 import subprocess
 import tempfile
@@ -20,6 +21,8 @@ from jobdisco import heartbeat
 
 ROOT = Path(__file__).resolve().parents[1]
 SHELL_HELPER = ROOT / 'deploy/vps/heartbeat.sh'
+BASH = (str(Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/bash.exe')
+        if os.name == 'nt' else shutil.which('bash'))
 
 
 class Opener:
@@ -142,7 +145,7 @@ class ExitCodeTests(unittest.TestCase):
         self.assertIn('usage:', noise.getvalue())
 
 
-@unittest.skipUnless(shutil.which('bash'), 'bash is required for the shell contract')
+@unittest.skipUnless(BASH and Path(BASH).is_file(), 'bash is required for the shell contract')
 class ShellContractTests(unittest.TestCase):
     """Exercises deploy/vps/heartbeat.sh itself, with a stub for the pinger."""
 
@@ -160,10 +163,11 @@ class ShellContractTests(unittest.TestCase):
                 'set -euo pipefail\n'
                 'JOBDISCO_PYTHON=%s\n'
                 '. %s\n'
-                'heartbeat_arm\n%s' % (stub.as_posix(), SHELL_HELPER.as_posix(), body),
+                'heartbeat_arm\n%s' % (shlex.quote(stub.as_posix()),
+                                      shlex.quote(SHELL_HELPER.as_posix()), body),
                 encoding='utf-8', newline='\n')
-            completed = subprocess.run(['bash', script.as_posix()], capture_output=True,
-                                       text=True, env={**os.environ, 'EVENTS': str(events)})
+            completed = subprocess.run([BASH, script.as_posix()], capture_output=True,
+                                       text=True, env={**os.environ, 'EVENTS': events.as_posix()})
             sent = events.read_text(encoding='utf-8').split() if events.exists() else []
             return completed.returncode, sent
 

@@ -103,6 +103,29 @@ if [ "$runs" -ne "$manifests" ]; then
   missing=1
 fi
 
+# Equal counts do not prove that the two sets describe the same days/shards.
+for log in "$tree"/runs/*.ndjson.gz; do
+  [ -f "$log" ] || continue
+  name=$(basename "$log" .ndjson.gz)
+  if [ ! -f "$tree/manifests/$name.json" ]; then
+    echo "WARNING: runs/$name.ndjson.gz has no matching manifest." >&2
+    missing=1
+  fi
+done
+for manifest in "$tree"/manifests/*.json; do
+  [ -f "$manifest" ] || continue
+  name=$(basename "$manifest" .json)
+  if [ ! -f "$tree/runs/$name.ndjson.gz" ]; then
+    echo "WARNING: manifests/$name.json has no matching run file." >&2
+    missing=1
+  fi
+done
+if [ "$missing" -ne 0 ]; then
+  echo "Backup validation failed; current, previous and last-pull were preserved." >&2
+  echo "The failed copy remains under $incoming for inspection." >&2
+  exit 1
+fi
+
 # Swap only once the copy has been looked at. The previous one is kept until
 # the next successful pull, so a bad night never leaves zero copies.
 previous=$TARGET/previous

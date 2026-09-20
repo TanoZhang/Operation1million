@@ -8,7 +8,10 @@ import gzip
 import json
 import sqlite3
 import ast
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 import re
 import subprocess
 import sys
@@ -116,6 +119,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(state['last_status'], 'fallback')
         self.assertEqual(state['last_success_at'], first_success)
 
+    def test_partial_pass_does_not_make_its_etag_a_completed_inventory(self):
+        db = self.open_db()
+        store.record_source(db, SOURCE, [row('https://x/1')], 'complete', 'full', 1,
+                            etag='old')
+        store.record_source(db, SOURCE, [row('https://x/1')], 'partial', 'conditional', 1,
+                            etag='new', note='Job cap reached')
+        state = dict(db.execute('SELECT * FROM source_state').fetchone())
+        self.assertNotEqual(store.plan(SOURCE, {SOURCE.source_id: state}),
+                            ('conditional', 'new'))
+        self.assertEqual(state['etag'], 'old')
+
     def test_partial_pass_closes_only_stale_urls_with_the_same_identity(self):
         db = self.open_db()
         old = dict(row('https://x/old'), source_job_id='stable-id')
@@ -151,6 +165,8 @@ class StoreTests(unittest.TestCase):
         gone = store.record_source(db, SOURCE, [], 'complete', 'lastmod', 1,
                                    listed={f'https://x/{i}' for i in range(3, 10)})
         self.assertEqual(gone['closed'], 2)
+        self.assertNotIn('https://x/1', store.known_urls(db, 'matx'),
+                         'a relisted closed URL must be fetched and reopened')
 
     def open_db_for(self, company, name='catalog2.sqlite'):
         """A catalog holding one company, for a source that is not MatX."""
@@ -162,6 +178,74 @@ class StoreTests(unittest.TestCase):
         db = store.connect(path)
         self.addCleanup(db.close)
         return db
+
+    def test_relisted_skipped_job_reopens_and_survives_fresh_replay(self):
+        db = self.open_db()
+        baseline = [row(f'https://x/{i}') for i in range(4)]
+
+        def persist(rows, listed=None):
+            delta = store.record_source(db, SOURCE, rows, 'complete', 'lastmod', 1,
+                                        listed=listed)
+            store.append_log(db, delta['new_urls'] + delta['changed_urls'],
+                             delta['closed_urls'], delta['stamp'], seen_urls=delta['seen_urls'])
+            store.write_manifest(db, delta['stamp'], [])
+            db.commit()
+            return delta
+
+        persist(baseline)
+        first_seen = db.execute("SELECT first_seen FROM jobs WHERE url='https://x/3'").fetchone()[0]
+        self.assertEqual(persist(baseline[:3])['closed'], 1)
+        delta = persist([], {r['url'] for r in baseline})
+        held = db.execute("SELECT closed_at, first_seen FROM jobs WHERE url='https://x/3'").fetchone()
+        self.assertIsNone(held['closed_at'])
+        self.assertEqual(held['first_seen'], first_seen)
+        self.assertIn('https://x/3', delta['changed_urls'])
+        rebuilt = Path(self.dir.name) / 'relisted.sqlite'
+        with closing(sqlite3.connect(rebuilt)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.rebuild(rebuilt)
+        with closing(store.connect(rebuilt)) as fresh:
+            self.assertEqual(fresh.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL')
+                             .fetchone()[0], 4)
+
+    def test_partial_or_fused_pass_cannot_install_conditional_validators(self):
+        db = self.open_db()
+        baseline = [row(f'https://x/{i}') for i in range(4)]
+        store.record_source(db, SOURCE, baseline, 'complete', 'full', 1,
+                            etag='old', last_modified='old-date')
+        for status in ('partial', 'failed', 'paused', 'complete'):
+            with self.subTest(status=status):
+                # "complete" is downgraded by the closure fuse for this empty board.
+                delta = store.record_source(db, SOURCE, [], status, 'full', 1,
+                                            etag='incomplete', last_modified='incomplete-date')
+                state = dict(db.execute('SELECT * FROM source_state').fetchone())
+                self.assertNotEqual(delta['status'], 'complete')
+                self.assertEqual(state['etag'], 'old')
+                self.assertEqual(state['last_modified'], 'old-date')
+                self.assertEqual(store.plan(SOURCE, {SOURCE.source_id: state}), ('full', None))
+        store.record_source(db, SOURCE, baseline, 'complete', 'full', 1,
+                            etag='finished', last_modified='finished-date')
+        self.assertEqual(db.execute('SELECT etag FROM source_state').fetchone()[0], 'finished')
+
+    def test_listing_does_not_reopen_other_sources_or_identity_aliases(self):
+        db = self.open_db()
+        original = row('https://x/old')
+        store.record_source(db, SOURCE, [original], 'partial', 'full', 1)
+        db.execute('DELETE FROM job_identities')
+        replacement = dict(original, url='https://x/current')
+        foreign = dict(row('https://x/search-only'), provider_key='jsearch')
+        store.record_source(db, replace(SOURCE, provider_key='jsearch'), [foreign],
+                            'query_limited', 'full', 1)
+        db.execute("UPDATE jobs SET closed_at='closed' WHERE url='https://x/search-only'")
+        delta = store.record_source(db, SOURCE, [replacement], 'partial', 'full', 1,
+                                    listed={'https://x/old', 'https://x/current', 'https://x/search-only'})
+        self.assertEqual(delta['closed_urls'], ['https://x/old'])
+        # The next pass may skip all details; durable identity mappings must
+        # still prevent reopening the alias closed by the preceding pass.
+        store.record_source(db, SOURCE, [], 'partial', 'full', 1,
+                            listed={'https://x/old', 'https://x/current', 'https://x/search-only'})
+        for url in ('https://x/old', 'https://x/search-only'):
+            self.assertIsNotNone(db.execute('SELECT closed_at FROM jobs WHERE url=?', (url,)).fetchone()[0])
 
     def test_a_requisition_keeps_one_posting_through_an_edit(self):
         """Identity and content are separate questions, and both must hold.
@@ -263,7 +347,9 @@ class StoreTests(unittest.TestCase):
                     continue
                 for name in names:
                     top = name.split('.')[0]
-                    if top in sys.stdlib_module_names or top == 'jobdisco':
+                    # tomllib is standard on 3.11+; guarded imports use tomli
+                    # on 3.10, which this project also supports.
+                    if top in sys.stdlib_module_names or top in {'jobdisco', 'tomllib'}:
                         continue
                     if top.lower() not in declared:
                         outside.setdefault(top, set()).add(path.name)
@@ -410,6 +496,36 @@ class StoreTests(unittest.TestCase):
 
 
 class LogRoundTripTests(unittest.TestCase):
+    def test_reused_url_does_not_redirect_old_requisition_over_its_replacement(self):
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        stamp = store.now()
+        old = dict(row('https://x/shared', raw={'description': 'Old requirements'}),
+                   source_job_id='old')
+        new = dict(row('https://x/shared', raw={'summary': 'New requirements'}),
+                   source_job_id='new')
+        for posting in (old, new):
+            delta = store.record_source(db, SOURCE, [posting], 'partial', 'full', 1, stamp=stamp)
+            store.append_log(db, delta['new_urls'] + delta['changed_urls'], [], stamp)
+        stored = db.execute('SELECT raw FROM jobs WHERE url=?', (new['url'],)).fetchone()
+        self.assertNotIn('Old requirements', stored[0])
+        store.write_manifest(db, stamp, [])
+        db.commit()
+        fresh = Path(self.dir.name) / 'replacement.sqlite'
+        store.bootstrap(fresh)
+        rebuilt = store.connect(fresh)
+        self.addCleanup(rebuilt.close)
+        for index in (db, rebuilt):
+            with self.subTest(rebuilt=index is rebuilt):
+                self.assertIsNone(index.execute(
+                    "SELECT url FROM job_identities WHERE source_job_id='old'").fetchone())
+                moved = dict(old, url='https://x/moved-old')
+                store.record_source(index, SOURCE, [moved], 'partial', 'full', 1)
+                self.assertEqual(index.execute(
+                    "SELECT source_job_id FROM jobs WHERE url='https://x/shared'").fetchone()[0], 'new')
+                self.assertEqual(index.execute(
+                    "SELECT source_job_id FROM jobs WHERE url='https://x/moved-old'").fetchone()[0], 'old')
+
     """The log is what survives between runs, so replaying it must restore the store.
 
     A scheduled runner starts with no database at all. If a replay lost or altered
@@ -698,6 +814,30 @@ class LogRoundTripTests(unittest.TestCase):
 
 
 class EarlyStopTests(unittest.TestCase):
+    def setUp(self):
+        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots.start()
+        self.addCleanup(robots.stop)
+
+    def test_sitemap_refetches_changed_known_and_missing_old_postings(self):
+        source = replace(SOURCE, provider_key='renesas_careers')
+        c = self.collector(source, 'lastmod', '2026-09-20T12:00:00+00:00')
+        c.known = {'https://x/changed', 'https://x/stable', 'https://x/undated'}
+        entries = [('changed', '2026-09-20T13:00:00Z'),
+                   ('stable', '2026-09-19T00:00:00Z'),
+                   ('missing', '2026-09-19T00:00:00Z'), ('undated', None)]
+        xml = '<urlset>' + ''.join('<url><loc>https://x/' + name + '</loc>'
+                                  + (f'<lastmod>{stamp}</lastmod>' if stamp else '')
+                                  + '</url>' for name, stamp in entries) + '</urlset>'
+        def fetch(url):
+            return Mock(content=xml.encode()) if url == source.access_url else Mock(
+                text='<h1>RTL Engineer</h1>')
+        c.fetch = Mock(side_effect=fetch)
+        self.assertEqual(c.collect_sitemap()[0], 'complete')
+        self.assertEqual({r['url'] for r in c.jobs},
+                         {'https://x/changed', 'https://x/missing', 'https://x/undated'})
+        self.assertEqual(c.fetch.call_count, 4)
+
     def collector(self, source, strategy, watermark):
         args = Namespace(max_jobs=1000, max_pages=10, delay=0, timeout=1, retries=0,
                          source_state=Path(tempfile.gettempdir()) / 'unused_pauses.sqlite')
@@ -758,6 +898,56 @@ class EarlyStopTests(unittest.TestCase):
         self.assertEqual(c.session.request.call_count, 1)
         self.assertEqual(c.jobs, [])
         self.assertNotIn('If-None-Match', c.session.headers)
+
+    def test_sitemap_refetches_changed_known_and_discovers_old_unknown_urls(self):
+        source = replace(SOURCE, provider_key='renesas_careers', access_url='https://x/sitemap.xml')
+        c = self.collector(source, 'lastmod', '2026-09-18T00:00:00+00:00')
+        c.known = {'https://x/unchanged', 'https://x/changed', 'https://x/undated'}
+        entries = [('unchanged', '2026-09-17T00:00:00+00:00'),
+                   ('changed', '2026-09-19T00:00:00+00:00'),
+                   ('old-unknown', '2026-09-01T00:00:00+00:00'), ('undated', None)]
+        sitemap = '<urlset>' + ''.join(
+            f'<url><loc>https://x/{name}</loc>' + (f'<lastmod>{stamp}</lastmod>' if stamp else '')
+            + '</url>' for name, stamp in entries) + '</urlset>'
+        asked = []
+
+        def fetch(url):
+            asked.append(url)
+            return Mock(content=sitemap.encode(), text='<h1>Updated RTL Engineer</h1>')
+
+        with patch.object(c, 'fetch', side_effect=fetch):
+            status, _ = c.collect_sitemap()
+        self.assertEqual(status, 'complete')
+        self.assertEqual(set(asked[1:]), {'https://x/changed', 'https://x/old-unknown', 'https://x/undated'})
+        self.assertEqual(len(c.jobs), 3)
+
+    def test_sitemap_lastmod_compares_instants_and_refetches_invalid_dates(self):
+        source = replace(SOURCE, provider_key='renesas_careers', access_url='https://x/sitemap.xml')
+        c = self.collector(source, 'lastmod', '2026-09-18T00:00:00+00:00')
+        c.known = {'https://x/newer', 'https://x/older', 'https://x/invalid'}
+        dates = {'newer': '2026-09-17T23:00:00-07:00',
+                 'older': '2026-09-18T01:00:00+02:00', 'invalid': '0000-invalid'}
+        xml = '<urlset>' + ''.join(f'<url><loc>https://x/{name}</loc><lastmod>{stamp}</lastmod></url>'
+                                   for name, stamp in dates.items()) + '</urlset>'
+        asked = []
+
+        def fetch(url):
+            asked.append(url)
+            return Mock(content=xml.encode(), text='<h1>RTL Engineer</h1>')
+
+        with patch.object(c, 'fetch', side_effect=fetch):
+            c.collect_sitemap()
+        self.assertEqual(set(asked[1:]), {'https://x/newer', 'https://x/invalid'})
+
+    def test_full_sitemap_recovery_does_not_skip_known_details(self):
+        source = replace(SOURCE, provider_key='renesas_careers', access_url='https://x/sitemap.xml')
+        c = self.collector(source, 'full', None)
+        c.known = {'https://x/known'}
+        xml = b'<urlset><url><loc>https://x/known</loc><lastmod>2020-01-01</lastmod></url></urlset>'
+        with patch.object(c, 'fetch', return_value=Mock(content=xml, text='<h1>Updated role</h1>')) as fetch:
+            self.assertEqual(c.collect_sitemap()[0], 'complete')
+        self.assertEqual(fetch.call_count, 2)
+        self.assertEqual(c.jobs[0]['title'], 'Updated role')
 
 
 class ClosingGuardTests(unittest.TestCase):
@@ -855,6 +1045,11 @@ class EmptyBoardTests(unittest.TestCase):
     a blank first page must not claim it on its own: that is also what a board
     looks like mid-deploy, or after a schema change we failed to parse.
     """
+
+    def setUp(self):
+        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots.start()
+        self.addCleanup(robots.stop)
 
     def collector(self, provider='greenhouse', url='https://boards-api.greenhouse.io/v1/boards/x/jobs'):
         args = Namespace(max_jobs=1000, max_pages=5, delay=0, timeout=1, retries=0,

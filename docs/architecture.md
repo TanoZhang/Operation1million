@@ -106,20 +106,100 @@ collection history, not the working state.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Iterative offline audit, 2026-09-20 (branch, not deployed)
+
+Reproduced against `e09d9ed` plus the work-claim commit `56cf495`, with remote
+main at `9843350`. These fixes are on `codex/debug-untimestamped-credit`.
+Remote comparison found ETag and sitemap fixes already present in unmerged
+`c035df4` on `codex/deep-debug`; those are independent reproductions, not new
+discoveries. Its six tests were imported and run against this implementation.
+Five passed; the listed-but-not-fetched reopening test failed. Its reopening
+implementation was then imported too; all 68 store tests pass. The remote
+branch remains intact. The initial branch inventory had been read without
+inspecting that commit's contents, which this final comparison corrects.
+
+- **Incomplete inventories published usable validators.** `record_source`
+  saved a new ETag after a partial response. With an older successful pass on
+  record, `plan` then selected that ETag, permitting a 304 to hide missing jobs.
+  Validators now advance only on a complete inventory; an incomplete last
+  status forces a full retry, including for state written by older versions.
+  Reproducer: `StoreTests.test_partial_pass_does_not_make_its_etag_a_completed_inventory`.
+- **Sitemap skip conditions lost both updates and missing jobs.** Filtering by
+  watermark first removed never-stored old URLs; filtering known URLs next
+  removed changed existing jobs. Skip now requires an open local row and a
+  valid, timezone-aware lastmod no later than the watermark. Closed rows are
+  not eligible for skipping when relisted. Ambiguous dates are fetched.
+  Reproducer: `EarlyStopTests.test_sitemap_refetches_changed_known_and_missing_old_postings`.
+- **A reused URL retained an obsolete requisition alias and description.**
+  A then B at one URL, followed by A at a new URL, overwrote B with A. A distinct
+  explicit same-provider identity now resets the current URL row and its
+  aliases; cross-provider enrichment remains supported. Old versions stay in
+  the append-only log. Rebuild applies replacement semantics and authoritative
+  identity snapshots too. Reproducer:
+  `LogRoundTripTests.test_reused_url_does_not_redirect_old_requisition_over_its_replacement`.
+- **Relisted rows needed a storage-level reopening path too.** The imported
+  `c035df4` implementation reopens listed rows within the same source and logs
+  full job events for replay, while leaving other providers and obsolete
+  identity aliases closed. Fetching closed rows in the collector alone had
+  not protected this storage seam. Reproducer:
+  `StoreTests.test_relisted_skipped_job_reopens_and_survives_fresh_replay`.
+- **Review split a single requisition across recent and backlog.** A new
+  location and a five-day-old location appeared in separate tabs with the same
+  decision ID. POST selected the recent group and saved an incomplete snapshot.
+  Groups shared across the boundary now live entirely in recent. Reproducer:
+  `ApplicationsTests.test_one_requisition_spanning_recent_and_backlog_has_one_complete_group`.
+- **Review lost descriptions after storage removed duplicate HTML.** The HTTP
+  endpoint did not read `descriptionPlain`, even though storage deliberately
+  keeps it when it removes equivalent HTML. It now reads both retained plain
+  text and the alternate HTML field. Reproducer:
+  `HttpTests.test_description_survives_store_html_deduplication`.
+- **Invalid workstation backups still rotated good copies away.** Validation
+  set an error flag but only exited after replacing current and previous.
+  Equal log/manifest counts also passed with mismatched dates. Validation now
+  checks both filename sets and exits before rotation on failure. Synthetic
+  SSH tar streams in `tests/test_backup.py` cover missing ledgers, bad SQLite,
+  mismatched manifests, and successful rotation. No remote machine is accessed.
+
+Validation infrastructure corrections: Python 3.10 tests now use the existing
+tomli fallback and recognize guarded tomllib imports as standard-library use.
+Windows heartbeat shell tests select Git Bash explicitly instead of the WSL
+launcher and quote paths. The previous session's unqualified full-suite pass
+claim was not supported by a captured exit status; its initial rerun here had
+327 tests, five failures, one import error and eight skips before these fixes.
+
+The subsequent audit also found real robots.txt requests hidden inside
+supposedly offline Collector fixtures. Mocking only the job session did not
+cover SourcePolicy construction. Those fixtures now stub robots_delay; final
+verification blocks unmocked requests.Session HTTP calls, while Review tests
+continue to exercise their local HTTP server. This corrects any assumption
+that the earlier unguarded suite made no external requests.
+
+Two equivalent loop optimizations preserve output and ordering: maintain the
+presentation URL set as rows are appended instead of rebuilding it per result,
+and sort listed-only inventory once rather than once per 400-row batch. A
+synthetic comparison executed the old and new presentation loops on 4,000
+initial and 6,000 incoming rows: both emitted identical 6,500-row lists,
+measured at 2.072227s and 0.001406s. Sorting 20,000 URLs into 50 identical
+batches took 0.258879s versus 0.005812s. These are local loop measurements, not
+production run-time claims. No search, filtering, ranking or output fields
+were changed by these optimizations.
+
 ### Untimestamped credits were counted in two consecutive budget windows
 
 `RequestGuard.daily_used` counts timestamped `credit_events` by their exact
 instant, then adds residual `credit_usage` credits that no event explains. The
 residual query compared the row's `day` label to UTC dates overlapped by the
-04:38 Pacific budget window. That label is a budget-day key, not a UTC date, so
-a row labelled 2026-09-20 was counted by both the 2026-09-19 and 2026-09-20
-budget windows.
+04:38 Pacific budget window. A row labelled 2026-09-20 was counted by both the
+2026-09-19 and 2026-09-20 budget windows.
 
 The regression test creates that one four-credit residual and evaluates both
 windows. Before the fix their usage was `[4, 4]`; now it is `[0, 4]`. Residuals
-are attributed to their recorded budget-day key, while timestamped events keep
-their exact instant-range accounting. The failure had reduced collection below
-the daily allowance; it could not create an overspend.
+are attributed once to the budget window with the same date label, while
+timestamped events keep their exact instant-range accounting. This is a policy,
+not recovery of a missing timestamp: old rows used UTC dates, so the actual
+Pacific window cannot be known. Monthly charges remain intact. The old
+conservative overlap rule could under-collect; the new rule removes its double
+count but cannot guarantee exact historical daily attribution.
 
 ### Seen recovery depended on the VPS wrapper
 

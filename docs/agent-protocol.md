@@ -18,12 +18,14 @@ two answers to whoever pushed last.
 
 ## The register
 
-2026-09-20: Codex continues the user's iterative audit on
+2026-09-20: Codex completed an iterative reproduction/fix and optimization audit on
 `codex/debug-untimestamped-credit`, based on `e09d9ed` and inspected main
 `9843350bf98f415a09f42a82c0415a7b5e8fb4d0`. Scope: quota boundaries,
-collection persistence/recovery, and Review decisions and presentation. First
-recheck prior validation and historical ledger semantics, then reproduce and
-fix defects with offline tests. No production collection is part of this audit.
+collection persistence/recovery, and Review decisions and presentation.
+Four new behavior fixes, three compared/imported fixes from `c035df4`, two
+equivalent loop optimizations, and test corrections are ready for review,
+not merged or deployed. Validation: 400 tests under an external-HTTP guard,
+no failures/errors, eight environment-dependent skips, exit 0. No paid calls.
 
 **Update this before you start, and when you finish.** It is the one mechanism
 that prevents duplicate work, and it only works if it is current.
@@ -41,7 +43,8 @@ that prevents duplicate work, and it only works if it is current.
 | VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
 | Verifying the new query strings return results | Claude | done, measured | 14 credits, one page each, `--no-store`: the whole `early_career` tier returned 15 postings and one survivor, so it now asks `Entry Level`. Intern and new_grad phrasings verified good. See the bug log |
 | Confirming seen deduplication works | Codex (offline); production unassigned | offline verified; production pending | `codex/deep-debug` checks two passes separated by fresh-database recovery; second pass has 0 new / 1 existing; production counter remains unverified |
-| Untimestamped JSearch credit budget-window accounting | Codex | fixed, ready for review | Branch `codex/debug-untimestamped-credit`; base and last inspected main `9843350bf98f415a09f42a82c0415a7b5e8fb4d0`; residuals now match their stored budget-day key, with a regression test proving adjacent windows report `[0, 4]` rather than `[4, 4]`. Full offline suite and `git diff --check` pass. |
+| Untimestamped JSearch credit budget-window accounting | Codex | ready for review; attribution policy clarified | Branch `codex/debug-untimestamped-credit`; main `9843350`; residuals use one same-label window by policy. Legacy dates were UTC, so this does not recover exact historical daily attribution. The earlier full-suite claim is superseded by this audit's captured 400-test result. |
+| Incremental validators, sitemap updates, URL reuse, Review groups/descriptions, workstation backup rotation | Codex | fixed, ready for review | Same branch, base `e09d9ed`, inspected main `9843350` on 2026-09-20. Each behavior reproduced offline before fixing; current results and remaining production checks are in `docs/handoff.md`. |
 
 Claiming an area means writing your name in it before you write code. If the
 area you want is already claimed and you think the owner is wrong, say so to

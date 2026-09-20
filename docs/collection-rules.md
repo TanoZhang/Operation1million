@@ -79,7 +79,7 @@ functional discovery; configured company fallback runs last. Company fallback
 alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
-The functional plan contains 36 broad queries, each with a maximum page cap.
+The functional plan contains 35 broad queries, each with a maximum page cap.
 Internships run first (105 pages), then New Grad (90), Early Career (70), and
 General (55). Each asks for one page at a time and stops when the provider
 returns a short page, so actual use may be below its cap. The daily cap is 320
@@ -111,6 +111,13 @@ newest-first watermark, sitemap lastmod, or a full list scan. Only full inventor
 coverage may establish closure: query-limited searches, since-window scans,
 capped, paused or failed passes cannot retire unseen jobs. A direct scan also
 must not close unrelated search-only records for the same company.
+
+An incomplete last pass forces a full retry, and only complete inventories
+advance HTTP validators. A sitemap detail can be skipped only when its URL is
+already open locally and its timezone-aware lastmod proves it unchanged.
+Unknown URLs, relisted closed jobs, changed pages and ambiguous dates are read.
+This can require more detail requests than the former unconditional known-URL
+skip; configured pacing, caps and cooldowns continue to apply.
 
 Even a pass labeled complete may expose a broken upstream count or empty board.
 Before applying closures, the store compares candidate closures with the open

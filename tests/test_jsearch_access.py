@@ -35,10 +35,8 @@ class GuardTests(unittest.TestCase):
     def test_untimestamped_residual_belongs_to_its_recorded_budget_day(self):
         """A residual must not reduce two consecutive scheduled passes.
 
-        Older aggregate rows lack the instant of each credit, but their `day`
-        column is the budget-day key that was active when they were recorded.
-        Matching it against the UTC dates overlapped by a Pacific window makes
-        the same row appear in both adjacent windows.
+        A legacy UTC date cannot identify the actual Pacific window. Assign it
+        once by its date label, without pretending to recover the missing time.
         """
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'usage.sqlite'

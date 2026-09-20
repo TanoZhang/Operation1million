@@ -183,9 +183,10 @@ class RequestGuard:
     def daily_used(self, db):
         """Recount timestamped history without rewriting the UTC audit ledger.
 
-        Older aggregate-only credits cannot be assigned an exact time. Their
-        stored day is still the budget-day key that was active when they were
-        recorded, so charge each residual to that one day.
+        Older aggregate-only credits cannot be assigned an exact time. Charge
+        each to the current budget window with the same date label by policy.
+        Legacy labels were UTC dates: this does not recover their actual time.
+        Monthly usage remains unchanged, and timestamped events use exact times.
         """
         day, start, end = self.daily_window()
         used = db.execute('SELECT COALESCE(SUM(credits), 0) FROM credit_events '

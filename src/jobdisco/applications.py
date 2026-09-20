@@ -221,6 +221,12 @@ def queue(db_path=DB, path=None, now=None):
         collect_into(backlog, db.execute(
             select + ''' WHERE j.closed_at IS NULL AND julianday(j.first_seen) < julianday(?)
                          ORDER BY confidence DESC, j.first_seen DESC, j.url''', (since,)))
+        # A requisition can acquire another location after the recent window.
+        # Keep the entire decision group in recent when any listing is recent;
+        # otherwise POST would snapshot only whichever tab it searched first.
+        for key in list(backlog):
+            if key in groups:
+                groups[key]['jobs'].extend(backlog.pop(key)['jobs'])
         for url, event in url_states.items():
             if event['status'] == 'pending':
                 continue

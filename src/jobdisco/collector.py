@@ -442,14 +442,22 @@ class Collector:
                 urls.append((loc, mod))
         # Every advertised URL is still live even where the detail fetch is skipped.
         self.listed = {u for u, _ in urls}
-        if self.strategy == 'lastmod' and self.watermark:
-            # A page whose lastmod predates our last complete pass cannot have
-            # changed; entries without a lastmod are always refetched.
-            urls = [(u, m) for u, m in urls if not m or m > self.watermark]
-        # A posting already stored costs a request to re-read and rarely changes,
-        # so spend requests only on ones we have never fetched.
-        skipped = sum(1 for u, _ in urls if u in self.known)
-        urls = [(u, m) for u, m in urls if u not in self.known]
+        def unchanged(url, modified):
+            if (self.strategy != 'lastmod' or not self.watermark
+                    or url not in self.known or not modified):
+                return False
+            try:
+                modified_at = datetime.fromisoformat(modified.replace('Z', '+00:00'))
+                watermark = datetime.fromisoformat(self.watermark.replace('Z', '+00:00'))
+                # Date-only or otherwise ambiguous values do not prove that a
+                # detail page is unchanged. Fetch rather than invent a timezone.
+                return (modified_at.tzinfo is not None and watermark.tzinfo is not None
+                        and modified_at <= watermark)
+            except (ValueError, TypeError):
+                return False
+        needed = [(u, m) for u, m in urls if not unchanged(u, m)]
+        skipped = len(urls) - len(needed)
+        urls = needed
         errors = []
         for url, lastmod in urls[:self.args.max_jobs]:
             try:
@@ -928,11 +936,13 @@ def main():
             seen_malformed=search_stats.get('jsearch_jobs_malformed', 0))
         # Same IDs appearing under multiple phrases get one presentation row.
         presented = set()
+        presented_urls = {r['url'] for r in jobs}
         for row in discovered:
             identity = row['source_job_id'] or row['url']
-            if identity not in presented and row['url'] not in {r['url'] for r in jobs}:
+            if identity not in presented and row['url'] not in presented_urls:
                 jobs.append(row)
                 presented.add(identity)
+                presented_urls.add(row['url'])
         pass_facts = {
             'duration_seconds': round(time.monotonic() - started, 1),
             'source_errors': sum(1 for r in reports

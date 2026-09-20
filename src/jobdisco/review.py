@@ -82,7 +82,8 @@ def make_server(db, ledger, port=8765):
                         row = con.execute('SELECT raw FROM jobs WHERE url=?', (url,)).fetchone()
                     raw = json.loads(row[0] or '{}') if row else {}
                     description = (raw.get('job_description') or raw.get('description') or
-                                   raw.get('jobDescription') or raw.get('descriptionHtml') or '') if isinstance(raw, dict) else ''
+                                   raw.get('descriptionPlain') or raw.get('jobDescription') or
+                                   raw.get('descriptionHtml') or raw.get('jobDescriptionHtml') or '') if isinstance(raw, dict) else ''
                     return self.send({'description': BeautifulSoup(str(description), 'html.parser').get_text('\n', strip=True)})
                 names = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
                          '/style.css': ('style.css', 'text/css')}

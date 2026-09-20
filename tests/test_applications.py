@@ -80,6 +80,19 @@ class ApplicationsTests(unittest.TestCase):
         self.assertEqual(len(self.queue()['pending']), 1, 'the other city stayed open')
         self.assertEqual(len(self.queue()['skipped'][0]['jobs']), 2)
 
+    def test_one_requisition_spanning_recent_and_backlog_has_one_complete_group(self):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET first_seen=? WHERE url=?',
+                       ((self.now - timedelta(days=5)).isoformat(), 'https://example.test/a2'))
+        state = self.queue()
+        key = self.group_for('req-a')['id']
+        groups = [g for status in ('pending', 'backlog') for g in state[status]
+                  if g['id'] == key]
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(len(groups[0]['jobs']), 2)
+        applications.append_decision(self.ledger, groups[0], 'applied')
+        self.assertEqual(len(self.queue()['applied'][0]['jobs']), 2)
+
     def test_deciding_one_requisition_leaves_its_namesake_alone(self):
         applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
         remaining = self.queue()['pending']
@@ -257,6 +270,23 @@ class BacklogTests(ApplicationsTests):
 
 
 class HttpTests(ApplicationsTests):
+    def test_description_survives_store_html_deduplication(self):
+        from jobdisco import store
+        text = 'Design RTL and verify hardware.'
+        raw = store.slim({'descriptionPlain': text, 'descriptionHtml': '<p>' + text + '</p>'})
+        self.assertNotIn('descriptionHtml', raw)
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET raw=? WHERE url=?',
+                       (json.dumps(raw), 'https://example.test/a'))
+        server = review.make_server(self.db, self.ledger, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.shutdown)
+        with urlopen(f'http://127.0.0.1:{server.server_port}/api/job?url=https://example.test/a') as response:
+            self.assertEqual(json.load(response)['description'], text)
+
     def test_http_decisions_require_token_and_replay_on_refresh(self):
         server = review.make_server(self.db, self.ledger, 0)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
