@@ -18,6 +18,13 @@ two answers to whoever pushed last.
 
 ## The register
 
+2026-09-20: Codex continues the user's iterative audit on
+`codex/debug-untimestamped-credit`, based on `e09d9ed` and inspected main
+`9843350bf98f415a09f42a82c0415a7b5e8fb4d0`. Scope: quota boundaries,
+collection persistence/recovery, and Review decisions and presentation. First
+recheck prior validation and historical ledger semantics, then reproduce and
+fix defects with offline tests. No production collection is part of this audit.
+
 **Update this before you start, and when you finish.** It is the one mechanism
 that prevents duplicate work, and it only works if it is current.
 
