@@ -18,6 +18,13 @@ two answers to whoever pushed last.
 
 ## The register
 
+2026-09-20: Codex claims behavior-preserving dead-code cleanup and offline
+regression verification on `codex/lean-cleanup`. Base and last inspected main:
+`9843350bf98f415a09f42a82c0415a7b5e8fb4d0`. Status: in progress. Next: baseline
+tests and reference audit. Existing quota, recovery, and Review audit branches
+were inspected; their active fixes are outside this cleanup scope.
+
+
 **Update this before you start, and when you finish.** It is the one mechanism
 that prevents duplicate work, and it only works if it is current.
 
