@@ -11,8 +11,8 @@ Files: docs/file-audit-round2-2026-09-20.md, docs/audit-repro-round2-2026-09-20.
 Base commit: a7572bec2e09b14506b7fd42152414c809d2d465
 Last inspected main: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
 Date: 2026-09-20
-Status: claimed
-Next: Reproduce new boundary failures without editing application code or first-audit findings.
+Status: done
+Next: User reviews docs/file-audit-round2-2026-09-20.md for B10-B16, confirmed R02 and measured O08-O09. Seven new defects reproduced; 405 suite tests, eight skips, exit 0. No application code changed.
 ```
 
 ```text
