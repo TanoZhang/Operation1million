@@ -20,9 +20,14 @@ two answers to whoever pushed last.
 
 2026-09-20: Codex claims behavior-preserving dead-code cleanup and offline
 regression verification on `codex/lean-cleanup`. Base and last inspected main:
-`9843350bf98f415a09f42a82c0415a7b5e8fb4d0`. Status: in progress. Next: baseline
-tests and reference audit. Existing quota, recovery, and Review audit branches
-were inspected; their active fixes are outside this cleanup scope.
+`9843350bf98f415a09f42a82c0415a7b5e8fb4d0`. Status: ready for review, not merged
+or deployed. Tested code: `64aaa1aacb1cb90104d572c9e24a595ef56f43a9`.
+385 tests pass with eight environment skips and external HTTP blocked.
+Catalog records/order and 35 parser cases match the base. Production code is
+18 lines smaller; validator connections close on success and error. Inspected
+the concurrent audit through `659ea0f` and adopted its overlapping heartbeat
+fixture and robots stubs, with attribution. Next: review alongside that branch
+before integration; source cleanup does not overlap its collection fixes.
 
 
 **Update this before you start, and when you finish.** It is the one mechanism

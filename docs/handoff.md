@@ -1,3 +1,24 @@
+# Behavior-preserving cleanup - 2026-09-20
+
+Branch `codex/lean-cleanup`, tested code `64aaa1aacb1cb90104d572c9e24a595ef56f43a9`,
+based on and last synchronized with main `9843350bf98f415a09f42a82c0415a7b5e8fb4d0`.
+Ready for review, not merged or deployed. Remote branches were inspected through
+the concurrent audit's `659ea0f`; its overlapping test fixes were compared and
+adopted where appropriate, with attribution in the commit and architecture log.
+
+Only production change: simplify `validate_sources` duplicate query/provider
+branches, remove unused imports, and deterministically close catalog connections
+on success and parsing failure. Net production reduction: 18 lines. No existing
+function, provider support, configuration, UI, migration, or history was removed.
+Differential fixtures match the base's catalog records/order and 35 parser cases.
+
+Validation: 385 tests in 82.960 seconds, exit 0, eight environment skips, with
+`requests.sessions.Session.request` blocked. The suite uses this worktree's `src`.
+This supersedes earlier unguarded runs, which revealed missing robots.txt stubs.
+`git diff --check` passes. No paid collection or production deployment occurred.
+Temporary audit packages remain in ignored `.local/audit-tools` because automatic
+approval rejected their removal; they are not project dependencies or Git content.
+
 # Debug follow-up - 2026-09-19 Pacific (2026-09-20 UTC)
 
 Codex's offline audit is on `codex/deep-debug`, based on main `a960195` plus
