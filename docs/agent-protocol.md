@@ -23,6 +23,7 @@ that prevents duplicate work, and it only works if it is current.
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
+| Review identity replay and seen durability audit | Codex | in progress | Branch `codex/deep-debug`; base `d6dcc9d`, inspected main `a960195`; 2026-09-19; offline reproducers, fixes, regression tests; no paid collection |
 | Agent synchronization and review protocol | Codex | ready for review, not merged | Branch `codex/agent-sync-protocol`; base and last inspected main `a960195`; 2026-09-19; documentation only |
 | `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
 | `jsearch_queries.toml` query plan and tiers | Codex | done, merged | 36 queries, intern/new_grad/early_career/A |
