@@ -34,6 +34,7 @@ that prevents duplicate work, and it only works if it is current.
 | VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
 | Verifying the new query strings return results | Claude | done, measured | 14 credits, one page each, `--no-store`: the whole `early_career` tier returned 15 postings and one survivor, so it now asks `Entry Level`. Intern and new_grad phrasings verified good. See the bug log |
 | Confirming seen deduplication works | Codex (offline); production unassigned | offline verified; production pending | `codex/deep-debug` checks two passes separated by fresh-database recovery; second pass has 0 new / 1 existing; production counter remains unverified |
+| Untimestamped JSearch credit budget-window accounting | Codex | investigating | Branch `codex/debug-untimestamped-credit`; base and last inspected main `9843350bf98f415a09f42a82c0415a7b5e8fb4d0`; reproduce the documented double-count boundary and define a deterministic attribution rule before changing `jsearch_access.py`. |
 
 Claiming an area means writing your name in it before you write code. If the
 area you want is already claimed and you think the owner is wrong, say so to
