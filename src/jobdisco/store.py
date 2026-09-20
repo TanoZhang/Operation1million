@@ -172,7 +172,10 @@ def plan(source, state):
     first run does for every board.
     """
     row = state.get(source.source_id) or {}
-    if not row.get('last_success_at'):
+    if (not row.get('last_success_at')
+            or row.get('last_status') not in (None, 'complete', 'unchanged')):
+        # Retry incomplete work before allowing an older checkpoint to skip it.
+        # This also recovers state written before partial validators were gated.
         return 'full', None
     # Older state may carry an ETag from an incomplete inventory. Retry it in
     # full rather than letting a 304 permanently hide the unprocessed rows.
@@ -443,6 +446,10 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                     AND url NOT IN ({placeholders})''',
                 [stamp, source.company_key, source.provider_key, *live])
     closed = len(closed_urls)
+    # A validator is a checkpoint too. Accepting one from an incomplete pass
+    # can make the next request return 304 for data we never finished storing.
+    if effective_status != 'complete':
+        etag = last_modified = None
     db.execute(
         '''INSERT INTO source_state (source_id, company_key, provider_key, etag,
                last_modified, last_success_at, last_run_at, last_status, strategy,

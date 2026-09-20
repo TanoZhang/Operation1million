@@ -442,22 +442,28 @@ class Collector:
                 urls.append((loc, mod))
         # Every advertised URL is still live even where the detail fetch is skipped.
         self.listed = {u for u, _ in urls}
-        def unchanged(url, modified):
-            if (self.strategy != 'lastmod' or not self.watermark
-                    or url not in self.known or not modified):
-                return False
-            try:
-                modified_at = datetime.fromisoformat(modified.replace('Z', '+00:00'))
-                watermark = datetime.fromisoformat(self.watermark.replace('Z', '+00:00'))
-                # Date-only or otherwise ambiguous values do not prove that a
-                # detail page is unchanged. Fetch rather than invent a timezone.
-                return (modified_at.tzinfo is not None and watermark.tzinfo is not None
-                        and modified_at <= watermark)
-            except (ValueError, TypeError):
-                return False
-        needed = [(u, m) for u, m in urls if not unchanged(u, m)]
-        skipped = len(urls) - len(needed)
-        urls = needed
+        advertised = len(urls)
+        if self.strategy == 'lastmod' and self.watermark:
+            # Only known, unchanged postings may skip their detail request.
+            # An old publication date does not make an unseen URL known, and a
+            # known URL with newer or missing lastmod still needs refreshing.
+            def unchanged(lastmod):
+                try:
+                    modified = datetime.fromisoformat((lastmod or '').replace('Z', '+00:00'))
+                    checkpoint = datetime.fromisoformat(self.watermark.replace('Z', '+00:00'))
+                except ValueError:
+                    return False
+                # Date-only and unzoned values cannot establish an exact order.
+                # Comparing ISO strings also reverses order across UTC offsets.
+                return (modified.tzinfo is not None and checkpoint.tzinfo is not None
+                        and modified <= checkpoint)
+
+            urls = [(u, m) for u, m in urls if u not in self.known or not unchanged(m)]
+        elif self.source.provider_key not in store.LASTMOD_SITEMAP:
+            urls = [(u, m) for u, m in urls if u not in self.known]
+        # A full/recovery pass on a lastmod board has no trusted checkpoint:
+        # refetch its known rows too, rather than hiding interrupted updates.
+        skipped = advertised - len(urls)
         errors = []
         for url, lastmod in urls[:self.args.max_jobs]:
             try:

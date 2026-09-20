@@ -100,6 +100,11 @@ collection history, not the working state.
 - **A cached score belongs to unchanged content.** A title or retained payload
   change recalculates it without trusting an old score embedded in raw. A rules
   change alone still requires `job-store --rescore` for unchanged postings.
+- **An HTTP validator is a completion checkpoint.** Partial or failed inventory
+  must not install a new ETag or Last-Modified value; retry it with a full pass.
+- **Sitemap age is not identity.** Skip details only for known, unchanged rows
+  on a lastmod board. Compare timestamp instants, not their ISO strings. A listed
+  closed row reopens within its source, unless it is an alias of another identity.
 
 ## Bugs found and fixed
 

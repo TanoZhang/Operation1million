@@ -32,6 +32,7 @@ that prevents duplicate work, and it only works if it is current.
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
+| Incremental inventory reopening and conditional checkpoints | Codex | ready for review, not deployed | `codex/deep-debug`, base `1a03e63`, inspected main `1572285`; 2026-09-20 UTC; three defects fixed; 390 tests, 14 environment skips; next: Claude review and integration |
 | Review identity replay, score refresh, and seen durability audit | Codex, reviewed by Claude | merged | `1a03e63` merged into main; diffs read rather than rubber-stamped, 384 tests pass on the merged tree; next: deploy and confirm the live queue is unchanged in shape |
 | Agent synchronization and review protocol | Codex | merged | Came in with `1a03e63`; its ancestor `d6dcc9d` carried the documentation |
 | `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
