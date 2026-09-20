@@ -184,6 +184,18 @@ batches took 0.258879s versus 0.005812s. These are local loop measurements, not
 production run-time claims. No search, filtering, ranking or output fields
 were changed by these optimizations.
 
+### A test held a SQLite handle open and only Windows noticed
+
+`with sqlite3.connect(path) as db` commits the transaction; it does not close
+the connection. A backup fixture written that way left the handle open, and
+`TemporaryDirectory` cleanup then failed on Windows with `WinError 32` --
+four errors in a suite that passed cleanly on Linux, where an open file can
+still be unlinked.
+
+The suite is run on both, so "passes on my machine" is not a property worth
+having here. The fixture uses `closing(...)` now, which is what the rest of
+the repository already does for exactly this reason.
+
 ### Untimestamped credits were counted in two consecutive budget windows
 
 `RequestGuard.daily_used` counts timestamped `credit_events` by their exact

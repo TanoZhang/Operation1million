@@ -1,4 +1,5 @@
 """Run the workstation backup against a synthetic SSH tar stream."""
+from contextlib import closing
 from pathlib import Path
 import os
 import shlex
@@ -31,7 +32,11 @@ class BackupTests(unittest.TestCase):
         (data / 'manifests' / (manifest + '.json')).write_text('{}', encoding='utf-8')
         snapshot = root / 'fixture/sqlite/job_discovery.sqlite'
         snapshot.parent.mkdir()
-        with sqlite3.connect(snapshot) as db:
+        # `with sqlite3.connect(...)` commits the transaction; it does not
+        # close the connection. The open handle left the fixture's temporary
+        # directory undeletable on Windows, where the whole suite then errored
+        # in cleanup while passing on Linux.
+        with closing(sqlite3.connect(snapshot)) as db, db:
             db.execute('CREATE TABLE jobs (closed_at TEXT)')
         if failure == 'missing-ledger':
             (data / 'operational/jsearch_usage.sqlite').unlink()
