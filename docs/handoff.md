@@ -69,6 +69,45 @@ Corrections to the earlier uncertainty list:
 - Production backlog behavior and a full-budget pass on the deployed code
   remain unverified by this offline audit.
 
+# Handoff - 2026-09-20
+
+## The first pass that worked end to end
+
+2026-09-20 11:38 UTC, on `9843350`, 42 minutes, exit 0.
+
+| Tier | Pages | Returned | Accepted |
+| --- | ---: | ---: | ---: |
+| intern | 50 | 453 | 287 |
+| new_grad | 50 | 476 | 201 |
+| early_career | 6 | 40 | 17 |
+| A | 47 | 460 | 139 |
+
+**The internship queries ran for the first time.** Before the tier ordering was
+fixed they had never been sent at all -- 144 credits had been spent across the
+plan's whole history and every one of them inside tier A.
+
+153 of the 320 page credits were spent and every tier was reached, so nothing
+starved anything: the budget was not the binding constraint, the providers
+running out of new postings was. `early_career` spent one page per query, which
+is what a query that exhausts on its first page looks like. Its 17 accepted
+postings are against the 1 that the whole `Early Career` phrasing produced in
+the keyword test, so that change earned its credits.
+
+Also: 1,429 postings seen, 644 accepted, 483 hard-rejected, 302 rejected on
+their content, 103 newly persisted, 39,894 open. One source failed to read.
+
+**`seen_existing` is still 0.** 1,429 rows, all recorded as new. The query plan
+changed completely between this pass and the last one, and `date_posted` is
+`3days`, so no overlap is plausible -- but it is not proven, and this is now
+the third pass in a row with a zero here. The next pass runs the same plan
+against a seen table holding 1,429 of its own rows. If it is still zero then,
+the counter or the upsert is wrong, not the data.
+
+Deployed at `e35e78c` as of 2026-09-20 18:05 UTC, which is ahead of the code
+this pass ran: it adds the sitemap, ETag and URL-reuse fixes described in the
+architecture bug log. Those change what the next pass collects, so its numbers
+are not comparable with the table above.
+
 # Handoff - 2026-09-19
 
 Read this section first; everything below it is the state as of 2026-09-18 and
