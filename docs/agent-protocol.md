@@ -23,7 +23,7 @@ that prevents duplicate work, and it only works if it is current.
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
-| Agent synchronization and review protocol | Codex | in progress | Branch `codex/agent-sync-protocol`; base and last inspected main `a960195`; 2026-09-19; documentation only |
+| Agent synchronization and review protocol | Codex | ready for review, not merged | Branch `codex/agent-sync-protocol`; base and last inspected main `a960195`; 2026-09-19; documentation only |
 | `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
 | `jsearch_queries.toml` query plan and tiers | Codex | done, merged | 36 queries, intern/new_grad/early_career/A |
 | `jsearch_access.py` budget accounting | shared | done, merged | Codex's window counting, Claude's configuration |
@@ -37,6 +37,64 @@ that prevents duplicate work, and it only works if it is current.
 Claiming an area means writing your name in it before you write code. If the
 area you want is already claimed and you think the owner is wrong, say so to
 the user rather than building a second answer in silence.
+
+## Synchronization before conclusions
+
+Both agents follow this procedure for reviews as well as implementation.
+Fetching updates remote references; it does not update the working files.
+An old worktree remains old after a successful fetch.
+
+1. Run `git fetch origin`, `git status --short`, `git log HEAD..origin/main`,
+   and `git ls-remote --heads origin` before choosing work. Record the full
+   local HEAD and remote main SHA with `git rev-parse HEAD origin/main`.
+   Read the register, current handoff, architecture bug log, and relevant
+   commits on unmerged remote branches. If fetch fails, label the review as
+   based on a stale snapshot; do not claim it describes current remote code.
+2. Claim a bounded area with owner, branch, base SHA, last inspected main SHA,
+   date, status, and next action. Commit and push the claim on the agent's
+   branch before implementation so the other agent can discover it. A claim
+   only on an unmerged branch is not visible in main's register: inspect the
+   register changes on remote branches too. Git is not an exclusive lock.
+   Concurrent claims require comparison and an explicit division of work.
+3. Work in a dedicated worktree from the recorded base. Never update another
+   session's checkout or modify its uncommitted changes. When reviewing newer
+   code, use a clean worktree at its exact SHA and ensure tests import that
+   worktree's source rather than an editable install from an older checkout.
+4. Fetch again before changing code for a suspected bug, after an interruption
+   or user notice of new work, at least every 15 minutes during active work,
+   and immediately before publishing findings or proposing a merge. Compare
+   changes since the last inspected SHA, including relevant branch tips.
+   Read overlapping changes and rerun the reproducer on the newer version.
+   Do not silently carry a finding forward from the old base.
+5. If the other agent already fixed it, record the fixing SHA and test result;
+   close the duplicate or review the existing fix. If two fixes differ, state
+   the behavioral difference and test it before choosing. Preserve both
+   branches until the comparison is complete.
+6. Finish by pushing the work branch and updating its register entry with
+   results and the next action. Keep `ready for review`, `merged`, `deployed`,
+   and `verified in production` distinct. Name the exact tested SHA and the
+   last fetched main SHA in the handoff. The agent integrating the change
+   carries the register update into main and checks both sides first.
+
+## Evidence required for a finding
+
+Every finding must identify the inspected commit, file/function, trigger,
+expected versus actual behavior, and reproduction command or test. State its
+status explicitly: suspected, reproduced on a named commit, fixed on a named
+branch, merged, or verified in production. Include the last synchronization
+time and whether relevant remote branch changes were inspected.
+
+An offline fixture establishes behavior for that fixture. It does not establish
+production incidence, provider coverage, deployed version, or successful paid
+collection. An empty result or a zero counter is evidence to investigate, not
+proof of its cause. Check executable configuration before repeating numeric
+claims from a handoff. Keep historical snapshots intact and place corrections
+in a dated current section with the evidence that supersedes the old claim.
+
+Remote branches cannot reveal uncommitted work on another machine. Say that
+limit when relevant; do not describe a fetch as proof that no other work exists.
+Use the shared register and pushed branches for coordination. Do not send
+external messages or start another agent session without user authorization.
 
 ## Rules
 

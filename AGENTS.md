@@ -15,8 +15,12 @@ file is the shared rulebook for both; `CLAUDE.md` only points here.
 Overlapping work is therefore expected and is not waste. Losing one of the two
 answers is.
 
-- **Fetch before you plan, not before you push.** `git fetch origin main` in the
-  first minute, and check `git log HEAD..origin/main`. The other agent pushes
+- **Fetch before you plan and before reporting findings.** `git fetch origin` in the
+  first minute, check `git log HEAD..origin/main`, and inspect all remote branches
+  with `git ls-remote --heads origin`. Follow the synchronization procedure in
+  `docs/agent-protocol.md`, including published work claims and repeat checks.
+  Fetch does not update an old worktree: reproduce on the exact inspected SHA.
+  The other agent pushes
   small commits while you work, and a session that reads the repository once
   and then works for four hours is working from a snapshot that has since
   stopped being true. This has already cost a whole feature built twice.
