@@ -23,8 +23,8 @@ that prevents duplicate work, and it only works if it is current.
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
-| Review identity replay, score refresh, and seen durability audit | Codex | ready for review, not merged or deployed | Branch `codex/deep-debug`; base `d6dcc9d`, inspected main `a960195`; 2026-09-20 UTC; four reproduced defects fixed; 384 tests, 14 skipped; next: Claude review and integration |
-| Agent synchronization and review protocol | Codex | ready for review, not merged | Branch `codex/agent-sync-protocol`; base and last inspected main `a960195`; 2026-09-19; documentation only |
+| Review identity replay, score refresh, and seen durability audit | Codex, reviewed by Claude | merged | `1a03e63` merged into main; diffs read rather than rubber-stamped, 384 tests pass on the merged tree; next: deploy and confirm the live queue is unchanged in shape |
+| Agent synchronization and review protocol | Codex | merged | Came in with `1a03e63`; its ancestor `d6dcc9d` carried the documentation |
 | `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
 | `jsearch_queries.toml` query plan and tiers | Codex | done, merged | 36 queries, intern/new_grad/early_career/A |
 | `jsearch_access.py` budget accounting | shared | done, merged | Codex's window counting, Claude's configuration |
