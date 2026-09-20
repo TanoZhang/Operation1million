@@ -29,7 +29,9 @@ that prevents duplicate work, and it only works if it is current.
 | `ranking.py`, review bands and ordering | Claude | done, merged | |
 | `evidence_title_patterns`, hard-reject audit | Claude | done, merged | |
 | `docs/architecture.md` and the bug log | Claude | done, merged | Keep current with every change |
-| VPS deployment and `--rescore` | unassigned | **pending** | Blocked until the VPS checkout is reconciled |
+| VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
+| Verifying the new query strings return results | unassigned | **pending** | First real test is the 2026-09-20 11:38 UTC pass |
+| Confirming seen deduplication works | unassigned | **pending** | `seen_existing` has been 0 on every pass so far |
 
 Claiming an area means writing your name in it before you write code. If the
 area you want is already claimed and you think the owner is wrong, say so to

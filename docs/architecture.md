@@ -98,6 +98,45 @@ collection history, not the working state.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### A literal date in a test was a fuse that stopped the whole pass
+
+A log day seals as soon as the clock passes it, so a hardcoded date in a test
+that writes a log row runs green until that day ends and fails forever after.
+Because `daily-pass.sh` runs the suite before collecting, and runs it under
+`set -e`, a failing test does not just fail: it stops the pass from collecting
+anything at all.
+
+It has now fired twice. First on 2026-09-19 at 00:42 UTC, thirty-eight tests at
+once, which was fixed by deriving `STAMP` from the current day. The fix missed
+two literals inside a single test that needed successive days, and those fired
+on 2026-09-20 at 00:00 UTC for the same reason -- found by chance, several
+hours before the pass would have died on it.
+
+Days after today are never sealed whatever day today is, so the successive days
+are relative too, and they live beside `STAMP` rather than inline. Any date
+used as a log stamp belongs there. Dates passed to a stubbed clock or to an
+explicit `today=` are a different thing and are fine as literals: those are
+deterministic replays, and most of the dates in the suite are exactly that.
+
+### Experienced-only postings were reaching the queue
+
+Nothing read the years of experience a posting asked for, so roles requiring
+five years sat beside internships. `experience.py` parses required experience
+deterministically -- no model, no API -- and hard-passes anything above two
+years. It reads only required experience, ignores preferred and nice-to-have,
+takes the minimum of a range, follows the Master's path where a posting states
+a degree equivalency, and refuses to be fooled by "5-year roadmap". An explicit
+intern or new-grad title overrides it entirely; `early career`, `entry level`,
+`junior` and `associate` deliberately do not.
+
+### The query plan asked for roles, not for the early career
+
+Separate from the tier ordering below: the plan itself was 52 narrow role
+queries of which only 11 named an internship. It is now 36 across four tiers
+-- intern, new_grad, early_career, A -- with 27 naming early career explicitly
+and broader A-tier phrases covering more ground per credit. The query strings
+themselves are still unverified; see the handoff.
+
 ### The daily budget reset at a time nothing observed
 
 The page-credit day was a UTC calendar day, while the pass is scheduled at

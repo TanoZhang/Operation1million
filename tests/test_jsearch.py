@@ -10,7 +10,7 @@ import threading
 import unittest
 from contextlib import closing
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -30,6 +30,13 @@ SEARCH = {'endpoint_template': 'https://api.openwebninja.com/jsearch/search-v2',
 # the suite before collecting it would have failed every pass from then on.
 # Whatever day it is when the suite runs is the day these tests write to.
 STAMP = store.now()[:10] + 'T01:00:00+00:00'
+# The same fuse, one test deeper. A test needing successive days had them as
+# literals, which survived the fix above and fired on 2026-09-20 at 00:00 UTC
+# for exactly the same reason. Days after today are never sealed, whatever day
+# today is, so these are relative too. Anything written as a log stamp belongs
+# here rather than inline.
+NEXT_DAY = (datetime.fromisoformat(STAMP) + timedelta(days=1)).isoformat()
+DAY_AFTER_NEXT = (datetime.fromisoformat(STAMP) + timedelta(days=2)).isoformat()
 
 
 class SuiteClockTests(unittest.TestCase):
@@ -385,14 +392,14 @@ class DiscoveryTests(unittest.TestCase):
         self.collect(self.plan[:1])
         store.write_manifest(self.db, STAMP, [])
         store.export_state(self.db)
-        later = '2026-09-19T01:00:00+00:00'
+        later = NEXT_DAY
         query = self.plan[0]
         source = Source(query.key, 'discovery', 'discovery', query.query, 'jsearch', '', {})
         row = jsearch.normalize_job(job(job_description='Updated full description'), query, {})
         delta = store.record_source(self.db, source, [row], 'query_limited', 'full', 1, stamp=later)
         store.append_log(self.db, delta['changed_urls'], [], later, source_id=source.source_id)
         store.write_manifest(self.db, later, [])
-        final = '2026-09-20T01:00:00+00:00'
+        final = DAY_AFTER_NEXT
         delta = store.record_source(self.db, source, [row], 'query_limited', 'full', 1, stamp=final)
         store.append_log(self.db, [], [], final, seen_urls=delta['seen_urls'], source_id=source.source_id)
         store.write_manifest(self.db, final, [])

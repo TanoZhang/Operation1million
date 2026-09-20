@@ -1,3 +1,103 @@
+# Handoff - 2026-09-19
+
+Read this section first; everything below it is the state as of 2026-09-18 and
+is kept for the reasoning, not for the numbers.
+
+Start with [docs/architecture.md](architecture.md) for what owns what and the
+log of bugs already settled, and [docs/agent-protocol.md](agent-protocol.md)
+for the work register, because two agents work this repository and neither can
+see the other.
+
+## What is deployed right now
+
+| | |
+| --- | --- |
+| VPS code | `5937594`, installed 2026-09-19 23:05 UTC |
+| Review service | restarted at install, serving the new ranking |
+| Job index | 41,073 postings rescored under the current rules, 0 unscored |
+| Next scheduled pass | 2026-09-20 11:38 UTC |
+
+The live review queue, measured after deployment:
+
+| Band | Groups |
+| --- | ---: |
+| Intern / New Grad (core and adjacent) | 389 |
+| Core VLSI | 2,313 |
+| Related Hardware | 2,337 |
+| Other | 14,232 |
+| **Total pending** | **19,271** |
+
+The first page of 75 is entirely early-career, newest first. One posting
+carries the `Adjacent` mark, meaning it was admitted on its description rather
+than its title.
+
+## What changed on 2026-09-19
+
+Both agents worked this day and reached several of the same places
+independently; `git log` between `0ec4732` and `5937594` is the full record,
+and the merge commit `35fcffa` explains which half of each overlap was taken
+and why. In summary:
+
+- **The internship queries had never once been sent.** Across every pass the
+  plan had run, 144 page credits were spent and all 144 went to tier A. The
+  query plan is now 36 queries across four tiers -- intern, new_grad,
+  early_career, A -- with 27 of them naming early career explicitly, and the
+  early-career tiers are asked first.
+- **The daily budget reset at a time nothing observed.** It was a UTC calendar
+  day against a pass scheduled at 04:38 Pacific, so anything run on a Pacific
+  evening spent the next morning's credits. Measured: a catch-up run took 296
+  of 320 and the scheduled pass got 24. The budget day now runs from one pass
+  to the next, configured beside the budget and pinned to the timer by a test.
+- **Hard rejects were killing postings for one word.** `device`, `software` and
+  `RF` are now explicit phrases or evidence-gated rather than bare words.
+- **The queue was ordered by relevance alone**, which cannot see an internship
+  or a posting's date. `ranking.py` now bands first and dates second.
+- **A deterministic required-experience gate** rejects experienced-only
+  postings without an LLM, with intern and new-grad titles overriding it.
+- **Decisions were scoped too widely**, and seen rows were lost when a query
+  did not finish. Both fixed; see the log in `architecture.md`.
+
+## What is not yet known
+
+These are the things a next session should look at, in order.
+
+1. **The new query strings have never been run.** `ASIC New Grad`, `RTL Early
+   Career` and the fifteen like them are a reasonable guess about what
+   employers write, and nothing more. The 2026-09-20 pass is the first test of
+   them. If a tier comes back empty, that is why. `docs/collection-rules.md`
+   describes how to test one keyword for a single credit.
+2. **Seen deduplication is unproven.** `seen_existing` has been 0 on every pass
+   so far, meaning no pass has yet re-seen a posting. Tomorrow's pass is the
+   first that could.
+3. **The backlog view is untested in production**, because every open posting
+   still has a `first_seen` inside the three-day window; the index was
+   bootstrapped recently.
+4. **No per-tier depth cap remains.** `tier_pages` was removed in favour of
+   per-query caps. In the current `date_posted = "3days"` regime queries
+   exhaust after a page or two, so nothing binds -- but if a query ever pages
+   deeply, one tier can take the day, which is the failure the tier caps used
+   to prevent.
+5. **A pass has never run with a full budget and the current code.** Every pass
+   so far was budget-starved by manual runs earlier the same UTC day.
+
+## Handing off
+
+Before starting: `git fetch origin`, then `git log HEAD..origin/main` **and**
+`git ls-remote --heads origin`. Work is routinely parked on a branch and is
+invisible to a check of `main` alone. Claim your area in the register in
+`docs/agent-protocol.md` before writing code.
+
+Never commit in `/opt/jobdisco/code`. It is the production checkout the
+scheduled pass runs from, and committing there once left two commits on a
+single disk and broke `install.sh`.
+
+To deploy: push to `main`, then
+
+    ssh <vps> sudo -n bash /opt/jobdisco/code/deploy/vps/install.sh
+
+It prints the installed commit; if that is not what you just pushed, the update
+did not happen whatever else it said. A push alone deploys nothing.
+
 # Handoff - 2026-09-18
 
 State after the hosted baseline and incremental collection were made durable.
