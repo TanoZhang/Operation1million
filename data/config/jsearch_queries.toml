@@ -301,31 +301,27 @@ tier = "new_grad"
 pages = 4
 
 [[query]]
-query = "Design Verification Early Career"
+query = "Design Verification Entry Level"
 tier = "early_career"
-pages = 12
+pages = 16
 [[query]]
-query = "RTL Early Career"
+query = "ASIC Entry Level"
 tier = "early_career"
-pages = 11
+pages = 15
 [[query]]
-query = "ASIC Early Career"
-tier = "early_career"
-pages = 11
-[[query]]
-query = "Digital Design Early Career"
+query = "Digital Design Entry Level"
 tier = "early_career"
 pages = 10
 [[query]]
-query = "FPGA Early Career"
+query = "FPGA Entry Level"
 tier = "early_career"
-pages = 10
+pages = 13
 [[query]]
-query = "Hardware Early Career"
+query = "Hardware Entry Level"
 tier = "early_career"
 pages = 9
 [[query]]
-query = "Silicon Early Career"
+query = "Silicon Entry Level"
 tier = "early_career"
 pages = 7
 

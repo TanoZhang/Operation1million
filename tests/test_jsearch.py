@@ -176,7 +176,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 36)
+        self.assertEqual(len(self.plan), 35)
         self.assertEqual(self.settings['monthly_target'], 9600)
         self.assertEqual(self.settings['daily_budget'], 320)
         # 320 a day for 30 days is exactly the month's target, and the anchor is
@@ -213,11 +213,15 @@ class DiscoveryTests(unittest.TestCase):
                 'FPGA New Grad': 10, 'SoC New Grad': 9, 'Silicon New Grad': 9,
                 'Hardware New Grad': 8, 'Physical Design New Grad': 5,
                 'DFT New Grad': 4},
+            # Measured, not guessed: "Early Career" as a search phrase returned
+            # 15 postings across all seven queries and one of them survived the
+            # filter. "Entry Level" returns eight to ten a page on the same
+            # roles. RTL is absent because it returns nothing under either
+            # phrasing, and is already asked as an intern and a new grad.
             'early_career': {
-                'Design Verification Early Career': 12, 'RTL Early Career': 11,
-                'ASIC Early Career': 11, 'Digital Design Early Career': 10,
-                'FPGA Early Career': 10, 'Hardware Early Career': 9,
-                'Silicon Early Career': 7},
+                'Design Verification Entry Level': 16, 'ASIC Entry Level': 15,
+                'FPGA Entry Level': 13, 'Digital Design Entry Level': 10,
+                'Hardware Entry Level': 9, 'Silicon Entry Level': 7},
             'A': {
                 'Design Verification Engineer': 10, 'RTL Engineer': 9,
                 'ASIC Engineer': 9, 'Digital Design Engineer': 8,
@@ -231,9 +235,9 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_more_queries_than_credits_refused_before_transport(self):
         """The tail of an oversized plan would be unreachable every day."""
-        jsearch.validate_budget(self.plan, 36)
+        jsearch.validate_budget(self.plan, 35)
         with self.assertRaises(ValueError):
-            jsearch.validate_budget(self.plan, 35)
+            jsearch.validate_budget(self.plan, 34)
         self.session.get.assert_not_called()
 
     def test_invalid_page_allocation_rejected(self):
@@ -420,7 +424,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview['queries_planned'], 36)
+        self.assertEqual(preview['queries_planned'], 35)
         self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
@@ -1210,7 +1214,7 @@ class DiscoveryTests(unittest.TestCase):
             for i in range(10)])
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
-        self.assertEqual(len(plan), 36)
+        self.assertEqual(len(plan), 35)
         # The budget is never exceeded, whatever the caps add up to.
         self.assertLessEqual(guard.credits, settings['daily_budget'])
         self.assertEqual(stats['jsearch_pages_used'], guard.credits)
@@ -1261,7 +1265,7 @@ class DiscoveryTests(unittest.TestCase):
         # rebuilds from and what the commit step refuses to publish without.
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest['jsearch_queries_planned'], 36)
+        self.assertEqual(manifest['jsearch_queries_planned'], 35)
         self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
         self.assertEqual(manifest['jsearch_failures'], 0)
         # Paid results reached the store, and every one of them carries a score.

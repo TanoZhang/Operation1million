@@ -177,6 +177,41 @@ The synthetic replacement fixture reproduced the missing pending row on
 legacy events keep their fallback, with append order resolving later decisions.
 Tests cover replacement visibility, legacy reopen, and independent history.
 
+### A whole query tier was searching for a phrase employers do not write
+
+The plan asked seven queries of the form `<role> Early Career`. Nobody had ever
+sent one: the tier had never been reached under the old ordering, and after the
+ordering was fixed it was due to run for the first time on 2026-09-20.
+
+Measured first, one page and one credit each, `--no-store`, window `week`:
+
+| Query | Returned | Survived the filter |
+| --- | ---: | ---: |
+| `Hardware Early Career` | 6 | 1 |
+| `ASIC Early Career` | 3 | 0 |
+| `FPGA Early Career` | 3 | 0 |
+| `Design Verification Early Career` | 2 | 0 |
+| `Silicon Early Career` | 1 | 0 |
+| `RTL Early Career` | 0 | 0 |
+| `Digital Design Early Career` | 0 | 0 |
+
+Seven credits a pass for one usable posting. The same roles asked as `Entry
+Level` return a near-full page each: `Design Verification Entry Level` 10 and
+four survivors, `FPGA Entry Level` 9 and two, `ASIC Entry Level` 8 and three.
+For comparison `ASIC Intern` returns 10 of 10 and `ASIC New Grad` 10 of 7, so
+the provider matches these phrases against posting text and "Early Career" is
+simply not what employers write.
+
+The tier now asks `Entry Level`. `RTL` is dropped from it, being the one role
+that returns nothing under either phrasing -- it is already asked as an intern
+and as a new grad -- and its eleven page credits went to the three queries that
+measured best, keeping the plan's caps at exactly the daily budget.
+
+What this does not establish: the window tested was `week` and the pass runs
+`3days`, so these counts are an upper bound on what a pass will see. It is a
+lower bound on nothing -- a query returning zero over a week returns zero over
+three days.
+
 ### A literal date in a test was a fuse that stopped the whole pass
 
 A log day seals as soon as the clock passes it, so a hardcoded date in a test

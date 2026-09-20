@@ -32,7 +32,7 @@ that prevents duplicate work, and it only works if it is current.
 | `evidence_title_patterns`, hard-reject audit | Claude | done, merged | |
 | `docs/architecture.md` and the bug log | Claude | done, merged | Keep current with every change |
 | VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
-| Verifying the new query strings return results | unassigned | **pending** | First real test is the 2026-09-20 11:38 UTC pass |
+| Verifying the new query strings return results | Claude | done, measured | 14 credits, one page each, `--no-store`: the whole `early_career` tier returned 15 postings and one survivor, so it now asks `Entry Level`. Intern and new_grad phrasings verified good. See the bug log |
 | Confirming seen deduplication works | Codex (offline); production unassigned | offline verified; production pending | `codex/deep-debug` checks two passes separated by fresh-database recovery; second pass has 0 new / 1 existing; production counter remains unverified |
 
 Claiming an area means writing your name in it before you write code. If the
