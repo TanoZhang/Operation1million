@@ -8,7 +8,10 @@ import gzip
 import json
 import sqlite3
 import ast
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 import re
 import subprocess
 import sys
@@ -264,6 +267,10 @@ class StoreTests(unittest.TestCase):
                 for name in names:
                     top = name.split('.')[0]
                     if top in sys.stdlib_module_names or top == 'jobdisco':
+                        continue
+                    # Python 3.10 uses the declared tomli fallback; tomllib is
+                    # standard-library code on the newer supported runtimes.
+                    if top == 'tomllib' and 'tomli' in declared:
                         continue
                     if top.lower() not in declared:
                         outside.setdefault(top, set()).add(path.name)
@@ -698,6 +705,11 @@ class LogRoundTripTests(unittest.TestCase):
 
 
 class EarlyStopTests(unittest.TestCase):
+    def setUp(self):
+        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots.start()
+        self.addCleanup(robots.stop)
+
     def collector(self, source, strategy, watermark):
         args = Namespace(max_jobs=1000, max_pages=10, delay=0, timeout=1, retries=0,
                          source_state=Path(tempfile.gettempdir()) / 'unused_pauses.sqlite')
@@ -855,6 +867,11 @@ class EmptyBoardTests(unittest.TestCase):
     a blank first page must not claim it on its own: that is also what a board
     looks like mid-deploy, or after a schema change we failed to parse.
     """
+
+    def setUp(self):
+        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots.start()
+        self.addCleanup(robots.stop)
 
     def collector(self, provider='greenhouse', url='https://boards-api.greenhouse.io/v1/boards/x/jobs'):
         args = Namespace(max_jobs=1000, max_pages=5, delay=0, timeout=1, retries=0,

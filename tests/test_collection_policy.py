@@ -17,6 +17,9 @@ from jobdisco.validate_sources import validate
 
 class CollectionPolicyTests(unittest.TestCase):
     def setUp(self):
+        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots.start()
+        self.addCleanup(robots.stop)
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.args = argparse.Namespace(

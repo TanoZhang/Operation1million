@@ -127,6 +127,29 @@ window by rule or to stop producing untimestamped credits at all.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Validator catalog reads did not close their SQLite connection
+
+On main `9843350`, `validate_sources.load_sources` returned ordinary source
+records without explicitly closing its connection, including when malformed
+catalog JSON raised. An offline SQLite fixture retained the connection after
+both paths; the cleanup regression failed on each. The reader now uses
+`contextlib.closing`, and both paths close deterministically. Its duplicate
+catalog queries share one template while preserving table order, enabled-row
+filtering, source fields, and provider/company sorting. Duplicate JSON-provider
+branches and unused imports were also removed; no provider support was removed.
+
+The same cleanup audit reproduced test-runner compatibility failures on Python
+3.10 and Windows: `test_store` imported Python 3.11's `tomllib` unconditionally,
+and heartbeat shell tests selected the WSL launcher from PATH. Tests now use
+the existing `tomli` compatibility dependency and Git Bash on Windows, matching
+the publication tests. Production collection and heartbeat behavior are unchanged.
+Concurrent audit branch `659ea0f` independently made these compatibility fixes.
+Its heartbeat fixture also quotes paths with spaces, so that version was adopted,
+along with its missing robots.txt stubs for offline collector fixtures. The
+dependency audit here additionally requires declared `tomli` before accepting
+`tomllib` on Python 3.10. Existing score-log and ranking helpers remain supported;
+absence of a production caller alone does not make them obsolete.
+
 ### Seen recovery depended on the VPS wrapper
 
 The collector committed seen rows to disposable SQLite but did not export the
