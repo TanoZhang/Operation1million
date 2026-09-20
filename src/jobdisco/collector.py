@@ -442,14 +442,28 @@ class Collector:
                 urls.append((loc, mod))
         # Every advertised URL is still live even where the detail fetch is skipped.
         self.listed = {u for u, _ in urls}
+        advertised = len(urls)
         if self.strategy == 'lastmod' and self.watermark:
-            # A page whose lastmod predates our last complete pass cannot have
-            # changed; entries without a lastmod are always refetched.
-            urls = [(u, m) for u, m in urls if not m or m > self.watermark]
-        # A posting already stored costs a request to re-read and rarely changes,
-        # so spend requests only on ones we have never fetched.
-        skipped = sum(1 for u, _ in urls if u in self.known)
-        urls = [(u, m) for u, m in urls if u not in self.known]
+            # Only known, unchanged postings may skip their detail request.
+            # An old publication date does not make an unseen URL known, and a
+            # known URL with newer or missing lastmod still needs refreshing.
+            def unchanged(lastmod):
+                try:
+                    modified = datetime.fromisoformat((lastmod or '').replace('Z', '+00:00'))
+                    checkpoint = datetime.fromisoformat(self.watermark.replace('Z', '+00:00'))
+                except ValueError:
+                    return False
+                # Date-only and unzoned values cannot establish an exact order.
+                # Comparing ISO strings also reverses order across UTC offsets.
+                return (modified.tzinfo is not None and checkpoint.tzinfo is not None
+                        and modified <= checkpoint)
+
+            urls = [(u, m) for u, m in urls if u not in self.known or not unchanged(m)]
+        elif self.source.provider_key not in store.LASTMOD_SITEMAP:
+            urls = [(u, m) for u, m in urls if u not in self.known]
+        # A full/recovery pass on a lastmod board has no trusted checkpoint:
+        # refetch its known rows too, rather than hiding interrupted updates.
+        skipped = advertised - len(urls)
         errors = []
         for url, lastmod in urls[:self.args.max_jobs]:
             try:

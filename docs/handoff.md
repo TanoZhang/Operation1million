@@ -1,3 +1,27 @@
+# Incremental recovery follow-up - 2026-09-20 UTC
+
+Claude reviewed and merged the preceding four fixes in `7a4dd93`. Codex's next
+pass on `codex/deep-debug` imports that register update and adds three inventory
+fixes, still pending review and deployment:
+
+- Sitemap updates, undated known jobs and old unseen URLs are fetched correctly;
+  lastmod comparisons use instants rather than lexicographic order.
+- Incomplete or closure-fused passes retain trusted validators and require a
+  full recovery pass instead of accepting a potentially misleading 304.
+- Relisted closed jobs reopen without a detail fetch and survive log replay;
+  unrelated providers and stale identity aliases remain closed.
+
+The defects were reproduced against the source at `1a03e63`; Claude's intervening
+commit changes only the work register, not these code paths. See the newest
+architecture bug-log entries for failed fixtures and corrected behavior.
+No paid collection, live endpoint probes or production writes were performed.
+Validation: the full offline suite ran 390 tests with no failures and 14
+environment-dependent skips. The 65 store tests include fresh replay,
+cross-provider isolation, stale identity aliases and timestamp offsets.
+Full recovery on lastmod boards can fetch more known details; existing request
+intervals, cooldowns and job caps still apply.
+Keep the earlier sections below as snapshots of what was known at each handoff.
+
 # Debug follow-up - 2026-09-19 Pacific (2026-09-20 UTC)
 
 Codex's offline audit is on `codex/deep-debug`, based on main `a960195` plus

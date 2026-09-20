@@ -100,11 +100,59 @@ collection history, not the working state.
 - **A cached score belongs to unchanged content.** A title or retained payload
   change recalculates it without trusting an old score embedded in raw. A rules
   change alone still requires `job-store --rescore` for unchanged postings.
+- **An HTTP validator is a completion checkpoint.** Partial or failed inventory
+  must not install a new ETag or Last-Modified value; retry it with a full pass.
+- **Sitemap age is not identity.** Skip details only for known, unchanged rows
+  on a lastmod board. Compare timestamp instants, not their ISO strings. A listed
+  closed row reopens within its source, unless it is an alias of another identity.
 
 ## Bugs found and fixed
 
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
+
+### Sitemap incrementality skipped both updates and unseen old postings
+
+`collect_sitemap` first dropped every old lastmod, including URLs never collected,
+then dropped every known URL, including newly modified and undated ones. On
+`1a03e63`, a fixture with one unchanged known URL, one changed known URL, one
+undated known URL and one old unseen URL requested zero details instead of three.
+String comparison also reversed chronology for timestamps with different offsets
+and could discard malformed dates as old.
+
+Selection now skips only known entries whose explicit timezone-aware lastmod is
+at or before the checkpoint. Missing, unzoned or invalid dates are refetched;
+unseen URLs are fetched regardless of age. A full recovery pass on a lastmod
+board refreshes known details too. Offline tests verify the three required
+fetches, timezone ordering, invalid dates and full recovery. No live endpoint
+was queried to establish this result.
+
+### Incomplete inventories could install a validator that hid their missing rows
+
+`record_source` retained a new ETag and Last-Modified even when a pass was
+partial, failed, paused or downgraded by the closure fuse. With an earlier
+success still present, `plan` could reuse that new ETag, allowing a 304 to skip
+the unfinished inventory on the next run.
+
+An offline fixture on `1a03e63` established a complete baseline with validator
+`old`, then supplied `incomplete` with each of those statuses. All four replaced
+the trusted validator. Validators now advance only on effective completion;
+incomplete states select a full recovery pass, including states written before
+this fix. Tests also confirm a later complete pass can install its new validator.
+
+### Relisted postings stayed closed when their details were skipped
+
+The store refreshed only last_seen for listed-but-not-downloaded URLs. After a
+posting closed, reappearing in a sitemap therefore left it closed forever when
+the collector reused its cached detail. Compact seen events also cannot clear
+closed_at during replay.
+
+An offline four-posting inventory on `1a03e63` closed one row within the 25%
+fuse, then listed all four without fetching details: only three remained open.
+The store now reopens listed rows in that company/provider and logs a full job
+event. A fresh replay restores four open rows with the original first_seen.
+Regression coverage prevents reopening search-only records or stale identity
+aliases, including on the following pass when no details are fetched.
 
 ### Seen recovery depended on the VPS wrapper
 

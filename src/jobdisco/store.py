@@ -172,7 +172,10 @@ def plan(source, state):
     first run does for every board.
     """
     row = state.get(source.source_id) or {}
-    if not row.get('last_success_at'):
+    if (not row.get('last_success_at')
+            or row.get('last_status') not in (None, 'complete', 'unchanged')):
+        # Retry incomplete work before allowing an older checkpoint to skip it.
+        # This also recovers state written before partial validators were gated.
         return 'full', None
     if row.get('etag'):
         return 'conditional', row['etag']
@@ -365,6 +368,22 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     # Postings the board still lists but this pass skipped fetching are alive.
     for start in range(0, len(live - seen), 400):
         chunk = sorted(live - seen)[start:start + 400]
+        # A listed URL is positive evidence that this source's posting is open,
+        # even if its unchanged detail was skipped. Log a full job event when
+        # reopening; a compact seen event only restores last_seen on replay.
+        reopened = [r[0] for r in db.execute(
+            '''SELECT j.url FROM jobs j WHERE j.company_key=? AND j.provider_key=?
+               AND j.closed_at IS NOT NULL AND j.url IN (%s)
+               AND NOT EXISTS (
+                   SELECT 1 FROM job_identities i WHERE i.provider_key=j.provider_key
+                   AND i.scope=CASE WHEN j.provider_key='jsearch' THEN '' ELSE j.company_key END
+                   AND i.source_job_id=j.source_job_id AND i.url<>j.url)'''
+            % ','.join('?' * len(chunk)),
+            [source.company_key, source.provider_key, *chunk])
+            if r[0] not in identity_duplicates]
+        if reopened:
+            db.executemany('UPDATE jobs SET closed_at=NULL WHERE url=?', [(u,) for u in reopened])
+            changed.extend(reopened)
         db.execute(
             'UPDATE jobs SET last_seen=? WHERE url IN (%s)' % ','.join('?' * len(chunk)),
             [stamp, *chunk])
@@ -393,6 +412,10 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                     AND url NOT IN ({placeholders})''',
                 [stamp, source.company_key, source.provider_key, *live])
     closed = len(closed_urls)
+    # A validator is a checkpoint too. Accepting one from an incomplete pass
+    # can make the next request return 304 for data we never finished storing.
+    if effective_status != 'complete':
+        etag = last_modified = None
     db.execute(
         '''INSERT INTO source_state (source_id, company_key, provider_key, etag,
                last_modified, last_success_at, last_run_at, last_status, strategy,
