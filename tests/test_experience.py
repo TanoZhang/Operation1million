@@ -2,6 +2,7 @@
 import unittest
 
 from jobdisco import jsearch
+from jobdisco import experience
 from jobdisco.experience import evaluate
 
 
@@ -88,3 +89,60 @@ class ExperienceTests(unittest.TestCase):
         for title in ('HR Business Partner, Hardware', 'HR Intern', 'Human Resources Specialist'):
             self.assertEqual(jsearch.rejection_reason({'title': title, 'raw': {}}, rules), 'excluded')
         self.assertEqual(jsearch.rejection_reason({'title': 'RTL Engineer', 'raw': {'description': 'Contact HR for details.'}}, rules), '')
+
+
+class MentionedPeopleTests(unittest.TestCase):
+    """A posting that talks about interns is not thereby an internship."""
+
+    def senior(self, body):
+        return experience.evaluate('Staff RTL Design Engineer', body)
+
+    def test_supervising_an_intern_is_seniority_not_an_override(self):
+        for body in ('You will mentor our interns. 8+ years of experience required.',
+                     'Responsibilities include managing the internship program. '
+                     '10 years of experience required.',
+                     'Leading interns and new grads on the team. '
+                     'Minimum 6 years of industry experience.',
+                     'You will be training new graduates. 5 years experience required.'):
+            with self.subTest(body=body[:40]):
+                found = self.senior(body)
+                self.assertFalse(found['entry_override'], body)
+                self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_the_posting_describing_itself_still_overrides(self):
+        for title, body in (
+                ('ASIC Engineer Intern', 'Requirements: 5+ years of experience.'),
+                ('Silicon Engineer', 'This internship runs for 12 weeks. '
+                                     '4 years of experience required.'),
+                ('Hardware Engineer', 'We are hiring a new graduate for this role. '
+                                      'Minimum 5 years of experience.')):
+            with self.subTest(title=title):
+                found = experience.evaluate(title, body)
+                self.assertTrue(found['entry_override'])
+                self.assertEqual(found['hard_pass_reason'], '')
+
+
+class UpperBoundTests(unittest.TestCase):
+    """A ceiling or a denial is not a floor."""
+
+    def test_a_maximum_is_not_a_minimum(self):
+        for body in ('Requirements: fewer than 3 years of experience.',
+                     'Required: no more than 5 years of industry experience.',
+                     'Requirements: less than 4 years of professional experience.',
+                     'Requirements: under 5 years of experience.',
+                     'Requirements: up to 6 years of experience.',
+                     'Requirements: no 3 years of professional experience needed.',
+                     'Requirements: at most 4 years of experience.'):
+            with self.subTest(body=body):
+                found = experience.evaluate('ASIC Design Engineer', body)
+                self.assertEqual(found['hard_pass_reason'], '', body)
+
+    def test_a_real_floor_is_still_a_floor(self):
+        for body in ('Requirements: at least 3 years of experience.',
+                     'Minimum 4 years of ASIC design experience.',
+                     'Requirements: 3-5 years of RTL experience.',
+                     'Requirements: 3+ years professional experience.'):
+            with self.subTest(body=body):
+                found = experience.evaluate('ASIC Design Engineer', body)
+                self.assertEqual(found['hard_pass_reason'],
+                                 'required_experience_over_2_years', body)

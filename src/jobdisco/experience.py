@@ -11,6 +11,37 @@ YEARS = re.compile(r'(?<![\w.])' + NUMBER + r'\s+years?\b', re.I)
 SHORT_DEGREE = re.compile(r'\b(?P<degree>BS|MS)\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
 EXPERIENCE = re.compile(r'\b(?:experience|professional|industry)\b', re.I)
 NON_WORK = re.compile(r'^\s*[- ]?\s*(?:roadmap|degree|program(?:me)?|course|plan)\b', re.I)
+# Someone the posting supervises, not the posting itself. A role senior enough
+# to mentor an intern is the opposite of an entry-level opening, and reading
+# "you will mentor our interns" as an internship let such a posting skip the
+# experience gate entirely.
+SUPERVISES = re.compile(
+    r'\b(?:mentor|supervis|manage|managing|lead|leading|coach|guid|train|'
+    r'onboard|oversee|overseeing|support|collaborat|work)\w*\s+'
+    r'(?:\w+\s+){0,3}$', re.I)
+# An upper bound or a denial is not a minimum. "Fewer than three years" and
+# "no more than 5 years" describe who may apply, not what they must already
+# have, and reading the number as a floor rejected the postings that said it.
+NOT_A_MINIMUM = re.compile(
+    r'\b(?:no|not|without|less\s+than|fewer\s+than|under|up\s+to|at\s+most|'
+    r'maximum\s+of|max\.?)\s+(?:\w+\s+){0,2}$', re.I)
+
+
+def entry_level(title, text):
+    """Whether the posting is an entry-level opening, not one that mentions one.
+
+    The title is taken at its word. In the body the same nouns routinely
+    describe other people, so a mention governed by a supervising verb is read
+    as what it is: evidence of seniority, not of an internship.
+    """
+    if ENTRY.search(title or ''):
+        return True
+    for match in ENTRY.finditer(text or ''):
+        sentence = (text[:match.start()].rsplit('.', 1)[-1]
+                    .rsplit('\n', 1)[-1].rsplit(';', 1)[-1])
+        if not SUPERVISES.search(sentence):
+            return True
+    return False
 
 
 def evaluate(title, description):
@@ -23,7 +54,7 @@ def evaluate(title, description):
     text = html.unescape(description or '')
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)
     text = re.sub(r'<[^>]*>', '\n', text)
-    debug = dict(entry_override=bool(ENTRY.search((title or '') + '\n' + text)),
+    debug = dict(entry_override=entry_level(title, text),
                  required_experience_years=None, effective_experience_years=None,
                  matched_text=[], hard_pass_reason='')
     optional_section = False
@@ -64,7 +95,7 @@ def evaluate(title, description):
             matches = list(YEARS.finditer(clause))
             for match in matches:
                 before, after = clause[:match.start()], clause[match.end():]
-                if NON_WORK.search(after):
+                if NON_WORK.search(after) or NOT_A_MINIMUM.search(before):
                     continue
                 standalone = YEARS.fullmatch(clause.strip())
                 if not (EXPERIENCE.search(clause) or REQUIRED.search(clause) or DEGREE.search(before) or standalone):

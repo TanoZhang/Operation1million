@@ -360,7 +360,7 @@ def employer_excluded(row, rules):
     return bool(combined and combined.search(str(employer)))
 
 
-def relevance(row, rules):
+def relevance(row, rules, description=None):
     """Score how much of the trade's vocabulary a posting uses, from 0 to 100.
 
     Terms only add. Nothing is deducted for a term being absent, so a tersely
@@ -378,7 +378,7 @@ def relevance(row, rules):
         # that reads the stored number without re-applying the rules. Answered
         # from the title alone, before the rest of the posting is even read.
         return 0, []
-    description = description_text(row)
+    description = description_text(row) if description is None else description
     strong_weight = rules.get('strong_weight', 3)
     common_weight = rules.get('common_weight', 1)
     multiplier = rules.get('title_multiplier', 2)
@@ -488,6 +488,18 @@ def rejection_reason(row, rules):
         return 'excluded_employer'
     if excluded(title, rules):
         return 'excluded'
+    # Walking a posting's payload is the expensive part of judging it, and this
+    # function asked for the same text up to four times -- three here and once
+    # more inside `relevance`. Read once, pass it down. Identical output; the
+    # only thing that changes is how often the same walk happens.
+    prose = None
+
+    def description():
+        nonlocal prose
+        if prose is None:
+            prose = description_text(row)
+        return prose
+
     experience = experience_debug(row)
     if isinstance(row.get('raw'), dict):
         row['raw']['experience_filter'] = experience
@@ -498,17 +510,18 @@ def rejection_reason(row, rules):
     # otherwise skip the check it exists for. A posting that really is the trade
     # says so in its description and passes here anyway.
     if needs_evidence(title, rules):
-        if not description_text(row):
+        if not description():
             return ''
-        return '' if relevance(row, rules)[0] >= rules.get('min_confidence', 25) else 'no_evidence'
+        return ('' if relevance(row, rules, description())[0] >= rules.get('min_confidence', 25)
+                else 'no_evidence')
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):
         return ''
     if any(re.search(p, title, re.I) for p in rules.get('reject_title_patterns', [])):
         return 'title_mismatch'
-    if relevance(row, rules)[0] >= rules.get('min_confidence', 25):
+    if relevance(row, rules, description())[0] >= rules.get('min_confidence', 25):
         return ''
     # A truncated description is not silence; it is a publisher's excerpt.
-    if len(description_text(row)) < rules.get('min_description_chars', 1500):
+    if len(description()) < rules.get('min_description_chars', 1500):
         return ''
     return 'off_domain'
 

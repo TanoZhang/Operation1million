@@ -189,6 +189,41 @@ batches took 0.258879s versus 0.005812s. These are local loop measurements, not
 production run-time claims. No search, filtering, ranking or output fields
 were changed by these optimizations.
 
+### Mentoring an intern read as being one
+
+The experience gate skips its years check when a posting is an intern or
+new-grad opening, and it looked for those words in the title **and anywhere in
+the description**. Descriptions routinely name interns as people the role
+supervises, so `You will mentor our interns` granted the override to a posting
+demanding eight years, and the gate never ran.
+
+The title is still taken at its word. In the body a mention governed by a
+supervising verb -- mentor, manage, lead, coach, train, oversee, support,
+collaborate with -- is now read as what it is: evidence of seniority, not of an
+internship. A posting describing *itself* (`This internship runs for 12 weeks`)
+still overrides, because no such verb governs it.
+
+### A ceiling was read as a floor
+
+`fewer than 3 years`, `no more than 5 years`, `under 5 years`, `up to 6 years`
+and `no 3 years of experience needed` all state who may apply, not what they
+must already have. The years pattern saw only the number and treated each as a
+minimum, so postings that were advertising themselves as junior were rejected
+for being senior.
+
+A number preceded by a denial or an upper bound is no longer a requirement.
+`at least`, `minimum` and a bare `3+ years` are untouched, and both directions
+are covered by tests, because the risk of a rule like this is that it quietly
+swallows the real floors too.
+
+### The same posting was read four times to judge it once
+
+`rejection_reason` asked `description_text` for the same payload three times
+and `relevance` asked a fourth, each walking the raw JSON in full. It reads
+once and passes the text down now: two extractions per posting, which is the
+floor while the experience gate needs a structured variant and the score needs
+a flat one. Output is identical; only the number of walks changed.
+
 ### A test held a SQLite handle open and only Windows noticed
 
 `with sqlite3.connect(path) as db` commits the transaction; it does not close

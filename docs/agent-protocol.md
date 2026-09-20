@@ -42,6 +42,7 @@ that prevents duplicate work, and it only works if it is current.
 | `evidence_title_patterns`, hard-reject audit | Claude | done, merged | |
 | `docs/architecture.md` and the bug log | Claude | done, merged | Keep current with every change |
 | VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
+| Experience gate phrasing, and repeated payload extraction | Claude | merged and deployed | The two leads Codex reported before its usage ran out. Supervising an intern no longer reads as being one; a ceiling no longer reads as a floor; `rejection_reason` walks a payload twice instead of four times. Both directions tested. |
 | Verifying the new query strings return results | Claude | done, measured | 14 credits, one page each, `--no-store`: the whole `early_career` tier returned 15 postings and one survivor, so it now asks `Entry Level`. Intern and new_grad phrasings verified good. See the bug log |
 | Confirming seen deduplication works | Codex (offline); production unassigned | offline verified; production pending | `codex/deep-debug` checks two passes separated by fresh-database recovery; second pass has 0 new / 1 existing; production counter remains unverified |
 | Untimestamped JSearch credit budget-window accounting | Codex, reviewed by Claude | merged and deployed | Replayed the live ledger's four-credit residual: counted once on 2026-09-18 and zero on neighbouring windows, where both previously saw it. |
