@@ -32,6 +32,28 @@ class GuardTests(unittest.TestCase):
                 self.assertEqual(balance['day_remaining'], 296)
                 self.assertEqual(balance['period_used'], 320)
 
+    def test_untimestamped_residual_belongs_to_its_recorded_budget_day(self):
+        """A residual must not reduce two consecutive scheduled passes.
+
+        Older aggregate rows lack the instant of each credit, but their `day`
+        column is the budget-day key that was active when they were recorded.
+        Matching it against the UTC dates overlapped by a Pacific window makes
+        the same row appear in both adjacent windows.
+        """
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'usage.sqlite'
+            guard = RequestGuard(path, daily_limit=320)
+            with closing(sqlite3.connect(path)) as db, db:
+                db.execute('DELETE FROM credit_usage')
+                db.execute('DELETE FROM credit_events')
+                db.execute("INSERT INTO credit_usage VALUES ('2026-09-16', '2026-09-20', 4)")
+            balances = []
+            for stamp in ('2026-09-19T12:00:00+00:00', '2026-09-20T12:00:00+00:00'):
+                with patch('jobdisco.jsearch_access.time.time',
+                           return_value=datetime.fromisoformat(stamp).timestamp()):
+                    balances.append(guard.balance()['day_used'])
+            self.assertEqual(balances, [0, 4])
+
     def test_reset_boundary_and_daylight_saving(self):
         with tempfile.TemporaryDirectory() as folder:
             guard = RequestGuard(Path(folder) / 'usage.sqlite')

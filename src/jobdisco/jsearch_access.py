@@ -183,18 +183,17 @@ class RequestGuard:
     def daily_used(self, db):
         """Recount timestamped history without rewriting the UTC audit ledger.
 
-        Older aggregate-only credits cannot be assigned an exact time. Charge
-        that residual conservatively to any overlapping budget window.
+        Older aggregate-only credits cannot be assigned an exact time. Their
+        stored day is still the budget-day key that was active when they were
+        recorded, so charge each residual to that one day.
         """
         day, start, end = self.daily_window()
         used = db.execute('SELECT COALESCE(SUM(credits), 0) FROM credit_events '
                           'WHERE at>=? AND at<?', (start, end)).fetchone()[0]
-        first = datetime.fromtimestamp(start, timezone.utc).date().isoformat()
-        last = datetime.fromtimestamp(end - 1, timezone.utc).date().isoformat()
         residual = db.execute('''SELECT COALESCE(SUM(MAX(0, u.used - COALESCE(e.used, 0))), 0)
             FROM credit_usage u LEFT JOIN (
                 SELECT period, day, SUM(credits) AS used FROM credit_events GROUP BY period, day
-            ) e USING(period, day) WHERE u.day BETWEEN ? AND ?''', (first, last)).fetchone()[0]
+            ) e USING(period, day) WHERE u.day=?''', (day,)).fetchone()[0]
         return day, used + residual
 
     def pause(self, seconds):
