@@ -4,6 +4,16 @@ This document answers one startup question: who is changing what now? Completed
 work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
+```text
+Owner: codex
+Scope: File-by-file offline audit; findings only, no behavior changes.
+Files: docs/file-audit-2026-09-20.md, docs/audit-repro-2026-09-20.py, docs/agent-protocol.md
+Base commit: b263553a7fe5ec47cd31c191134de8925a013c52
+Last inspected main: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Date: 2026-09-20
+Status: claimed
+Next: Read files and reproduce findings offline.
+```
 
 ```text
 Owner:   codex
