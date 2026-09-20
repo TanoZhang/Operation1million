@@ -1,5 +1,16 @@
 # Two agents, one repository
 
+## Active claims
+
+```text
+Owner:   codex
+Scope:   Reduce mandatory startup context and make current work mechanically visible.
+Files:   AGENTS.md, docs/agent-protocol.md, docs/architecture.md, docs/handoff.md, docs/collection-rules.md
+Base:    ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Status:  claimed
+Next:    Compare the compact Codex version with Claude's working-tree patch, then test links and invariants.
+```
+
 Claude Code and Codex both work here. Neither can see the other: each reads the
 repository once, forms a picture, and then works for hours against a picture
 that has since stopped being true. Everything below exists because that has
