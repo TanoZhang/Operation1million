@@ -9,8 +9,8 @@ Owner: codex
 Scope: Fourth offline bug audit of rejected-row completeness, historical export, provider URL normalization and historical Review detail.
 Files: docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
 Base commit: 73fef06
-Status: claimed
-Next: Reproduce new defects on committed and user working source; report without priority labels or business-code changes.
+Status: done
+Next: User reviews B20-B23 in docs/file-audit-round4-2026-09-20.md. Four bugs reproduced on committed and user working source; no priority labels or business-code changes.
 ```
 
 ```text
