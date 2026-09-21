@@ -264,5 +264,5 @@ better than an unpredictable one. But a stable IP against 35 boards is the one
 thing that could behave differently after the move, so watch the per-source
 outcomes for a fortnight:
 
-    sudo -u jobdisco /opt/jobdisco/venv/bin/job-store --ranked 0 2>/dev/null
+    sudo -u jobdisco /opt/jobdisco/venv/bin/job-store 2>/dev/null
     journalctl -u jobdisco-collect.service --since '14 days ago' | grep -i 'paused\|403\|429'

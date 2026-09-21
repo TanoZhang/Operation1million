@@ -135,6 +135,79 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### A bug check of the review path and the store CLI, 2026-09-21 UTC (not deployed)
+
+Three defects, each reproduced before it was fixed and each with a test that is
+red against the code as it stood. One is the outstanding instance of B27 from
+Codex's sixth round; the other two are new. The three browser-only fixes from
+the round below were also run in a JavaScript runtime for the first time.
+
+- **A replacement requisition at a decided address stayed hidden.** A decision
+  is allowed to follow its posting from paid discovery to the company's own
+  board, because the store merges the two discoveries into one row. It was
+  following the address instead: the only evidence required was a different
+  provider with an agreeing company and title, and a board that later
+  advertised a genuinely different opening at the same URL publishes the same
+  company and, often enough, the same title. The new requisition then inherited
+  an application nobody had made to it and never appeared for review. The store
+  already records which case it is -- a provider upgrade leaves the decided
+  requisition among the address's aliases in `job_identities`, a replacement
+  releases them -- so the queue now asks. Reproduced through `record_source` on
+  a real schema: after the upgrade the address held
+  `(jsearch, '', JS-A)` and `(ashby, sample, ASH-B)` and the decision stood;
+  after the replacement it held only `(ashby, sample, ASH-C)` and the pending
+  queue was empty where it should have held one posting. Where the decision
+  names no requisition, or the index records no alias for the address, there is
+  nothing to check and the older reading stands, so an index built before
+  identities were tracked behaves as before. This is the instance of B27 that
+  the company-and-title restriction did not settle. Reproducer:
+  `ApplicationsTests.test_a_replacement_at_a_decided_address_is_not_hidden_by_a_provider_move`.
+- **The review page could not see a pass that was still running.** The queue is
+  cached against when its inputs last changed, and the index is read in WAL
+  mode, where a commit lands in the `-wal` sidecar: the database file's
+  timestamp and length do not move until a checkpoint, which a pass reaches
+  only when it closes its connection at the end. Everything a running pass
+  found or closed was therefore invisible to the page, and Refresh answered out
+  of the cache with nothing to say it was stale. Measured here: a committed
+  posting was visible to any reader of the index and absent from `/api/queue`
+  until the pass exited; and when another reader held the sidecar open, the
+  close-time checkpoint did not run either, so the staleness outlived the pass.
+  The sidecar is now part of the key. A reader that recreates a checkpointed
+  sidecar moves its timestamp, which costs one extra build and never a missed
+  one. Reproducer:
+  `HttpTests.test_a_pass_that_is_still_running_reaches_the_queue`.
+- **The two halves of `job-store --ranked` disagreed about zero.** `ranked`
+  reads a falsy limit as no limit -- `LIMIT -1`, every open posting -- and the
+  flag's own help calls the number the count to list. The command line asked
+  whether that number was truthy, so `--ranked 0` read as "not asked for" and
+  printed nothing but the summary line, which looks exactly like a store
+  holding no open postings. The query is now asked whenever the flag is given.
+  `docs/vps-deployment.md` used that form for a fortnight's health check and
+  was getting the summary line by accident, so it now names the command that
+  prints the summary and nothing else. Reproducer:
+  `StoreTests.test_the_whole_ranking_is_printed_when_no_limit_is_given`.
+- **A check created the index it was checking.** `JOBDISCO_STORE=<copy>
+  job-store --verify` is what `deploy/local/backup-from-vps.sh` and the
+  deployment notes tell an operator to run against a restored copy of the log,
+  on a machine that may hold no index at all. Opening a database creates it, so
+  the command verified the copy, left an empty SQLite file behind, and ended in
+  a traceback about a missing `jobs` table with its own result scrolled off
+  above it. It now says there is no index and exits 0. This is the same rule
+  `ledger_guard` already keeps for the credit ledger. Reproducer:
+  `StoreTests.test_a_check_does_not_create_the_index_it_is_asked_about`.
+
+Measured, and worth separating from the above: the three page defects from the
+round below -- the bare date, the overtaken refresh and the skip dialog's
+target -- were covered by contracts on the source because this checkout had no
+JavaScript runtime. It has one now. `review_static/app.js` was run under Node
+22.22 against a jsdom 30.1 document, with `TZ=America/Los_Angeles`, outside the
+repository and outside the suite: a bare `2026-09-20` rendered as Sep 20 rather
+than Sep 19; a slow first queue answer landing after a newer one left the newer
+queue in place; and a skip dialog opened on one posting filed its reason against
+that posting after the selection had moved to another. The fixes hold. The
+harness is not committed -- it needs an npm install, and the suite is offline --
+so this is a measurement made here, not a test the suite will repeat.
+
 ### Equivalent optimizations, 2026-09-21 UTC (not deployed)
 
 Seven changes that do the same work in less of it, plus one packaging fix. No

@@ -44,6 +44,21 @@ def decision_key(job):
         json.dumps([provider, scope, requisition]).encode()).hexdigest()
 
 
+def scoped_identity(job):
+    """The provider's own requisition for a posting, scoped as the store scopes it.
+
+    None where the provider published none: `decision_key` is then standing on
+    the address, and the index holds no alias that could confirm or deny it.
+    """
+    requisition = str(job.get('source_job_id') or '').strip()
+    if not requisition:
+        return None
+    provider = job.get('provider_key') or ''
+    return (provider,
+            '' if provider == 'jsearch' else (job.get('company_key') or ''),
+            requisition)
+
+
 @contextmanager
 def locked(path):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -150,7 +165,7 @@ def queue(db_path=DB, path=None, now=None):
                     # one is not.
                     moved_states.setdefault(job['url'], []).append(
                         ((job.get('provider_key') or '', job.get('company_key') or '',
-                          job.get('title') or ''), decision))
+                          job.get('title') or ''), scoped_identity(job), decision))
             continue
         # Only records without a scoped snapshot may fall back to URL identity.
         # Applying a modern decision by URL too hides a replacement requisition
@@ -159,11 +174,38 @@ def queue(db_path=DB, path=None, now=None):
         for job in event.get('group', {}).get('jobs', []):
             url_states[job['url']] = event
 
+    # What the index still lists at each decided address, from `job_identities`.
+    # Loaded once the connection is open, and left None where the index keeps no
+    # identities at all -- an older or hand-made one -- because a question it
+    # cannot answer must not be read as a no.
+    aliases = None
+
+    def still_the_decided_opening(url, identity):
+        """Whether the requisition a decision was made under is still at this address.
+
+        A changed provider plus an agreeing company and title is not proof on
+        its own. A board that reuses an address for a genuinely different
+        opening publishes the same company and, often enough, the same title,
+        and the decision then went on answering for every future requisition at
+        that address -- a posting nobody had seen, hidden behind an application
+        nobody had made to it.
+
+        The store says which is which: a provider upgrade leaves the decided
+        requisition among the address's aliases, and a replacement removes it.
+        Where the decision names no requisition, or the index records none for
+        the address, there is nothing to check and the older reading stands.
+        """
+        if identity is None or aliases is None:
+            return True
+        held = aliases.get(url)
+        return not held or identity in held
+
     def decision_for(job):
         provider = job.get('provider_key') or ''
         here = (provider, job.get('company_key') or '', job.get('title') or '')
-        moved = [decision for under, decision in moved_states.get(job['url'], ())
-                 if under[0] and under[0] != here[0] and under[1:] == here[1:]]
+        moved = [decision for under, identity, decision in moved_states.get(job['url'], ())
+                 if under[0] and under[0] != here[0] and under[1:] == here[1:]
+                 and still_the_decided_opening(job['url'], identity)]
         candidates = [event for event in (group_states.get(decision_key(job)),
                                           url_states.get(job['url']), *moved) if event]
         return max(candidates, key=lambda event: event['replay_order'], default=None)
@@ -172,6 +214,18 @@ def queue(db_path=DB, path=None, now=None):
     rules = jsearch.load_plan()[0]['filter']
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                      "AND name='job_identities'").fetchone():
+            aliases = {}
+            decided = sorted(moved_states)
+            for start in range(0, len(decided), 400):
+                chunk = decided[start:start + 400]
+                for row in db.execute(
+                        'SELECT url, provider_key, scope, source_job_id FROM job_identities '
+                        'WHERE url IN (%s)' % ','.join('?' * len(chunk)), chunk):
+                    aliases.setdefault(row['url'], set()).add(
+                        (row['provider_key'] or '', row['scope'] or '',
+                         str(row['source_job_id'])))
         # A pass that rejects a posting it already holds does not store the
         # description it rejected -- a rejected posting is recognised, not
         # stored -- so the index keeps the text from the pass that accepted it,

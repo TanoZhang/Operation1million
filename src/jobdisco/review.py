@@ -93,8 +93,19 @@ def make_server(db, ledger, port=8765):
         function of the clock and nothing else. Within a day the window drifts
         rather than moving: a posting stays in the recent tab a little longer
         than it strictly should, and is in the backlog either way.
+
+        The index is read in WAL mode, and that is where a commit lands: the
+        main file's timestamp and length do not move until a checkpoint, which
+        a pass only reaches when it closes its connection. So the whole of a
+        collection pass -- every posting it found, every one it closed -- was
+        invisible to this page while the pass ran, and Refresh answered from
+        the cache with nothing to say it was stale. The sidecar is where the
+        commit is, so it is part of the question. A reader that recreates a
+        checkpointed sidecar moves its timestamp too, which costs one extra
+        build and never a missed one.
         """
-        key = (fingerprint(ledger), fingerprint(db), datetime.now(timezone.utc).date())
+        key = (fingerprint(ledger), fingerprint(db), fingerprint(str(db) + '-wal'),
+               datetime.now(timezone.utc).date())
         with building:
             if cached['key'] != key:
                 cached['state'] = applications.queue(db, ledger)

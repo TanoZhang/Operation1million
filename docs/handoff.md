@@ -1,6 +1,44 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# A bug check: three defects, and the page run for the first time - 2026-09-21 UTC
+
+A pass over the review path and the store's command line, on `main`. Mechanisms
+and reproductions are in the architecture bug log.
+
+Two of the three change what a reader sees. A posting that a board advertises
+at an address where something else was applied to now reaches the review queue
+instead of inheriting that application -- this is the instance of B27 that the
+company-and-title restriction left open, and the evidence it now asks for is
+the store's own identity table. And the review page can see a collection pass
+while it is running: the index is read in WAL mode, where a commit lands in the
+sidecar, so the cached queue was blind to the whole of a pass and Refresh said
+nothing about it.
+
+The third is smaller and entirely on the command line. `job-store --ranked 0`
+printed nothing: the query behind it reads zero as no limit, the flag did not,
+and the deployment note that used that form for a health check was getting the
+summary line by accident -- it now names the command that prints the summary.
+And `job-store --verify` against a restored copy of the log created an empty
+index and died on it rather than reporting what it had just verified.
+
+Measured separately, and a weaker claim than the rest: the three page defects
+from the eighth audit were covered by contracts on the source because there was
+no JavaScript runtime here. There is one now, and `app.js` was run under Node 22
+with a jsdom document in `America/Los_Angeles`: the dates, the overtaken refresh
+and the skip dialog's target all behave as the fixes claim. That harness needs
+an npm install, so it is not in the suite and not in the repository; it is a
+measurement made here, not something the suite will repeat.
+
+Not measured: nothing was collected, spent or deployed, and none of this has run
+on the VPS or against the production index. The B27 reproduction drives the real
+`store.record_source`, so its identity rows are the ones a pass would write, but
+the postings in it are synthetic.
+
+Measured: 491 offline tests, exit 0, one skip (no collected database in this
+checkout). Each new test was run against the code before its fix and failed
+there with the symptom described.
+
 # Equivalent optimizations - 2026-09-21 UTC
 
 Seven, on `main`, each measured before and after and each held to the answer it

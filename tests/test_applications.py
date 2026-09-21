@@ -250,6 +250,62 @@ class ApplicationsTests(unittest.TestCase):
         self.assertIn(url, {job['url'] for group in self.queue()['pending']
                             for job in group['jobs']})
 
+    def identity(self, url, provider, scope, requisition):
+        """Record the alias the store writes when a board publishes a requisition."""
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('''CREATE TABLE IF NOT EXISTS job_identities(
+                              provider_key TEXT NOT NULL, scope TEXT NOT NULL,
+                              source_job_id TEXT NOT NULL, url TEXT NOT NULL,
+                              PRIMARY KEY(provider_key, scope, source_job_id))''')
+            db.execute('INSERT OR REPLACE INTO job_identities VALUES (?, ?, ?, ?)',
+                       (provider, scope, requisition, url))
+
+    def release_identities(self, url):
+        """What `record_source` does when an address carries a new requisition."""
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('DELETE FROM job_identities WHERE url=?', (url,))
+
+    def test_a_replacement_at_a_decided_address_is_not_hidden_by_a_provider_move(self):
+        """The decision follows the opening, not the address it was found at.
+
+        A decision made on a paid result is allowed to follow that posting to
+        the company's own board. It was allowed to follow the address instead:
+        a board that later advertised a different requisition at the same URL,
+        under the same company and title, inherited the earlier application and
+        never appeared for review. The store says which case it is -- a
+        provider upgrade keeps the decided requisition among the address's
+        aliases, a replacement releases it.
+        """
+        url = 'https://example.test/b'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='jsearch', source_job_id='js-1' "
+                       "WHERE url=?", (url,))
+        self.identity(url, 'jsearch', '', 'js-1')
+        found = next(group for group in self.queue()['pending']
+                     if any(job['url'] == url for job in group['jobs']))
+        applications.append_decision(self.ledger, found, 'applied')
+
+        # The same opening, found again on the company's own board: the store
+        # merges the two discoveries and holds both aliases.
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='direct', source_job_id='req-b' "
+                       "WHERE url=?", (url,))
+        self.identity(url, 'direct', 'sample', 'req-b')
+        self.assertNotIn(url, {job['url'] for group in self.queue()['pending']
+                               for job in group['jobs']},
+                         'a posting that only changed board came back as pending')
+
+        # The board then advertises a different opening at that address.
+        self.release_identities(url)
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET source_job_id='req-new' WHERE url=?", (url,))
+        self.identity(url, 'direct', 'sample', 'req-new')
+        self.assertIn(url, {job['url'] for group in self.queue()['pending']
+                            for job in group['jobs']},
+                      'a requisition nobody has seen inherited an earlier application')
+        self.assertEqual(len(self.queue()['applied']), 1,
+                         'the application that was made stopped being history')
+
     def test_skip_and_reopen_only_append(self):
         group = self.group_for('req-a')
         applications.append_decision(self.ledger, group, 'skipped', 'Location')
@@ -542,6 +598,40 @@ class HttpTests(ApplicationsTests):
                 after = json.load(response)
             self.assertEqual(len(builds), 2, 'the ledger changed and the queue did not')
             self.assertEqual(len(after['applied']), 1)
+
+    def test_a_pass_that_is_still_running_reaches_the_queue(self):
+        """A commit in WAL mode lands in the sidecar, not in the database file.
+
+        The queue is cached against when its inputs last changed, and the
+        index's own timestamp and length do not move until a checkpoint --
+        which a pass reaches only when it closes its connection, at the end.
+        Everything a running pass had found was invisible to this page until
+        then, and Refresh answered out of the cache with nothing to say so.
+        """
+        with closing(sqlite3.connect(self.db)) as db:
+            db.execute('PRAGMA journal_mode=WAL')
+        root = self.serve()
+        with urlopen(root + '/api/queue') as response:
+            before = len(json.load(response)['pending'])
+
+        collecting = sqlite3.connect(self.db)
+        self.addCleanup(collecting.close)
+        collecting.execute('PRAGMA journal_mode=WAL')
+        collecting.execute(
+            'INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            ('https://example.test/e', 'sample', 'Verification Engineer', 'AUSTIN',
+             'req-e', (self.now - timedelta(hours=1)).isoformat(), None, 'direct', 80,
+             None, json.dumps({'description': 'Design hardware.'}),
+             (self.now - timedelta(hours=1)).isoformat()))
+        # The pass commits each source as it finishes and keeps its connection.
+        collecting.commit()
+
+        with urlopen(root + '/api/queue') as response:
+            after = json.load(response)['pending']
+        self.assertEqual(len(after), before + 1,
+                         'the page could not see a pass that was still running')
+        self.assertIn('https://example.test/e',
+                      {job['url'] for group in after for job in group['jobs']})
 
     def test_http_decisions_require_token_and_replay_on_refresh(self):
         server = review.make_server(self.db, self.ledger, 0)

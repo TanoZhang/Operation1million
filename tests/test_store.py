@@ -66,6 +66,40 @@ class StoreTests(unittest.TestCase):
         self.addCleanup(db.close)
         return db
 
+    def test_the_whole_ranking_is_printed_when_no_limit_is_given(self):
+        """`--ranked 0` means every open posting, and printed none of them.
+
+        `ranked` reads a falsy limit as no limit, and that is the form the
+        deployment notes hand an operator watching per-source outcomes. The CLI
+        asked whether the number was truthy, so zero read as "not asked for":
+        the one invocation meaning "show me everything" printed nothing, which
+        looks exactly like a store holding no open postings.
+        """
+        db = self.open_db()
+        store.record_source(db, SOURCE, [row(f'https://x/{i}', title=f'RTL Engineer {i}')
+                                         for i in range(3)], 'complete', 'full', 1)
+        db.commit()
+        with patch('sys.argv', ['job-store', '--db', str(self.db_path), '--ranked', '0']), \
+             patch('sys.stdout', new_callable=io.StringIO) as out:
+            self.assertEqual(store.main(), 0)
+        printed = out.getvalue()
+        for i in range(3):
+            self.assertIn(f'https://x/{i}', printed)
+
+    def test_a_check_does_not_create_the_index_it_is_asked_about(self):
+        """`--verify` reads the log; a restored copy may have no index at all.
+
+        Opening one creates it, so the documented restore check left an empty
+        database behind and then ended in a traceback about a missing `jobs`
+        table, with its own verification result scrolled off above it.
+        """
+        absent = Path(self.dir.name) / 'absent.sqlite'
+        with patch('sys.argv', ['job-store', '--db', str(absent), '--verify']), \
+             patch('sys.stdout', new_callable=io.StringIO) as out:
+            self.assertEqual(store.main(), 0)
+        self.assertFalse(absent.exists(), 'the check created the database it checked')
+        self.assertIn('no job index', out.getvalue())
+
     def test_first_pass_is_a_full_download_for_every_source(self):
         self.assertEqual(store.plan(SOURCE, {}), ('full', None))
         # A pass that did not complete must not become an incremental watermark.

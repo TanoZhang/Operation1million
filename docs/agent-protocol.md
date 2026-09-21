@@ -6,6 +6,25 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Bug check of the review path and the store CLI: the outstanding B27
+         instance (a replacement requisition inheriting a decision through a
+         provider move), the review queue cache missing a pass that is still
+         running (WAL sidecar), `--ranked 0` printing nothing, and `--verify`
+         creating the index it checks. Plus the first run of review_static/app.js
+         in a JavaScript runtime, confirming B41-B43 behaviourally.
+Files:   src/jobdisco/{applications,review,store}.py,
+         tests/{test_applications,test_store}.py, docs/
+Base commit: 5166930
+Status:  done
+Next:    On branch claude/bug-check-8k1k7r; 491 offline tests pass, one skip.
+         Each new test is red against the code before its fix. Not deployed:
+         `deploy/vps/install.sh` has not run. The app.js harness is not
+         committed -- it needs an npm install and the suite is offline -- so
+         that measurement is made here and is not repeated by the suite.
+```
+
+```text
+Owner:   claude
 Scope:   B31-B43 from the seventh and eighth audits -- the experience parser's
          unreadable requirements, title cleaning, the paid rejection record, the
          Review description panel and the page's dates, refresh and skip dialog --

@@ -1118,7 +1118,12 @@ def main():
             print('  rescored %d postings' % done, flush=True)
         # Published to the log, not only to the database: see `rescore`.
         print('rescored:', rescore(args.db, progress=tick))
-    if args.ranked:
+    # `--ranked 0` is the whole list: `ranked` reads a falsy limit as no limit,
+    # and that is the form `docs/vps-deployment.md` gives an operator watching
+    # per-source outcomes. Asked for truthiness, zero read as "not asked for",
+    # so the one invocation meaning "show me everything" printed nothing at all
+    # -- which looks exactly like a store holding no open postings.
+    if args.ranked is not None:
         for row in ranked(args.db, args.ranked, args.since, args.min_score):
             score = '%3d' % row['confidence']
             print('%-6s %-22s %-52s %s' % (
@@ -1131,6 +1136,16 @@ def main():
             print(f'  {day}: {state}')
         if any(state != 'ok' for _, state in results):
             return 1
+    # Opening a database creates it, and a check must not manufacture the thing
+    # it is checking. `JOBDISCO_STORE=<copy> job-store --verify` is what both
+    # `deploy/local/backup-from-vps.sh` and the deployment notes tell an
+    # operator to run against a restored copy of the log, on a machine that may
+    # hold no index at all: it verified the copy, then left an empty SQLite
+    # file behind and ended in a traceback about a missing `jobs` table, with
+    # the verification result scrolled off above it.
+    if not Path(args.db).exists():
+        print(f'summary: no job index at {args.db}')
+        return 0
     print('summary:', summary(args.db))
     return 0
 
