@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Ninth offline audit, complete function inventory of jsearch.py and concrete intake, filtering and cursor failure cases; findings only.
+Files: docs/file-audit-round9-2026-09-20.md, docs/audit-repro-round9-2026-09-20.py, docs/agent-protocol.md
+Base commit: 5166930b284bb070f38865685ec279c7d545de2f
+Status: claimed
+Next: Verify each candidate with synthetic provider responses and durable local state; no paid requests or business-code edits.
+```
+
+```text
 Owner:   claude
 Scope:   B31-B43 from the seventh and eighth audits -- the experience parser's
          unreadable requirements, title cleaning, the paid rejection record, the
