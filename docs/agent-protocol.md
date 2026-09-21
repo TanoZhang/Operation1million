@@ -9,8 +9,8 @@ Owner: codex
 Scope: Systematic function-by-function offline audit of the text-to-Review path; consolidate variants by root cause and record coverage before moving between files.
 Files: docs/file-audit-round8-2026-09-20.md, docs/audit-repro-round8-2026-09-20.py, docs/agent-protocol.md
 Base commit: 7ecafb4a4494c9b6011c102b7156723e09465323
-Status: claimed
-Next: Complete experience.py, job_text.py, ranking.py, applications.py and Review server/UI function inventories with boundary tests and caller validation; report evidence and remaining scope.
+Status: done
+Next: User reviews B34-B43 and outstanding B27 in docs/file-audit-round8-2026-09-20.md. Six-file function inventory completed with synthetic and loopback tests; remaining module sequence recorded. No business-code edits.
 ```
 
 ```text
