@@ -47,6 +47,12 @@ D:/Operation1million/.venv/Scripts/python.exe D:/Operation1million-file-audit/do
 Locations below refer to the stable baseline; the pending user changes shift
 some line numbers. Function names identify the same paths in both versions.
 
+At the final source check, the user checkout had advanced to commit
+`ca501dc41640a09c0650d92bcb12ddddbf2025ca`; its store and collector hashes still
+matched the modified-source fingerprints tested above. The work was in progress
+when tested, and this final comparison identifies the subsequently committed
+versions without claiming that their full new test suite was run here.
+
 ## B58: Slimming discards the only available description
 
 Locations: `store.py:540` (`DROP_FIELDS`), `store.py:578` (`slim`), and
