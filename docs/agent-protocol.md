@@ -10,8 +10,8 @@ Scope: Eleventh offline audit: complete store.py function inventory, identity, p
 Files: docs/file-audit-round11-2026-09-21.md, docs/audit-repro-round11-2026-09-21.py, docs/agent-protocol.md
 Base commit: e5c9440ff707eadc44a679d63de5beafcaf48542
 Inspected main: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
-Status: claimed
-Next: Reproduce storage defects in temporary databases and logs; no production state or business-code edits.
+Status: done
+Next: User reviews B58-B62 in docs/file-audit-round11-2026-09-21.md. Full store function inventory recorded; five defects reproduced on baseline and concurrent user fixes, 175 existing baseline tests passed. Next: quota/pacing and ledger/workflow recovery. No business-code edits.
 ```
 
 ```text
