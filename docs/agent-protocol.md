@@ -6,6 +6,22 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   B31-B43 from the seventh and eighth audits -- the experience parser's
+         unreadable requirements, title cleaning, the paid rejection record, the
+         Review description panel and the page's dates, refresh and skip dialog --
+         and seven equivalent optimizations measured before and after.
+Files:   src/jobdisco/{experience,job_text,jsearch,review,applications,collector,
+         store}.py, review_static/app.js, pyproject.toml, tests/, docs/
+Base commit: 005766e / 182aa65
+Status:  done
+Next:    Merged into main; 485 offline tests pass. Three of the page's defects and
+         two of the page optimizations are covered by contracts on the source, not
+         by running it: this checkout has no JavaScript runtime. The audit harness
+         has one, and that is where their behaviour should be confirmed.
+```
+
+```text
+Owner:   claude
 Scope:   Twenty-nine reviewed defects from B1-B30, across collection completeness,
          posting identity, the experience gate, the applications ledger and Review
          server, rescore durability, paid-request accounting and both backup scripts.
@@ -24,8 +40,9 @@ Owner: codex
 Scope: Systematic function-by-function offline audit of the text-to-Review path; consolidate variants by root cause and record coverage before moving between files.
 Files: docs/file-audit-round8-2026-09-20.md, docs/audit-repro-round8-2026-09-20.py, docs/agent-protocol.md
 Base commit: 7ecafb4a4494c9b6011c102b7156723e09465323
-Status: claimed
-Next: Complete experience.py, job_text.py, ranking.py, applications.py and Review server/UI function inventories with boundary tests and caller validation; report evidence and remaining scope.
+Last inspected main: 005766ee0630464f99fe815e42e472ef0740e379
+Status: done
+Next: User reviews B34-B43 and outstanding B27 in docs/file-audit-round8-2026-09-20.md. Six-file function inventory completed with synthetic and loopback tests; remaining module sequence recorded. No business-code edits.
 ```
 
 ```text
