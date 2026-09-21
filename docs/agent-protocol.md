@@ -6,6 +6,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Eleventh offline audit: complete store.py function inventory, identity, persistence, replay and recovery; findings only.
+Files: docs/file-audit-round11-2026-09-21.md, docs/audit-repro-round11-2026-09-21.py, docs/agent-protocol.md
+Base commit: e5c9440ff707eadc44a679d63de5beafcaf48542
+Inspected main: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
+Status: claimed
+Next: Reproduce storage defects in temporary databases and logs; no production state or business-code edits.
+```
+
+```text
+Owner: codex
 Scope: Tenth offline audit: function-by-function collector.py inspection, provider adapters, pagination and failure-to-store contracts; findings only.
 Files: docs/file-audit-round10-2026-09-21.md, docs/audit-repro-round10-2026-09-21.py, docs/agent-protocol.md
 Base commit: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
