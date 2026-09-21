@@ -4,7 +4,7 @@ This pass follows files in order and records every function before moving to the
 
 ## Version and test method
 
-Audit lineage: `7ecafb4a4494c9b6011c102b7156723e09465323`, claim `647d3cb`. Inspected remote main/claude: `ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1`. Executable diagnostics import the user's current staged/unstaged source at `D:/Operation1million/src`, not the older business code in the audit worktree.
+Audit lineage: `7ecafb4a4494c9b6011c102b7156723e09465323`, claim `647d3cb`. Initial main/claude: `ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1`. Executable diagnostics import the user's source at `D:/Operation1million/src`, not the older business code in the audit worktree. During this audit the user's fixes were committed and merged. Final fetch found main/claude at **`005766ee0630464f99fe815e42e472ef0740e379`**; comparison of all six audited files against that commit showed no differences. The final fingerprints and reproduced findings therefore also describe those files at this main commit. The latest handoff and the intervening source changes were inspected before reporting.
 
 Final inspected file fingerprints (SHA256):
 
