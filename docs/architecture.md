@@ -135,6 +135,61 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Equivalent optimizations, 2026-09-21 UTC (not deployed)
+
+Seven changes that do the same work in less of it, plus one packaging fix. No
+policy, no filter and no output field changed; each is held to the answer it
+replaced, by the existing suite and by an equivalence digest over a fixed
+corpus. Numbers are medians on this workstation, before and after, from the
+same script -- they say what changed here, not what the VPS will do.
+
+- **The review queue is built when what it is built from changes.** Every
+  request replayed the whole ledger and read every open posting, and a
+  decision paid for it twice: once to find the group to write, once through
+  the refresh that follows the write. The key is when the ledger and the index
+  last changed, how long each is, and today's UTC date -- the last because the
+  three-day window is a function of the clock and nothing else. On a synthetic
+  2,000 postings one build measured 460 ms, so a decision now waits for one
+  rather than two, and the click itself waits for none. Within a day the
+  window drifts rather than moving: a posting stays in the recent tab slightly
+  longer than it strictly should, and is in the backlog either way.
+  Reproducer: `HttpTests.test_a_decision_does_not_rebuild_the_queue_it_was_just_given`.
+- **A posting's prose is extracted once per posting.** Scoring it, judging it
+  against the keep and reject rules, and running the experience gate each
+  walked the raw payload again, and the gate ran twice -- once inside
+  `rejection_reason` and once more for the seen record it had already written
+  to the row. 2.53 ms to 2.10 ms per posting over a 400-posting corpus, with
+  identical decisions, scores and matched terms.
+- **A title that is text is not parsed as HTML.** Building a BeautifulSoup
+  parser for each one is most of what `clean` cost, and almost every title has
+  neither a tag nor an entity. 416 ms to 189 ms per 20,000 titles. The fast
+  path is held to the parser's exact output, including its leaving internal
+  spacing alone. Reproducer:
+  `EquivalentFasterTests.test_the_fast_path_for_a_title_answers_what_the_parser_answers`.
+- **A day file is replayed a line at a time.** `rebuild` read each one into a
+  list first, which is every posting first seen that day with its description.
+  9.4 MB peak to 1.1 MB on a synthetic 4,000-posting day, same rebuild.
+- **Sources are stored in the order they finish.** `pool.map` returns in
+  submission order, so one slow board held every board behind it out of the
+  store -- and committing each source on its own is worth nothing if the
+  commits queue behind the slowest board in the catalog. The reports are
+  sorted back into catalog order afterwards, so what a reader sees does not
+  depend on which board answered first. Reproducer:
+  `EquivalentFasterTests.test_a_finished_source_is_stored_without_waiting_for_a_slow_one`.
+- **The review page stops asking for what it already has.** A keystroke in the
+  search box re-rendered the list and with it the detail, which re-fetched the
+  description it had just been given; the search now settles for 120 ms first,
+  and the description is remembered for the group it belongs to until the next
+  refresh replaces the queue.
+- **`tomli` is a dependency rather than an extra.** This package supports
+  Python 3.10, where `tomllib` does not exist and every entry point reads the
+  query plan through it. Nothing installed the extra, so a 3.10 install was one
+  import from failing and nothing said so. Reproducer:
+  `PackagingTests.test_the_toml_reader_is_a_dependency_and_not_an_extra`.
+
+The page changes are the two that cannot be run here; see the note in the
+round below about there being no JavaScript runtime in this checkout.
+
 ### Function-by-function audit, B34-B43, 2026-09-21 UTC (not deployed)
 
 Codex's eighth round, across six files. Four of them read a posting's own words

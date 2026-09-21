@@ -482,7 +482,7 @@ def experience_debug(row):
     return evaluate(row.get('title'), description_text(row, structured=True))
 
 
-def rejection_reason(row, rules):
+def rejection_reason(row, rules, description=None, score=None):
     """Title first, then the posting's vocabulary; the unreadable is kept.
 
     A title that names the work settles it either way, which is why an analog
@@ -504,7 +504,12 @@ def rejection_reason(row, rules):
     # function asked for the same text up to four times -- three here and once
     # more inside `relevance`. Read once, pass it down. Identical output; the
     # only thing that changes is how often the same walk happens.
-    prose = None
+    #
+    # `description` and `score` let the caller pass what it has already worked
+    # out for the same row. `take` scores every posting before asking this
+    # whether to keep it, and the score this function needs is the same number
+    # from the same text.
+    prose = description
 
     def description():
         nonlocal prose
@@ -524,13 +529,14 @@ def rejection_reason(row, rules):
     if needs_evidence(title, rules):
         if not description():
             return ''
-        return ('' if relevance(row, rules, description())[0] >= rules.get('min_confidence', 25)
-                else 'no_evidence')
+        confidence = score if score is not None else relevance(row, rules, description())[0]
+        return '' if confidence >= rules.get('min_confidence', 25) else 'no_evidence'
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):
         return ''
     if any(re.search(p, title, re.I) for p in rules.get('reject_title_patterns', [])):
         return 'title_mismatch'
-    if relevance(row, rules, description())[0] >= rules.get('min_confidence', 25):
+    confidence = score if score is not None else relevance(row, rules, description())[0]
+    if confidence >= rules.get('min_confidence', 25):
         return ''
     # A truncated description is not silence; it is a publisher's excerpt.
     if len(description()) < rules.get('min_description_chars', 1500):
@@ -660,13 +666,17 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             except (ValueError, TypeError, KeyError):
                 detail['malformed'] += 1
                 continue
-            confidence, matched = relevance(row, rules)
+            # One walk of the payload for the whole judgement. Scoring,
+            # the keep/reject rules and the experience gate all read the same
+            # prose, and each used to extract it again from the raw record.
+            prose = description_text(row)
+            confidence, matched = relevance(row, rules, prose)
             if isinstance(row.get('raw'), dict):
                 row['raw']['relevance'] = {
                     'confidence': confidence,
                     'matched_terms': sorted(set(matched)),
                 }
-            reason = rejection_reason(row, rules)
+            reason = rejection_reason(row, rules, description=prose, score=confidence)
             if not reason and query.aliases and not employer_matches(row['company_name'], query.aliases):
                 # Only where the posting had nothing against it already. An
                 # employer mismatch says this query asked the wrong question;
@@ -686,7 +696,12 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 'url': row['url'], 'title': row.get('title') or '',
                 'employer': row.get('company_name') or '',
                 'decision': reason, 'confidence': confidence,
-                'experience_filter': experience_debug(row),
+                # `rejection_reason` has already run the gate and left its
+                # working on the row; running it again is a second structured
+                # walk of the same payload for the same answer.
+                'experience_filter': (isinstance(row.get('raw'), dict)
+                                      and row['raw'].get('experience_filter')
+                                      or experience_debug(row)),
                 'filter_version': filter_version})
             if reason:
                 detail['rejected'] += 1

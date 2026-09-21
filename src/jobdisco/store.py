@@ -908,6 +908,19 @@ def bootstrap(path=DB):
         raise
 
 
+def log_lines(path):
+    """The records in one day file, one at a time.
+
+    Read into a list first, a day file arrived in memory whole -- every posting
+    first seen that day, descriptions included, and the first collection pass
+    wrote forty thousand of them. Nothing here needs two lines at once.
+    """
+    with gzip.open(path, 'rt', encoding='utf-8') as handle:
+        for line in handle:
+            if line.strip():
+                yield line
+
+
 def rebuild(path=DB):
     """Replay the log into the job store, so the database is disposable.
 
@@ -923,9 +936,7 @@ def rebuild(path=DB):
     with closing(connect(path)) as db, db:
         # Replay in date order: a posting may be discovered, closed, and relisted.
         for log in sorted((LOG / 'runs').glob('*.ndjson.gz')):
-            with gzip.open(log, 'rt', encoding='utf-8') as f:
-                lines = [l for l in f if l.strip()]
-            for line in lines:
+            for line in log_lines(log):
                 r = json.loads(line)
                 if r.get('type') == 'seen':
                     db.executemany('UPDATE jobs SET last_seen=? WHERE url=?',

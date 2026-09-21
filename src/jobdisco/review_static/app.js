@@ -9,6 +9,16 @@ let queueVersion = 0;
 // is open can change which group is selected, and the reason typed for one
 // posting was then filed against another.
 let skipTarget = null;
+// The description last fetched, for the group it belongs to. Re-rendering the
+// list re-renders the detail -- a keystroke in the search box, a Show more,
+// picking the same posting again -- and each of those asked the server for a
+// description it had just been given. Cleared by `refresh`, so it never
+// outlives the queue it was read against.
+let described = {key: null, text: null};
+// A keystroke should not cost a full render of the list. Typing eight
+// characters rendered eight times, each one laying out up to seventy-five
+// rows, and only the last of them was ever seen.
+let searchTimer = null;
 // The band names come from the server so `ranking.LABELS` stays the only place
 // they are written down; a queue that predates them simply shows no chip.
 const band = group => Number.isInteger(group.bucket) ? group.bucket : 4;
@@ -49,6 +59,7 @@ async function refresh() {
   try {
     const next = await api('/api/queue');
     if (version !== queueVersion) return;
+    described = {key: null, text: null};
     state = next; error(''); render();
   } catch (err) { if (version === queueVersion) error(err.message); }
 }
@@ -126,6 +137,8 @@ async function renderDetail(group) {
   if ($('#mark-applied')) $('#mark-applied').onclick = () => decide('applied');
   if ($('#skip')) $('#skip').onclick = () => { skipTarget = group.id; $('#reason').value = ''; $('#skip-dialog').showModal(); $('#reason').focus(); };
   if ($('#reopen')) $('#reopen').onclick = () => decide('pending');
+  const key = `${first.url}\u0000${group.id}`;
+  if (described.key === key) { $('#description').textContent = described.text; return; }
   try {
     const body = await api('/api/job?url=' + encodeURIComponent(first.url)
       + '&id=' + encodeURIComponent(group.id)
@@ -134,7 +147,7 @@ async function renderDetail(group) {
     const text = body.replaced
       ? 'This address now advertises a different requisition, so the description published here is not the one this decision was about.'
       : (body.description || 'Description unavailable. Open the original listing.');
-    if (version === detailVersion) $('#description').textContent = text;
+    if (version === detailVersion) { described = {key, text}; $('#description').textContent = text; }
   } catch (err) { if (version === detailVersion) $('#description').textContent = err.message; }
 }
 async function decide(status, reason = '', target = null) {
@@ -158,7 +171,10 @@ document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () =>
   render();
 });
 $('#refresh').onclick = refresh;
-$('#search').oninput = () => { visibleLimit = 75; render(); };
+$('#search').oninput = () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { visibleLimit = 75; render(); }, 120);
+};
 $('#cancel-skip').onclick = () => { skipTarget = null; $('#skip-dialog').close(); };
 $('#skip-form').onsubmit = event => { event.preventDefault(); decide('skipped', $('#reason').value, skipTarget); };
 refresh();

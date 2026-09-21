@@ -1,6 +1,7 @@
 """Local application review server. No collection or external writes."""
 import argparse
 from contextlib import closing
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
@@ -59,6 +60,15 @@ def slim(state):
     return trimmed
 
 
+def fingerprint(path):
+    """What a file looks like from outside: when it changed, and how long."""
+    try:
+        state = Path(path).stat()
+    except OSError:
+        return None
+    return state.st_mtime_ns, state.st_size
+
+
 def make_server(db, ledger, port=8765):
     token = secrets.token_urlsafe(32)
     assets = Path(__file__).with_name('review_static')
@@ -66,6 +76,30 @@ def make_server(db, ledger, port=8765):
     # the queue and appending to the ledger is a read-modify-write, and the
     # ledger is the one file here nothing regenerates.
     writing = threading.Lock()
+    building = threading.Lock()
+    cached = {'key': None, 'state': None}
+
+    def current_queue():
+        """The queue, rebuilt only when what it is derived from has changed.
+
+        Building it replays the whole ledger and reads every open posting, and
+        a decision paid for that twice: once to find the group to write, and
+        once through the refresh that follows the write. The inputs are two
+        files -- the ledger, which only ever grows, and the index, which a pass
+        rewrites -- so when they last changed and how long they are answers the
+        question exactly.
+
+        The UTC date is in the key as well, because the three-day window is a
+        function of the clock and nothing else. Within a day the window drifts
+        rather than moving: a posting stays in the recent tab a little longer
+        than it strictly should, and is in the backlog either way.
+        """
+        key = (fingerprint(ledger), fingerprint(db), datetime.now(timezone.utc).date())
+        with building:
+            if cached['key'] != key:
+                cached['state'] = applications.queue(db, ledger)
+                cached['key'] = key
+            return cached['state']
 
     class Handler(BaseHTTPRequestHandler):
         # A socket that connects and then says nothing used to stop the server
@@ -98,7 +132,7 @@ def make_server(db, ledger, port=8765):
                 if route.path == '/api/queue':
                     # Added after `slim`, which would read a bare list of names
                     # as a list of groups and project the strings away.
-                    return self.send(dict(slim(applications.queue(db, ledger)),
+                    return self.send(dict(slim(current_queue()),
                                           token=token, labels=list(ranking.LABELS)))
                 if route.path == '/api/job':
                     query = parse_qs(route.query)
@@ -166,7 +200,7 @@ def make_server(db, ledger, port=8765):
                     raise ValueError('Invalid request size')
                 data = json.loads(self.rfile.read(size))
                 with writing:
-                    state = applications.queue(db, ledger)
+                    state = current_queue()
                     group = next((group for status in ('pending', 'backlog', 'applied', 'skipped')
                                   for group in state[status] if group['id'] == data.get('id')), None)
                     if group is None:

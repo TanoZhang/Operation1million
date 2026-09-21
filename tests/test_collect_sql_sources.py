@@ -1,5 +1,6 @@
 """Offline contracts for pagination, attribution, and SQL rebuilds."""
 import argparse
+import csv
 import io
 import sqlite3
 import tempfile
@@ -157,6 +158,85 @@ class EffectiveProviderTests(unittest.TestCase):
         listed = [f'https://careers.ti.com/job/{n}' for n in range(5)]
         self.assertEqual(self.pass_listing(listed, 'first'), 5)
         self.assertEqual(self.pass_listing(listed[:4], 'second'), 4)
+
+
+class EquivalentFasterTests(unittest.TestCase):
+    """Optimizations, each held to the answer it replaced."""
+
+    def test_the_fast_path_for_a_title_answers_what_the_parser_answers(self):
+        """Measured at 416 ms to 189 ms per 20,000 titles, same output."""
+        from bs4 import BeautifulSoup
+        titles = ['RTL Design Engineer', ' Senior DV Engineer  II ', '', None, 0,
+                  'Engineer\tII\nAustin', 'Analog & Mixed-Signal Engineer',
+                  'Engineer &amp; Architect', '<b>DFT</b> Engineer', 'vector<T> Engineer',
+                  'A&B Engineer', 'Ingenieur RTL', 'Engineer\u00a0II', '   ',
+                  '<span>Physical Design</span> &nbsp; Engineer']
+        for title in titles:
+            with self.subTest(title=title):
+                self.assertEqual(
+                    collector.clean(title),
+                    BeautifulSoup(str(title or ''), 'html.parser').get_text(' ', strip=True))
+
+    def test_a_finished_source_is_stored_without_waiting_for_a_slow_one(self):
+        """`pool.map` returns in submission order; a slow board held the rest.
+
+        Each source is committed on its own precisely so a pass that dies keeps
+        what it had, and that is worth nothing if the commits queue behind the
+        slowest board in the catalog.
+        """
+        stored = []
+        started = threading.Event()
+
+        class PacedCollector:
+            def __init__(self, source, args):
+                self.source, self.args = source, args
+                self.session = SimpleNamespace(close=lambda: None, headers={})
+                self.rejected, self.requests = [], 1
+                self.strategy, self.watermark = 'full', None
+                self.known, self.listed = set(), None
+                self.etag = self.last_modified = None
+                self.jobs = []
+
+            def run(self):
+                if self.source.company_key == 'slow':
+                    started.wait(5)
+                return 'complete', ''
+
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        log = patch.object(store, 'LOG', root / 'store')
+        log.start()
+        self.addCleanup(log.stop)
+        db_path = root / 'jobs.sqlite'
+        with closing(sqlite3.connect(db_path)) as db, db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.executemany('INSERT INTO companies VALUES (?, ?)',
+                           [('slow', 'Slow Inc.'), ('quick', 'Quick Inc.')])
+        store.migrate(db_path)
+        sources = [Source('slow:1', 'company_sources', 'slow', 'Slow Inc.', 'ashby', '', {}),
+                   Source('quick:1', 'company_sources', 'quick', 'Quick Inc.', 'ashby', '', {})]
+
+        def record(db, source, *args, **kwargs):
+            stored.append(source.company_key)
+            if source.company_key == 'quick':
+                started.set()
+            return real_record(db, source, *args, **kwargs)
+
+        real_record = store.record_source
+        arguments = ['collector', '--db', str(db_path),
+                     '--output', str(root / 'run'), '--workers', '2']
+        with patch.object(collector, 'load_sources', return_value=sources), \
+             patch.object(collector, 'Collector', PacedCollector), \
+             patch.object(collector, 'RequestGuard', return_value=Mock(attempts=0)), \
+             patch.object(store, 'record_source', record), \
+             patch('sys.argv', arguments), patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(collector.main(), 0)
+        self.assertEqual(stored, ['quick', 'slow'], 'the slow board still held the quick one')
+        rows = list(csv.DictReader(
+            (root / 'run/company_results.csv').read_text(encoding='utf-8').splitlines()))
+        self.assertEqual([row['company_key'] for row in rows], ['slow', 'quick'],
+                         'the report no longer reads in catalog order')
 
 
 class CollectionTests(unittest.TestCase):

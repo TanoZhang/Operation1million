@@ -10,6 +10,12 @@ requires-python = ">=3.10"
 dependencies = [
   "beautifulsoup4>=4.12.0",
   "requests>=2.32.0",
+  # `tomllib` arrived in 3.11 and this package supports 3.10, where every
+  # entry point that reads the query plan needs `tomli` instead. It was an
+  # optional extra nothing installed, so a 3.10 install was one import away
+  # from failing and nothing said so. The marker makes it appear exactly where
+  # it is needed and nowhere else.
+  "tomli>=2.2.1; python_version < '3.11'",
   # The page-credit budget resets when the scheduled pass runs, which is a wall
   # clock time in America/Los_Angeles, so `zoneinfo` has to be able to find that
   # zone. A Linux box has it in the system tzdata; Windows ships none at all,
@@ -19,7 +25,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-compat = ["tomli>=2.2.1; python_version < '3.11'"]
 research = ["curl-cffi>=0.15.0"]
 
 [project.scripts]

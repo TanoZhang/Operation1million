@@ -1,6 +1,34 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Equivalent optimizations - 2026-09-21 UTC
+
+Seven, on `main`, each measured before and after and each held to the answer it
+replaced. Details and numbers are in the architecture bug log.
+
+What a reader should expect to notice: a decision in Review waits for one queue
+build instead of two, and the click itself for none; a pass stores each board
+as it finishes instead of in catalog order; a rebuild of a large day uses about
+a tenth of the memory. Nothing about what is collected, kept, scored or shown
+has changed, and the suite that says so is the same one as before.
+
+One behavioural consequence worth stating: the queue is now cached against the
+ledger's and the index's last-changed time plus the UTC date, so within a day
+the three-day window drifts rather than moving continuously. A posting can stay
+in the recent tab a little longer than it strictly should. It is in the backlog
+either way, and any write to either file rebuilds immediately.
+
+Measured here, medians: queue build 460 ms on 2,000 postings (now paid once per
+decision, not twice); per-posting judgement 2.53 to 2.10 ms; `clean` 416 to 189
+ms per 20,000 titles; rebuild peak 9.4 to 1.1 MB on a 4,000-posting day. The
+equivalence digest over the judgement corpus is identical on both sides.
+
+Not measured: none of this was run on the VPS, against the production index, or
+in a browser. The two page changes -- a debounced search box and a remembered
+description -- have no runtime here to run them.
+
+Measured: 485 offline tests, exit 0, 8 skips on Windows.
+
 # Ten more, across six files - 2026-09-21 UTC
 
 Codex's eighth audit, B34-B43, on `main`. Mechanisms and reproducers are in the

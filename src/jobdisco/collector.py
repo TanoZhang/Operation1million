@@ -12,7 +12,7 @@ import threading
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing, nullcontext
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -66,7 +66,16 @@ def query_url(url, **params):
 
 
 def clean(value):
-    return BeautifulSoup(str(value or ''), 'html.parser').get_text(' ', strip=True)
+    text = str(value or '')
+    # Almost every title is already plain text, and building a parser for each
+    # one is most of what this costs. Without a tag or an entity there is
+    # nothing for the parser to do but strip the ends, which is what it does:
+    # `get_text(' ', strip=True)` over a single text node returns that node
+    # stripped, internal spacing untouched. `&` is enough to send it down the
+    # slow path, because `&amp;` is an entity even where `A&B` is not.
+    if '<' not in text and '&' not in text:
+        return text.strip()
+    return BeautifulSoup(text, 'html.parser').get_text(' ', strip=True)
 
 
 def location_text(value):
@@ -941,15 +950,31 @@ def main():
         if db is not None:
             store.start_run(db, run_id)
             db.commit()
+        # Taken in the order they finish, not the order they were asked for.
+        # `pool.map` hands results back in submission order, so one slow board
+        # held every board behind it out of the store -- and a pass that dies
+        # holds only what was committed, which is the whole reason each source
+        # is committed on its own. The reports are put back in catalog order
+        # below, so what a reader sees does not depend on the weather.
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            for source, rows, status, reason, count, c in pool.map(direct, sources):
+            futures = {pool.submit(direct, source): index
+                       for index, source in enumerate(sources)}
+            ordered = []
+            for future in as_completed(futures):
+                source, rows, status, reason, count, c = future.result()
                 fs, fr = '', ''
                 jobs.extend(rows)
                 delta = persist(db, source, rows, status, count, c)
                 if delta and delta.get('status') != status:
                     status = delta['status']
                     reason = '; '.join(filter(None, [reason, delta.get('note', '')]))
-                reports.append({'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': fs, 'next_step': '; '.join(filter(None, [reason if status != 'complete' else '', fr])) or 'None'})
+                report = {'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': fs, 'next_step': '; '.join(filter(None, [reason if status != 'complete' else '', fr])) or 'None'}
+                # Appended as it finishes so a seal on the way out of a failed
+                # pass describes what was actually stored, and sorted back into
+                # catalog order once the loop is done.
+                reports.append(report)
+                ordered.append((futures[future], report))
+            reports[:] = [report for _, report in sorted(ordered, key=lambda pair: pair[0])]
         # Functional discovery follows direct sources. Only configured employers
         # qualify for the final fallback phase; no automatic company-wide search.
         direct_results = {r['company_key']: r for r in reports}

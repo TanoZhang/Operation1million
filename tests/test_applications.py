@@ -20,6 +20,8 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
+from unittest.mock import patch
+
 from jobdisco import applications, review
 
 
@@ -503,6 +505,43 @@ class HttpTests(ApplicationsTests):
             body = json.load(response)
         self.assertNotIn('<p>', body['description'])
         self.assertIn('Design hardware.', body['description'])
+
+    def test_a_decision_does_not_rebuild_the_queue_it_was_just_given(self):
+        """Building it replays the ledger and reads every open posting.
+
+        A decision paid for that twice -- once to find the group to write, once
+        through the refresh that follows -- and on a synthetic two thousand
+        postings one build measured 460 ms here. The ledger and the index are
+        files; when they last changed answers whether the answer still holds.
+        """
+        builds = []
+        real_queue = applications.queue
+
+        def counted(*args, **kwargs):
+            builds.append(1)
+            return real_queue(*args, **kwargs)
+
+        with patch.object(review.applications, 'queue', counted):
+            root = self.serve()
+            with urlopen(root + '/api/queue') as response:
+                state = json.load(response)
+            self.assertEqual(len(builds), 1)
+            with urlopen(root + '/api/queue') as response:
+                json.load(response)
+            self.assertEqual(len(builds), 1, 'nothing changed, and it built the queue again')
+
+            payload = json.dumps({'id': state['pending'][0]['id'], 'status': 'applied'}).encode()
+            request = Request(root + '/api/decision', data=payload,
+                              headers={'Content-Type': 'application/json',
+                                       'X-Review-Token': state['token']})
+            with urlopen(request) as response:
+                json.load(response)
+            self.assertEqual(len(builds), 1, 'the decision rebuilt what it had just been given')
+
+            with urlopen(root + '/api/queue') as response:
+                after = json.load(response)
+            self.assertEqual(len(builds), 2, 'the ledger changed and the queue did not')
+            self.assertEqual(len(after['applied']), 1)
 
     def test_http_decisions_require_token_and_replay_on_refresh(self):
         server = review.make_server(self.db, self.ledger, 0)
