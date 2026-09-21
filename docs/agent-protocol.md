@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Fifth offline audit of paid rejection updates and durable metadata, including correction of the invalid B20 finding.
+Files: docs/file-audit-round5-2026-09-20.md, docs/audit-repro-round5-2026-09-20.py, docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
+Base commit: d080ed1
+Status: claimed
+Next: Check production call paths, reproduce new cases, and retract B20 because main.direct already gates rejected rows.
+```
+
+```text
+Owner: codex
 Scope: Fourth offline bug audit of rejected-row completeness, historical export, provider URL normalization and historical Review detail.
 Files: docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
 Base commit: 73fef06
