@@ -9,8 +9,8 @@ Owner: codex
 Scope: Seventh offline audit of required-experience parsing and its paid-intake/Review effects.
 Files: docs/file-audit-round7-2026-09-20.md, docs/audit-repro-round7-2026-09-20.py, docs/agent-protocol.md
 Base commit: 1e42525
-Status: claimed
-Next: Validate requirement/preference scope and explicit numeric formats through the collector and Review queue.
+Status: done
+Next: User reviews B31-B33 in docs/file-audit-round7-2026-09-20.md. Four defective inputs and three controls exercised through collector.main and Review on both source trees; no business-code changes.
 ```
 
 ```text
