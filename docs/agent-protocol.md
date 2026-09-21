@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Seventh offline audit of required-experience parsing and its paid-intake/Review effects.
+Files: docs/file-audit-round7-2026-09-20.md, docs/audit-repro-round7-2026-09-20.py, docs/agent-protocol.md
+Base commit: 1e42525
+Status: claimed
+Next: Validate requirement/preference scope and explicit numeric formats through the collector and Review queue.
+```
+
+```text
+Owner: codex
 Scope: Sixth offline audit of the user's pending fixes: identity replay, rejection matching, historical export and interrupted rescore.
 Files: docs/file-audit-round6-2026-09-20.md, docs/audit-repro-round6-2026-09-20.py, docs/agent-protocol.md
 Base commit: ba2cf0f5c8bd3ccddc193c19c0c642141d27b73c
