@@ -7,9 +7,11 @@ The 11:38 UTC pass ran on `2f1f7be` and succeeded: suite green with no skips,
 index rebuilt from the log, manifest written, pushed. Read from its journal and
 the live index, not reasoned:
 
-- **Eightfold's first full pass found 350 postings the incremental passes had
-  missed** -- Micron 129, Qualcomm 153, Microsoft 68 -- and closed 540 withdrawn
-  ones incremental passes never retire. That is B51 measured in production.
+- **Eightfold's first full pass added 350 postings** -- Micron 129, Qualcomm
+  153, Microsoft 68 -- against 0 to 7 a day on the incremental passes before it,
+  and closed 540 that incremental passes never retire. Most of the 350 are
+  presumably postings those passes had missed, which is B51 in production; some
+  are that day's genuine arrivals, and the two were not separated.
 - **Every Workday board stopped at 40 postings and reported complete.** A
   regression from this session's first round, explained in the bug log. The
   closure fuse held on all nine boards; one Workday posting was closed that day.
