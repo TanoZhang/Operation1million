@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Sixth offline audit of the user's pending fixes: identity replay, rejection matching, historical export and interrupted rescore.
+Files: docs/file-audit-round6-2026-09-20.md, docs/audit-repro-round6-2026-09-20.py, docs/agent-protocol.md
+Base commit: ba2cf0f5c8bd3ccddc193c19c0c642141d27b73c
+Status: claimed
+Next: Validate new boundary cases against the uncommitted source without editing it; distinguish regressions from prior findings.
+```
+
+```text
+Owner: codex
 Scope: Fifth offline audit of paid rejection updates and durable metadata, including correction of the invalid B20 finding.
 Files: docs/file-audit-round5-2026-09-20.md, docs/audit-repro-round5-2026-09-20.py, docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
 Base commit: d080ed1
