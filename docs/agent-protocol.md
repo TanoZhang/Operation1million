@@ -10,8 +10,8 @@ Scope: Third offline audit of failure sealing, same-batch URL reuse and sitemap 
 Files: docs/file-audit-round3-2026-09-20.md, docs/audit-repro-round3-2026-09-20.py, docs/agent-protocol.md
 Base commit: c5db61a3f86592c16a79fbdc851fd30188a95504
 Last inspected main: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
-Status: claimed
-Next: Reproduce new cases on committed source and cross-check against the user's uncommitted first-audit fixes without editing them.
+Status: done
+Next: User reviews B17-B19 in docs/file-audit-round3-2026-09-20.md. All three reproduced on committed source and the user's uncommitted first-round fixes; no application code changed.
 ```
 
 ```text
