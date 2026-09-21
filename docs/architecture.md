@@ -208,6 +208,54 @@ that posting after the selection had moved to another. The fixes hold. The
 harness is not committed -- it needs an npm install, and the suite is offline --
 so this is a measurement made here, not a test the suite will repeat.
 
+### Quota, pacing and recovery, B63-B67, from Codex's twelfth audit, 2026-09-21 UTC
+
+Five across `jsearch.py`, `jsearch_access.py`'s callers, `ledger_guard.py`,
+`collection_policy.py` and `daily-pass.sh`. B63-B66 each have a test red on the
+code before it, and Codex's reproducer no longer holds at any of their
+assertions. B67 is different in kind: its defect is which ledger a shell branch
+rewinds, and neither this suite nor Codex's reproducer drives the pass script
+into that branch. It is covered by a contract on the script's text and a test
+of the rewind against real ledgers -- the wiring was read, not run.
+
+- **A page answered after the cycle rolled finished the new cycle's sweep.**
+  `resume_page` and `advance` each asked for the billing period at the moment
+  they ran, so a page requested at 23:59:59 on a cycle's last day and answered
+  two seconds later wrote its progress into the new cycle and marked it done.
+  A sweep now captures its period once, reads and writes its cursor under it,
+  and stops when the period changes under it: the page numbers in hand belong
+  to the sweep that ended, and the new one starts at page one on its own run.
+  Reproducers: `DiscoveryTests.test_a_page_answered_after_the_cycle_rolls_belongs_to_the_old_sweep`
+  and `...test_a_sweep_stops_when_the_cycle_rolls_under_it`.
+- **The startup ledger check compared the billing period only.** The budget
+  day and the billing cycle turn over at different moments, deliberately, so a
+  budget day can hold spend from the previous cycle. A local ledger that had
+  lost it compared zero against zero on the new cycle and was allowed to spend
+  the day's allocation again. The check now requires the local ledger to know
+  the current budget day's spend as well; a ledger ahead on both, as a failed
+  push leaves it, still passes. Neither clock moved. Reproducer:
+  `BudgetDayAcrossTheCycleTests`.
+- **Another crawler's Crawl-delay was applied to this one.** The largest delay
+  anywhere in robots.txt was taken, so a host asking this collector for two
+  seconds and another bot for six hundred got six hundred. Groups are now read
+  as robots.txt defines them: the group naming this crawler, else `*`, never
+  another's. Measured on the same file: 600 seconds before, 2 after.
+  Reproducer: `CollectionPolicyTests.test_the_delay_is_the_one_given_to_this_crawler`.
+- **A throttled robots request did not pause the source.** Only a 200 was read;
+  a 429 became "no delay declared" and the next board page went out. A 429 on
+  robots.txt now pauses the source for at least 15 minutes or its Retry-After,
+  as a 429 anywhere else does, and is not cached so a later run asks again.
+  Reproducer: `CollectionPolicyTests.test_a_throttled_robots_request_pauses_the_source`.
+- **Recovery rewound the published ledger, not the one the next pass reads.**
+  When collected history fails verification, the pass rewinds unpublished
+  cursor progress before publishing the ledger. It did so on the copy in the
+  data repository, while the runtime ledger under `$CODE/.local` -- the one the
+  next pass on this machine uses -- kept the progress, so the next sweep treated
+  queries as finished whose results were never published. Both are rewound
+  now, credits and cooldowns kept in each. Reproducers:
+  `UnpublishedProgressTests`, one reading the script and one rewinding real
+  ledgers.
+
 ### Store lifecycle, B58-B62, from Codex's eleventh audit, 2026-09-21 UTC (not deployed)
 
 Five in `store.py`. Each has a test red on the code before it. Codex's own

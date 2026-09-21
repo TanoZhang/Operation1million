@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from jobdisco.collection_policy import SourcePolicy, retry_after_seconds
+from jobdisco.collection_policy import robots_delay as real_robots_delay
 from jobdisco.collector import Collector, Source, main
 from jobdisco.validate_sources import validate
 
@@ -52,6 +53,40 @@ class CollectionPolicyTests(unittest.TestCase):
             restarted = self.collector(c.source)
             self.assertEqual(restarted.run()[0], 'paused')
             restarted.session.request.assert_not_called()
+        with closing(sqlite3.connect(self.args.source_state)) as db:
+            self.assertEqual(db.execute('SELECT retry_at FROM source_pauses').fetchone()[0], 4600)
+
+    def test_the_delay_is_the_one_given_to_this_crawler(self):
+        """B65: another bot's six hundred seconds are not this crawler's."""
+        from jobdisco.collection_policy import crawl_delay
+        robots = ('User-agent: JobSourceCollector\nCrawl-delay: 2\n\n'
+                  'User-agent: OtherBot\nCrawl-delay: 600\n')
+        self.assertEqual(crawl_delay(robots), 2)
+        self.assertEqual(crawl_delay('User-agent: *\nCrawl-delay: 5\n\n'
+                                     'User-agent: OtherBot\nCrawl-delay: 600\n'), 5)
+        self.assertIsNone(crawl_delay('User-agent: OtherBot\nCrawl-delay: 600\n'))
+        self.assertEqual(crawl_delay('User-agent: OtherBot\nUser-agent: JobSourceCollector\n'
+                                     'Crawl-delay: 3\n'), 3)
+        self.assertEqual(crawl_delay('User-agent: JobSourceCollector\nCrawl-delay: 2\n\n'
+                                     'User-agent: *\nCrawl-delay: 9\n'), 2)
+
+    def test_a_throttled_robots_request_pauses_the_source(self):
+        """B66: a 429 on robots.txt was read as no delay, and the next page went out."""
+        from jobdisco import collection_policy
+        collection_policy._ROBOTS_DELAY.pop('careers.micron.com', None)
+        self.addCleanup(collection_policy._ROBOTS_DELAY.pop, 'careers.micron.com', None)
+        throttled = Mock(status_code=429, headers={'Retry-After': '3600'}, text='')
+        c = self.collector()
+        page = self.response(data={'status': 200, 'data': {'count': 20, 'positions': [
+            {'id': str(n), 'name': 'RTL Engineer', 'positionUrl': f'/careers/job/{n}'}
+            for n in range(10)]}})
+        c.session.request.return_value = page
+        # The class patches robots_delay away; this test needs the real one.
+        with patch('jobdisco.collection_policy.robots_delay', real_robots_delay),              patch.object(collection_policy.requests, 'get', return_value=throttled),              patch('jobdisco.collection_policy.time.time', return_value=1000),              patch('jobdisco.collector.time.sleep'):
+            status, reason = c.run()
+        self.assertEqual(status, 'paused')
+        self.assertIn('robots.txt HTTP 429', reason)
+        self.assertEqual(c.session.request.call_count, 1, 'a board page went out after the throttle')
         with closing(sqlite3.connect(self.args.source_state)) as db:
             self.assertEqual(db.execute('SELECT retry_at FROM source_pauses').fetchone()[0], 4600)
 

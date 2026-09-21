@@ -60,6 +60,35 @@ class HardRejectTests(unittest.TestCase):
                 self.assertFalse(jsearch.excluded(title, self.rules))
 
 
+class UnpublishedProgressTests(unittest.TestCase):
+    """B67: a failed publication rewinds the ledger the next pass will read.
+
+    The branch runs only when the collected history fails verification, and no
+    test here drives the pass script that far; so the wiring is checked as
+    source, and the rewind itself against real ledgers.
+    """
+
+    def test_the_recovery_branch_rewinds_the_runtime_ledger_as_well(self):
+        script = (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
+        branch = script.split("publishing charges without unpublished cursors.")[1]
+        branch = branch.split('\n  fi\n')[0]
+        self.assertIn('workflow_state "$CODE/.local/jsearch_usage.sqlite"', branch)
+        self.assertIn('workflow_state operational/jsearch_usage.sqlite', branch)
+
+    def test_a_rewind_keeps_the_credits_and_restores_the_cursor(self):
+        from jobdisco.jsearch_access import RequestGuard
+        from jobdisco.workflow_state import restore_cursors
+        with tempfile.TemporaryDirectory() as folder:
+            before, runtime = Path(folder) / 'before.sqlite', Path(folder) / 'runtime.sqlite'
+            RequestGuard(path=before).advance('q', 2, period='2026-09-16')
+            guard = RequestGuard(path=runtime)
+            guard.advance('q', 9, exhausted=True, period='2026-09-16')
+            guard.baseline(1)
+            restore_cursors(runtime, before)
+            self.assertEqual(guard.resume_page('q', period='2026-09-16'), (2, False))
+            self.assertEqual(guard.balance()['period_used'], 1)
+
+
 @unittest.skipUnless(shutil.which('bash') and shutil.which('git') and shutil.which('flock'),
                      'bash, git and flock are required; Windows has no flock')
 class ApplicationsBackupTests(unittest.TestCase):

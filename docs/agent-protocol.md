@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   B63-B67 from the twelfth audit, and deployment of main to the VPS.
+Files:   src/jobdisco/{jsearch,collection_policy,ledger_guard}.py,
+         deploy/vps/daily-pass.sh, tests/, docs/
+Base commit: 72e93e00436601c22404043c8087713cd2670928
+Status:  done
+Next:    Deployed. Watch the 11:38 UTC pass: it rebuilds the index from the log
+         and reads every Eightfold board in full, once.
+```
+
+```text
+Owner:   claude
 Scope:   B58-B62 from the eleventh audit: teaser descriptions, batch order of a
          moved requisition, shard size, superseded paid descriptions, and a day
          that seals mid-pass.

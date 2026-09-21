@@ -20,6 +20,55 @@ class SourcePaused(Exception):
     """Stop this source for the run; a later run must honor its cooldown."""
 
 
+class RobotsThrottled(Exception):
+    """The host answered its robots.txt with a rate limit."""
+
+    def __init__(self, status, retry_after):
+        super().__init__(f'robots.txt HTTP {status}')
+        self.status, self.retry_after = status, retry_after
+
+
+USER_AGENT = 'JobSourceCollector/1.0'
+
+
+def crawl_delay(text, agent=USER_AGENT):
+    """The Crawl-delay a robots.txt gives this crawler, or None.
+
+    B65: read as robots.txt defines it -- groups of User-agent lines, each
+    followed by its rules. The group naming this crawler applies; failing that,
+    the `*` group; another crawler's group never does. The largest delay
+    anywhere in the file used to be taken, so a host asking this crawler for
+    two seconds and some other bot for six hundred got six hundred.
+    """
+    groups, agents, rules = [], [], []
+    for raw in text.splitlines():
+        line = raw.split('#', 1)[0].strip()
+        if ':' not in line:
+            continue
+        field, value = (part.strip() for part in line.split(':', 1))
+        if field.lower() == 'user-agent':
+            if rules:
+                groups.append((agents, rules))
+                agents, rules = [], []
+            agents.append(value.lower())
+        elif agents:
+            rules.append((field.lower(), value))
+    if agents:
+        groups.append((agents, rules))
+    token = agent.lower()
+    chosen = [r for names, r in groups if any(n != '*' and n in token for n in names)]
+    chosen = chosen or [r for names, r in groups if '*' in names]
+    delays = []
+    for group in chosen:
+        for field, value in group:
+            if field == 'crawl-delay':
+                try:
+                    delays.append(float(value))
+                except ValueError:
+                    continue
+    return max(delays) if delays else None
+
+
 _ROBOTS_DELAY: dict[str, float | None] = {}
 
 
@@ -38,13 +87,15 @@ def robots_delay(url, timeout=15):
     delay = None
     try:
         r = requests.get(f'https://{host}/robots.txt', timeout=timeout,
-                         headers={'User-Agent': 'JobSourceCollector/1.0'})
+                         headers={'User-Agent': USER_AGENT})
+        if r.status_code == 429:
+            # B66: a throttle on robots.txt is a throttle on the host. It used
+            # to become "no delay declared", and the next board request left
+            # anyway. Raised, and not cached, so the source is paused and a
+            # later run asks again.
+            raise RobotsThrottled(r.status_code, retry_after_seconds(r.headers.get('Retry-After')))
         if r.status_code == 200:
-            for value in re.findall(r'(?im)^\s*crawl-delay:\s*(\S+)', r.text):
-                try:
-                    delay = max(delay or 0.0, float(value))
-                except ValueError:
-                    continue
+            delay = crawl_delay(r.text)
     except requests.RequestException:
         delay = None
     _ROBOTS_DELAY[host] = delay
@@ -97,7 +148,11 @@ class SourcePolicy:
         only where a collection request was going out anyway.
         """
         if self._interval is None:
-            self._interval = request_interval(self.source, self.requested_delay)
+            try:
+                self._interval = request_interval(self.source, self.requested_delay)
+            except RobotsThrottled as throttled:
+                self.pause(f'{throttled}: rate limited; source stopped for this run',
+                           max(900, throttled.retry_after or 0))
         return self._interval
 
     def connect(self):

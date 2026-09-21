@@ -1,6 +1,39 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Deployed to the VPS, and B63-B67 - 2026-09-21 UTC
+
+**The VPS was updated today** from `ef6d4b3`, the commit it had held since
+before this session, to `72e93e0` at 09:27 UTC, and then to the commit carrying
+B63-B67 before the 11:38 pass. Measured there, not reasoned:
+
+- The full suite passed **on the VPS with no skips** -- 515 tests, including the
+  flock-dependent backup tests that are skipped on Windows and had never run,
+  and the check of the alternation against every title the live store holds.
+- `job-store --migrate --rescore` ran under the collection lock: migration 006
+  applied, 41,176 postings rescored in 2 minutes 9 seconds, **2,994 scores
+  corrected**, and `--verify` passed for every day including the one the rescore
+  wrote. That file and its manifest are left for the pass to commit.
+- The review server restarted with the new code. A cold queue build took
+  **28 seconds** on the live queue and a cached one 0.3 seconds. A decision used
+  to cost two builds and now costs one, but one is still 28 seconds, which is
+  the next thing worth making faster.
+
+What the 11:38 pass will do differently, reasoned from the code:
+
+- **Rebuild the index from the log**, because `data/config` changed and the
+  pass rebuilds whenever its inputs change. Nothing is lost: the oldest posting
+  in the live index was first seen 2026-09-17 and the oldest run file is
+  2026-09-17, so the log holds all of it.
+- **Read every Eightfold board in full**, since no full pass is on record yet.
+- Commit the rescore's corrections along with its own day.
+
+B63-B67, fixed in this commit, are in the bug log. B67 -- which ledger the
+recovery branch rewinds -- was verified by reading the script, not by running
+that branch.
+
+Measured locally: 523 offline tests, exit 0, 8 skips on Windows.
+
 # Store lifecycle, B58-B62 - 2026-09-21 UTC
 
 Codex's eleventh audit, in `store.py`, fixed on `main`. Mechanisms and

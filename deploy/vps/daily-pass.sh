@@ -78,6 +78,13 @@ publish_state() {
   else
     publication_failed=1
     echo 'Collected history did not verify; publishing charges without unpublished cursors.' >&2
+    # Both ledgers, the running one first. The published copy is what a new
+    # machine would seed from; the one under $CODE/.local is what the next pass
+    # on this machine reads, and rewinding only the copy left the next sweep
+    # treating queries as finished whose results were never published.
+    # Credits, credit events and cooldowns are kept in both.
+    python -m jobdisco.workflow_state "$CODE/.local/jsearch_usage.sqlite" \
+      "$CODE/.local/jsearch_usage.before.sqlite"
     python -m jobdisco.workflow_state operational/jsearch_usage.sqlite \
       "$CODE/.local/jsearch_usage.before.sqlite"
   fi

@@ -1101,6 +1101,51 @@ class DiscoveryTests(unittest.TestCase):
         jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
         self.assertEqual(self.guard.resume_page(self.cursor(query)), (3, True))
 
+    def test_a_page_answered_after_the_cycle_rolls_belongs_to_the_old_sweep(self):
+        """B63: its progress was written into the new cycle, and finished it.
+
+        The cycle renews at 2026-10-16T00:00Z. A page asked for two seconds
+        before that and answered after it marked the new cycle's sweep for the
+        query complete, so the new cycle never asked it anything.
+        """
+        clock = {'now': datetime.fromisoformat('2026-10-15T23:59:59+00:00').timestamp()}
+        query = jsearch.Query('RTL Design Engineer', 40, 'A')
+        self.guard.interval = 0
+        self.guard.advance(self.cursor(query), 5, period='2026-09-16')
+
+        def answered_after_midnight(url, **kwargs):
+            clock['now'] += 2
+            return self.response([job('late')])
+
+        self.session.get.side_effect = answered_after_midnight
+        with patch('jobdisco.jsearch_access.time.time', side_effect=lambda: clock['now']):
+            self.assertEqual(self.guard.period()[0], '2026-09-16')
+            jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+            self.assertEqual(self.guard.period()[0], '2026-10-16')
+            self.assertEqual(self.guard.resume_page(self.cursor(query), period='2026-10-16'),
+                             (1, False))
+            self.assertEqual(self.guard.resume_page(self.cursor(query), period='2026-09-16'),
+                             (6, True))
+
+    def test_a_sweep_stops_when_the_cycle_rolls_under_it(self):
+        """The page numbers in hand belong to the sweep that just ended."""
+        clock = {'now': datetime.fromisoformat('2026-10-15T23:59:59+00:00').timestamp()}
+        queries = [jsearch.Query('RTL Design Engineer', 40, 'A'),
+                   jsearch.Query('ASIC Design Engineer', 40, 'A')]
+        self.guard.interval = 0
+
+        def full_page_then_midnight(url, **kwargs):
+            clock['now'] += 2
+            return self.response([job(f'{clock["now"]}-{i}') for i in range(10)])
+
+        self.session.get.side_effect = full_page_then_midnight
+        with patch('jobdisco.jsearch_access.time.time', side_effect=lambda: clock['now']):
+            _, stats = jsearch.collect(queries, self.client, self.settings, {}, self.persist,
+                                       backfill=True)
+        self.assertEqual(self.session.get.call_count, 1)
+        self.assertTrue(any('billing period changed' in q['reason']
+                            for q in stats['jsearch_queries']))
+
     def test_an_empty_page_does_not_settle_a_sweep_cursor(self):
         """A provider hiccup must not skip the rest of a query for the cycle.
 

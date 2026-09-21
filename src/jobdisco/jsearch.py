@@ -726,12 +726,19 @@ def collect(queries, client, settings, companies, persist, backfill=False,
     filter_version = filter_fingerprint(rules)
 
     space = search_space(settings)
+    # B63: the billing period this sweep's page numbers belong to, captured
+    # once. `resume_page` and `advance` each used to ask for the period at the
+    # moment they ran, so a page requested at 23:59:59 on a cycle's last day
+    # and answered two seconds later wrote its progress into the new cycle --
+    # and marked the new cycle's sweep finished before it had asked anything.
+    sweep_period = client.guard.period()[0] if backfill else None
     state = {}
     for query in queries:
         # A backfill is one sweep spread over the cycle's last days, so it picks
         # up where the previous day stopped instead of re-buying its own pages.
         cursor = query.key + ':' + space
-        start, finished = client.guard.resume_page(cursor) if backfill else (1, False)
+        start, finished = (client.guard.resume_page(cursor, period=sweep_period)
+                           if backfill else (1, False))
         state[query.key] = {
             'query': query, 'cursor': cursor, 'rows': [], 'seen': [], 'page': start,
             'previous': None, 'done': finished,
@@ -824,6 +831,15 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     stop = True
                     stop_reason = 'the run reached its time limit'
                     break
+                if backfill and client.guard.period()[0] != sweep_period:
+                    # The page numbers in hand belong to the sweep that just
+                    # ended. The new cycle's sweep starts at page one, on its
+                    # own run, not from where the old one had got to.
+                    detail['status'] = 'query_limited'
+                    detail['reason'] = 'The billing period changed during the sweep'
+                    stop = True
+                    stop_reason = 'the billing period changed'
+                    break
                 # The guard has to bind before the credit is spent, not after:
                 # a resumed sweep can start already past its own cap.
                 if entry['page'] > query.pages:
@@ -899,7 +915,8 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # stays where it is and the next day asks for it again.
                     resume = (entry['page'] if not looping and not held and (items or settled)
                               else asked)
-                    client.guard.advance(entry['cursor'], resume, exhausted=settled)
+                    client.guard.advance(entry['cursor'], resume, exhausted=settled,
+                                         period=sweep_period)
                 if exhausted or looping:
                     if detail['status'] != 'failed':
                         stats['jsearch_queries_completed'] += 1
