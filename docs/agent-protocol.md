@@ -6,6 +6,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Twelfth offline audit: quota, pacing, ledger comparison and workflow cursor recovery, function by function; findings only.
+Files: docs/file-audit-round12-2026-09-21.md, docs/audit-repro-round12-2026-09-21.py, docs/agent-protocol.md
+Base commit: 6dc9a0510d2088baa7db28c9b8ee1f19402a2e11
+Inspected main: ca501dc41640a09c0650d92bcb12ddddbf2025ca
+Status: claimed
+Next: Simulate billing boundaries, response failures and recovery in temporary ledgers; no external requests or business-code edits.
+```
+
+```text
+Owner: codex
 Scope: Eleventh offline audit: complete store.py function inventory, identity, persistence, replay and recovery; findings only.
 Files: docs/file-audit-round11-2026-09-21.md, docs/audit-repro-round11-2026-09-21.py, docs/agent-protocol.md
 Base commit: e5c9440ff707eadc44a679d63de5beafcaf48542
