@@ -19,6 +19,12 @@ EXPERIENCE = re.compile(r'\b(?:experience|professional|industry)\b', re.I)
 # two tape-outs within three years" is a deadline the job sets, not experience
 # it asks for. `over` is deliberately absent: "over 5 years" is a floor.
 ELAPSED = re.compile(r'\b(?:in|within|during|after|next|past|last)\s+(?:\w+\s+){0,2}$', re.I)
+# Where a structured field ended. `jsearch.description_text` joins a payload's
+# fields into one text and emits a field's key as a heading when the key names
+# a qualification; without an end mark that heading's scope ran on into the
+# next, unrelated field, so the same two fields in the other order were judged
+# differently. A control character, because it cannot occur in prose.
+SECTION_END = '\x1e'
 NON_WORK = re.compile(r'^\s*[- ]?\s*(?:roadmap|degree|program(?:me)?|course|plan)\b', re.I)
 # Someone the posting supervises, not the posting itself. A role senior enough
 # to mentor an intern is the opposite of an entry-level opening, and reading
@@ -144,6 +150,13 @@ def evaluate(title, description):
         block = block.strip(' \t-*•')
         if not block:
             continue
+        if SECTION_END in block:
+            # A structured field ended here, and the heading it opened ends
+            # with it -- whichever order the fields arrived in.
+            optional_section = required_section = False
+            block = block.replace(SECTION_END, '').strip(' \t-*•')
+            if not block:
+                continue
         # Headings establish scope across bullets, unlike an inline preference.
         if not re.search(r'\d', block):
             if OPTIONAL.search(block) and len(block.split()) <= 7:

@@ -155,7 +155,8 @@ def normalize(source, item):
         ident = item.get('id_icims') or ident
         url = urljoin('https://www.amazon.jobs', item.get('job_path') or url) if item.get('job_path') or url else None
         posted = item.get('posted_date')
-    if not title or not url or urlsplit(str(url)).scheme not in {'http', 'https'}:
+    address = urlsplit(str(url)) if url else None
+    if not title or not address or address.scheme not in {'http', 'https'} or not address.netloc:
         raise ValueError('Job record lacks a title or public HTTP URL')
     return dict(zip(FIELDS, [source.company_key, source.company_name, p, clean(title), location_text(location), str(url), str(ident) if ident is not None else None, posted, item]))
 

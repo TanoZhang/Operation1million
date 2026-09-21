@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   B44-B49 from the ninth audit: provenance read as prose, records emptied
+         by cleaning, joined filter patterns, the backfill cursor on an
+         unreadable last page, link selection, and field order in structured
+         payloads.
+Files:   src/jobdisco/{jsearch,experience,collector}.py, tests/test_jsearch.py, docs/
+Base commit: 1aa84564c7a22311f6ce51b5bb9d8cb9e446b9c0
+Status:  done
+Next:    Merged into main; 498 offline tests pass. After install, run
+         `job-store --rescore`: stored scores include the search phrase.
+```
+
+```text
+Owner:   claude
 Scope:   Bug check of the review path and the store CLI: the outstanding B27
          instance (a replacement requisition inheriting a decision through a
          provider move), the review queue cache missing a pass that is still

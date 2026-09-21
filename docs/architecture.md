@@ -208,6 +208,74 @@ that posting after the selection had moved to another. The fixes hold. The
 harness is not committed -- it needs an npm install, and the suite is offline --
 so this is a measurement made here, not a test the suite will repeat.
 
+### Paid discovery, B44-B49, from Codex's ninth audit, 2026-09-21 UTC (not deployed)
+
+All six in `jsearch.py`, where a posting bought from the provider is read,
+judged and kept. Each has a test red against the code before it; Codex's own
+reproducer also stops holding at every assertion it reaches (B44-B46) before
+its bookkeeping, written for the defective path, runs out.
+
+- **The search phrase was read as the posting's own words.** `normalize_job`
+  records the query that found a posting in `raw.discovery_queries`, and
+  `description_text` walked it like any other field. So the phrase decided the
+  verdict: an RTL role asking five years was refused when found by "RTL" and
+  accepted when found by "RTL Intern" or "RTL New Grad" -- both in the shipped
+  plan -- and an antenna job scored 0 or 38 depending on whether the query
+  named the trade. Fields this collector writes into a payload are now listed
+  once, in `COLLECTOR_FIELDS`, and skipped at every depth. Scores stored before
+  this were computed with the leak; `job-store --rescore` corrects them, and
+  the review queue's experience gate, which reads raw each time, is corrected
+  at once. Reproducer: `PayloadReadingTests.test_the_search_phrase_is_not_evidence_about_the_job`.
+- **A record emptied by cleaning took its page down.** `normalize_job` only
+  failed where `normalize` did, and a title of whitespace survived that and was
+  emptied by `clean_title` afterwards; an object-valued posting date survived
+  too. Both reached SQLite at the page checkpoint, outside the per-item
+  boundary, where the constraint or the binding raised and every valid posting
+  on a page already paid for went with them. An empty title is now a malformed
+  record. An object-valued date is dropped rather than refused: the field is
+  optional, the provider's value stays in raw, and missing publisher data is
+  not held against a posting anywhere else. Reproducer:
+  `DiscoveryTests.test_an_unreadable_record_costs_itself_and_not_the_page`.
+- **Joining the filter's patterns changed what some of them meant.** `any_of`
+  joins patterns into one alternation, which is exact only for patterns with no
+  groups: joining renumbers them, so a backreference pointed at a neighbour's
+  capture, and two patterns each naming a group compiled alone -- passing
+  `load_plan` -- and not together, which failed after a paid page had been
+  bought. Patterns with groups, or with inline flags that only compile at the
+  start, are now kept apart; the rest are still joined, so the measured saving
+  the alternation was built for stands. Reproducer:
+  `PayloadReadingTests.test_patterns_that_cannot_share_an_alternation_keep_their_meaning`.
+- **An unreadable last page settled the sweep for the cycle.** Exhaustion was
+  decided from the page's length alone, so a short page whose only record was
+  malformed settled the cursor and the query was not asked again that cycle,
+  with the posting lost. Such a page is now held open, exactly as an empty last
+  page already is -- the repository has decided that one repeated page a day is
+  the right price against a silently skipped query, and this pays it in the
+  same place. Only the last page: holding a middle page would stall the query
+  there for as long as the record stays broken, so a middle page still moves
+  on, and its unreadable record is left to the daily pass. Reproducers:
+  `DiscoveryTests.test_a_last_page_that_could_not_be_read_is_asked_again`, and
+  `...test_a_middle_page_with_an_unreadable_record_still_moves_on` for the other
+  side.
+- **The first nonempty link won, not the first usable one.** A blank or
+  `javascript:void(0)` apply link was chosen over a working Google link, failed
+  the URL check and discarded the job; `https://` with no host passed the check
+  and became the posting's identity. Candidates are now taken in their order
+  until one is a public HTTP(S) address with a host. `collector.normalize`
+  requires the host too, on every path, since an address without one is not
+  public anywhere. Reproducer:
+  `PayloadReadingTests.test_the_first_public_link_is_used_not_the_first_nonempty_one`.
+- **The order of a payload's fields changed the experience verdict.** A field
+  whose key names a qualification is emitted as a heading, and its scope ran on
+  into whatever field came next: "preferred qualifications" before a job
+  description made the description's five years optional, and the same two
+  fields reversed refused the posting. The same leak ran the other way through
+  the required-section context added for B32, turning a stock vesting schedule
+  that followed a required-qualifications field into a requirement. A field
+  that opens a heading now closes it, with a mark the parser reads as the end of
+  both contexts. Reproducer:
+  `PayloadReadingTests.test_the_order_of_a_payloads_fields_does_not_change_the_verdict`.
+
 ### Equivalent optimizations, 2026-09-21 UTC (not deployed)
 
 Seven changes that do the same work in less of it, plus one packaging fix. No

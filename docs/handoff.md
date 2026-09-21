@@ -1,6 +1,33 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Paid discovery, B44-B49 - 2026-09-21 UTC
+
+Codex's ninth audit, all in `jsearch.py`, fixed on `main`. Before them, `main`
+took `1aa8456` from another Claude session on `claude`: a decision confirmed
+against the store's own aliases before it follows a posting across providers,
+the review cache watching the WAL sidecar where a running pass's commits land,
+and two `job-store` flags that answered the wrong question. It corrected a claim
+of mine -- that a same-title replacement could not be told from a provider move
+-- by finding that the store already records the difference.
+
+Two things want doing after this is installed:
+
+- **`job-store --rescore`.** Until now the phrase that found a paid posting was
+  read as part of the posting, and stored relevance scores include it. The
+  review queue's experience gate reads raw each time and is correct at once;
+  the stored scores that order the queue and settle evidence titles are not,
+  until they are recomputed. `--rescore` publishes what it corrects to the log.
+- Nothing else. The backfill change costs one repeated page a day for a query
+  whose last page carries an unreadable record, which is what an empty last
+  page already costs.
+
+Measured: 498 offline tests, exit 0, 8 skips on Windows. Each new test red on
+the code before it. Codex's reproducer, run against this tree with every
+assertion recorded rather than fatal, no longer holds at B44, B45 or B46; its
+own bookkeeping for the defective path stops it there, and B47-B49 rest on the
+tests above. No provider contacted, no credit spent, nothing deployed.
+
 # A bug check: three defects, and the page run for the first time - 2026-09-21 UTC
 
 A pass over the review path and the store's command line, on `main`. Mechanisms

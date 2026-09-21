@@ -68,6 +68,79 @@ def job(ident='1', **extra):
             'future_useful_field': 'preserve', **extra}
 
 
+class PayloadReadingTests(unittest.TestCase):
+    """What a posting says, read the same way whatever surrounds it."""
+
+    def setUp(self):
+        self.rules = jsearch.load_plan()[0]['filter']
+
+    def verdict(self, title, raw):
+        row = {'title': title, 'raw': dict(raw)}
+        return jsearch.rejection_reason(row, self.rules), jsearch.relevance(row, self.rules)[0]
+
+    def test_the_search_phrase_is_not_evidence_about_the_job(self):
+        """B44: `discovery_queries` is written by this collector, not the employer.
+
+        Read as prose, the phrase that found a posting decided it: "RTL Intern"
+        waived a five-year requirement, and a query naming the trade turned an
+        antenna job into silicon work.
+        """
+        for title, raw in (('RTL Engineer', {'job_description': '5 years of experience required.'}),
+                           ('RF Engineer', {'job_description': 'Maintain radio antennas.'})):
+            with self.subTest(title=title):
+                seen = {self.verdict(title, dict(raw, discovery_queries=[phrase]))
+                        for phrase in ('RTL', 'RTL Intern', 'RTL New Grad', 'RF FPGA RTL ASIC')}
+                self.assertEqual(len(seen), 1, seen)
+        self.assertEqual(self.verdict('RTL Engineer', {
+            'job_description': '5 years of experience required.',
+            'discovery_queries': ['RTL Intern']})[0], 'required_experience_over_2_years')
+
+    def test_the_order_of_a_payloads_fields_does_not_change_the_verdict(self):
+        """B49: a qualification heading's scope ends with its own field."""
+        for fields, expected in (
+                ({'preferred_qualifications': 'FPGA familiarity',
+                  'job_description': '5 years of experience.'},
+                 'required_experience_over_2_years'),
+                ({'required_qualifications': 'RTL design.',
+                  'perks': 'Stock vests over 5 years.'}, '')):
+            forward = dict(fields)
+            backward = dict(reversed(list(fields.items())))
+            with self.subTest(fields=list(fields)):
+                self.assertEqual(
+                    jsearch.experience_debug({'title': 'RTL Engineer', 'raw': forward})['hard_pass_reason'],
+                    expected)
+                self.assertEqual(
+                    jsearch.experience_debug({'title': 'RTL Engineer', 'raw': backward})['hard_pass_reason'],
+                    expected)
+
+    def test_patterns_that_cannot_share_an_alternation_keep_their_meaning(self):
+        """B46: joining renumbers groups, so it is kept for patterns without any."""
+        backreference = jsearch.any_of(['(director)', r'(senior)\s+\1'])
+        self.assertTrue(backreference.search('senior senior RTL Engineer'))
+        self.assertTrue(backreference.search('Director of Silicon'))
+        self.assertFalse(backreference.search('senior RTL Engineer'))
+        named = jsearch.any_of([r'(?P<level>staff)\s+engineer', r'(?P<level>principal)'])
+        self.assertTrue(named.search('Principal Engineer'))
+        self.assertTrue(named.search('Staff Engineer'))
+        self.assertFalse(named.search('Senior Engineer'))
+
+    def test_the_first_public_link_is_used_not_the_first_nonempty_one(self):
+        """B48: a blank or scripted apply link threw away a working one behind it."""
+        query = jsearch.Query('RTL Design Engineer', 1, 'A')
+        for primary in (' ', 'javascript:void(0)', 'https://'):
+            with self.subTest(primary=primary):
+                row = jsearch.normalize_job(job('x', job_apply_link=primary,
+                                                job_google_link='https://www.google.com/search?q=x'),
+                                            query, {})
+                self.assertEqual(row['url'], 'https://www.google.com/search?q=x')
+        row = jsearch.normalize_job(job('y', job_apply_link='', job_google_link=None, apply_options=[
+            {'apply_link': 'javascript:x'}, {'apply_link': 'https://jobs.example/y'}]), query, {})
+        self.assertEqual(row['url'], 'https://jobs.example/y')
+        with self.assertRaises(ValueError):
+            jsearch.normalize_job(job('z', job_apply_link='https://', job_google_link=None),
+                                  query, {})
+
+
 class PageIdentityTests(unittest.TestCase):
     """The repeated-page check must never be what loses a page already paid for."""
 
@@ -990,6 +1063,43 @@ class DiscoveryTests(unittest.TestCase):
         # The same settings in a different order are the same search.
         same = dict(self.settings, employment_types=list(reversed(self.settings['employment_types'])))
         self.assertEqual(jsearch.search_space(same), jsearch.search_space(self.settings))
+
+    def test_an_unreadable_record_costs_itself_and_not_the_page(self):
+        """B45: a record emptied by cleaning raised in SQLite, past the item boundary.
+
+        The page had already been paid for, and its valid siblings went down
+        with it. A posting date the provider sent as an object is an optional
+        field in a shape nothing can store: it is left in raw and the posting
+        kept, as missing publisher data is everywhere else.
+        """
+        self.session.get.return_value = self.response([
+            job('good'), job('blank', job_title='   '),
+            job('dated', job_posted_at_datetime_utc={'date': '2026-09-20'})])
+        rows, stats = jsearch.collect(self.plan[:1], self.client, self.settings, {}, self.persist)
+        self.assertEqual(sorted(r['source_job_id'] for r in rows), ['dated', 'good'])
+        self.assertEqual(stats['jsearch_queries'][0]['malformed'], 1)
+        dated = next(r for r in rows if r['source_job_id'] == 'dated')
+        self.assertIsNone(dated['posted_at'])
+        self.assertEqual(dated['raw']['job_posted_at_datetime_utc'], {'date': '2026-09-20'})
+
+    def test_a_last_page_that_could_not_be_read_is_asked_again(self):
+        """B47: settling on it retired the query for the cycle with the posting lost."""
+        query = jsearch.Query('RTL Design Engineer', 40, 'A')
+        self.session.get.return_value = self.response([{'job_id': 'lost'}])
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (1, False))
+        self.session.get.return_value = self.response([job('recovered')])
+        rows, _ = jsearch.collect([query], self.client, self.settings, {}, self.persist,
+                                 backfill=True)
+        self.assertEqual([r['source_job_id'] for r in rows], ['recovered'])
+
+    def test_a_middle_page_with_an_unreadable_record_still_moves_on(self):
+        """Holding a full page would stall the query there for as long as it stays broken."""
+        query = jsearch.Query('RTL Design Engineer', 40, 'A')
+        page = [job(f'p1-{i}') for i in range(9)] + [{'job_id': 'broken'}]
+        self.session.get.side_effect = [self.response(page), self.response([job('tail')])]
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(self.guard.resume_page(self.cursor(query)), (3, True))
 
     def test_an_empty_page_does_not_settle_a_sweep_cursor(self):
         """A provider hiccup must not skip the rest of a query for the cycle.

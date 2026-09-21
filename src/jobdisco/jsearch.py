@@ -19,6 +19,7 @@ from .paths import CONFIG
 from .collection_policy import retry_after_seconds
 from .jsearch_access import AccountPaused, QuotaExhausted
 from .job_text import clean_title
+from .experience import SECTION_END
 
 
 @dataclass(frozen=True)
@@ -284,6 +285,15 @@ class Client:
                 response.close()
 
 
+def public_link(value):
+    """The value as a public HTTP(S) address with a host, or None."""
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    parts = urlsplit(value)
+    return value if parts.scheme in {'http', 'https'} and parts.netloc else None
+
+
 def normalize_job(item, query, companies):
     # Use the existing normalized record shape; importing locally avoids a
     # collector/module cycle. Unknown employers never change the source catalog.
@@ -298,21 +308,71 @@ def normalize_job(item, query, companies):
     if not key:
         key = 'discovered_' + hashlib.sha256(employer.casefold().encode()).hexdigest()[:16]
     source = Source(query.key, 'discovery', key, employer, 'jsearch', '', {})
-    link = item.get('job_apply_link') or item.get('job_google_link')
-    if not link:
-        link = next((r.get('apply_link') for r in item.get('apply_options', [])
-                     if isinstance(r, dict) and r.get('apply_link')), None)
+    # The first candidate that is a public address, not the first that is
+    # nonempty. A blank or `javascript:void(0)` apply link used to win, fail the
+    # URL check and throw the whole job away with a working Google link sitting
+    # right behind it; `https://` with no host passed the check and became the
+    # posting's identity.
+    options = item.get('apply_options') if isinstance(item.get('apply_options'), list) else []
+    candidates = [item.get('job_apply_link'), item.get('job_google_link'),
+                  *(r.get('apply_link') for r in options if isinstance(r, dict))]
+    link = next((found for found in map(public_link, candidates) if found), None)
+    posted = item.get('job_posted_at_datetime_utc')
+    if posted is not None and not isinstance(posted, (str, int, float)):
+        # An optional field the provider sent in a shape nothing can store.
+        # It stays in raw as sent; the posting keeps everything else. Missing
+        # publisher data is not held against a posting anywhere else either.
+        posted = None
     row = normalize(source, {
         'title': item.get('job_title'), 'id': item.get('job_id'), 'url': link,
         'location': ', '.join(str(item[k]) for k in ('job_city', 'job_state', 'job_country') if item.get(k)),
-        'posted_at': item.get('job_posted_at_datetime_utc')})
+        'posted_at': posted})
     row['raw'] = dict(item)
     row['title'] = clean_title(row['title'], row['location'])
+    if not row['title']:
+        # Checked after cleaning, because cleaning is what can empty it. An
+        # empty title raised in SQLite at the page checkpoint instead of here,
+        # outside the per-item boundary, and took every valid posting on the
+        # page -- already paid for -- down with it.
+        raise ValueError('Job title is empty once cleaned')
     row['raw']['discovery_queries'] = [query.query]
     return row
 
 
 _ALTERNATIONS = {}
+
+
+class AnyOf:
+    """Any of several patterns: one alternation where that is exact, the rest apart."""
+
+    def __init__(self, joined, alone):
+        self.joined, self.alone = joined, alone
+
+    def search(self, text):
+        found = self.joined.search(text) if self.joined is not None else None
+        if found:
+            return found
+        return next((hit for hit in (pattern.search(text) for pattern in self.alone) if hit),
+                    None)
+
+
+def joinable(pattern):
+    """Whether a pattern means the same inside an alternation as it does alone.
+
+    Groups number themselves across the whole expression, so joining renumbers
+    every group after the first pattern's: a backreference then points at a
+    neighbour's capture, and two patterns naming the same group stop compiling
+    at all -- after `load_plan` had accepted each of them, and after a paid page
+    had been bought. A global inline flag is only legal at the start of an
+    expression, which is not where it lands once joined.
+    """
+    if re.compile(pattern, re.I).groups:
+        return False
+    try:
+        re.compile(f'(?:{pattern})|(?:)', re.I)
+    except re.error:
+        return False
+    return True
 
 
 def any_of(patterns):
@@ -330,8 +390,13 @@ def any_of(patterns):
     """
     key = tuple(patterns)
     if key not in _ALTERNATIONS:
-        _ALTERNATIONS[key] = (re.compile('|'.join(f'(?:{p})' for p in key), re.I)
-                              if key else None)
+        if not key:
+            _ALTERNATIONS[key] = None
+        else:
+            together = [p for p in key if joinable(p)]
+            _ALTERNATIONS[key] = AnyOf(
+                re.compile('|'.join(f'(?:{p})' for p in together), re.I) if together else None,
+                [re.compile(p, re.I) for p in key if not joinable(p)])
     return _ALTERNATIONS[key]
 
 
@@ -429,6 +494,14 @@ NON_PROSE_FIELDS = {
 }
 TITLE_FIELDS = {'title', 'job_title', 'name', 'position_name'}
 
+# Fields this collector writes into a provider's payload. They record how a
+# posting was found and judged, not what it says, so they are never read back as
+# its prose. `discovery_queries` was the one missing: the search phrase itself
+# became evidence, so an ordinary RTL role asking five years was accepted
+# whenever the query that found it said "Intern" -- and an antenna job scored
+# as silicon work whenever it was found by a query naming the trade.
+COLLECTOR_FIELDS = frozenset({'relevance', 'experience_filter', 'discovery_queries'})
+
 TAGS = re.compile(r'<[^>]{0,400}>')
 WHITESPACE = re.compile(r'\s+')
 
@@ -450,10 +523,14 @@ def description_text(row, structured=False):
             parts.append(value)
         elif isinstance(value, dict):
             for key, item in value.items():
-                if key not in NON_PROSE_FIELDS and key not in {'relevance', 'experience_filter'}:
-                    if structured and re.search(r'preferred|desired|required|qualifications', key, re.I):
+                if key not in NON_PROSE_FIELDS and key not in COLLECTOR_FIELDS:
+                    heading = structured and re.search(
+                        r'preferred|desired|required|qualifications', key, re.I)
+                    if heading:
                         parts.append(key.replace('_', ' '))
                     walk(item)
+                    if heading:
+                        parts.append(SECTION_END)
         elif isinstance(value, list):
             for item in value:
                 walk(item)
@@ -462,10 +539,16 @@ def description_text(row, structured=False):
         # The title is scored separately with its higher title weight. Only
         # suppress these names at the payload root: a nested skill `name` is
         # useful prose and must remain searchable.
-        if key not in NON_PROSE_FIELDS and key not in TITLE_FIELDS and key not in {'relevance', 'experience_filter'}:
-            if structured and re.search(r'preferred|desired|required|qualifications', key, re.I):
+        if key not in NON_PROSE_FIELDS and key not in TITLE_FIELDS and key not in COLLECTOR_FIELDS:
+            # B49: a qualification heading is scoped to its own field. The mark
+            # after the field closes it, so "preferred qualifications" no
+            # longer reaches into the job description that happens to follow.
+            heading = structured and re.search(r'preferred|desired|required|qualifications', key, re.I)
+            if heading:
                 parts.append(key.replace('_', ' '))
             walk(value)
+            if heading:
+                parts.append(SECTION_END)
     # Markup is not prose. A publisher's excerpt is kept rather than judged, on
     # the grounds that a short description is truncation and not silence -- but
     # a few hundred words of boilerplate wrapped in tags measured well past the
@@ -771,6 +854,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 identities = page_identity(items)
                 looping = identities is not None and identities == entry['previous']
                 entry['previous'] = identities
+                malformed_before = detail['malformed']
                 if not looping:
                     before_rows = len(entry['rows'])
                     before_seen = len(entry['seen'])
@@ -793,11 +877,22 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # skipped query costs everything after it. A page that came
                     # back short but not empty, and a first page with nothing on
                     # it at all, are both genuine ends.
-                    settled = not looping and (exhausted and (bool(items) or asked == 1))
+                    # A last page carrying a record that could not be read is
+                    # held open, like the empty page above: settling it would
+                    # retire the query for the cycle with that posting lost,
+                    # and nothing on the next day could ask again. It costs the
+                    # same as that rule does -- one repeated page a day -- and
+                    # only on the last page: holding a middle page would stall
+                    # the query there for as long as the record stays broken.
+                    held = (not looping and exhausted
+                            and detail['malformed'] > malformed_before)
+                    settled = (not looping and not held
+                               and (exhausted and (bool(items) or asked == 1)))
                     # An unsettled empty page is the one page that must not be
                     # stepped over: nothing was persisted from it, so the cursor
                     # stays where it is and the next day asks for it again.
-                    resume = entry['page'] if not looping and (items or settled) else asked
+                    resume = (entry['page'] if not looping and not held and (items or settled)
+                              else asked)
                     client.guard.advance(entry['cursor'], resume, exhausted=settled)
                 if exhausted or looping:
                     if detail['status'] != 'failed':
