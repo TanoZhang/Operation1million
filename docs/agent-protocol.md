@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Fourth offline bug audit of rejected-row completeness, historical export, provider URL normalization and historical Review detail.
+Files: docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
+Base commit: 73fef06
+Status: claimed
+Next: Reproduce new defects on committed and user working source; report without priority labels or business-code changes.
+```
+
+```text
+Owner: codex
 Scope: Third offline audit of failure sealing, same-batch URL reuse and sitemap identity wiring; findings only, user owns implementation.
 Files: docs/file-audit-round3-2026-09-20.md, docs/audit-repro-round3-2026-09-20.py, docs/agent-protocol.md
 Base commit: c5db61a3f86592c16a79fbdc851fd30188a95504
