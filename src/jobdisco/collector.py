@@ -433,6 +433,16 @@ class Collector:
             data = self.fetch(target, method, payload).json()
             items = data.get('jobs', []) if p == 'amazon_jobs' else json_items(p, data)
             total = reported_total(p, data)
+            if total == 0 and items:
+                # A page that lists postings is not stating that the board has
+                # none. Workday sends its real `total` on the first page only
+                # and `0` on every page after it; once a stated zero was read as
+                # a count, every Workday board stopped at its second page --
+                # forty postings -- and called itself complete. On 2026-09-21
+                # that was nine boards in production, NVIDIA's 2,000 among them,
+                # and only the closure fuse kept them from being retired. The
+                # zero is set aside, and the last credible total stands.
+                total = None
             if isinstance(total, (int, float)):
                 stated_total = total
             expected = {'workday': 'jobPostings', 'greenhouse': 'jobs', 'ashby': 'jobs', 'smartrecruiters': 'content', 'oracle_cloud': 'items', 'phenom': 'refineSearch', 'amazon_jobs': 'jobs', 'eightfold': 'data', 'amd_careers': 'jobs'}[p]
@@ -473,7 +483,8 @@ class Collector:
             offset += len(items)
             if p in {'greenhouse', 'ashby'}:
                 return ('partial', 'Job cap reached') if len(items) > self.args.max_jobs else ('complete', '')
-            if isinstance(total, (int, float)) and offset >= total:
+            if isinstance(stated_total, (int, float)) and offset >= stated_total:
+                total = stated_total
                 if p == 'amazon_jobs' and total >= 10000:
                     return 'partial', 'Amazon search returned its 10,000-result ceiling; partition searches to establish full coverage'
                 return 'complete', ''

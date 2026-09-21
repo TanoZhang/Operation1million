@@ -208,6 +208,36 @@ that posting after the selection had moved to another. The fixes hold. The
 harness is not committed -- it needs an npm install, and the suite is offline --
 so this is a measurement made here, not a test the suite will repeat.
 
+### Workday stopped at forty postings, 2026-09-21 UTC (found in production, fixed and deployed)
+
+A regression from this session's own first round, found by reading the journal
+of the first production pass on the new code, not by any audit or test.
+
+- **What happened.** Every Workday board returned exactly 40 postings and
+  reported `complete`: Cadence, Intel, Lattice, Marvell, NVIDIA, NXP, Samsung,
+  SiFive and Silicon Labs, against the 608, 612, 142, 206, 2,000, 789, 692,
+  123 and 80 postings the store held open for them. Workday states its real `total` on the first page and
+  `total: 0` on every page after it. The round-one fix made a stated zero count
+  as a count, so the second page -- forty postings in -- satisfied
+  `offset >= total` and ended the board.
+- **What it cost.** The closure fuse caught all nine: each would have retired
+  50% to 99.7% of its open postings, and none did. Measured in the live index
+  afterwards, one Workday posting was closed that day, at Altera. What was lost
+  is the day's new postings and edits beyond the first forty on each board,
+  which the next complete pass collects. Postings on a Workday board small
+  enough that forty was over three quarters of it would not have tripped the
+  fuse; the live index shows none were closed.
+- **The fix.** A page that lists postings is not stating that the board holds
+  none, so a zero on such a page is set aside and the last credible total
+  stands; completion is judged against that. A board that is empty and says so
+  is still complete. Reproducer:
+  `CollectionTests.test_a_workday_board_is_read_past_its_second_page`, which
+  fails on the deployed code with exactly the production symptom, 40 of 45.
+- **Why it got through.** The round-one test exercised a stated zero on a first
+  page only, and the fixture every Workday test uses states the same total on
+  every page -- which is not what Workday sends. A test fixture that is more
+  consistent than the provider it stands for hides exactly this.
+
 ### Quota, pacing and recovery, B63-B67, from Codex's twelfth audit, 2026-09-21 UTC
 
 Five across `jsearch.py`, `jsearch_access.py`'s callers, `ledger_guard.py`,
@@ -894,6 +924,10 @@ rests on a production database.
   retire the postings the company had withdrawn. It now returns the first key
   the provider actually sets. Reproducer:
   `CollectionTests.test_a_stated_zero_is_a_count_not_a_silence`.
+  **This fix caused a production regression; see "Workday stopped at forty
+  postings", 2026-09-21.** The `or` it removed had also been discarding the
+  `total: 0` Workday sends on every page after its first, and the test above
+  covered only a first page.
 - **One malformed record ended the source.** `add()` caught `ValueError` from
   `normalize`, but a provider sending null where it has always sent a string
   raises `AttributeError` or `TypeError` -- `externalPath: null` on Workday

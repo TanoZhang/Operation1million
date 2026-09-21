@@ -1,6 +1,26 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# The first pass on the new code, and a Workday regression it exposed - 2026-09-21 UTC
+
+The 11:38 UTC pass ran on `2f1f7be` and succeeded: suite green with no skips,
+index rebuilt from the log, manifest written, pushed. Read from its journal and
+the live index, not reasoned:
+
+- **Eightfold's first full pass found 350 postings the incremental passes had
+  missed** -- Micron 129, Qualcomm 153, Microsoft 68 -- and closed 540 withdrawn
+  ones incremental passes never retire. That is B51 measured in production.
+- **Every Workday board stopped at 40 postings and reported complete.** A
+  regression from this session's first round, explained in the bug log. The
+  closure fuse held on all nine boards; one Workday posting was closed that day.
+  Fixed and deployed in the commit carrying this section.
+- Google closed 206 and gained 56 against a board listing 154 fewer postings
+  than the day before, which is consistent with the board itself; the closed
+  URLs were not checked against the live site.
+
+Workday's missing postings come back on the next complete pass. That is 11:38
+UTC tomorrow unless a pass is started sooner by hand.
+
 # Deployed to the VPS, and B63-B67 - 2026-09-21 UTC
 
 **The VPS was updated today** from `ef6d4b3`, the commit it had held since

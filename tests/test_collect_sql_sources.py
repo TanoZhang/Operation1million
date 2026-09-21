@@ -389,6 +389,28 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(len(c.jobs),1)
         self.assertIsNone(c.etag);self.assertIsNone(c.last_modified)
 
+    def test_a_workday_board_is_read_past_its_second_page(self):
+        """Workday states its real total on page one and `0` on every page after.
+
+        Read as a count, that zero ended every Workday board at forty postings
+        and called it complete: nine boards on 2026-09-21, NVIDIA's 2,000
+        among them. The stated-zero rule this undid is for an empty board that
+        says it is empty, and a page listing postings is not saying that.
+        """
+        c=Collector(self.source(),self.args())
+        def page(start,count,total):
+            return Response({'total':total,'jobPostings':[
+                {'title':'RTL Engineer','externalPath':f'/job/RTL_{n}'} for n in range(start,start+count)]})
+        pages=[page(0,20,45),page(20,20,0),page(40,5,0)]
+        c.fetch=lambda *a:pages.pop(0)
+        self.assertEqual(c.run(),('complete',''))
+        self.assertEqual(len(c.jobs),45)
+        self.assertEqual(pages,[])
+        # The rule it must not break: a board that is empty and says so.
+        empty=Collector(self.source(),self.args())
+        empty.fetch=lambda *a:Response({'total':0,'jobPostings':[]})
+        self.assertEqual(empty.run(),('complete',''))
+
     def test_a_hibob_record_without_an_id_costs_itself_and_not_the_batch(self):
         """B50: the batch was prepared outside the per-record boundary."""
         source=replace(self.source(),provider_key='hibob',access_url='https://x.careers.hibob.com',
