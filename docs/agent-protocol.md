@@ -9,8 +9,8 @@ Owner: codex
 Scope: Fifth offline audit of paid rejection updates and durable metadata, including correction of the invalid B20 finding.
 Files: docs/file-audit-round5-2026-09-20.md, docs/audit-repro-round5-2026-09-20.py, docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
 Base commit: d080ed1
-Status: claimed
-Next: Check production call paths, reproduce new cases, and retract B20 because main.direct already gates rejected rows.
+Status: done
+Next: User reviews B24-B26 in docs/file-audit-round5-2026-09-20.md. Three new cases reproduced through collector.main on both source trees. B20 retracted and its report/reproducer corrected; no application changes.
 ```
 
 ```text
@@ -19,7 +19,7 @@ Scope: Fourth offline bug audit of rejected-row completeness, historical export,
 Files: docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
 Base commit: 73fef06
 Status: done
-Next: User reviews B20-B23 in docs/file-audit-round4-2026-09-20.md. Four bugs reproduced on committed and user working source; no priority labels or business-code changes.
+Next: User reviews B21-B23 in docs/file-audit-round4-2026-09-20.md. B20 was retracted in round 5 because its fixture bypassed main.direct; no priority labels or business-code changes.
 ```
 
 ```text

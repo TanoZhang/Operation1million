@@ -1,6 +1,6 @@
 # File audit, round 4 - 2026-09-20
 
-Four additional bugs reproduced. No priority labels are assigned. No application code was changed.
+Correction in round 5: B20 is retracted. Three findings remain (B21-B23). No priority labels are assigned. No application code was changed.
 
 ## Evidence and scope
 
@@ -18,19 +18,9 @@ Working-source SHA256 fingerprints recorded after reproduction:
 | store.py | 3C589FBF6338DDA08074ACC4F7A0EE7BC455D95F737135C0E70888D0EF4134D6 |
 | review.py | A231FB79C09F334AB6597A6971B883419429031F27ABE83B12C70B520184963F |
 
-## B20: A rejected record is treated as an absent posting and closed
+## B20: Retracted - the production entry point prevents this closure
 
-Locations: `collector.py:299` (`Collector.add`), `collect_json`, and `store.record_source` closure inference. Line numbers throughout refer to committed audit source.
-
-Trigger: a Greenhouse board with five previously stored postings returns all five again, but one record has a missing title. Its stable ID and public URL are still present.
-
-Actual: normalization rejects that record, yet the board returns `complete`. Only four successfully normalized URLs reach closure inference. The fifth existing posting is closed, because 1/5 is below the 25% closure fuse. Diagnostic result: `status=complete`, `rejected=1`, `closed=1`.
-
-Expected: a record that could not be normalized must not be interpreted as evidence that its posting disappeared. Valid rows should still be collected.
-
-Suggested fix: distinguish advertised inventory from successfully normalized content, or make normalization losses block closure and completion checkpoints. Preserve trustworthy advertised IDs/URLs where possible. Add a regression with one malformed row among enough good rows to avoid the closure fuse.
-
-This is distinct from B03: catching a malformed record's exception keeps collection running, but does not make the resulting inventory safe for closure. It reproduces after the user's B03 fix.
+The original fixture called `Collector.run` and then `store.record_source` directly, bypassing `main.direct`. The production wrapper at `collector.py:780` already changes the status to `partial` when `c.rejected` is nonempty. Therefore the reported closure is not a production-path bug and needs no fix. Round 5 runs the same five-posting scenario through `collector.main`: exit code 2, status partial, zero closures, on both inspected source trees. The misleading standalone fixture has been removed. Line numbers for the remaining findings refer to committed audit source.
 
 ## B21: The historical export command rejects historical dates
 

@@ -1,4 +1,4 @@
-"""Offline diagnostics: assertions describe four defects, not desired behavior."""
+"""Offline diagnostics for B21-B23; B20 was retracted in round 5."""
 from contextlib import closing, redirect_stdout
 from datetime import datetime, timedelta, timezone
 import io
@@ -43,26 +43,7 @@ def main():
         args = SimpleNamespace(max_pages=3, max_jobs=100, delay=0, retries=0,
                                timeout=1, source_state=root / 'pauses.sqlite')
         with patch.object(store, 'ROOT', root), patch.object(store, 'LOG', root / 'history'):
-            path = root / 'rejected.sqlite'
-            database(path)
             board = source('greenhouse')
-            initial = [row(str(i)) for i in range(5)]
-            with closing(store.connect(path)) as db, db:
-                store.record_source(db, board, initial, 'complete', 'full', 1)
-            items = [dict(id=str(i), title='RTL Engineer', absolute_url=r['url'])
-                     for i, r in enumerate(initial)]
-            items[-1].pop('title')
-            with patch.object(collection_policy, 'robots_delay', return_value=None):
-                worker = collector.Collector(board, args)
-            worker.fetch = Mock(return_value=Mock(json=lambda: {'jobs': items}))
-            status, _ = worker.run()
-            with closing(store.connect(path)) as db, db:
-                delta = store.record_source(db, board, worker.jobs, status, 'full', 1)
-                closed = db.execute('SELECT url FROM jobs WHERE closed_at IS NOT NULL').fetchall()
-            assert status == 'complete' and len(worker.rejected) == 1 and len(closed) == 1
-            out['B20_rejected_record_closes_advertised_job'] = {
-                'status': status, 'rejected': len(worker.rejected), 'closed': delta['closed']}
-
             export_db = root / 'export.sqlite'
             database(export_db)
             yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
