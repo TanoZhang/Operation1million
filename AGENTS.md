@@ -1,136 +1,53 @@
-# Working alongside another agent
+# Start here
 
-**[docs/agent-protocol.md](docs/agent-protocol.md) holds the work register.
-Read it and claim your area before you write code.** The rules below are the
-short form; that file says who is working on what right now, which is the part
-that actually prevents two agents building the same thing twice.
+This file is the mandatory entry point, not the project manual. Current work,
+system reasoning, operating detail, and history live under `docs/`.
 
+## Before changing code
 
-Claude Code and Codex both work this repository, sometimes at the same time and
-sometimes on the same problem. That is deliberate: the point is a second
-independent reading, so two agents reaching the same fix is a signal the fix is
-real, and two agents disagreeing is where the interesting information is. This
-file is the shared rulebook for both; `CLAUDE.md` only points here.
+1. Read **Active claims** in [docs/agent-protocol.md](docs/agent-protocol.md).
+2. Read only the newest section of [docs/handoff.md](docs/handoff.md) as current
+   state. Older sections are historical evidence, not current instructions.
+3. Read the protected decisions in
+   [docs/architecture.md](docs/architecture.md) before changing existing behavior.
+4. Claim the work before editing. Include scope, files, base commit, status, and
+   next action.
+5. Fetch before touching overlapping work. Compare the other diff and settle
+   disagreements with tests.
+6. Never revert, stash, reset, or overwrite another agent's changes to simplify
+   your patch. Use a separate worktree when necessary.
 
-Overlapping work is therefore expected and is not waste. Losing one of the two
-answers is.
+Mark the claim `done` promptly. A stale claim is a false lock.
 
-- **Fetch before you plan and before reporting findings.** `git fetch origin` in the
-  first minute, check `git log HEAD..origin/main`, and inspect all remote branches
-  with `git ls-remote --heads origin`. Follow the synchronization procedure in
-  `docs/agent-protocol.md`, including published work claims and repeat checks.
-  Fetch does not update an old worktree: reproduce on the exact inspected SHA.
-  The other agent pushes
-  small commits while you work, and a session that reads the repository once
-  and then works for four hours is working from a snapshot that has since
-  stopped being true. This has already cost a whole feature built twice.
-- **Never touch changes you did not make.** Uncommitted edits in the tree may
-  belong to a session that is still running. No `stash`, `checkout --`, `reset`
-  or `merge` over a file you did not modify; that file is someone's live work.
-  If it blocks you, work in a separate worktree (`git worktree add -b <name>
-  ../<dir>`) and say so.
-- **Do not push to `main` while the other agent is active.** Branch from a named
-  base commit and leave the merge to a moment when both sides can be seen at
-  once. Two agents fast-forwarding `main` in turn is how one of the two answers
-  disappears without anyone reading it.
-- **When your work overlaps theirs, compare; do not quietly prefer your own.**
-  Read their version, find the point where the two disagree, and settle it by
-  testing rather than by reasoning about it. Then report the difference and what
-  decided it. The disagreement is the output being paid for.
-- A claim believed confidently is not a tested claim. A snapshot command was
-  documented here as requiring `sudo` because a read-only WAL connection "has
-  to" take a read mark in the `-shm` file. Running it as `ubuntu` on the VPS
-  copied all 41,029 postings and took five seconds to find out.
-- Author fields tell the two apart in history: Codex commits as
-  `TanoZhang <132003493+TanoZhang@...>`, Claude Code as
-  `TanoZhang <tanozhang@users.noreply.github.com>`. When you commit work the
-  other agent wrote, say so in the message, because the field will not.
+## Invariants
 
-# Where things are
+- The daily page-credit boundary is 04:38 `America/Los_Angeles`; the 30-day
+  billing cycle uses UTC dates. Do not unify these clocks.
+- Reserve every paid credit before its request leaves, through `RequestGuard`.
+- SQLite is derived. The decision ledger and `operational/` state are durable.
+  Application decisions never live in SQLite.
+- `first_seen` records observation, not publication.
+- Hard rejects run before keeps and scores and cannot be overturned. A word
+  with an ordinary semiconductor meaning is not a hard reject by itself.
+- Never bypass access challenges, overlap collector processes, rewrite sealed
+  logs, or bypass the 25% closure fuse. Read
+  [docs/collection-rules.md](docs/collection-rules.md) before collection work.
+- A GitHub push does not deploy. `deploy/vps/install.sh` deploys and prints the
+  installed commit.
+- Keep both repositories private. Read
+  [docs/publication-policy.md](docs/publication-policy.md) before publishing.
 
-[docs/architecture.md](docs/architecture.md) maps every module to what it owns,
-the order the pipeline runs in, and the bugs already found and fixed. Read it
-before changing behaviour you have not traced, and before reporting a bug --
-the log at the bottom says whether it has been seen, and what evidence settled
-it.
+## Document order
 
-Keep it current in the same commit as the change. A moved responsibility, a new
-module, a changed pipeline order, or a fixed bug all belong there; a map that
-has quietly stopped being true is worse than none, because it is believed.
+| Need | Read |
+| --- | --- |
+| Current ownership and coordination | `docs/agent-protocol.md` |
+| Current operating state | Newest section of `docs/handoff.md` |
+| Ownership, pipeline, invariants, fixed bugs | `docs/architecture.md` |
+| Collection or endpoint work | `docs/collection-rules.md`, then `docs/jsearch.md` for paid discovery |
+| VPS operations | `docs/vps-deployment.md` |
+| Review behavior | `docs/application-review.md` |
 
-# Project Language and Encoding
-
-- Conversation may use the user's preferred language. Use English for all authored project artifacts.
-- Use English for code, comments, configuration, UI text, logs, reports, tests, and filenames.
-- Do not add non-English text to project files without an explicit exception for that artifact.
-- Write text files as UTF-8 and prefer ASCII punctuation in authored text.
-- Preserve original provider data in raw records; do not translate or rewrite source evidence merely to enforce the authoring language policy.
-
-## Collection operating rules
-
-Read [docs/collection-rules.md](docs/collection-rules.md) before any network
-collection, endpoint investigation, or change to daily discovery behavior.
-
-- Prefer the verified public JSON list endpoints. Use Eightfold PCSX for Micron,
-  Microsoft, and Qualcomm, and careers.amd.com/api/jobs for AMD. Do not restart
-  legacy apply-v2, iCIMS, or GCS endpoint guessing for these companies.
-- Use one collector process at a time. Microsoft has a dedicated source lock
-  and a minimum 3-second interval; it must not reduce the configured worker pool
-  for other companies. Other Eightfold sources use at least 2.5 seconds; other
-  sources use at least 1 second. These are local conservative defaults, not
-  provider guarantees or a promise against rate limiting.
-- HTTP 429 stops that company for the current run. Preserve the persistent
-  cooldown and wait at least 15 minutes or Retry-After, whichever is longer.
-  Repeated throttling requires review and a longer pause, not repeated runs.
-- Never bypass CAPTCHA, Human Verification, or access challenges. Do not rotate
-  IPs, identities, or endpoints to evade a challenge; never disable TLS checks.
-- JSearch is off by default. A direct page/job cap, malformed item, or a valid
-  empty board must not trigger paid fallback. Test only with an explicit small
-  request budget, starting at 1, and stop when the stated question is answered.
-- Read [docs/jsearch.md](docs/jsearch.md) before changing paid discovery.
-  Apply the configured employer exclusions before relevance scoring. Preserve exact employer/alias
-  filtering for configured company fallbacks; query text is not a constraint.
-  Reserve page credits, not HTTP counts; do not expand a fixed query plan.
-- For a request to test one keyword over one week, use a temporary
-  `--date-posted week` override with `--jsearch-only --jsearch-query` and one
-  page/credit unless the user specifies another bound. Do not edit daily
-  defaults, run the whole catalog, or increase pages automatically. Use
-  `--no-store` for diagnostics and report the private output path and counts.
-- Do not claim complete coverage from a single successful page. Keep Rivos
-  marked as third-party data with unverified completeness.
-- Daily incremental collection requires durable job identity and per-source
-  progress. Do not stop on the first familiar job or trust posting dates alone.
-  Persist through the shared daily gzip log. SQLite is derived and must not be
-  committed. Never rewrite sealed daily logs or skip restoring private state.
-- A complete inventory pass may retire at most 25% of the open jobs for its
-  company/provider. A larger candidate closure must be blocked, downgraded to
-  partial, and reported; never bypass this fuse when publishing private state.
-- The authorized hosted schedule runs once daily at 04:38
-  `America/Los_Angeles`. Scheduled runs execute the fixed JSearch plan; manual
-  dispatches require an explicit paid-search toggle. Do not install a local
-  startup task or create another schedule.
-
-## Publication boundary
-
-- Keep `TanoZhang/Operation1million` private, including its Git history, source
-  catalog, downloaded records, databases, logs, and future discovery workflows.
-- Publish only the reviewed conceptual overview to the separate public
-  `TanoZhang/Operation1million-overview` repository with independent Git history.
-- Keep credentials in local ignored files or private repository Actions Secrets.
-  Never copy credentials, runtime state, or real records into public artifacts.
-- Read [Publication Policy](docs/publication-policy.md) before publishing or
-  changing repository visibility. The public repository has Actions disabled.
-
-## Agent skills
-
-### Issue tracker
-
-Issues and PRDs are tracked in GitHub Issues for `TanoZhang/Operation1million`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Use the default mattpocock/skills triage label vocabulary. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-This is a single-context project. See `docs/agents/domain.md`.
+Use English and UTF-8 for project artifacts. Preserve original provider data.
+Report the exact commit tested and distinguish offline evidence, production
+measurement, deployment, and inference.

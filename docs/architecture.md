@@ -106,6 +106,30 @@ collection history, not the working state.
   on a lastmod board. Compare timestamp instants, not their ISO strings. A listed
   closed row reopens within its source, unless it is an alias of another identity.
 
+## Protected decisions
+
+These choices can look wrong when read in isolation. Change one only with a
+reproducer and update its evidence below.
+
+- **Daily quota uses Pacific time; the billing period uses UTC. Do not unify
+  them.** The daily allowance starts with the scheduled 04:38 Pacific pass. The
+  30-day provider cycle must not move with daylight saving time.
+- **`first_seen` is observation time, not publication time.** It is a fallback
+  only; the first collection assigned the same value to about forty thousand
+  postings.
+- **Ranking chooses the band before relevance.** Relevance cannot identify an
+  internship or publication date.
+- **Hard rejects precede every keep and score and cannot be overturned.** Only
+  titles that settle the decision belong there; ambiguous trade words do not.
+- **Evidence titles require evidence in supplied prose.** Missing prose does not
+  satisfy an evidence gate.
+- **Legacy credit residuals belong to their stored budget-day label.** Matching
+  them to overlapping UTC dates counts one residual in two Pacific windows.
+- **Log-stamp dates are computed, never literal.** A past literal date seals and
+  can stop the production pass through its preflight test suite.
+- **Scores cache unchanged content, not unchanged rules.** Content changes
+  recalculate; rule changes require `job-store --rescore`.
+
 ## Bugs found and fixed
 
 Newest first. Each entry is what was wrong, how it showed, and what settled it,

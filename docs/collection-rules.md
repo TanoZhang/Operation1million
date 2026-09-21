@@ -36,6 +36,16 @@ An inaccessible apply-v2 or iCIMS route does not prove that every official
 public route is unavailable. Discover alternatives from the public site itself;
 stop at verification challenges rather than attempting to evade them.
 
+## Rules with no exceptions
+
+- Run one collector process at a time. Microsoft keeps its dedicated lock and
+  minimum three-second interval without shrinking the other worker pool.
+- Stop at CAPTCHA, human verification, or access challenges. Never rotate
+  identity, address, or endpoint to evade them, and never disable TLS checks.
+- JSearch is off by default and costs money. Direct caps, malformed records, or
+  valid empty boards never trigger it. Diagnostics start at one explicit credit
+  and stop when the stated question is answered.
+
 ## Request pacing and stop conditions
 
 | Source or response | Required behavior |

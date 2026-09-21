@@ -1,51 +1,144 @@
-# Two agents, one repository
+# Agent protocol
 
-Claude Code and Codex both work here. Neither can see the other: each reads the
-repository once, forms a picture, and then works for hours against a picture
-that has since stopped being true. Everything below exists because that has
-already cost this project real work.
+This document answers one startup question: who is changing what now? Completed
+work belongs in the newest handoff, the architecture bug log, and Git history.
 
-**What it has cost, so far.** The same SQLite snapshot built twice. The same
-two bugs -- internship queries never sent, the budget day resetting at a time
-nothing observes -- found and fixed twice, independently, in two different
-ways. Two review documents rewritten twice. Three merges that had to be
-reasoned through by hand.
+## Active claims
+```text
+Owner:   claude
+Scope:   Twenty-nine reviewed defects from B1-B30, across collection completeness,
+         posting identity, the experience gate, the applications ledger and Review
+         server, rescore durability, paid-request accounting and both backup scripts.
+Files:   src/jobdisco/{collector,store,applications,review,jsearch,collection_policy,
+         experience,validate_sources}.py, review_static/app.js, deploy/{vps,local}/*.sh,
+         tests/, docs/architecture.md
+Base commit: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Status:  done
+Next:    Merged into main as df5898a with 455 offline tests passing. B20 is reverted
+         as retracted; B27, B28 and B30 were defects in these fixes and are fixed
+         here too. Not deployed: `deploy/vps/install.sh` has not run.
+```
 
-Overlap itself is not the problem: finding the same bug twice is a signal the
-bug is real, and the two fixes disagreeing is where the interesting information
-is. The problem is finding it twice *without knowing*, and losing one of the
-two answers to whoever pushed last.
+```text
+Owner: codex
+Scope: Systematic function-by-function offline audit of the text-to-Review path; consolidate variants by root cause and record coverage before moving between files.
+Files: docs/file-audit-round8-2026-09-20.md, docs/audit-repro-round8-2026-09-20.py, docs/agent-protocol.md
+Base commit: 7ecafb4a4494c9b6011c102b7156723e09465323
+Status: claimed
+Next: Complete experience.py, job_text.py, ranking.py, applications.py and Review server/UI function inventories with boundary tests and caller validation; report evidence and remaining scope.
+```
 
-## The register
+```text
+Owner: codex
+Scope: Seventh offline audit of required-experience parsing and its paid-intake/Review effects.
+Files: docs/file-audit-round7-2026-09-20.md, docs/audit-repro-round7-2026-09-20.py, docs/agent-protocol.md
+Base commit: 1e42525
+Status: done
+Next: User reviews B31-B33 in docs/file-audit-round7-2026-09-20.md. Four defective inputs and three controls exercised through collector.main and Review on both source trees; no business-code changes.
+```
 
-Every branch named in earlier revisions of this file has been merged into
-`main` and deleted; see **Branches**. Status here means status in `main`.
+```text
+Owner: codex
+Scope: Sixth offline audit of the user's pending fixes: identity replay, rejection matching, historical export and interrupted rescore.
+Files: docs/file-audit-round6-2026-09-20.md, docs/audit-repro-round6-2026-09-20.py, docs/agent-protocol.md
+Base commit: ba2cf0f5c8bd3ccddc193c19c0c642141d27b73c
+Status: done
+Next: User reviews B27-B30 in docs/file-audit-round6-2026-09-20.md. Four follow-up defects reproduced on pending fixes; source fingerprints recorded, no business-code edits.
+```
 
-**Update this before you start, and when you finish.** It is the one mechanism
-that prevents duplicate work, and it only works if it is current.
+```text
+Owner: codex
+Scope: Fifth offline audit of paid rejection updates and durable metadata, including correction of the invalid B20 finding.
+Files: docs/file-audit-round5-2026-09-20.md, docs/audit-repro-round5-2026-09-20.py, docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
+Base commit: d080ed1
+Status: done
+Next: User reviews B24-B26 in docs/file-audit-round5-2026-09-20.md. Three new cases reproduced through collector.main on both source trees. B20 retracted and its report/reproducer corrected; no application changes.
+```
 
-| Area | Owner | Status | Notes |
-| --- | --- | --- | --- |
-| Incremental inventory reopening and conditional checkpoints | Codex, reviewed by Claude | merged and deployed | Its sitemap fix was the better of two competing implementations and was taken over this side's; see the bug log |
-| Review identity replay, score refresh, and seen durability audit | Codex, reviewed by Claude | merged | `1a03e63` merged into main; diffs read rather than rubber-stamped, 384 tests pass on the merged tree; next: deploy and confirm the live queue is unchanged in shape |
-| Agent synchronization and review protocol | Codex | merged | Came in with `1a03e63`; its ancestor `d6dcc9d` carried the documentation |
-| `experience.py`, the required-experience gate | Codex | done, merged | Deterministic years parsing, intern/new-grad override |
-| `jsearch_queries.toml` query plan and tiers | Codex | done, merged | 36 queries, intern/new_grad/early_career/A |
-| `jsearch_access.py` budget accounting | shared | done, merged | Codex's window counting, Claude's configuration |
-| `ranking.py`, review bands and ordering | Claude | done, merged | |
-| `evidence_title_patterns`, hard-reject audit | Claude | done, merged | |
-| `docs/architecture.md` and the bug log | Claude | done, merged | Keep current with every change |
-| VPS deployment and `--rescore` | Claude | done | `5937594` installed 2026-09-19 23:05 UTC; 41,073 postings rescored |
-| Experience gate phrasing, and repeated payload extraction | Claude | merged and deployed | The two leads Codex reported before its usage ran out. Supervising an intern no longer reads as being one; a ceiling no longer reads as a floor; `rejection_reason` walks a payload twice instead of four times. Both directions tested. |
-| Verifying the new query strings return results | Claude | done, measured | 14 credits, one page each, `--no-store`: the whole `early_career` tier returned 15 postings and one survivor, so it now asks `Entry Level`. Intern and new_grad phrasings verified good. See the bug log |
-| Confirming seen deduplication works | offline done; production unassigned | **production pending** | The offline test (merged) replaces the database between two passes and requires the second to report 0 new / 1 existing. Production has reported 0 existing on three consecutive passes; the next pass is the first to run the same plan against a seen table holding its own rows |
-| Untimestamped JSearch credit budget-window accounting | Codex, reviewed by Claude | merged and deployed | Replayed the live ledger's four-credit residual: counted once on 2026-09-18 and zero on neighbouring windows, where both previously saw it. |
-| Incremental validators, sitemap updates, URL reuse, Review groups/descriptions, workstation backup rotation | Codex, reviewed by Claude | merged and deployed | Same branch, base `e09d9ed`, inspected main `9843350` on 2026-09-20. Each behavior reproduced offline before fixing; current results and remaining production checks are in `docs/handoff.md`. |
-| Twenty-nine review findings, in five rounds: collection completeness and identity, the experience gate, the applications ledger and review server, rescore durability, paid-request accounting, the TI board's provider and validator, both backup scripts | Claude | review | Base `ef6d4b3`, on `claude`. Each reproduced by a test that fails before the fix and passes after, including three that are defects in this session's own earlier fixes. One earlier assertion changed on purpose, and one reported defect withdrawn and its change reverted; see the bug log. |
+```text
+Owner: codex
+Scope: Fourth offline bug audit of rejected-row completeness, historical export, provider URL normalization and historical Review detail.
+Files: docs/file-audit-round4-2026-09-20.md, docs/audit-repro-round4-2026-09-20.py, docs/agent-protocol.md
+Base commit: 73fef06
+Status: done
+Next: User reviews B21-B23 in docs/file-audit-round4-2026-09-20.md. B20 was retracted in round 5 because its fixture bypassed main.direct; no priority labels or business-code changes.
+```
 
-Claiming an area means writing your name in it before you write code. If the
-area you want is already claimed and you think the owner is wrong, say so to
-the user rather than building a second answer in silence.
+```text
+Owner:   unassigned
+Scope:   Production verification that seen deduplication works, carried over from
+         the register this file used to keep.
+Files:   none; this needs a pass to run rather than anyone to edit code
+Status:  blocked
+Next:    The offline test is merged and requires a second pass to report 0 new /
+         1 existing. Production reported 0 existing on three consecutive passes;
+         the next pass is the first to run the same plan against a seen table
+         holding its own rows.
+```
+
+```text
+Owner: codex
+Scope: Third offline audit of failure sealing, same-batch URL reuse and sitemap identity wiring; findings only, user owns implementation.
+Files: docs/file-audit-round3-2026-09-20.md, docs/audit-repro-round3-2026-09-20.py, docs/agent-protocol.md
+Base commit: c5db61a3f86592c16a79fbdc851fd30188a95504
+Last inspected main: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Status: done
+Next: User reviews B17-B19 in docs/file-audit-round3-2026-09-20.md. All three reproduced on committed source and the user's uncommitted first-round fixes; no application code changed.
+```
+
+```text
+Owner: codex
+Scope: Second offline audit of identity transitions, durable recovery, Review concurrency and paid malformed payloads; findings only. User owns fixes from the first audit.
+Files: docs/file-audit-round2-2026-09-20.md, docs/audit-repro-round2-2026-09-20.py, docs/agent-protocol.md
+Base commit: a7572bec2e09b14506b7fd42152414c809d2d465
+Last inspected main: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Date: 2026-09-20
+Status: done
+Next: User reviews docs/file-audit-round2-2026-09-20.md for B10-B16, confirmed R02 and measured O08-O09. Seven new defects reproduced; 405 suite tests, eight skips, exit 0. No application code changed.
+```
+
+```text
+Owner: codex
+Scope: File-by-file offline audit; findings only, no behavior changes.
+Files: docs/file-audit-2026-09-20.md, docs/audit-repro-2026-09-20.py, docs/agent-protocol.md
+Base commit: b263553a7fe5ec47cd31c191134de8925a013c52
+Last inspected main: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Date: 2026-09-20
+Status: done
+Next: Review docs/file-audit-2026-09-20.md and prioritize fixes; no application code changed. Nine defects reproduced offline; existing suite 405 tests, eight skips, exit 0.
+```
+
+```text
+Owner:   codex
+Scope:   Reduce mandatory startup context and make current work mechanically visible.
+Files:   AGENTS.md, docs/agent-protocol.md, docs/architecture.md, docs/handoff.md, docs/collection-rules.md
+Base commit: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1
+Status:  review
+Next:    Claude compares this compact version with its working-tree patch and merges the chosen result.
+```
+
+## Claim format
+
+Add one block under **Active claims** before editing:
+
+```text
+Owner:   claude | codex
+Scope:   one sentence describing the behavior being changed
+Files:   exact paths expected to change
+Base commit: full commit SHA
+Status:  claimed | blocked | review | done
+Next:    one concrete action or blocking condition
+```
+
+`Scope` and `Files` decide whether work overlaps. Disjoint claims proceed
+independently. Overlapping claims require a fetch, comparison of both diffs, and
+tests that settle the disagreement. Git is not a lock; the claim makes the
+collision visible.
+
+Update the block when scope changes. Set it to `review` when the branch is ready,
+`blocked` only with a concrete blocker, and `done` promptly when the work is
+finished. Remove completed blocks after their result is merged and recorded in
+the handoff or architecture log. Do not leave dead claims in the active list.
 
 The row above is closed, but its files are worth naming: `collector.py`,
 `store.py`, `applications.py`, `review.py`, `jsearch.py`, `collection_policy.py`,
@@ -58,149 +151,49 @@ review-round entries in the bug log first.
 
 ## Branches
 
-**There are three, and only three: `main`, `codex`, `claude`.**
+There are three standing remote branches:
 
-| Branch | What it is |
+| Branch | Meaning |
 | --- | --- |
-| `main` | What is true. Reviewed, tested, deployable. |
-| `codex` | Everything Codex is working on, all of it, continuously. |
-| `claude` | The same for Claude Code. |
+| `main` | Reviewed, tested, deployable truth |
+| `codex` | Codex work awaiting review or integration |
+| `claude` | Claude work awaiting review or integration |
 
-Each agent works on its own standing branch and keeps working on it. When a
-piece is done and reviewed it merges into `main`, and the branch carries on
-from there -- it is not deleted and not replaced.
+Do not create a remote branch per problem. Use a worktree from your standing
+branch for isolation. Push the standing branch before stopping so the other
+agent can inspect it. A push does not mean merged or deployed.
 
-**Do not open a branch per problem.** That is what was happening, and within
-two days it produced `codex/agent-sync-protocol`,
-`codex/debug-untimestamped-credit`, `codex/deep-debug`,
-`codex/jsearch-broad-budget-fixes` and `codex/lean-cleanup`, four of which
-independently fixed overlapping things. Each one had to be found, read,
-compared against the others and merged by hand, and two of them contained
-competing implementations of the same fix that had to be chosen between. The
-branches were not where the work went wrong, but they are where the cost of it
-showed up.
+Merge into `main` only when both sides can be seen at once: fetch, read the
+other branch's diff, resolve by taking the better answer rather than your own,
+and run the suite on the merged tree before the merge stands. Say in the merge
+what was taken from where. Two agents fast-forwarding `main` in turn is how one
+of the two answers disappears without anyone having read it, and that rule left
+this file when the entry point was shortened, which is why it is here now.
 
-If something genuinely needs to be tried in isolation -- a rewrite, an
-experiment expected to be thrown away -- do it in a worktree off your own
-branch (`git worktree add ../<dir> <branch>`), not in a new remote branch. The
-remote keeps three names and no more, so a reader can see the whole state of
-the project without discovering that half of it was parked somewhere.
+## Synchronization
 
-A branch that has been merged is not deleted; it simply continues. A branch
-that turns out to be wrong is reset onto `main`, not abandoned under a new
-name.
+- Before claiming, run `git fetch origin`, inspect `HEAD..origin/main`, all three
+  branch tips, the active claims, and the newest handoff.
+- A fetch updates remote references, not an old worktree. Test the exact SHA you
+  report and ensure imports come from that worktree.
+- Before editing overlapping files, after an interruption, and before reporting
+  or pushing, fetch again and inspect changes since the last known SHA.
+- Never alter uncommitted work you did not create. Use another worktree if it
+  blocks you.
+- Preserve both implementations until overlap is compared. Choose by behavior
+  and evidence, not authorship.
 
-## Synchronization before conclusions
+## Evidence and handoff
 
-Both agents follow this procedure for reviews as well as implementation.
-Fetching updates remote references; it does not update the working files.
-An old worktree remains old after a successful fetch.
+For a finding, record the inspected commit, file or function, trigger, expected
+and actual behavior, and reproducer. Use precise states: suspected, reproduced,
+fixed on branch, merged, deployed, or verified in production. An offline fixture
+does not prove production incidence or provider coverage.
 
-1. Run `git fetch origin`, `git status --short`, `git log HEAD..origin/main`,
-   and `git ls-remote --heads origin` before choosing work. Record the full
-   local HEAD and remote main SHA with `git rev-parse HEAD origin/main`.
-   Read the register, current handoff, architecture bug log, and relevant
-   commits on unmerged remote branches. If fetch fails, label the review as
-   based on a stale snapshot; do not claim it describes current remote code.
-2. Claim a bounded area with owner, branch, base SHA, last inspected main SHA,
-   date, status, and next action. Commit and push the claim on the agent's
-   branch before implementation so the other agent can discover it. A claim
-   only on an unmerged branch is not visible in main's register: inspect the
-   register changes on remote branches too. Git is not an exclusive lock.
-   Concurrent claims require comparison and an explicit division of work.
-3. Work in a dedicated worktree from the recorded base. Never update another
-   session's checkout or modify its uncommitted changes. When reviewing newer
-   code, use a clean worktree at its exact SHA and ensure tests import that
-   worktree's source rather than an editable install from an older checkout.
-4. Fetch again before changing code for a suspected bug, after an interruption
-   or user notice of new work, at least every 15 minutes during active work,
-   and immediately before publishing findings or proposing a merge. Compare
-   changes since the last inspected SHA, including relevant branch tips.
-   Read overlapping changes and rerun the reproducer on the newer version.
-   Do not silently carry a finding forward from the old base.
-5. If the other agent already fixed it, record the fixing SHA and test result;
-   close the duplicate or review the existing fix. If two fixes differ, state
-   the behavioral difference and test it before choosing. Preserve both
-   branches until the comparison is complete.
-6. Finish by pushing the work branch and updating its register entry with
-   results and the next action. Keep `ready for review`, `merged`, `deployed`,
-   and `verified in production` distinct. Name the exact tested SHA and the
-   last fetched main SHA in the handoff. The agent integrating the change
-   carries the register update into main and checks both sides first.
+Update `docs/architecture.md` in the same commit for changed ownership, pipeline
+order, protected decisions, or fixed bugs. Update only the newest handoff section
+with current operating facts; never rewrite older snapshots into current advice.
 
-## Evidence required for a finding
-
-Every finding must identify the inspected commit, file/function, trigger,
-expected versus actual behavior, and reproduction command or test. State its
-status explicitly: suspected, reproduced on a named commit, fixed on a named
-branch, merged, or verified in production. Include the last synchronization
-time and whether relevant remote branch changes were inspected.
-
-An offline fixture establishes behavior for that fixture. It does not establish
-production incidence, provider coverage, deployed version, or successful paid
-collection. An empty result or a zero counter is evidence to investigate, not
-proof of its cause. Check executable configuration before repeating numeric
-claims from a handoff. Keep historical snapshots intact and place corrections
-in a dated current section with the evidence that supersedes the old claim.
-
-Remote branches cannot reveal uncommitted work on another machine. Say that
-limit when relevant; do not describe a fetch as proof that no other work exists.
-Use the shared register and pushed branches for coordination. Do not send
-external messages or start another agent session without user authorization.
-
-## Rules
-
-1. **Fetch before you plan, not before you push.** `git fetch origin` and
-   `git log HEAD..origin/main` in the first minute. Also check for branches:
-   `git ls-remote --heads origin`. Work is routinely parked on one.
-
-2. **Never commit in `/opt/jobdisco/code`.** That is the production checkout the
-   scheduled pass runs from, not a workspace. Committing there put two commits
-   on a single disk, left the checkout thirteen commits ahead of its origin,
-   and broke `install.sh`, which merges `--ff-only` and refuses to discard
-   them. Work in a clone or a worktree.
-
-3. **Push before you stop.** Work that exists on one machine is work that can
-   vanish with it. A branch is enough; it does not have to be `main`.
-
-4. **Branch, do not race `main`** -- onto your own standing branch, not a new
-   one. See **Branches** below. Two agents fast-forwarding `main` in turn is
-   how one of two answers disappears without anyone reading it.
-
-5. **When your work overlaps theirs, compare and test.** Do not quietly prefer
-   your own. Find the point where the two disagree and settle it by running
-   something. Then say what decided it. That comparison is the value being paid
-   for here, and it has already corrected a confident wrong claim in both
-   directions.
-
-6. **Record fixed bugs in `docs/architecture.md`.** Without the log, a decision
-   that was settled by evidence gets re-argued from scratch, and sometimes
-   "fixed" back. The daily budget resetting at a UTC midnight looked like a
-   design choice until the ledger was read; the cycle staying on UTC looks like
-   the same bug until you know a test already guards it.
-
-7. **Say which claims were tested.** "Tested on the VPS as ubuntu: it copies all
-   41,029 postings" and "a read-only WAL connection should need write access to
-   -shm" are different kinds of statement. This repository has already shipped a
-   wrong one of the second kind stated as the first.
-
-## Telling the two apart
-
-Author fields distinguish them in history:
-
-| Author | Agent |
-| --- | --- |
-| `TanoZhang <132003493+TanoZhang@...>` | Codex |
-| `TanoZhang <tanozhang@users.noreply.github.com>` | Claude Code |
-
-When you commit work the other agent wrote, say so in the message, because the
-field will not.
-
-## When they collide anyway
-
-1. Get both lines somewhere durable first. `git bundle create` over SSH, or a
-   branch push. Preserve before you reconcile.
-2. Find the merge base and read both sides of the divergence in full.
-3. Resolve by property, not by authorship: for each overlapping piece, decide
-   which is better and why, and say so in the merge message.
-4. Run the whole suite on the merged result before pushing.
+When two agents collide, preserve both tips, compare from their merge base, run
+the deciding tests, and record what resolved the difference. Commit authors
+distinguish the agents: Codex uses `TanoZhang`; Claude uses `TanoZhang`.

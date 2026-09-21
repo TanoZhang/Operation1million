@@ -1,3 +1,6 @@
+> **Startup rule:** Read the newest handoff first. Older handoffs are historical
+> evidence, not current instructions or an active backlog.
+
 # Fifth review round: three of my own fixes were wrong - 2026-09-21 UTC
 
 B27, B28 and B30 are defects in fixes made earlier in this session, found by
