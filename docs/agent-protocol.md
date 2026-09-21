@@ -21,6 +21,25 @@ Next:    Merged into main; 509 offline tests pass. Install runs migration 006, a
 
 ```text
 Owner: codex
+Scope: Eleventh offline audit: complete store.py function inventory, identity, persistence, replay and recovery; findings only.
+Files: docs/file-audit-round11-2026-09-21.md, docs/audit-repro-round11-2026-09-21.py, docs/agent-protocol.md
+Base commit: e5c9440ff707eadc44a679d63de5beafcaf48542
+Inspected main: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
+Status: claimed
+Next: Reproduce storage defects in temporary databases and logs; no production state or business-code edits.
+```
+
+```text
+Owner: codex
+Scope: Tenth offline audit: function-by-function collector.py inspection, provider adapters, pagination and failure-to-store contracts; findings only.
+Files: docs/file-audit-round10-2026-09-21.md, docs/audit-repro-round10-2026-09-21.py, docs/agent-protocol.md
+Base commit: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
+Status: done
+Next: User reviews B50-B57 and the remaining direct-intake B45 instance in docs/file-audit-round10-2026-09-21.md. Complete collector function inventory recorded; all cases and 19 positive adapter controls reproduced offline, 119 existing tests passed. Next module is store.py; no business-code changes.
+```
+
+```text
+Owner: codex
 Scope: Ninth offline audit, complete function inventory of jsearch.py and concrete intake, filtering and cursor failure cases; findings only.
 Files: docs/file-audit-round9-2026-09-20.md, docs/audit-repro-round9-2026-09-20.py, docs/agent-protocol.md
 Base commit: 5166930b284bb070f38865685ec279c7d545de2f
