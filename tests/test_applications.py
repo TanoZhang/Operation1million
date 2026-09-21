@@ -16,6 +16,7 @@ import sqlite3
 import tempfile
 import threading
 import unittest
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
@@ -444,6 +445,64 @@ class HttpTests(ApplicationsTests):
         # The listing that still holds its requisition answers as before.
         with urlopen(f'{root}/api/job?url=https://example.test/a2&id={applied["id"]}') as response:
             self.assertIn('Design hardware', json.load(response)['description'])
+
+    def serve(self):
+        server = review.make_server(self.db, self.ledger, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.shutdown)
+        return f'http://127.0.0.1:{server.server_port}'
+
+    def test_a_posting_that_moved_provider_is_not_reported_as_replaced(self):
+        """A posting found again on the company's own board keeps its URL.
+
+        Its key changes with the provider, which is what told the panel it had
+        been replaced -- so the description of a job the applicant had actually
+        applied to was withheld from the history of that application.
+        """
+        url = 'https://example.test/b'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='jsearch', source_job_id='js-1' "
+                       "WHERE url=?", (url,))
+        found = next(group for group in self.queue()['pending']
+                     if any(job['url'] == url for job in group['jobs']))
+        applications.append_decision(self.ledger, found, 'applied')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='greenhouse', source_job_id='req-b' "
+                       "WHERE url=?", (url,))
+        applied = self.queue()['applied'][0]
+        root = self.serve()
+        query = (f'url={url}&id={applied["id"]}&provider=jsearch'
+                 f'&title={quote(applied["title"])}')
+        with urlopen(f'{root}/api/job?{query}') as response:
+            body = json.load(response)
+        self.assertNotIn('replaced', body)
+        self.assertIn('Design hardware', body['description'])
+
+    def test_a_plain_description_is_not_handed_to_an_html_parser(self):
+        """`<T>` is a type, and the parser was deleting it without saying so."""
+        url = 'https://example.test/a'
+        plain = 'Write C++ with vector<T> and verify int<32> buses.'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET raw=? WHERE url=?',
+                       (json.dumps({'job_description': plain}), url))
+        root = self.serve()
+        with urlopen(f'{root}/api/job?url={url}') as response:
+            self.assertEqual(json.load(response)['description'], plain)
+
+    def test_a_description_that_is_markup_is_still_rendered_as_text(self):
+        url = 'https://example.test/a'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET raw=? WHERE url=?',
+                       (json.dumps({'job_description': '<p>Design hardware.</p><ul><li>RTL</li></ul>'}),
+                        url))
+        root = self.serve()
+        with urlopen(f'{root}/api/job?url={url}') as response:
+            body = json.load(response)
+        self.assertNotIn('<p>', body['description'])
+        self.assertIn('Design hardware.', body['description'])
 
     def test_http_decisions_require_token_and_replay_on_refresh(self):
         server = review.make_server(self.db, self.ledger, 0)

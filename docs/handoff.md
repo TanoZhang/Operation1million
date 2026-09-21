@@ -1,6 +1,34 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Ten more, across six files - 2026-09-21 UTC
+
+Codex's eighth audit, B34-B43, on `main`. Mechanisms and reproducers are in the
+architecture bug log.
+
+Four change what the experience gate concludes, and they move in both
+directions: a posting saying "five years of experience is not required" stops
+being refused, one asking for prior internship experience stops skipping the
+gate, and one whose requirement hid behind a slash in `RTL/FPGA` starts being
+read at five years rather than two. A posting asking for an internship already
+served is marked in the review page rather than filtered: an internship already
+done is a qualification, and the mark is only there so the word can be seen for
+what it is.
+
+`clean_title` is now idempotent. It was not, which means the same posting could
+be stored under two spellings depending on how many times it had been cleaned.
+
+Three are in the review page's JavaScript -- dates a day early west of
+Greenwich, an older refresh overwriting a newer queue, and a skip dialog filing
+its reason against whatever happened to be selected when it was submitted.
+There is no JavaScript runtime in this checkout, so those three are covered by
+contracts on the source rather than by running it. That is a weaker claim than
+the rest of this section and is marked as such in the bug log; Codex's harness
+runs the script and is where the behaviour should be confirmed.
+
+Measured: 480 offline tests, exit 0, 8 skips on Windows. Each new test that can
+run was run against the code before its fix and failed there.
+
 # Experience parser: three explicit requirements it could not read - 2026-09-21 UTC
 
 B31-B33 from Codex's seventh audit, fixed on `main` directly after the merge

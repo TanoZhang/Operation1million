@@ -269,7 +269,15 @@ def queue(db_path=DB, path=None, now=None):
                                                 'title': job['title'],
                                                 'confidence': job['confidence'],
                                                 'bucket': ranking.bucket(job['title']),
-                                                'flagged': bool(evidence), 'jobs': []})
+                                                'flagged': bool(evidence),
+                                                'internship_experience': False, 'jobs': []})
+                # An internship already served is a qualification, not a reason
+                # to refuse anything. It is marked because the word `internship`
+                # in a posting that is not one is worth seeing, and because this
+                # is the same reading that keeps such a posting out of the
+                # entry-level override.
+                group['internship_experience'] = (group['internship_experience']
+                                                  or experience['internship_experience'])
                 group['jobs'].append(job)
 
         collect_into(groups, db.execute(

@@ -4,6 +4,7 @@ from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import re
 import secrets
 import sqlite3
 import threading
@@ -11,7 +12,17 @@ from urllib.parse import urlsplit, parse_qs
 
 from bs4 import BeautifulSoup
 from . import applications, ranking
+from .job_text import clean_title
 from .paths import DB
+
+
+# A tag this page should render, rather than any text between angle brackets.
+# A description that says `<T>` or `<int>` is naming a type, and handing it to
+# an HTML parser deleted the word: the reader was shown a sentence with a hole
+# in it and no way to know something had been removed.
+MARKUP = re.compile(
+    r'<\s*/?\s*(?:p|br|div|span|ul|ol|li|strong|b|em|i|h[1-6]|table|tr|td|th|a)\b'
+    r'|<!--|&nbsp;|&lt;|&amp;', re.I)
 
 
 # What review_static/app.js actually reads. `queue()` carries more than this
@@ -29,7 +40,7 @@ from .paths import DB
 # still written against the full row. Adding a field to the page means adding
 # it here; leaving it out shows as undefined rather than as stale data.
 GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
-                'bucket', 'flagged')
+                'bucket', 'flagged', 'internship_experience')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at')
 
 
@@ -95,8 +106,9 @@ def make_server(db, ledger, port=8765):
                     group_id = query.get('id', [''])[0]
                     with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
                         con.row_factory = sqlite3.Row
-                        row = con.execute('SELECT raw, company_key, provider_key, source_job_id '
-                                          'FROM jobs WHERE url=?', (url,)).fetchone()
+                        row = con.execute(
+                            'SELECT raw, company_key, provider_key, source_job_id, title, location '
+                            'FROM jobs WHERE url=?', (url,)).fetchone()
                     # A decided group is replayed from the snapshot it was
                     # decided on, and a board may since have advertised another
                     # requisition at the same address. The row there now is a
@@ -108,13 +120,32 @@ def make_server(db, ledger, port=8765):
                         held = applications.decision_key(
                             {'provider_key': row['provider_key'], 'company_key': row['company_key'],
                              'source_job_id': row['source_job_id'], 'url': url})
-                        if held != group_id:
+                        # The same opening found again on the company's own
+                        # board keeps its URL and takes the direct provider,
+                        # which changes the key it is identified by. That is a
+                        # posting that moved, not one that was replaced, and
+                        # reporting it as replaced hid the description of a job
+                        # the applicant had actually applied to. The page sends
+                        # the provider and title it is showing so the two can be
+                        # told apart; the URL already fixes the employer.
+                        moved = (query.get('provider', [''])[0] or '') not in (
+                            '', row['provider_key'] or '')
+                        same = moved and clean_title(
+                            row['title'] or '', row['location'] or '') == query.get('title', [''])[0]
+                        if held != group_id and not same:
                             return self.send({'description': '', 'replaced': True})
                     raw = json.loads(row['raw'] or '{}') if row else {}
                     description = (raw.get('job_description') or raw.get('description') or
                                    raw.get('descriptionPlain') or raw.get('jobDescription') or
                                    raw.get('descriptionHtml') or raw.get('jobDescriptionHtml') or '') if isinstance(raw, dict) else ''
-                    return self.send({'description': BeautifulSoup(str(description), 'html.parser').get_text('\n', strip=True)})
+                    description = str(description)
+                    # Parsed only where there is markup to parse. Everything
+                    # used to go through the parser, including descriptions the
+                    # provider states as plain text, and a plain-text sentence
+                    # about `vector<T>` came back missing the type.
+                    if MARKUP.search(description):
+                        description = BeautifulSoup(description, 'html.parser').get_text('\n', strip=True)
+                    return self.send({'description': description.strip()})
                 names = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
                          '/style.css': ('style.css', 'text/css')}
                 if route.path in names:

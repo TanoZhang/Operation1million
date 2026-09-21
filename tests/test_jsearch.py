@@ -814,6 +814,31 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(len(again), 1)
         self.assertTrue(again['j1']['decision'])
 
+    def test_an_off_query_employer_does_not_overwrite_a_refusal(self):
+        """The mismatch is about the query; the refusal is about the posting.
+
+        `seen_jobs` keeps the last decision written, and overwriting a hard
+        rejection with `employer_mismatch` made a posting refused on its own
+        terms look merely off-query -- so the review queue stopped hiding it.
+        """
+        recorded = []
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job('x', job_title='HR Business Partner, Hardware',
+                 employer_name='Somewhere Else')])
+        query = replace(self.plan[0], aliases=['Analog Devices'])
+        jsearch.collect([query], self.client, self.settings, {},
+                        self.persist, record_seen=recorded.extend)
+        self.assertEqual(recorded[0]['decision'], 'excluded')
+
+    def test_an_off_query_employer_is_still_recorded_where_nothing_else_refused(self):
+        recorded = []
+        self.session.get.side_effect = lambda url, **kw: self.response(
+            [job('x', employer_name='Somewhere Else')])
+        query = replace(self.plan[0], aliases=['Analog Devices'])
+        jsearch.collect([query], self.client, self.settings, {},
+                        self.persist, record_seen=recorded.extend)
+        self.assertEqual(recorded[0]['decision'], 'employer_mismatch')
+
     def test_what_is_recorded_is_light_enough_to_keep_for_everything(self):
         recorded = []
         self.session.get.side_effect = lambda url, **kw: self.response(
@@ -824,8 +849,8 @@ class DiscoveryTests(unittest.TestCase):
                                             'employer', 'decision', 'confidence',
                                             'filter_version', 'experience_filter'})
         self.assertEqual(set(recorded[0]['experience_filter']), {
-            'entry_override', 'required_experience_years', 'effective_experience_years',
-            'matched_text', 'hard_pass_reason'})
+            'entry_override', 'internship_experience', 'required_experience_years',
+            'effective_experience_years', 'matched_text', 'hard_pass_reason'})
         self.assertNotIn('raw', recorded[0])
 
     def test_the_filter_configuration_is_named_beside_each_decision(self):

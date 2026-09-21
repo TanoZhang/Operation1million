@@ -667,7 +667,13 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     'matched_terms': sorted(set(matched)),
                 }
             reason = rejection_reason(row, rules)
-            if query.aliases and not employer_matches(row['company_name'], query.aliases):
+            if not reason and query.aliases and not employer_matches(row['company_name'], query.aliases):
+                # Only where the posting had nothing against it already. An
+                # employer mismatch says this query asked the wrong question;
+                # it is not a finding about the job, and the seen record keeps
+                # the last decision written. Overwriting a hard rejection with
+                # it made a posting refused on its own terms look merely
+                # off-query, and the review queue stopped hiding it.
                 reason = 'employer_mismatch'
             # Recorded before the decision, not after it. A rejected posting used
             # to leave nothing but a counter, so the same job was fetched,

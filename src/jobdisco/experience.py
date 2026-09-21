@@ -38,6 +38,13 @@ NOT_A_MINIMUM = re.compile(
 # The bound above saw its "no" and discarded the requirement it introduces, so
 # some of the strictest postings of all were read as stating nothing at all.
 STILL_A_MINIMUM = re.compile(r'\b(?:no|not)\s+(?:less|fewer)\s+than\s*$', re.I)
+# The denial can also follow the number instead of preceding it. "Five years of
+# experience is not required" names the figure in order to rule it out, and
+# reading the figure alone turned the postings most willing to take someone
+# early into the ones this gate refused.
+NOT_REQUIRED = re.compile(
+    r"""^\s*(?:\w+\s+){0,4}?\b(?:not|isn'?t|aren'?t|no\s+longer)\s+(?:\w+\s+){0,2}"""
+    r'(?:required|needed|necessary|mandatory|expected)\b', re.I)
 # A denial is not an opening. "This is not an internship" and "no internships
 # are available" name the thing they are refusing, and reading that name as
 # evidence of an entry-level role let the posting skip the experience gate on
@@ -45,6 +52,22 @@ STILL_A_MINIMUM = re.compile(r'\b(?:no|not)\s+(?:less|fewer)\s+than\s*$', re.I)
 DENIES = re.compile(
     r"\b(?:not|isn'?t|aren'?t|no|never|rather\s+than|instead\s+of|excluding|"
     r'other\s+than)\s+(?:\w+\s+){0,3}$', re.I)
+# An internship someone has already done. "Prior internship experience" and
+# "internship experience preferred" ask for a history; they do not describe the
+# opening, and reading them as one let a posting skip the experience gate on
+# the strength of a word about the applicant's past.
+PRIOR = re.compile(
+    r'\b(?:prior|previous|past|completed|former|earlier|relevant|'
+    r'at\s+least\s+one)\s+(?:\w+\s+){0,2}$', re.I)
+AS_EXPERIENCE = re.compile(r'^\s*(?:or\s+co-?op\s+)?experience\b', re.I)
+# `or` always separates alternatives; `/` only does where it stands between the
+# two degree paths -- spaced, as in "BS+4 / MS+2", or joining the degrees
+# themselves. A slash inside a term of the trade, RTL/FPGA or analog/mixed-signal,
+# is not an alternative, and reading it as one let the MS path's two years stand
+# in for the five the posting asked of a bachelor's.
+ALTERNATIVE = re.compile(
+    r'\bor\b|\s/\s|\b(?:BS|MS|bachelor\w*|master\w*)\s*/\s*(?:BS|MS|bachelor\w*|master\w*)\b',
+    re.I)
 
 
 def years_value(text):
@@ -53,20 +76,41 @@ def years_value(text):
     return int(value) if value.is_integer() else value
 
 
+def fragment(text, match):
+    """The words immediately governing a mention, back to the last break."""
+    return (text[:match.start()].rsplit('.', 1)[-1]
+            .rsplit('\n', 1)[-1].rsplit(';', 1)[-1])
+
+
+def internship_experience(text):
+    """Whether the posting asks for an internship the applicant has already done.
+
+    Not a reason to refuse anything -- an internship already served is a
+    qualification, and this only marks the posting so a reader can see why the
+    word is there. It is also what keeps such a posting out of `entry_level`.
+    """
+    for match in ENTRY.finditer(text or ''):
+        if PRIOR.search(fragment(text, match)) or AS_EXPERIENCE.match(text[match.end():]):
+            return True
+    return False
+
+
 def entry_level(title, text):
     """Whether the posting is an entry-level opening, not one that mentions one.
 
     The title is taken at its word. In the body the same nouns routinely
-    describe other people, so a mention governed by a supervising verb, or by a
-    denial, is read as what it is: evidence of seniority, or of a posting
-    ruling an internship out.
+    describe other people or other times, so a mention governed by a
+    supervising verb, by a denial, or by a word putting it in the applicant's
+    past is read as what it is: evidence of seniority, of a posting ruling an
+    internship out, or of a qualification being asked for.
     """
     if ENTRY.search(title or ''):
         return True
     for match in ENTRY.finditer(text or ''):
-        sentence = (text[:match.start()].rsplit('.', 1)[-1]
-                    .rsplit('\n', 1)[-1].rsplit(';', 1)[-1])
-        if not SUPERVISES.search(sentence) and not DENIES.search(sentence):
+        sentence = fragment(text, match)
+        if (not SUPERVISES.search(sentence) and not DENIES.search(sentence)
+                and not PRIOR.search(sentence)
+                and not AS_EXPERIENCE.match(text[match.end():])):
             return True
     return False
 
@@ -82,6 +126,7 @@ def evaluate(title, description):
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)
     text = re.sub(r'<[^>]*>', '\n', text)
     debug = dict(entry_override=entry_level(title, text),
+                 internship_experience=internship_experience(text),
                  required_experience_years=None, effective_experience_years=None,
                  matched_text=[], hard_pass_reason='')
     # Two separate pieces of section context, because they are not opposites.
@@ -141,8 +186,9 @@ def evaluate(title, description):
             matches = list(YEARS.finditer(clause))
             for match in matches:
                 before, after = clause[:match.start()], clause[match.end():]
-                if NON_WORK.search(after) or (NOT_A_MINIMUM.search(before)
-                                              and not STILL_A_MINIMUM.search(before)):
+                if NON_WORK.search(after) or NOT_REQUIRED.search(after) or (
+                        NOT_A_MINIMUM.search(before)
+                        and not STILL_A_MINIMUM.search(before)):
                     continue
                 standalone = YEARS.fullmatch(clause.strip())
                 under_heading = required_section and not ELAPSED.search(before)
@@ -161,7 +207,7 @@ def evaluate(title, description):
         bounds = [c[0] for c in candidates]
         ms = [c[0] for c in candidates if c[1].startswith(('ms', 'master'))]
         bs = [c[0] for c in candidates if c[1].startswith(('bs', 'bachelor'))]
-        explicit_alternative = bool(re.search(r'\bor\b|/', block, re.I))
+        explicit_alternative = bool(ALTERNATIVE.search(block))
         values.extend(bounds)
         independent = [c[0] for c in candidates if not c[1]]
         effective.append(max(ms + independent) if bs and ms and explicit_alternative else max(bounds))

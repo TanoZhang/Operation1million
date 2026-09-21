@@ -185,6 +185,21 @@ class TitleTests(unittest.TestCase):
             self.assertEqual(clean_title(noisy, 'Minneapolis, Minnesota, US'), role)
         self.assertEqual(clean_title('New York Hardware Engineer'), 'New York Hardware Engineer')
 
+    def test_both_suffixes_come_off_whichever_order_they_are_in(self):
+        """Each is only removable at the end, so one pass reached only the last.
+
+        A title ending in the location came back still carrying the date, and
+        cleaning it a second time returned something different from cleaning it
+        once -- which is the same title stored under two spellings.
+        """
+        for noisy in ('RTL Design Engineer - Austin, TX - Posted today',
+                      'RTL Design Engineer - Posted today - Austin, TX',
+                      'RTL Design Engineer | Posted 2 days ago | Austin, TX'):
+            with self.subTest(noisy=noisy):
+                cleaned = clean_title(noisy, 'Austin, TX')
+                self.assertEqual(cleaned, 'RTL Design Engineer')
+                self.assertEqual(clean_title(cleaned, 'Austin, TX'), cleaned)
+
     def test_employer_exclusions_precede_strong_title_and_cached_score(self):
         rules = jsearch.load_plan()[0]['filter']
         for employer in ('Lockheed Martin Corporation', 'Northrop Grumman', 'Anduril-1'):

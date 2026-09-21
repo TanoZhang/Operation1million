@@ -135,6 +135,80 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Function-by-function audit, B34-B43, 2026-09-21 UTC (not deployed)
+
+Codex's eighth round, across six files. Four of them read a posting's own words
+wrongly, three are in the review server and its page, and three are things the
+page can only get wrong in a browser.
+
+- **A number named in order to be ruled out was read as a requirement.** The
+  denial was only ever looked for in front of the figure, so "five years of
+  experience is not required" rejected the posting that said it -- the ones
+  most willing to take someone early were the ones this gate refused.
+  Reproducer: `StatedAndDeniedTests.test_a_requirement_denied_after_the_number_is_not_a_requirement`.
+- **An internship already served was read as an internship being offered.**
+  "Prior internship experience required" granted the entry-level override,
+  which skips the experience gate entirely, so the eight years beside it were
+  never looked at. Such a posting is not refused for it -- an internship
+  already done is a qualification -- it is marked, and the review page shows
+  the mark. The same reading is what keeps it out of the override. Reproducer:
+  `StatedAndDeniedTests.test_an_internship_already_served_is_not_an_internship_posting`.
+- **A slash inside a term of the trade read as a degree alternative.** Any `/`
+  in the block made the bachelor's and master's paths alternatives, so
+  "BS with 5 years of RTL/FPGA experience, MS with 2 years" took the master's
+  two years as the effective requirement and kept a posting asking five. A
+  slash now counts only where it stands between the two paths -- spaced, as in
+  "BS+4 / MS+2", or joining the degrees themselves. Reproducer:
+  `StatedAndDeniedTests.test_a_slash_inside_a_term_of_the_trade_is_not_a_degree_alternative`.
+- **A title was only half cleaned, and cleaning it twice gave a different
+  answer.** Each suffix is removable only at the end of the string, so whichever
+  the publisher put last was the only one a single pass could reach: a title
+  ending in its location came back still carrying its date. `clean_title` now
+  repeats until the title settles, which also makes it idempotent -- the same
+  posting was otherwise stored under two spellings depending on how many times
+  the function had been applied. Reproducer:
+  `TitleTests.test_both_suffixes_come_off_whichever_order_they_are_in`.
+- **An off-query employer overwrote a refusal about the posting itself.**
+  `take` set `employer_mismatch` over whatever `rejection_reason` had already
+  decided. `seen_jobs` keeps the last decision written, so a posting refused on
+  its own terms -- an excluded title, an excluded employer, an experience bar
+  -- was recorded as merely off-query, and the review queue's rule for hiding
+  rejected postings stopped applying to it. The mismatch is now recorded only
+  where nothing else refused the posting. Reproducer:
+  `DiscoveryTests.test_an_off_query_employer_does_not_overwrite_a_refusal`.
+- **A posting that moved provider was reported as one that had been replaced.**
+  The check added for a reused address compared the decision's key with the
+  key the row holds now, and a posting found again on the company's own board
+  keeps its URL while changing provider -- which changes that key. The history
+  of an application then refused to show the description of the job it was
+  made against. The page now sends the provider and title it is showing, which
+  is what tells a posting that moved from one that was replaced; the URL
+  already fixes the employer. Reproducer:
+  `HttpTests.test_a_posting_that_moved_provider_is_not_reported_as_replaced`.
+- **A plain-text description was handed to an HTML parser.** Everything went
+  through BeautifulSoup, including descriptions the provider states as plain
+  text, so a sentence about `vector<T>` came back about `vector` -- a hole in
+  the text with nothing to say one had been made. Parsing now happens only
+  where there is markup to parse, recognised by tag name rather than by the
+  presence of an angle bracket. Reproducer:
+  `HttpTests.test_a_plain_description_is_not_handed_to_an_html_parser`.
+- **Every date on the review page was a day early west of Greenwich.**
+  `new Date('2026-09-20')` is UTC midnight, which is the 19th in Los Angeles. A
+  bare date is a calendar day and is now read as one.
+- **An older refresh could overwrite a newer queue.** Two refreshes can be in
+  flight -- a click, a decision saving, a slow first request -- and they do not
+  answer in the order they were asked. The later answer is the current one.
+- **The skip dialog filed its reason against whatever was selected when it was
+  submitted.** A refresh landing while the dialog was open changed the
+  selection, and the reason typed for one posting was written against another.
+  The dialog now records the posting it was opened for.
+
+The last three are in `review_static/app.js`. This checkout has no JavaScript
+runtime, so they are covered by contracts on the source in
+`ClientSourceContractTests` -- the shape of the fix, not its behaviour. The
+audit that found them runs the script itself, which is where their behaviour
+should be confirmed.
+
 ### Experience parser, from Codex's seventh audit, 2026-09-21 UTC (not deployed)
 
 Three ways an explicit requirement was read as no requirement at all. Each one

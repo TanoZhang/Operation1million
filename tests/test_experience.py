@@ -55,7 +55,8 @@ class ExperienceTests(unittest.TestCase):
 
     def test_debug(self):
         info = evaluate('RTL Engineer', 'BS+4 / MS+2')
-        self.assertEqual(info, dict(entry_override=False, required_experience_years=4,
+        self.assertEqual(info, dict(entry_override=False, internship_experience=False,
+                                   required_experience_years=4,
                                    effective_experience_years=2, matched_text=['BS+4 / MS+2'],
                                    hard_pass_reason=''))
         self.assertIsNone(evaluate('Engineer', '')['effective_experience_years'])
@@ -193,6 +194,58 @@ class SectionsAndFormatsTests(unittest.TestCase):
     def test_exactly_two_years_is_still_within_the_gate(self):
         for body in ('Minimum 2 years of experience.',
                      'Required: 2.0 years of experience.'):
+            with self.subTest(body=body):
+                self.assertEqual(self.found(body)['hard_pass_reason'], '')
+
+
+class StatedAndDeniedTests(unittest.TestCase):
+    """A number can be named in order to be ruled out, or asked of the past."""
+
+    def found(self, body, title='ASIC Design Engineer'):
+        return experience.evaluate(title, body)
+
+    def test_a_requirement_denied_after_the_number_is_not_a_requirement(self):
+        for body in ('5 years of experience is not required.',
+                     '5 years experience not required.',
+                     'Requirements: 4 years of industry experience is not necessary.'):
+            with self.subTest(body=body):
+                self.assertEqual(self.found(body)['hard_pass_reason'], '')
+
+    def test_the_same_sentence_without_the_denial_still_refuses(self):
+        for body in ('5 years of experience is required.',
+                     'Requirements: 4 years of industry experience is expected.'):
+            with self.subTest(body=body):
+                self.assertEqual(self.found(body)['hard_pass_reason'],
+                                 'required_experience_over_2_years')
+
+    def test_an_internship_already_served_is_not_an_internship_posting(self):
+        """It is a qualification being asked for, and it is marked as one."""
+        for body in ('Prior internship experience required. 8 years of experience required.',
+                     'Previous internship or co-op experience preferred. '
+                     'Minimum 6 years of industry experience.',
+                     'Completed internship in silicon design. 5 years experience required.'):
+            with self.subTest(body=body[:40]):
+                found = self.found(body)
+                self.assertFalse(found['entry_override'])
+                self.assertTrue(found['internship_experience'])
+                self.assertEqual(found['hard_pass_reason'],
+                                 'required_experience_over_2_years')
+
+    def test_the_posting_that_is_an_internship_still_overrides(self):
+        found = self.found('This internship runs for 12 weeks. 5 years of experience required.')
+        self.assertTrue(found['entry_override'])
+        self.assertFalse(found['internship_experience'])
+        self.assertEqual(found['hard_pass_reason'], '')
+
+    def test_a_slash_inside_a_term_of_the_trade_is_not_a_degree_alternative(self):
+        """RTL/FPGA is one skill named two ways, not a bachelor's or a master's."""
+        found = self.found('Requirements: BS with 5 years of RTL/FPGA verification '
+                           'experience, MS with 2 years')
+        self.assertEqual(found['effective_experience_years'], 5)
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_slash_that_does_separate_the_two_paths_still_does(self):
+        for body in ('BS+4 / MS+2', 'BS/MS with 2 years of experience'):
             with self.subTest(body=body):
                 self.assertEqual(self.found(body)['hard_pass_reason'], '')
 

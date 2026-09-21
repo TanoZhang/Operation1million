@@ -81,6 +81,46 @@ class SlimTests(unittest.TestCase):
         self.assertLess(len(json.dumps(review.slim(full))), len(json.dumps(full)) * 0.75)
 
 
+class ClientSourceContractTests(unittest.TestCase):
+    """Three defects the page could only have in a browser, read as source.
+
+    This checkout has no JavaScript runtime, so these assert the shape of the
+    fix rather than its behaviour: a bare date parsed as a local calendar day,
+    a refresh that ignores an answer a newer one has overtaken, and a skip
+    dialog that files its reason against the posting it was opened for.
+    """
+
+    def script(self):
+        return (ROOT / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+
+    def test_dates_do_not_go_through_the_utc_reading_of_a_bare_day(self):
+        script = self.script()
+        # Asserted with a message rather than assertIn: a failure here would
+        # otherwise print the whole page source.
+        self.assertTrue('const asDate = value =>' in script,
+                        'the page has no local-day reading of a bare date')
+        for reader in ('const date = value =>', 'const postedToday = job =>'):
+            line = next(l for l in script.splitlines() if l.startswith(reader))
+            self.assertIn('asDate(', line, f'{reader} still parses the value directly')
+            self.assertNotIn('new Date(value)', line)
+            self.assertNotIn('new Date(job.posted_at)', line)
+
+    def test_a_refresh_discards_an_answer_a_newer_one_has_overtaken(self):
+        body = self.script().split('async function refresh()')[1].split('}')[0]
+        self.assertTrue('++queueVersion' in body, 'refresh takes no sequence number')
+        self.assertTrue('if (version !== queueVersion) return;' in body,
+                        'refresh does not discard an overtaken answer')
+
+    def test_the_skip_dialog_files_against_the_posting_it_was_opened_for(self):
+        script = self.script()
+        self.assertTrue('skipTarget = group.id;' in script,
+                        'the dialog does not record which posting it was opened for')
+        self.assertTrue("decide('skipped', $('#reason').value, skipTarget)" in script,
+                        'the skip form does not submit against that posting')
+        self.assertTrue('const id = target ?? selected;' in script,
+                        'decide() ignores the posting it was given')
+
+
 class ClientContractTests(unittest.TestCase):
     """If the page reads a field, the projection has to carry it."""
 
