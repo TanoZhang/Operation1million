@@ -120,6 +120,68 @@ for manifest in "$tree"/manifests/*.json; do
     missing=1
   fi
 done
+# Pairing says the two sets name the same days. It does not say the run files
+# are the ones their manifests describe. Each manifest carries the sha256 of its
+# file, and that is the only check here that would notice a truncated transfer
+# or a file corrupted on the way: without it a damaged copy validates, rotates
+# into current, and a second one moves it into previous -- which is how two
+# consecutive pulls replace both intact generations.
+#
+# The day still being written is exempt. A pass may be appending to it while tar
+# reads it and rewrites the manifest when it finishes, so a mismatch there is a
+# race with a live pass rather than a damaged copy.
+verified=no
+for python in "${JOBDISCO_PYTHON:-}" python3 python; do
+  [ -n "$python" ] && command -v "$python" >/dev/null 2>&1 || continue
+  if ! "$python" - "$tree" <<'CHECKSUMS'
+import datetime, hashlib, json, pathlib, sys
+
+root = pathlib.Path(sys.argv[1])
+today = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d')
+live = today + '.ndjson.gz'
+problems, checked = [], 0
+for manifest_path in sorted((root / 'manifests').glob('*.json')):
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    except ValueError as exc:
+        problems.append('%s is not readable JSON (%s)' % (manifest_path.name, exc))
+        continue
+    name, digest = manifest.get('file'), manifest.get('sha256')
+    if not name or not digest:
+        problems.append('%s records no file or no digest' % manifest_path.name)
+        continue
+    data = root / name
+    if not data.is_file():
+        problems.append('%s names %s, which is not in the copy' % (manifest_path.name, name))
+        continue
+    running = hashlib.sha256()
+    with data.open('rb') as handle:
+        for block in iter(lambda: handle.read(1 << 20), b''):
+            running.update(block)
+    checked += 1
+    if running.hexdigest() == digest:
+        continue
+    if pathlib.PurePosixPath(name).name == live:
+        print('  note:     %s is today and still being written; its digest is not final' % name)
+        continue
+    problems.append('%s does not match the digest in %s' % (name, manifest_path.name))
+for problem in problems:
+    sys.stderr.write('WARNING: ' + problem + '\n')
+print('  checksums: %d run files verified against their manifests' % checked)
+sys.exit(1 if problems else 0)
+CHECKSUMS
+  then
+    missing=1
+  fi
+  verified=yes
+  break
+done
+if [ "$verified" != yes ]; then
+  echo "WARNING: no Python on this machine, so run-file checksums were not verified." >&2
+  echo "         The copy is accepted on its structure alone; verify it on restore with" >&2
+  echo "         JOBDISCO_STORE=<copy> job-store --verify" >&2
+fi
+
 if [ "$missing" -ne 0 ]; then
   echo "Backup validation failed; current, previous and last-pull were preserved." >&2
   echo "The failed copy remains under $incoming for inspection." >&2

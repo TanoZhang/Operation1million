@@ -271,6 +271,10 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         (source.company_key, source.provider_key)).fetchone()[0]
     seen = set()
     prepared, before_rows, pending_identities = [], {}, {}
+    # What this batch has already placed on each URL. The index is not written
+    # until the second loop, so a row landing on a URL another row in the same
+    # batch just claimed cannot see it by querying.
+    batch_rows = {}
     for original in rows:
         row = dict(original)
         scope = '' if row['provider_key'] == 'jsearch' else row['company_key']
@@ -288,7 +292,14 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             row['url'] = pending_identities[identity]
         previous = db.execute('SELECT * FROM jobs WHERE url=?', (row['url'],)).fetchone()
         before_rows.setdefault(row['url'], dict(previous) if previous else None)
-        if replaces_requisition(previous, row):
+        # A URL claimed twice in one batch is two requisitions at one address:
+        # a board reusing it, or a provider that omitted the per-posting link.
+        # The row this one follows is then the one already prepared, not the one
+        # in the index, and without that this blended the earlier posting's
+        # description and identity into the later one -- which the review queue
+        # then filtered out as a posting whose description does not match it.
+        displaced = replaces_requisition(batch_rows.get(row['url']), row)
+        if replaces_requisition(previous, row) or displaced:
             # The current index has one row per URL; the prior job remains in
             # append-only history. Reset its metadata instead of blending two
             # requisitions, and release aliases before another discovery uses them.
@@ -296,6 +307,10 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             db.execute('DELETE FROM jobs WHERE url=?', (row['url'],))
             pending_identities = {key: url for key, url in pending_identities.items()
                                   if url != row['url']}
+            if displaced:
+                # One row per URL here too, or the write loop below merges the
+                # displaced posting back in through the row it already wrote.
+                prepared = [entry for entry in prepared if entry[0]['url'] != row['url']]
             previous = None
         if previous:
             old_raw = json.loads(previous['raw'] or 'null')
@@ -309,6 +324,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
             else:
                 row['raw'] = merge_raw(old_raw, row.get('raw'))
         prepared.append((row, identity))
+        batch_rows[row['url']] = row
         if identity:
             pending_identities[identity] = row['url']
     rows = [r for r, _ in prepared]
@@ -694,15 +710,21 @@ def _append_records(stamp, records):
         raise
 
 
-def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None):
+def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None,
+               allow_sealed=False):
     """Append this pass's discoveries and closures to the day's durable file.
 
     The log, not the SQLite file, is what persists between runs: a binary database
     committed daily would store a full copy per commit, while a day's text file is
     written once and reviewable in a diff.
     """
+    # `allow_sealed` is for the one-off backfill, which writes each posting
+    # into the day it was first seen and so writes only days that are over. It
+    # is not an exception to the rule that a day in the record never changes:
+    # `--export` refuses to run against a store that holds any history at all,
+    # so there is no record yet for it to change.
     path = daily_log(stamp)
-    if sealed(stamp):
+    if sealed(stamp) and not allow_sealed:
         raise FileExistsError('Daily log is sealed; refusing to change a day that is over')
     path.parent.mkdir(parents=True, exist_ok=True)
     if not urls and not closed_urls and not seen_urls and not source_id:
@@ -753,7 +775,8 @@ def append_scores(db, stamp, urls=None):
     return len(records)
 
 
-def write_manifest(db, stamp, reports, jsearch_stats=None, extra=None):
+def write_manifest(db, stamp, reports, jsearch_stats=None, extra=None,
+                   allow_sealed=False):
     """Record what the day collected, and checksum the file that holds it.
 
     The digest is what later tells you a day's data is the data that was collected,
@@ -765,7 +788,9 @@ def write_manifest(db, stamp, reports, jsearch_stats=None, extra=None):
     says how it went.
     """
     path = daily_log(stamp)
-    if sealed(stamp):
+    # See `append_log` for why the backfill is allowed to write days that are
+    # over, and why that is not a hole in the seal.
+    if sealed(stamp) and not allow_sealed:
         raise FileExistsError('Daily manifest is sealed; that day is over')
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -795,6 +820,27 @@ def write_manifest(db, stamp, reports, jsearch_stats=None, extra=None):
     if extra:
         manifest.update(extra)
     _write_json_atomic(manifest_path(stamp), manifest)
+    return manifest
+
+
+def refresh_manifest(db, stamp):
+    """Re-checksum a day's file without restating what the day collected.
+
+    `write_manifest` rebuilds a manifest from a pass's reports, so a run that
+    only appends corrections to today's file must not call it: a rescore knows
+    nothing about how many sources completed, and would zero the counts the
+    pass recorded. Where the day has no manifest at all, one is written,
+    because a run file without a manifest fails `verify`.
+    """
+    path = manifest_path(stamp)
+    if not path.is_file():
+        return write_manifest(db, stamp, [])
+    if sealed(stamp):
+        raise FileExistsError('Daily manifest is sealed; that day is over')
+    manifest = json.loads(path.read_text(encoding='utf-8'))
+    digest, records = _file_facts(daily_log(stamp))
+    manifest.update({'records': records, 'sha256': digest})
+    _write_json_atomic(path, manifest)
     return manifest
 
 
@@ -1036,12 +1082,21 @@ def main():
             for url in urls:
                 stamp = db.execute('SELECT first_seen FROM jobs WHERE url=?', (url,)).fetchone()[0]
                 by_day.setdefault(stamp[:10], []).append(url)
+            # Every posting goes into the day it was first seen, so all but
+            # today's are days that have sealed. That is what a backfill is;
+            # the emptiness check above is what makes it safe.
             for day, batch in sorted(by_day.items()):
-                append_log(db, batch, [], f'{day}T00:00:00+00:00')
+                append_log(db, batch, [], f'{day}T00:00:00+00:00', allow_sealed=True)
+            written = dict.fromkeys(by_day)
             for url, at in closed:
-                append_log(db, [], [url], at)
-            for day in sorted(by_day):
-                write_manifest(db, f'{day}T00:00:00+00:00', [])
+                append_log(db, [], [url], at, allow_sealed=True)
+                # A posting closed on a day nothing was first seen writes a file
+                # for a day the loop below would not have known about, and a run
+                # file without a manifest fails `verify` -- so the export
+                # finished and the store it produced could not be rebuilt from.
+                written[at[:10]] = None
+            for day in sorted(written):
+                write_manifest(db, f'{day}T00:00:00+00:00', [], allow_sealed=True)
             export_state(db)
         print('exported:', len(urls), 'jobs,', len(closed), 'closures')
     if args.export_seen:
@@ -1050,6 +1105,7 @@ def main():
     if args.rescore:
         def tick(done):
             print('  rescored %d postings' % done, flush=True)
+        # Published to the log, not only to the database: see `rescore`.
         print('rescored:', rescore(args.db, progress=tick))
     if args.ranked:
         for row in ranked(args.db, args.ranked, args.since, args.min_score):
@@ -1084,24 +1140,54 @@ def summary(path=DB):
                 'unscored': unscored}
 
 
-def rescore(path=DB, batch=500, progress=None):
+def rescore(path=DB, batch=500, progress=None, publish=True):
     """Recompute every stored score. Run this after editing the term lists.
 
     Read with one cursor and write with another, committing as it goes: pulling
     every posting into memory first costs a couple of hundred megabytes of stored
     descriptions, and a single transaction means an interrupted run leaves
     nothing behind and shows nothing while it works.
+
+    The scores that moved are appended to today's log as well. SQLite is
+    derived: a rebuild replays the log, so a correction living only in the
+    database is undone by the next rebuild, silently, restoring the ranking the
+    rescore was run to fix. Only the scores that changed are written, because
+    that is the correction; the rest of the log already says them.
     """
-    done, pending = 0, []
+    done = 0
     with closing(connect(path)) as reader, closing(connect(path)) as writer:
-        cursor = reader.execute('SELECT url, title, raw FROM jobs')
+        cursor = reader.execute('SELECT url, title, raw, relevance FROM jobs')
         while True:
             rows = cursor.fetchmany(batch)
             if not rows:
                 break
-            pending = [(calculate_score(r['title'], json.loads(r['raw'] or 'null')), r['url'])
-                       for r in rows]
+            pending, changed = [], []
+            for r in rows:
+                score = calculate_score(r['title'], json.loads(r['raw'] or 'null'))
+                pending.append((score, r['url']))
+                if score != r['relevance']:
+                    changed.append(r['url'])
             writer.executemany('UPDATE jobs SET relevance=? WHERE url=?', pending)
+            # The log first, the index second, and only what this batch moved.
+            # Written the other way round, a failed append left the new score in
+            # SQLite and the old one in the log: the rebuild restored the old
+            # score, the manifest still matched its file so nothing said so, and
+            # a second rescore found the index already holding the new value,
+            # counted nothing as changed, and published nothing. The correction
+            # could not be recovered by repeating the command that made it.
+            #
+            # `append_scores` reads back through this same connection, so it
+            # sees the uncommitted update above; a failure rolls that update
+            # back, leaving the index behind the log rather than ahead of it,
+            # which is the direction a later rescore repairs by itself.
+            if publish and changed:
+                try:
+                    stamp = now()
+                    append_scores(writer, stamp, changed)
+                    refresh_manifest(writer, stamp)
+                except BaseException:
+                    writer.rollback()
+                    raise
             writer.commit()
             done += len(pending)
             if progress:

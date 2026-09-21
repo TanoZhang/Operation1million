@@ -102,8 +102,11 @@ async function renderDetail(group) {
   if ($('#skip')) $('#skip').onclick = () => { $('#reason').value = ''; $('#skip-dialog').showModal(); $('#reason').focus(); };
   if ($('#reopen')) $('#reopen').onclick = () => decide('pending');
   try {
-    const body = await api('/api/job?url=' + encodeURIComponent(first.url));
-    if (version === detailVersion) $('#description').textContent = body.description || 'Description unavailable. Open the original listing.';
+    const body = await api('/api/job?url=' + encodeURIComponent(first.url) + '&id=' + encodeURIComponent(group.id));
+    const text = body.replaced
+      ? 'This address now advertises a different requisition, so the description published here is not the one this decision was about.'
+      : (body.description || 'Description unavailable. Open the original listing.');
+    if (version === detailVersion) $('#description').textContent = text;
   } catch (err) { if (version === detailVersion) $('#description').textContent = err.message; }
 }
 async function decide(status, reason = '') {

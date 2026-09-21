@@ -1,9 +1,38 @@
 """Catalog reads release SQLite resources on both success and failure."""
+from pathlib import Path
 import sqlite3
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from jobdisco import validate_sources
+
+
+class ValidatorReportTests(unittest.TestCase):
+    """A run that probed every source must have somewhere to put its answer."""
+
+    def test_the_report_directory_exists_before_the_first_probe(self):
+        with TemporaryDirectory() as temporary:
+            out = Path(temporary) / 'raw' / 'source_validation_results.csv'
+            fixture = SimpleNamespace(source_id='fixture')
+            probed = []
+
+            def probe(source, session):
+                # The directory is gitignored, so a fresh checkout lacks it. Made
+                # at the write instead of here, an hour of probes ended by
+                # throwing away the report they were run to produce.
+                self.assertTrue(out.parent.is_dir(),
+                                'the report directory must exist before any request')
+                probed.append(source)
+                return {'source_id': 'fixture', 'verdict': 'usable'}
+
+            with patch.object(validate_sources, 'OUT_CSV', out), \
+                 patch.object(validate_sources, 'load_sources', return_value=[fixture]), \
+                 patch.object(validate_sources, 'validate', probe):
+                self.assertEqual(validate_sources.main(), 0)
+            self.assertEqual(probed, [fixture])
+            self.assertIn('usable', out.read_text(encoding='utf-8'))
 
 
 class ValidatorResourcesTests(unittest.TestCase):

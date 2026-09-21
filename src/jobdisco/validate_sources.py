@@ -349,6 +349,11 @@ def main() -> int:
             "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         }
     )
+    # Before the probes, not after them: this directory is gitignored, so a
+    # fresh checkout does not have it, and creating it at the write below meant
+    # a full validation run -- every source, every request -- ended by throwing
+    # its own report away.
+    OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     rows = []
     for index, source in enumerate(sources, start=1):
         print(f"[{index}/{len(sources)}] {source.source_id}", flush=True)

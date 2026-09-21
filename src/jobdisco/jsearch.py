@@ -190,8 +190,20 @@ def page_identity(items):
 
     Used only to notice a provider that returns the same page twice. Items
     without an id are not comparable, so such a page never matches.
+
+    An id sent as a list or an object cannot go in a set, and raising here
+    discarded a page that had already been paid for, along with every sound
+    result on it. A page carrying such an id is simply not comparable, which is
+    what None says, and the repeated-page check is the only reader.
     """
-    ids = {i.get('job_id') for i in items if isinstance(i, dict) and i.get('job_id')}
+    ids = set()
+    for item in items:
+        if not isinstance(item, dict) or not item.get('job_id'):
+            continue
+        try:
+            ids.add(item['job_id'])
+        except TypeError:
+            return None
     return ids if len(ids) == len(items) and items else None
 
 

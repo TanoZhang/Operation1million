@@ -41,10 +41,20 @@ that prevents duplicate work, and it only works if it is current.
 | Confirming seen deduplication works | offline done; production unassigned | **production pending** | The offline test (merged) replaces the database between two passes and requires the second to report 0 new / 1 existing. Production has reported 0 existing on three consecutive passes; the next pass is the first to run the same plan against a seen table holding its own rows |
 | Untimestamped JSearch credit budget-window accounting | Codex, reviewed by Claude | merged and deployed | Replayed the live ledger's four-credit residual: counted once on 2026-09-18 and zero on neighbouring windows, where both previously saw it. |
 | Incremental validators, sitemap updates, URL reuse, Review groups/descriptions, workstation backup rotation | Codex, reviewed by Claude | merged and deployed | Same branch, base `e09d9ed`, inspected main `9843350` on 2026-09-20. Each behavior reproduced offline before fixing; current results and remaining production checks are in `docs/handoff.md`. |
+| Twenty-nine review findings, in five rounds: collection completeness and identity, the experience gate, the applications ledger and review server, rescore durability, paid-request accounting, the TI board's provider and validator, both backup scripts | Claude | review | Base `ef6d4b3`, on `claude`. Each reproduced by a test that fails before the fix and passes after, including three that are defects in this session's own earlier fixes. One earlier assertion changed on purpose, and one reported defect withdrawn and its change reverted; see the bug log. |
 
 Claiming an area means writing your name in it before you write code. If the
 area you want is already claimed and you think the owner is wrong, say so to
 the user rather than building a second answer in silence.
+
+The row above is closed, but its files are worth naming: `collector.py`,
+`store.py`, `applications.py`, `review.py`, `jsearch.py`, `collection_policy.py`,
+`experience.py`, `validate_sources.py`, both backup scripts and their tests.
+Several of those changes decide when a pass may call itself complete, which is
+what permits the store to retire postings, and others change how a posting is
+identified across providers and batches. Anyone touching `collect_json`,
+`store.record_source` or `applications.decision_key` should read the four
+review-round entries in the bug log first.
 
 ## Branches
 

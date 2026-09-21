@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import socket
 import sqlite3
 import tempfile
 import threading
@@ -38,7 +39,8 @@ class ApplicationsTests(unittest.TestCase):
                 CREATE TABLE jobs(url TEXT PRIMARY KEY, company_key TEXT, title TEXT, location TEXT,
                                   source_job_id TEXT,
                                   first_seen TEXT, posted_at TEXT, provider_key TEXT,
-                                  relevance REAL, closed_at TEXT, raw TEXT);''')
+                                  relevance REAL, closed_at TEXT, raw TEXT,
+                                  last_seen TEXT);''')
             # a and b share a company and a normalized title but are separate
             # requisitions. a2 is the same requisition as a, in another city.
             rows = [('a', 'RTL Engineer', 'req-a', 1, None),
@@ -47,11 +49,12 @@ class ApplicationsTests(unittest.TestCase):
                     ('c', 'Old Engineer', 'req-c', 4, None),
                     ('d', 'Closed Engineer', 'req-d', 1, 'closed')]
             for ident, title, requisition, age, closed in rows:
-                db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                            (f'https://example.test/{ident}', 'sample', title, ident.upper(),
                             requisition,
                             (self.now - timedelta(days=age)).isoformat(), None, 'direct', 80, closed,
-                            json.dumps({'description': '<p>Design hardware.</p>'})))
+                            json.dumps({'description': '<p>Design hardware.</p>'}),
+                            (self.now - timedelta(days=age)).isoformat()))
 
     def queue(self):
         return applications.queue(self.db, self.ledger, self.now)
@@ -131,9 +134,118 @@ class ApplicationsTests(unittest.TestCase):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute("""INSERT INTO jobs SELECT 'https://example.test/new', company_key,
                           title, 'New York', 'req-new', first_seen, posted_at, provider_key,
-                          relevance, closed_at, raw FROM jobs WHERE url='https://example.test/a'""")
+                          relevance, closed_at, raw, last_seen
+                          FROM jobs WHERE url='https://example.test/a'""")
         self.assertIn('req-new', {job['source_job_id']
                                   for group in self.queue()['pending'] for job in group['jobs']})
+
+    def seen_table(self, url, decision, requisition='req-b', provider='jsearch',
+                   ago=timedelta(0)):
+        """The rejection record a paid pass leaves behind for a posting it drops."""
+        stamp = (self.now - ago).isoformat()
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("""CREATE TABLE IF NOT EXISTS seen_jobs (
+                provider_key TEXT NOT NULL, source_job_id TEXT NOT NULL, url TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '', employer TEXT NOT NULL DEFAULT '',
+                first_seen TEXT NOT NULL, last_seen TEXT NOT NULL,
+                decision TEXT NOT NULL DEFAULT '', confidence INTEGER,
+                filter_version TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (provider_key, source_job_id))""")
+            db.execute('INSERT OR REPLACE INTO seen_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (provider, requisition, url, 'RTL Engineer', 'Sample Semiconductor',
+                        stamp, stamp, decision, 80, 'v1'))
+            db.execute("UPDATE jobs SET provider_key='jsearch' WHERE url=?", (url,))
+
+    def pending_urls(self):
+        return {job['url'] for status in ('pending', 'backlog')
+                for group in self.queue()[status] for job in group['jobs']}
+
+    def test_a_posting_the_last_pass_rejected_is_not_offered_from_an_older_copy(self):
+        """The rejection is on record, and it is newer than the copy on show.
+
+        A paid pass that rejects a posting does not store the description it
+        rejected, so the index keeps the text from the pass that accepted it.
+        The queue went on offering a posting whose published terms had since
+        disqualified it -- and offering it with the description that still
+        qualified.
+        """
+        url = 'https://example.test/b'
+        self.seen_table(url, 'required_experience_over_2_years')
+        self.assertNotIn(url, self.pending_urls())
+
+    def test_a_rejection_of_another_requisition_at_that_address_hides_nothing(self):
+        """A reused URL puts one refused posting and one accepted one together.
+
+        Matching the rejection by address alone took the wrong one down: the
+        posting on show is identified by its requisition, and that is what the
+        record has to be about.
+        """
+        url = 'https://example.test/b'
+        self.seen_table(url, 'required_experience_over_2_years',
+                        requisition='the-requisition-that-was-refused')
+        self.assertIn(url, self.pending_urls())
+
+    def test_an_older_rejection_does_not_hide_what_a_later_pass_accepted(self):
+        """The index being newer means the rejection has already been answered."""
+        url = 'https://example.test/b'
+        self.seen_table(url, 'required_experience_over_2_years', ago=timedelta(days=5))
+        self.assertIn(url, self.pending_urls())
+
+    def test_a_query_scoped_rejection_does_not_hide_the_posting(self):
+        """An employer mismatch says the query asked wrongly, not that the job is."""
+        url = 'https://example.test/b'
+        self.seen_table(url, 'employer_mismatch')
+        self.assertIn(url, self.pending_urls())
+
+    def test_a_decision_follows_a_posting_from_jsearch_to_the_direct_board(self):
+        """The store merges the two discoveries into one row; the ledger follows it.
+
+        A posting found first through JSearch and later on the company's own
+        board keeps its URL and takes the direct provider. The decision key is
+        scoped by provider, so an applied job came back as pending on the pass
+        that found it directly -- and the second application is the kind of
+        mistake this ledger exists to prevent.
+        """
+        url = 'https://example.test/b'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='jsearch', source_job_id='js-1' "
+                       "WHERE url=?", (url,))
+        found = next(group for group in self.queue()['pending']
+                     if any(job['url'] == url for job in group['jobs']))
+        applications.append_decision(self.ledger, found, 'applied')
+        self.assertEqual([job['url'] for group in self.queue()['applied']
+                          for job in group['jobs']], [url])
+
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='direct', source_job_id='req-b' "
+                       "WHERE url=?", (url,))
+        state = self.queue()
+        self.assertEqual([job['url'] for group in state['applied']
+                          for job in group['jobs']], [url])
+        self.assertNotIn(url, {job['url'] for group in state['pending']
+                               for job in group['jobs']})
+
+    def test_a_replacement_at_that_address_is_not_the_posting_that_was_applied_to(self):
+        """A changed provider is not on its own evidence of the same opening.
+
+        A decision follows a posting from JSearch to the company's own board
+        because the store merged the two discoveries into one row. An address
+        handed to a different board carrying a different job is the other case
+        entirely, and reading the provider alone hid the new posting behind the
+        old decision.
+        """
+        url = 'https://example.test/b'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='jsearch', source_job_id='js-1' "
+                       "WHERE url=?", (url,))
+        found = next(group for group in self.queue()['pending']
+                     if any(job['url'] == url for job in group['jobs']))
+        applications.append_decision(self.ledger, found, 'applied')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET provider_key='direct', source_job_id='req-new', "
+                       "title='DFT Engineer' WHERE url=?", (url,))
+        self.assertIn(url, {job['url'] for group in self.queue()['pending']
+                            for job in group['jobs']})
 
     def test_skip_and_reopen_only_append(self):
         group = self.group_for('req-a')
@@ -286,6 +398,52 @@ class HttpTests(ApplicationsTests):
         self.addCleanup(server.shutdown)
         with urlopen(f'http://127.0.0.1:{server.server_port}/api/job?url=https://example.test/a') as response:
             self.assertEqual(json.load(response)['description'], text)
+
+    def test_an_idle_connection_does_not_stop_the_server(self):
+        """A browser opens speculative sockets and sends nothing on them.
+
+        Requests used to be served one at a time, and reading a request line
+        that never arrives does not return, so one such socket hung the review
+        service until it was killed.
+        """
+        server = review.make_server(self.db, self.ledger, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.shutdown)
+        idle = socket.create_connection(('127.0.0.1', server.server_port))
+        self.addCleanup(idle.close)
+        with urlopen(f'http://127.0.0.1:{server.server_port}/api/queue', timeout=10) as response:
+            self.assertIn('pending', json.load(response))
+
+    def test_history_does_not_show_a_later_requisitions_description(self):
+        """The decision was about one opening; the address now advertises another.
+
+        The panel asked for whatever row holds that URL, so an applied item was
+        illustrated with the prose of the posting that replaced it -- which
+        reads as though the application was made against something it never was.
+        """
+        url = 'https://example.test/a'
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET source_job_id='req-later', raw=? WHERE url=?",
+                       (json.dumps({'description': 'A different opening entirely.'}), url))
+        applied = self.queue()['applied'][0]
+        server = review.make_server(self.db, self.ledger, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.shutdown)
+        root = f'http://127.0.0.1:{server.server_port}'
+        with urlopen(f'{root}/api/job?url={url}&id={applied["id"]}') as response:
+            replaced = json.load(response)
+        self.assertTrue(replaced['replaced'])
+        self.assertEqual(replaced['description'], '')
+        # The listing that still holds its requisition answers as before.
+        with urlopen(f'{root}/api/job?url=https://example.test/a2&id={applied["id"]}') as response:
+            self.assertIn('Design hardware', json.load(response)['description'])
 
     def test_http_decisions_require_token_and_replay_on_refresh(self):
         server = review.make_server(self.db, self.ledger, 0)

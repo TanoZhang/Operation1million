@@ -1,6 +1,9 @@
 """Run the workstation backup against a synthetic SSH tar stream."""
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import hashlib
+import json
 import os
 import shlex
 import shutil
@@ -27,9 +30,35 @@ class BackupTests(unittest.TestCase):
         for name in ('applications.ndjson', 'jsearch_usage.sqlite',
                      'source_access.sqlite', 'seen_jobs.ndjson.gz'):
             (data / 'operational' / name).write_bytes(b'synthetic state')
-        (data / 'runs/2026-09-20.ndjson.gz').write_bytes(b'fixture')
-        manifest = '2026-09-19' if failure == 'mismatched-manifest' else '2026-09-20'
-        (data / 'manifests' / (manifest + '.json')).write_text('{}', encoding='utf-8')
+        # Days are computed, never written down. The digest check exempts the
+        # day still being written, so a literal date here would exercise one
+        # branch today and the other one tomorrow.
+        def stamp(days_ago):
+            return (datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime('%Y-%m-%d')
+
+        def day_file(day, content, digest_of=None):
+            (data / 'runs' / (day + '.ndjson.gz')).write_bytes(content)
+            (data / 'manifests' / (day + '.json')).write_text(json.dumps({
+                'run_date': day, 'file': f'runs/{day}.ndjson.gz',
+                'sha256': hashlib.sha256(digest_of if digest_of is not None
+                                         else content).hexdigest()}), encoding='utf-8')
+
+        sealed = stamp(1)
+        if failure == 'mismatched-manifest':
+            # A manifest for a day whose run file is not in the copy.
+            (data / 'runs' / (sealed + '.ndjson.gz')).write_bytes(b'fixture')
+            day_file(stamp(2), b'', digest_of=b'')
+            (data / 'runs' / (stamp(2) + '.ndjson.gz')).unlink()
+        elif failure == 'corrupt-run-file':
+            # What the manifest describes and what the copy holds differ, which
+            # is what a truncated or damaged transfer looks like.
+            day_file(sealed, b'truncated on the way', digest_of=b'fixture')
+        else:
+            day_file(sealed, b'fixture')
+        if failure == 'today-still-writing':
+            # A pass may be appending to today's file while tar reads it.
+            day_file(stamp(0), b'a pass is still appending to this',
+                     digest_of=b'what the manifest said an hour ago')
         snapshot = root / 'fixture/sqlite/job_discovery.sqlite'
         snapshot.parent.mkdir()
         # `with sqlite3.connect(...)` commits the transaction; it does not
@@ -58,7 +87,8 @@ class BackupTests(unittest.TestCase):
         return result, backup
 
     def test_invalid_copies_preserve_both_recovery_generations(self):
-        for failure in ('missing-ledger', 'bad-snapshot', 'mismatched-manifest'):
+        for failure in ('missing-ledger', 'bad-snapshot', 'mismatched-manifest',
+                        'corrupt-run-file'):
             with self.subTest(failure=failure):
                 result, backup = self.run_backup(failure)
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -66,8 +96,22 @@ class BackupTests(unittest.TestCase):
                     self.assertEqual((backup / name / 'keep.txt').read_text(), name)
                 self.assertEqual((backup / 'last-pull').read_text(), 'last good pull')
 
+    def test_the_day_still_being_written_may_differ_from_its_manifest(self):
+        """A pass appending while tar reads is a race, not a damaged copy.
+
+        The manifest is rewritten when the pass finishes, so today's digest is
+        not final. Failing on it would make every pull that overlaps a pass
+        look like corruption.
+        """
+        result, backup = self.run_backup('today-still-writing')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('still being written', result.stdout)
+
     def test_valid_copy_rotates_only_after_validation(self):
         result, backup = self.run_backup()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual((backup / 'previous/keep.txt').read_text(), 'current')
         self.assertTrue((backup / 'current/sqlite/job_discovery.sqlite').is_file())
+        # Structure is not enough: an unverified copy that rotates twice
+        # replaces both intact generations.
+        self.assertIn('1 run files verified against their manifests', result.stdout)

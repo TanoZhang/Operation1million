@@ -68,7 +68,51 @@ def job(ident='1', **extra):
             'future_useful_field': 'preserve', **extra}
 
 
+class PageIdentityTests(unittest.TestCase):
+    """The repeated-page check must never be what loses a page already paid for."""
+
+    def test_an_id_that_cannot_go_in_a_set_leaves_the_page_incomparable(self):
+        for identifier in (['a'], {'id': 'a'}, {'a'}):
+            with self.subTest(identifier=identifier):
+                self.assertIsNone(jsearch.page_identity(
+                    [{'job_id': identifier}, {'job_id': 'b'}]))
+
+    def test_it_still_recognises_a_page_and_a_repeat_of_it(self):
+        page = [{'job_id': 'a'}, {'job_id': 'b'}]
+        self.assertEqual(jsearch.page_identity(page), {'a', 'b'})
+        self.assertEqual(jsearch.page_identity(list(reversed(page))), {'a', 'b'})
+        self.assertIsNone(jsearch.page_identity([{'job_id': 'a'}, {}]))
+        self.assertIsNone(jsearch.page_identity([]))
+
+
 class DiscoveryTests(unittest.TestCase):
+    def test_a_multi_page_query_reports_every_page_it_paid_for(self):
+        """Pages are credits. Recording one per query understated what was spent.
+
+        The manifest's request total is what a reader checks paid usage
+        against, and a query that paged five times counted as one.
+        """
+        self.session.get.side_effect = [self.response([job(str(n)) for n in range(10)]),
+                                        self.response([job('10')])]
+        output = self.root / 'paged'
+        arguments = ['collector', '--jsearch-only', '--jsearch-query', 'Design Verification Engineer',
+                     '--jsearch-pages', '2', '--jsearch-budget', '2',
+                     '--no-store', '--db', str(self.db_path), '--output', str(output)]
+        with patch.object(collector, 'load_sources', return_value=[]), \
+             patch.object(collector, 'Collector') as direct, \
+             patch.object(collector, 'RequestGuard', return_value=self.guard), \
+             patch.object(collector, 'load_credentials'), \
+             patch.object(jsearch.requests, 'Session', return_value=self.session), \
+             patch('sys.argv', arguments), patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(collector.main(), 0)
+        direct.assert_not_called()
+        self.assertEqual(self.session.get.call_count, 2)
+        manifest = json.loads((output / 'manifest.json').read_text())
+        self.assertEqual(manifest['jsearch_pages_used'], 2)
+        rows = list(csv.DictReader(
+            (output / 'company_results.csv').read_text(encoding='utf-8').splitlines()))
+        self.assertEqual([row['requests'] for row in rows], ['2'])
+
     def test_single_week_query_skips_direct_sources_and_preserves_daily_budget(self):
         self.session.get.return_value = self.response([job()])
         output = self.root / 'manual'
@@ -371,8 +415,11 @@ class DiscoveryTests(unittest.TestCase):
         store.record_source(self.db, source, baseline, 'complete', 'full', 1,
                             stamp='2026-09-17T00:00:00+00:00')
         self.db.commit()
+        # `source` too: a pass persists under the source its collector read,
+        # which for a board that resolves its own endpoint is not the one the
+        # catalog named.
         fake = Mock(jobs=[], rejected=[], requests=1, listed=None, etag=None,
-                    last_modified=None)
+                    last_modified=None, source=source)
         fake.run.return_value = ('complete', '')
         output = self.root / 'fuse-run'
         arguments = ['collector', '--db', str(self.db_path), '--output', str(output)]
@@ -1237,7 +1284,7 @@ class DiscoveryTests(unittest.TestCase):
         """
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
         board = Mock(jobs=[], rejected=[], requests=1, etag=None,
-                     last_modified=None, listed=None)
+                     last_modified=None, listed=None, source=source)
         board.run.return_value = ('complete', '')
         self.session.get.side_effect = lambda url, **kw: self.response([
             job(f'{parse_qs(urlsplit(url).query)["query"][0]}-'
@@ -1440,7 +1487,8 @@ class DiscoveryTests(unittest.TestCase):
         block has bound the statistics it reports.
         """
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
-        direct = Mock(jobs=[], rejected=[], requests=1, etag=None, last_modified=None, listed=None)
+        direct = Mock(jobs=[], rejected=[], requests=1, etag=None, last_modified=None,
+                      listed=None, source=source)
         direct.run.side_effect = RuntimeError('board exploded after the first store')
         configs = {'discovery_queries.toml': {},
                    'sources_search.toml': {'search': {'jsearch': SEARCH}}}
@@ -1529,7 +1577,8 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_collector_runs_direct_then_functional_then_configured_company(self):
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
-        direct = Mock(jobs=[], rejected=[], requests=1, etag=None, last_modified=None, listed=None)
+        direct = Mock(jobs=[], rejected=[], requests=1, etag=None, last_modified=None,
+                      listed=None, source=source)
         order = []
         direct.run.side_effect = lambda: (order.append('direct') or ('complete', ''))
         def search_response(url, **kwargs):

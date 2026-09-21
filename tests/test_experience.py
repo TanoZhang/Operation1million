@@ -109,6 +109,20 @@ class MentionedPeopleTests(unittest.TestCase):
                 self.assertFalse(found['entry_override'], body)
                 self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
 
+    def test_a_denied_internship_is_not_an_internship(self):
+        """The word is there to rule the reading out, not to invite it."""
+        for body in ('This is not an internship. 8+ years of experience required.',
+                     'No internships are available for this role. '
+                     '10 years of experience required.',
+                     'We are hiring an experienced engineer rather than an intern. '
+                     'Minimum 6 years of industry experience.',
+                     'This posting is for full-time staff, not new graduates. '
+                     '5 years experience required.'):
+            with self.subTest(body=body[:40]):
+                found = self.senior(body)
+                self.assertFalse(found['entry_override'], body)
+                self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
     def test_the_posting_describing_itself_still_overrides(self):
         for title, body in (
                 ('ASIC Engineer Intern', 'Requirements: 5+ years of experience.'),
@@ -136,6 +150,16 @@ class UpperBoundTests(unittest.TestCase):
             with self.subTest(body=body):
                 found = experience.evaluate('ASIC Design Engineer', body)
                 self.assertEqual(found['hard_pass_reason'], '', body)
+
+    def test_a_floor_stated_in_the_negative_is_still_a_floor(self):
+        """"No less than five years" is the strictest phrasing, not the absent one."""
+        for body in ('Requirements: no less than 5 years of experience.',
+                     'Required: not less than 4 years of industry experience.',
+                     'Requirements: no fewer than 3 years of professional experience.'):
+            with self.subTest(body=body):
+                found = experience.evaluate('ASIC Design Engineer', body)
+                self.assertEqual(found['hard_pass_reason'],
+                                 'required_experience_over_2_years', body)
 
     def test_a_real_floor_is_still_a_floor(self):
         for body in ('Requirements: at least 3 years of experience.',

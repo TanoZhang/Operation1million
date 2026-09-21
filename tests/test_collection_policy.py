@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
 
-from jobdisco.collection_policy import retry_after_seconds
+from jobdisco.collection_policy import SourcePolicy, retry_after_seconds
 from jobdisco.collector import Collector, Source, main
 from jobdisco.validate_sources import validate
 
@@ -54,6 +54,26 @@ class CollectionPolicyTests(unittest.TestCase):
             restarted.session.request.assert_not_called()
         with closing(sqlite3.connect(self.args.source_state)) as db:
             self.assertEqual(db.execute('SELECT retry_at FROM source_pauses').fetchone()[0], 4600)
+
+    def test_pacing_is_resolved_only_when_a_request_is_due(self):
+        """Resolving it asks the host for robots.txt, which is itself a request."""
+        with patch('jobdisco.collection_policy.robots_delay', return_value=None) as robots:
+            policy = SourcePolicy(self.source, 1.0, path=self.args.source_state)
+            robots.assert_not_called()
+            self.assertEqual(policy.interval, 2.5)
+            robots.assert_called_once()
+
+    def test_a_paused_source_is_not_asked_for_its_pacing(self):
+        """A cooldown is checked before anything reaches the host, robots.txt included."""
+        c = self.collector()
+        c.session.request.return_value = self.response(429)
+        with patch('jobdisco.collector.time.sleep'):
+            self.assertEqual(c.run()[0], 'paused')
+        with patch('jobdisco.collection_policy.request_interval') as interval:
+            restarted = self.collector(c.source)
+            self.assertEqual(restarted.run()[0], 'paused')
+            restarted.session.request.assert_not_called()
+            interval.assert_not_called()
 
     def test_validator_respects_the_same_persisted_pause(self):
         c = self.collector()

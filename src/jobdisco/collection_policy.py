@@ -80,9 +80,25 @@ def retry_after_seconds(value, now=None):
 class SourcePolicy:
     def __init__(self, source, requested_delay, path=STATE):
         self.company_key = source.company_key
-        self.interval = request_interval(source, requested_delay)
+        self.source, self.requested_delay = source, requested_delay
+        self._interval = None
         self.path = Path(path)
         self.stopped = None
+
+    @property
+    def interval(self):
+        """The pace for this source, resolved on first use rather than here.
+
+        Resolving it asks the host for its robots.txt. Constructing a policy
+        therefore sent a request to a source that might be inside an active
+        cooldown -- from the object whose whole purpose is to keep us off it,
+        and before `check()` had a chance to say so. Every caller reads this
+        only after `check()` has passed, so the robots request now goes out
+        only where a collection request was going out anyway.
+        """
+        if self._interval is None:
+            self._interval = request_interval(self.source, self.requested_delay)
+        return self._interval
 
     def connect(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)

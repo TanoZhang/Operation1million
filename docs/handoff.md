@@ -1,3 +1,141 @@
+# Fifth review round: three of my own fixes were wrong - 2026-09-21 UTC
+
+B27, B28 and B30 are defects in fixes made earlier in this session, found by
+the review that followed them; B29 is in the export path the same session
+repaired. All four are fixed, each with a test that fails against the code as
+this session left it. The bug log carries them as their own entries, which is
+where a fix that introduced a defect belongs.
+
+- A decision no longer follows its posting across a provider change unless the
+  company and title agree too. A retitled posting will come back as pending.
+- The rejection lookup matches the requisition rather than the address. It is
+  also the table's primary key: 860 ms to 0.86 ms on a synthetic 1,200
+  postings and 12,000 seen rows, measured here, with no new index.
+- `--export` writes a manifest for every day it wrote a file, including days
+  holding only closures.
+- `--rescore` appends to the log before committing the index, per batch. A
+  failed append now leaves the index behind the log, which a later rescore
+  repairs by itself, instead of ahead of it, which nothing could.
+
+Measured: 455 offline tests, exit 0, 8 skips on Windows; each new test red
+against the code before its fix, with the reported symptom. Reasoned, not
+measured: nothing collected, spent or deployed, and nothing checked against the
+production database.
+
+# Fourth review round, and one withdrawal - 2026-09-21 UTC
+
+Same branch and base (`claude`, `ef6d4b3`), uncommitted. B24-B26, plus the
+withdrawal of B20 from the round below.
+
+- The review queue now hides a posting whose latest paid pass rejected it on
+  the posting's own terms, using the rejection already recorded in `seen_jobs`.
+  It hides rather than refreshes: the stored description stays as it was.
+- A TI board is persisted and reported under the provider the collector
+  actually read (`oracle_cloud`), not the one the catalog names. This is what
+  lets its postings close at all, so the first pass after it installs may
+  retire TI postings that the board stopped listing some time ago. That is the
+  backlog of closures the bug was suppressing, not a new closure event, and the
+  closure fuse still applies to it.
+- A `ti_careers` source keeps no ETag or Last-Modified validator, so it is read
+  in full every pass. A stale shell validator already stored is cleared by the
+  next complete pass. Whether the live shell serves an ETag at all has not been
+  checked; the trigger was reproduced offline.
+- B20 is withdrawn. `main.direct` already turns a pass holding rejected records
+  into a partial one, so the store never retires what a pass failed to read;
+  the reproducer that suggested otherwise called `Collector.run` directly. Both
+  halves of that change are reverted, including the untitled-link change, which
+  would have made any board carrying a text-free job link permanently
+  incomplete -- and a board that can never be complete is a board whose
+  postings can never be retired.
+
+Measured: 447 offline tests, exit 0, 8 skips on Windows. Each new test was run
+against the code as it stood before its fix and failed there, with the reported
+symptom: the posting still in the queue, five open postings against a board of
+four, and the shell's ETag held as the validator. The tests written to guard
+against over-correction pass in both directions.
+
+Reasoned, not measured: nothing collected, spent or deployed, and nothing
+checked against the production database or the live TI site.
+
+# Two further review rounds, fourteen more defects - 2026-09-21 UTC
+
+Same branch and base as the section below (`claude`, `ef6d4b3`), uncommitted.
+B10-B16 and B17-B23 from two further reviews. Each defect, its mechanism and
+its reproducer are in the architecture bug log.
+
+What changes behaviour rather than only reporting:
+
+- The index and the day log now fail together. A source whose rows could not be
+  appended is rolled back instead of committed by the seal, so a pass that
+  cannot write its log stores nothing and advances no watermark.
+- `--rescore` appends the scores that moved to today's log. A rescore of the
+  whole store will add one record per changed posting; on the live index that
+  is tens of thousands of small records in one day file, which the existing
+  shard threshold handles but which a reader should expect to see.
+- A second row landing on a URL another row in the same batch claimed now
+  displaces it instead of merging with it. One row per URL either way; what
+  changes is which posting's description and identity the survivor carries.
+- Renesas sitemap postings now take the requisition from their URL, so a
+  retitled or relocated posting is the same row rather than a withdrawal and an
+  arrival. Only Apple and Renesas take an id from a URL.
+- An untitled job link and an Eightfold position with no link of its own are
+  now malformed records rather than silently absent ones, so the pass reports
+  itself incomplete instead of letting the store retire what it failed to read.
+- The review server answers requests in threads, and `/api/job` refuses to
+  illustrate a decided group with a description belonging to a different
+  requisition. `review_static/app.js` sends the group id and renders that case.
+- `backup-from-vps.sh` now verifies each run file against its manifest digest,
+  except for the day still being written.
+- The conditional probe is used only on GET boards; a Workday board reads in
+  full instead of being probed with a method it refuses.
+
+Measured: 438 offline tests, exit 0, 8 skips on Windows. Every new test was run
+against the code as it stood before its fix and failed there; the tests written
+to guard against over-correction pass in both directions. `bash -n` passes on both
+backup scripts, and the corrupt-copy and still-being-written cases of
+`backup-from-vps.sh` were driven end to end under Git Bash.
+
+Reasoned, not measured: no collection ran, nothing was spent, nothing was
+deployed, and no claim here was checked against the production database. The
+review page's JavaScript change was not executed -- there is no JavaScript
+runtime in this checkout, and the page's own contract test reads it as text.
+The rescue-pull digest check has not been run against a real VPS copy, and the
+threading change has not been exercised by a real browser.
+
+# Nine reviewed defects, fixed offline - 2026-09-20 UTC
+
+On `claude`, base `ef6d4b3`, uncommitted at the time of writing. Reviewed
+findings in `collector.py`, `experience.py`, `collection_policy.py`,
+`validate_sources.py` and `deploy/vps/backup-applications.sh`. Each defect and
+its reasoning is in the architecture bug log; each has a test that fails on
+`ef6d4b3` and passes here.
+
+Three of them change when a direct pass may call itself complete -- the cap no
+longer reports a complete board, an empty page no longer outranks the count the
+board just stated, and a stated zero is read as the count it is. Completeness
+is what permits the store to retire postings, so these change what gets closed,
+in the conservative direction in the first two cases and the permissive one in
+the third. The closure fuse in `record_source` is unchanged and still applies.
+
+One earlier test was deliberately changed rather than worked around:
+`EmptyBoardTests.test_a_blank_later_page_just_ends_pagination` asserted
+'complete' for a board that stated 99 postings and listed one. It keeps its
+purpose with a self-consistent fixture, and the contradicting case is now its
+own test asserting the opposite verdict. Nothing else asserted the old
+behaviour.
+
+Measured: 417 offline tests, one failure resolved to that test, then exit 0
+with 8 skips on Windows. The backup script was additionally driven end to end
+under Git Bash with a lock stub, because its own test needs flock and skips
+here: the pre-fix script left the remote without the commit after a failed push
+and a restored remote, and the fixed script pushed it on the next tick with no
+new decision. `bash -n` passes.
+
+Reasoned, not measured: no collection ran, nothing was spent, nothing was
+deployed, and no claim here was checked against the production database. The
+three completeness changes have not been observed against a real board, and the
+robots.txt ordering change has not been observed against a live host.
+
 # Iterative audit and equivalent optimization - 2026-09-20 UTC
 
 Code/test commit: `4c9e3448992026f42760fbbf6f78687c14fe2bae` on

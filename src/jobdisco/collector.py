@@ -133,8 +133,12 @@ def normalize(source, item):
         location = item.get('full_location') or ', '.join(filter(None, [item.get('city'), item.get('state'), item.get('country')]))
         posted = item.get('posted_date') or item.get('create_date')
     elif p == 'eightfold':
-        # positionUrl is site-relative; postedTs is a Unix timestamp.
-        url = urljoin(source.access_url, item.get('positionUrl') or '')
+        # positionUrl is site-relative; postedTs is a Unix timestamp. A missing
+        # one used to resolve to the board's own address, so two requisitions
+        # became one URL: the second was dropped as a duplicate of the first and
+        # the pass still called itself complete. A posting with no link of its
+        # own is a malformed record, and the check below says so.
+        url = urljoin(source.access_url, item['positionUrl']) if item.get('positionUrl') else None
         location = item.get('locations') or item.get('standardizedLocations')
         ts = item.get('postedTs') or item.get('creationTs')
         posted = datetime.fromtimestamp(ts, timezone.utc).isoformat() if isinstance(ts, (int, float)) else None
@@ -168,7 +172,14 @@ def jsonld(soup):
 
 
 def reported_total(provider, data):
-    """The posting count the provider states for the whole board, if it states one."""
+    """The posting count the provider states for the whole board, if it states one.
+
+    Read the first key the provider actually sets, not the first truthy one. A
+    board that states zero postings has stated a fact, and `or` chaining threw
+    exactly that fact away: a genuinely empty board read as one that reported
+    no count, so the pass could only call itself partial and the postings the
+    company had withdrawn could never be retired.
+    """
     if not isinstance(data, dict):
         return None
     if provider == 'oracle_cloud':
@@ -177,9 +188,17 @@ def reported_total(provider, data):
         return (data.get('refineSearch') or {}).get('totalHits')
     if provider == 'eightfold':
         return (data.get('data') or {}).get('count')
-    if provider == 'amd_careers':
-        return data.get('totalCount') or data.get('count')
-    return data.get('total') or data.get('totalFound') or data.get('hits')
+    keys = ['totalCount', 'count'] if provider == 'amd_careers' else ['total', 'totalFound', 'hits']
+    for key in keys:
+        if data.get(key) is not None:
+            return data[key]
+    return None
+
+
+# Providers whose posting URL carries a requisition this code can name. The
+# fallback in `html_job_id` is the last path segment, which two postings can
+# share, so it is not safe to adopt as an identity where nothing else is known.
+ID_FROM_URL = {'apple_jobs', 'renesas_careers'}
 
 
 def html_job_id(href, provider):
@@ -249,11 +268,17 @@ class Collector:
         self.session.headers.update({'User-Agent': 'JobSourceCollector/1.0', 'Accept': 'application/json,text/html,application/xml'})
         self.jobs, self.seen = [], set()
         self.rejected = []
+        # Set once the cap stopped a posting from being kept. The board was
+        # longer than this pass read, whatever else the pass concludes.
+        self.capped = False
         self.requests = 0
         # Set by main() from the stored per-source state; 'full' until a source
         # has one complete pass behind it.
         self.strategy, self.watermark = 'full', None
         self.etag = self.last_modified = None
+        # Whether a response from this source may become its stored validator.
+        # False where what answers the first request is not what lists the jobs.
+        self.validator = True
         # Postings we already hold, and everything the board advertised this pass.
         # They differ when a per-posting fetch is skipped, and closing must use
         # the advertised set rather than what we downloaded.
@@ -269,7 +294,7 @@ class Collector:
             self.policy.check()
             self.requests += 1
             r = self.session.request(method, url, json=payload, timeout=self.args.timeout)
-            if self.etag is None and r.status_code == 200:
+            if self.validator and self.etag is None and r.status_code == 200:
                 self.etag = r.headers.get('ETag')
                 self.last_modified = r.headers.get('Last-Modified')
             server_wait = retry_after_seconds(r.headers.get('Retry-After'))
@@ -301,13 +326,18 @@ class Collector:
         for item in items:
             try:
                 row = normalize(self.source, item)
-            except ValueError as exc:
-                self.rejected.append({'reason': str(exc), 'raw': item})
+            except Exception as exc:  # noqa: BLE001 - one bad record, not the board
+                # A provider that sends null where it has always sent a string
+                # raises AttributeError or TypeError here, not ValueError, and
+                # that escaped this loop: one malformed record ended the source
+                # and took every later page of good postings with it.
+                self.rejected.append({'reason': f'{type(exc).__name__}: {exc}', 'raw': item})
                 continue
             key = row['url']
             if key in self.seen:
                 continue
             if len(self.jobs) >= self.args.max_jobs:
+                self.capped = True
                 break
             self.seen.add(key)
             self.jobs.append(row)
@@ -317,6 +347,7 @@ class Collector:
         p = self.source.provider_key
         url, method, payload = request_for(self.source)
         offset = 0
+        stated_total = None
         for page in range(self.args.max_pages):
             target = url
             if p == 'workday':
@@ -335,6 +366,9 @@ class Collector:
                 target = query_url(url, page=page + 1)
             data = self.fetch(target, method, payload).json()
             items = data.get('jobs', []) if p == 'amazon_jobs' else json_items(p, data)
+            total = reported_total(p, data)
+            if isinstance(total, (int, float)):
+                stated_total = total
             expected = {'workday': 'jobPostings', 'greenhouse': 'jobs', 'ashby': 'jobs', 'smartrecruiters': 'content', 'oracle_cloud': 'items', 'phenom': 'refineSearch', 'amazon_jobs': 'jobs', 'eightfold': 'data', 'amd_careers': 'jobs'}[p]
             if not isinstance(data, dict) or expected not in data:
                 raise ValueError(f'Unexpected {p} JSON schema')
@@ -344,12 +378,19 @@ class Collector:
                 raise ValueError('Oracle requisitionList missing from response')
             if not items:
                 if page:
+                    # An empty page is the end of the list only where the board
+                    # agrees. A provider that states 500 and then stops listing
+                    # at 120 has not finished, and calling that complete
+                    # retires the 380 it did not repeat.
+                    if stated_total is not None and offset < stated_total:
+                        return 'partial', (f'Board stopped listing at {offset} of '
+                                           f'{stated_total:g} reported postings')
                     return 'complete', ''
                 # A board that lists nothing on its first page looks the same as one
                 # that failed to render, and 'complete' is what lets the store retire
                 # every posting the company has. Take a blank at face value only when
                 # the board also states a count of zero.
-                if reported_total(p, data) == 0:
+                if total == 0:
                     return 'complete', ''
                 return 'partial', 'First page listed no postings and no count was reported'
             if self.strategy == 'since' and self.watermark and p == 'eightfold':
@@ -363,7 +404,6 @@ class Collector:
                 continue
             added = self.add(items)
             offset += len(items)
-            total = reported_total(p, data)
             if p in {'greenhouse', 'ashby'}:
                 return ('partial', 'Job cap reached') if len(items) > self.args.max_jobs else ('complete', '')
             if isinstance(total, (int, float)) and offset >= total:
@@ -479,6 +519,14 @@ class Collector:
                     item.setdefault('url', url)
                     if lastmod:
                         item.setdefault('lastmod', lastmod)
+                    # The requisition this address carries, where the provider
+                    # publishes one in it. This path never asked, so a Renesas
+                    # posting that was retitled or moved read as one withdrawal
+                    # and one arrival -- which is the whole reason
+                    # `html_job_id` knows about Renesas at all.
+                    if self.source.provider_key in ID_FROM_URL:
+                        item.setdefault('source_job_id',
+                                        html_job_id(url, self.source.provider_key))
                 self.add(items)
             except (requests.RequestException, ValueError) as exc:
                 errors.append(f'{url}: {type(exc).__name__}: {exc}')
@@ -491,10 +539,31 @@ class Collector:
         return 'complete', (f'{skipped} already stored, not refetched' if skipped else '')
 
     def run(self):
+        """The collector's verdict, with the cap allowed to overrule it.
+
+        Every path below can return 'complete', and 'complete' is what lets the
+        store retire the postings this pass did not list. A pass that stopped
+        at `--max-jobs` did not list them because it ran out of room, not
+        because the board ended, so the cap is answered here once rather than
+        at each of those returns.
+        """
+        status, detail = self.collect()
+        if status == 'complete' and self.capped:
+            return 'partial', 'Job cap reached; increase --max-jobs'
+        return status, detail
+
+    def collect(self):
         try:
-            if self.strategy == 'conditional' and self.watermark:
+            if self.strategy == 'conditional' and self.watermark and request_for(self.source)[1] != 'POST':
                 # One cheap probe. A 304 ends the source here; anything else means
                 # the board moved and the normal pass below reads it properly.
+                #
+                # Only where the board is read with a GET. This sent the URL
+                # from `request_for` without its method or payload, so a Workday
+                # board -- which answers a POST and holds an ETag like any other
+                # -- was probed with a GET it refuses, and a refusal is a 24-hour
+                # pause for the whole source. A POST probe would cost as much as
+                # the pass it precedes, so such a source reads in full instead.
                 self.session.headers['If-None-Match'] = self.watermark
                 probe = self.fetch(request_for(self.source)[0])
                 self.session.headers.pop('If-None-Match', None)
@@ -516,6 +585,14 @@ class Collector:
                 base = BeautifulSoup(r.text, 'html.parser').select_one('base[data-apibaseurl]')
                 if not base:
                     raise ValueError('Oracle API origin missing from TI shell')
+                # B26: the shell is not the board. Its ETag describes a page of
+                # markup whose postings live behind another origin entirely, and
+                # storing it as this source's validator meant the next pass got
+                # a 304 from the shell and never asked the jobs API at all --
+                # every arrival and change behind an unchanged wrapper missed.
+                # This source keeps no validator; it is read in full each time.
+                self.etag = self.last_modified = None
+                self.validator = False
                 self.source = replace(self.source, provider_key='oracle_cloud', fields={'api_domain': urlsplit(base['data-apibaseurl']).netloc, 'site': base['data-sitenumber']})
             if self.source.provider_key in JSON_PROVIDERS:
                 return self.collect_json()
@@ -784,7 +861,13 @@ def main():
             finally:
                 c.session.close()
             print(f'{source.company_key}: {len(c.jobs)} jobs, {status}', flush=True)
-            return source, c.jobs, status, reason, c.requests, c
+            # `c.source` and not `source`: a TI board rewrites itself to the
+            # Oracle endpoint it turns out to be, and its rows are stored under
+            # that provider. Reporting and closing under the provider the
+            # catalog names instead left the two halves looking at different
+            # inventories -- closing scoped to a provider holding no rows, so a
+            # board that dropped from five postings to four kept all five open.
+            return getattr(c, 'source', source), c.jobs, status, reason, c.requests, c
     jobs, reports = [], []
     # Bound before anything can fail: the seal that runs on the way out of a
     # failed pass needs it, and the pass that motivated the seal died in the
@@ -811,9 +894,19 @@ def main():
         else:
             delta = store.record_source(db, source, rows, status, strategy, count,
                                         stamp=run_stamp, listed=getattr(c, 'listed', None), **kwargs)
-        store.append_log(db, delta['new_urls'] + delta.get('changed_urls', []),
-                         delta['closed_urls'], run_stamp, seen_urls=delta.get('seen_urls', []),
-                         source_id=source.source_id)
+        try:
+            store.append_log(db, delta['new_urls'] + delta.get('changed_urls', []),
+                             delta['closed_urls'], run_stamp, seen_urls=delta.get('seen_urls', []),
+                             source_id=source.source_id)
+        except Exception:
+            # The log is the record and SQLite is derived from it. Committing a
+            # source whose rows never reached the log writes postings that a
+            # rebuild cannot restore, and advances that source's watermark past
+            # them, so the next pass does not look again -- and the manifest,
+            # rewritten on the way out, still matches the file, so the integrity
+            # check says the day is fine.
+            db.rollback()
+            raise
         db.commit()
         for key in ('seen', 'new', 'closed'):
             totals[key] += delta[key]
@@ -834,6 +927,10 @@ def main():
         """
         if db is None:
             return
+        # Whatever the failing source left half-written belongs to no committed
+        # pass: the seal must not be what commits it. Sources are committed one
+        # at a time, so this discards only the source that was in flight.
+        db.rollback()
         store.export_state(db)
         store.write_manifest(db, run_stamp, reports, search_stats)
         db.commit()
@@ -869,13 +966,17 @@ def main():
 
         def checkpoint_query(query, rows, detail):
             source = query_source(query)
-            persist(db, source, rows, 'query_limited', 1,
+            # Pages billed so far, not one per query. A query that paged five
+            # times spent five credits, and recording 1 made the manifest's
+            # request total -- the figure a reader checks paid usage against --
+            # understate it by however deep the sweep went.
+            persist(db, source, rows, 'query_limited', detail['pages_used'],
                     SimpleNamespace(strategy='full'))
             checkpointed_queries.add(query.key)
 
         def persist_query(query, rows, detail):
             source = query_source(query)
-            count = 1 if detail['pages_used'] else 0
+            count = detail['pages_used']
             if query.key not in checkpointed_queries:
                 persist(db, source, rows, detail['status'], count,
                         SimpleNamespace(strategy='full'))

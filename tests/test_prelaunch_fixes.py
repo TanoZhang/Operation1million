@@ -118,6 +118,27 @@ class ApplicationsBackupTests(unittest.TestCase):
         self.assertEqual(self.backup().returncode, 0)
         self.assertEqual(len(self.commits()), before, 'an empty commit was made')
 
+    def test_a_failed_push_is_retried_on_the_next_tick(self):
+        """The failure this exists for must not wait for the next decision.
+
+        A push that cannot reach GitHub leaves the ledger on one disk, and the
+        push used to run only when a new decision had just been committed. No
+        decision may be made for days, and the disk is what is being insured
+        against.
+        """
+        self.ledger().write_text('{"url":"u","at":"t","status":"skipped"}\n', encoding='utf-8')
+        self.run_git(['remote', 'set-url', 'origin', str(self.root / 'absent.git')], cwd=self.data)
+        failed = self.backup()
+        self.assertEqual(failed.returncode, 1, 'an unreachable remote must be loud')
+        self.assertEqual(len(self.commits()), 1, 'nothing can have reached the remote')
+        self.run_git(['remote', 'set-url', 'origin', str(self.remote)], cwd=self.data)
+        retried = self.backup()
+        self.assertEqual(retried.returncode, 0, retried.stderr)
+        self.assertEqual(len(self.commits()), 2, 'the commit never reached the remote')
+        stored = subprocess.run(['git', 'show', 'main:operational/applications.ndjson'],
+                                cwd=str(self.remote), capture_output=True, text=True)
+        self.assertIn('skipped', stored.stdout)
+
     def test_a_missing_ledger_is_not_an_error(self):
         result = self.backup()
         self.assertEqual(result.returncode, 0, result.stderr)

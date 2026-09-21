@@ -41,21 +41,36 @@ if git diff --cached --quiet -- "$LEDGER"; then
   # No empty commits: a timer that runs every fifteen minutes would otherwise
   # add ninety-six commits a day saying nothing happened.
   git reset --quiet -- "$LEDGER"
-  exit 0
+else
+  # -m before --, because everything after -- is a pathspec: with the message
+  # after it, git looked for files called "-m" and "Back up application
+  # decisions ...", failed, and the backup never committed anything.
+  git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
+      commit --quiet --only -m "Back up application decisions $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      -- "$LEDGER"
+  echo "Committed $(wc -l < "$LEDGER") decisions."
 fi
 
-# -m before --, because everything after -- is a pathspec: with the message
-# after it, git looked for files called "-m" and "Back up application
-# decisions ...", failed, and the backup never committed anything.
-git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
-    commit --quiet --only -m "Back up application decisions $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    -- "$LEDGER"
-echo "Committed $(wc -l < "$LEDGER") decisions."
+# A commit that exists here and not on the remote is the whole case this timer
+# exists for, and it used to be the one case the timer could not fix: the push
+# below ran only when a new decision had just been committed, so a failed push
+# waited for the next decision rather than the next tick. That is exactly
+# backwards -- a failed push is what leaves the ledger on one disk, and no
+# further decision may arrive for days.
+#
+# `origin/main` is the last state this machine pushed or fetched. It cannot
+# claim we are behind when we are not, and a push that is already up to date is
+# a cheap no-op, so erring toward pushing is safe in both directions.
+if git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
+  if [ "$(git rev-list --count refs/remotes/origin/main..HEAD)" -eq 0 ]; then
+    exit 0
+  fi
+fi
 
 if ! git push --quiet origin main; then
-  # The commit is made and will go out with the next tick or the next pass. Say
-  # so loudly: a backup that silently stopped reaching GitHub looks exactly like
-  # one that is working.
+  # The commit is made and the next tick will try to push it again. Say so
+  # loudly anyway: a backup that silently stopped reaching GitHub looks exactly
+  # like one that is working.
   echo 'WARNING: the application ledger was committed but could not be pushed.' >&2
   echo '         It is still only on this machine. Check the remote and the token.' >&2
   exit 1

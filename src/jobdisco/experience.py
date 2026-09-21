@@ -25,21 +25,33 @@ SUPERVISES = re.compile(
 NOT_A_MINIMUM = re.compile(
     r'\b(?:no|not|without|less\s+than|fewer\s+than|under|up\s+to|at\s+most|'
     r'maximum\s+of|max\.?)\s+(?:\w+\s+){0,2}$', re.I)
+# Except that "no less than three years" is a floor stated in the negative.
+# The bound above saw its "no" and discarded the requirement it introduces, so
+# some of the strictest postings of all were read as stating nothing at all.
+STILL_A_MINIMUM = re.compile(r'\b(?:no|not)\s+(?:less|fewer)\s+than\s*$', re.I)
+# A denial is not an opening. "This is not an internship" and "no internships
+# are available" name the thing they are refusing, and reading that name as
+# evidence of an entry-level role let the posting skip the experience gate on
+# the strength of a word that was there to exclude it.
+DENIES = re.compile(
+    r"\b(?:not|isn'?t|aren'?t|no|never|rather\s+than|instead\s+of|excluding|"
+    r'other\s+than)\s+(?:\w+\s+){0,3}$', re.I)
 
 
 def entry_level(title, text):
     """Whether the posting is an entry-level opening, not one that mentions one.
 
     The title is taken at its word. In the body the same nouns routinely
-    describe other people, so a mention governed by a supervising verb is read
-    as what it is: evidence of seniority, not of an internship.
+    describe other people, so a mention governed by a supervising verb, or by a
+    denial, is read as what it is: evidence of seniority, or of a posting
+    ruling an internship out.
     """
     if ENTRY.search(title or ''):
         return True
     for match in ENTRY.finditer(text or ''):
         sentence = (text[:match.start()].rsplit('.', 1)[-1]
                     .rsplit('\n', 1)[-1].rsplit(';', 1)[-1])
-        if not SUPERVISES.search(sentence):
+        if not SUPERVISES.search(sentence) and not DENIES.search(sentence):
             return True
     return False
 
@@ -95,7 +107,8 @@ def evaluate(title, description):
             matches = list(YEARS.finditer(clause))
             for match in matches:
                 before, after = clause[:match.start()], clause[match.end():]
-                if NON_WORK.search(after) or NOT_A_MINIMUM.search(before):
+                if NON_WORK.search(after) or (NOT_A_MINIMUM.search(before)
+                                              and not STILL_A_MINIMUM.search(before)):
                     continue
                 standalone = YEARS.fullmatch(clause.strip())
                 if not (EXPERIENCE.search(clause) or REQUIRED.search(clause) or DEGREE.search(before) or standalone):

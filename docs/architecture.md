@@ -111,6 +111,315 @@ collection history, not the working state.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Fifth review round, 2026-09-21 UTC (branch, not deployed)
+
+Four, and three of them are defects in the fixes made earlier in this same
+session. They are recorded here as their own entries rather than folded into
+the originals, because a fix that introduces a defect is the thing this log is
+for.
+
+- **A decision followed its posting to a provider that was not carrying it.**
+  The fix that lets an applied decision survive a posting moving from JSearch
+  to the company's own board matched on the URL whenever the provider changed.
+  A changed provider is not on its own evidence that it is the same opening:
+  an address can be handed to a different board advertising a different job,
+  and the new posting was then hidden behind the old decision. The company and
+  the title must agree as well. A posting that was genuinely retitled comes
+  back as pending, which is the side to err on. Reproducer:
+  `ApplicationsTests.test_a_replacement_at_that_address_is_not_the_posting_that_was_applied_to`.
+- **A rejection took down whatever held its address.** The fix that hides a
+  posting its latest pass rejected matched `seen_jobs` on the URL, so one
+  posting refused and another accepted at the same address -- exactly what a
+  reused URL produces -- hid the accepted one. The match is now on the
+  requisition, which is also `seen_jobs`'s primary key. Measured on a synthetic
+  1,200 postings and 12,000 seen rows: 860 ms median for the address match,
+  0.86 ms for the requisition match, with the query plan moving from
+  `provider_key=?` alone to `provider_key=? AND source_job_id=?`. No additional
+  index is owed; the correctness fix is the whole of the speedup. Reproducer:
+  `ApplicationsTests.test_a_rejection_of_another_requisition_at_that_address_hides_nothing`.
+- **The backfill wrote no manifest for a day that only closed a posting.**
+  Closures are appended to the day they happened, which need not be a day
+  anything was first seen, and manifests were written only for the days in the
+  first-seen index. The export finished, and the store it produced failed its
+  own integrity check with a run file nothing described -- so the one command
+  for rebuilding history produced history that could not be rebuilt from.
+  Reproducer: `BackfillExportTests.test_it_writes_a_manifest_for_a_day_that_only_closed_a_posting`.
+- **A rescore the log refused left the index ahead of it.** The fix that
+  publishes corrected scores wrote SQLite first and appended afterwards. A
+  failed append left the new score in the index and the old one in the log:
+  the rebuild restored the old score, the manifest still matched its file so
+  the integrity check said nothing, and running the command again found the
+  index already holding the new value, counted nothing as changed and published
+  nothing -- the correction could not be recovered by repeating the command
+  that made it. The log is now written first, per batch, through the same
+  connection that holds the uncommitted update, and a failure rolls that update
+  back. The index ends up behind the log rather than ahead of it, which is the
+  direction a later rescore repairs by itself. Reproducer:
+  `ScoreOnceTests.test_a_rescore_the_log_refused_leaves_the_index_where_it_was`.
+
+### Fourth review round, 2026-09-21 UTC (branch, not deployed)
+
+Three more, and one withdrawal. Same conditions: a failing test first, nothing
+collected, spent or deployed, no claim checked against the production database.
+The withdrawal is recorded in the round below, where the entry was.
+
+- **A posting the last pass rejected was still offered from the copy that
+  passed.** A paid pass that rejects a posting does not store the description it
+  rejected -- a rejected posting is recognised, not stored -- so the index kept
+  the text from the pass that accepted it, and the review queue went on showing
+  a posting whose published terms now disqualify it, with the description that
+  still qualified. The rejection is already on record in `seen_jobs`, and it is
+  newer than the row being shown, which is what the queue now reads. Only the
+  same provider, and only the reasons in `HARD_REJECTIONS`: those are
+  properties of the posting, while an employer mismatch says the query asked
+  the wrong question. The stored description stays stale, deliberately -- the
+  posting is hidden, not rewritten, and nothing else reads that text once it is
+  out of the queue. An index with no `seen_jobs` table simply has no rejections
+  to read. Reproducers:
+  `ApplicationsTests.test_a_posting_the_last_pass_rejected_is_not_offered_from_an_older_copy`,
+  with `...test_an_older_rejection_does_not_hide_what_a_later_pass_accepted`
+  and `...test_a_query_scoped_rejection_does_not_hide_the_posting` holding the
+  other side.
+- **A TI board was stored under one provider and closed under another.** The
+  collector rewrites a `ti_careers` source to the `oracle_cloud` endpoint its
+  shell names, so its rows are stored as `oracle_cloud` -- but `main` kept
+  reporting and persisting under the source the catalog names, and closing is
+  scoped by company and provider. It therefore compared the board against an
+  inventory holding no rows: two complete passes went from five postings to
+  four and all five stayed open. The pass now persists and reports under the
+  source the collector actually read. Reproducer:
+  `EffectiveProviderTests.test_a_board_that_lost_a_posting_closes_it`.
+- **The TI shell's ETag was stored as the board's validator.** The first
+  response from that source is the wrapper page that names the API; `fetch`
+  takes its ETag as the source's validator, and the next pass then probed the
+  wrapper conditionally. A 304 from a page of unchanged markup ended the pass
+  before the jobs API was asked at all, so every arrival and change behind it
+  was missed. A source whose postings come from somewhere other than its
+  access URL now keeps no validator and is read in full. Whether TI's shell
+  actually serves an ETag has not been checked against the live site; the
+  trigger was reproduced offline. Reproducer:
+  `CollectionTests.test_the_ti_shell_does_not_supply_the_boards_validator`.
+
+### Third review round, 2026-09-21 UTC (branch, not deployed)
+
+Seven more, on the same branch and under the same conditions: each reproduced
+by a test that fails on the code before it and passes after, nothing collected,
+spent or deployed, and nothing checked against the production database.
+
+- **A source the log refused was committed to the index anyway.** `persist`
+  appended to the day file and then committed; when the append raised, the
+  exception carried up to the pass's own handler, which sealed the day -- and
+  the seal committed. So the index held postings the log had never received,
+  which no rebuild can restore, with that source's watermark advanced past them
+  so the next pass would not look again, and with the manifest rewritten over
+  an unchanged file so `--verify` still called the day sound. The log is the
+  record and SQLite is derived from it; the two now fail together. `persist`
+  rolls back the source it could not log, and the seal rolls back before it
+  writes anything of its own. Reproducer:
+  `LedgerBeforeIndexTests.test_a_pass_that_could_not_log_a_source_does_not_keep_it`.
+- **Two requisitions at one address, in one batch, became one posting.**
+  Nothing is written until the whole batch is prepared, so the second row on a
+  URL asked the index and found whatever was there before the pass, not the row
+  just prepared. The displaced posting's raw was merged into the new one --
+  every field name the new provider payload did not itself use survived, the
+  description among them -- and its identity stayed in `job_identities` as a
+  live alias. A posting whose title needs its description as evidence was then
+  judged on the description of the opening it replaced, and the review queue
+  dropped it. The row already prepared is now what a second row on that URL
+  follows. Reproducer:
+  `OneBatchOneUrlTests.test_the_later_posting_does_not_inherit_the_earlier_one`.
+- **The sitemap path never asked what requisition a URL carried.**
+  `html_job_id` knows that Renesas ends its slug with the requisition
+  (`-jid-6866`), and knows it because without that a retitled or relocated
+  posting reads as one withdrawal and one arrival. `collect_sitemap` never
+  called it, so exactly that happened on the one board the rule was written
+  for. Only providers with a rule of their own take an id from their URL: the
+  generic fallback is the last path segment, which two postings can share.
+  Reproducer: `EarlyStopTests.test_a_renesas_posting_keeps_its_requisition_when_its_slug_changes`.
+- **Withdrawn: a row that would not parse read as a posting that had gone.**
+  The case as reported does not occur. A record `normalize` refuses is kept in
+  `Collector.rejected`, and `main.direct` turns any pass holding rejects into a
+  partial one, so the store never retires what a pass failed to read. The
+  reproducer that showed otherwise called `Collector.run` directly and so
+  missed the guard that the pipeline applies. The change made for it -- an
+  untitled job link reported as a malformed record, and a collector-level
+  downgrade on rejects -- was reverted: the downgrade only restated what `main`
+  already does, and the untitled-link change would have made any board carrying
+  a text-free job link permanently incomplete, which is a board whose postings
+  can never be retired. `html_items` skips untitled links again.
+- **`--export` could not export history.** The backfill writes each posting
+  into the day it was first seen, and every such day but today is a day that
+  has sealed, so the one command for rebuilding a store from an index refused
+  its own first posting. The seal protects a record that exists; `--export`
+  already refuses to run against a store holding any history at all, so there
+  is none to protect. That one path may now write sealed days, explicitly.
+  Reproducer: `BackfillExportTests.test_it_exports_a_posting_first_seen_on_a_day_that_has_sealed`.
+- **An Eightfold position with no link of its own became the board's front
+  page.** `urljoin(access_url, item.get('positionUrl') or '')` resolves to the
+  board itself, so every such position shared one URL: the first was kept, the
+  rest were dropped as duplicates of it, and the pass reported complete. A
+  posting without a link is a malformed record and now says so. Reproducer:
+  `CollectionTests.test_a_position_without_a_link_is_malformed_not_a_duplicate`.
+- **An applied decision was illustrated with another posting's prose.** The
+  review page asked `/api/job` for whatever row holds that URL, and a decided
+  group is replayed from the snapshot it was decided on. Where a board had
+  since advertised a different requisition at that address, the history showed
+  the new opening's description under the old one's title -- which reads as
+  though the application was made against something it never was. `/api/job`
+  now takes the group it is illustrating and says so when the address has
+  changed hands. Reproducer:
+  `HttpTests.test_history_does_not_show_a_later_requisitions_description`.
+
+### Second review round, 2026-09-20 UTC (branch, not deployed)
+
+Seven reproduced defects in the applications ledger, the store, paid
+discovery, collection and the two backup scripts. Same conditions as the round
+below: a failing test first in every case, no collection, no spending, no
+deployment, and no claim checked against the production database.
+
+- **A decision did not survive its posting changing provider.** A posting found
+  first through JSearch and later on the company's own board keeps its URL --
+  the store merges the two discoveries into one row -- but takes the direct
+  provider, and `decision_key` is scoped by provider. So the pass that found it
+  directly put an already-applied job back in the queue, and a second
+  application is the mistake the ledger exists to prevent. A decision is now
+  also matched by URL where the provider has changed, which stays clear of the
+  case the URL fallback was narrowed for: one board reusing an address for a
+  new requisition, where the provider is the same. Reproducer:
+  `ApplicationsTests.test_a_decision_follows_a_posting_from_jsearch_to_the_direct_board`.
+- **`--rescore` did not survive a rebuild.** It wrote the corrected scores to
+  SQLite only. SQLite is derived: the next `--bootstrap` replays the log and
+  restores the scores the rescore was run to replace, silently and with the
+  ranking it was run to fix. The scores that moved are now appended to today's
+  log as corrections, and its manifest is re-checksummed without restating what
+  the day collected. Reproducer:
+  `ScoreOnceTests.test_a_rescore_reaches_the_log_so_a_rebuild_keeps_it`.
+- **An unhashable job id threw away a page that had been paid for.**
+  `page_identity` built a set of the ids on a page to notice a provider
+  repeating itself. An id sent as a list or an object raised there, before
+  `take` had been given the page, so one malformed id cost every sound result
+  beside it and the credit already spent on them. Such a page is simply not
+  comparable, which is what `None` already meant. Reproducer:
+  `PageIdentityTests.test_an_id_that_cannot_go_in_a_set_leaves_the_page_incomparable`.
+- **The conditional probe turned a POST board into a refused GET.** It sent
+  `request_for(source)[0]` -- the URL, without its method or payload. Workday
+  answers a POST and holds an ETag like any other board, so it earned a
+  conditional strategy and was then probed with a GET it refuses, and a refusal
+  is a 24-hour pause for the whole source. The probe is now only used where the
+  board is read with a GET; a POST probe would cost as much as the pass it
+  precedes, so such a board reads in full instead. Reproducer:
+  `EarlyStopTests.test_a_post_board_is_not_probed_with_a_get`.
+- **One idle connection stopped the review service.** Requests were served one
+  at a time, and reading a request line that never arrives does not return. A
+  browser opens such sockets by itself, speculatively, so the review page could
+  hang the service it was talking to. It now serves requests in threads with a
+  read timeout, and holds a lock across read-queue-then-append so two decisions
+  cannot interleave in the one file nothing regenerates. Reproducer:
+  `HttpTests.test_an_idle_connection_does_not_stop_the_server`.
+- **The disaster-recovery pull accepted a copy it had not checked.**
+  `backup-from-vps.sh` verified that operational files were present, that the
+  SQLite snapshot opened, and that runs and manifests paired up -- but never
+  that a run file matched the digest its manifest records, which is the only
+  check that notices a truncated or damaged transfer. An unverified copy
+  rotates into `current`, and the next one moves it to `previous`: two pulls
+  replace both intact generations. Digests are now verified where a Python
+  exists, and said to be unverified where none does. The day still being
+  written is exempt: a pass may be appending to it while tar reads it, and its
+  manifest is rewritten when the pass finishes, so a mismatch there is a race
+  and not a damaged copy. Reproducers:
+  `BackupTests.test_invalid_copies_preserve_both_recovery_generations` (the
+  `corrupt-run-file` case) and
+  `...test_the_day_still_being_written_may_differ_from_its_manifest`.
+- **A paid query that paged five times was recorded as one request.**
+  `persist_query` wrote `1 if pages_used else 0`, and the checkpoint wrote a
+  literal 1. The manifest's request total is what a reader checks paid usage
+  against, and it understated every multi-page query by however deep the sweep
+  went. Both now record the pages actually billed. Reproducer:
+  `DiscoveryTests.test_a_multi_page_query_reports_every_page_it_paid_for`.
+
+### Review findings worked through offline, 2026-09-20 (branch, not deployed)
+
+Nine defects from a review of `collector.py`, `experience.py`,
+`collection_policy.py`, `validate_sources.py` and `backup-applications.sh`.
+Each was reproduced in a test that fails on `ef6d4b3` before it passes here.
+Nothing was collected, spent or deployed for this work, and no claim below
+rests on a production database.
+
+- **A pass that hit the job cap could still report a complete board.** `add()`
+  stops keeping postings at `--max-jobs`, and `collect_json` then compared the
+  page offset with the provider's total and called that complete -- a board of
+  150 read under a cap of 100 ended as 'complete' with 50 postings dropped,
+  and 'complete' is exactly what lets the store retire what the pass did not
+  list. The cap is now answered once, in `run()`, which is the single place
+  every collector verdict passes through; `collect()` holds what `run()` used
+  to. Reproducer: `CollectionTests.test_the_job_cap_is_never_a_complete_board`.
+- **A blank later page outranked the count the board had just stated.** An
+  empty page after the first ended pagination as 'complete' whatever the
+  provider had said the board held, so a board advertising 500 and stopping at
+  120 retired the other 380. An empty page now ends the list only where
+  nothing contradicts it. This deliberately changes a case an earlier test
+  asserted the other way: `test_a_blank_later_page_just_ends_pagination` held
+  a board stating 99 while listing one posting, which is a board disagreeing
+  with itself rather than one ending. That test keeps its purpose, with a
+  fixture that states no count, and the contradiction is now its own test.
+  The same number was already believed in the other direction, at
+  `offset >= total`. Reproducer:
+  `EmptyBoardTests.test_a_board_that_stops_short_of_its_own_count_is_not_complete`.
+- **A stated zero was read as no statement at all.** `reported_total` chained
+  `or` across the keys a provider might use, so a board reporting `total: 0`
+  fell through to the next key and returned None. The one case the zero exists
+  for -- an empty board that says it is empty -- therefore read as a board
+  that reported nothing, could never be called complete, and could never
+  retire the postings the company had withdrawn. It now returns the first key
+  the provider actually sets. Reproducer:
+  `CollectionTests.test_a_stated_zero_is_a_count_not_a_silence`.
+- **One malformed record ended the source.** `add()` caught `ValueError` from
+  `normalize`, but a provider sending null where it has always sent a string
+  raises `AttributeError` or `TypeError` -- `externalPath: null` on Workday
+  does -- and that escaped the loop, ending the board and every later page of
+  good postings with it. Rejected records are already collected, reported and
+  written out per source; they now include these. Reproducer:
+  `CollectionTests.test_a_null_field_rejects_one_record_not_the_board`.
+- **robots.txt was requested before the cooldown was checked.** `SourcePolicy`
+  resolved its interval in `__init__`, and resolving it fetches the host's
+  robots.txt, so constructing the policy contacted a host that might be inside
+  an active pause -- from the object whose purpose is to keep us off it, and
+  before `check()` could say so. The interval is now a property resolved on
+  first use; every caller already reads it after `check()`. Reproducers:
+  `CollectionPolicyTests.test_pacing_is_resolved_only_when_a_request_is_due`
+  and `...test_a_paused_source_is_not_asked_for_its_pacing`.
+- **"No less than five years" was read as a ceiling.** `NOT_A_MINIMUM` saw the
+  "no" and discarded the requirement, so some of the strictest postings in the
+  set were read as stating no requirement at all and kept. A floor stated in
+  the negative is still a floor. Reproducer:
+  `UpperBoundTests.test_a_floor_stated_in_the_negative_is_still_a_floor`.
+- **"This is not an internship" was read as one.** `entry_level` already knew
+  that a mention governed by a supervising verb describes someone else; a
+  mention governed by a denial describes what the posting is refusing to be,
+  and it granted the entry-level override on the strength of the word that was
+  there to exclude it. An override skips the experience gate entirely.
+  Reproducer: `MentionedPeopleTests.test_a_denied_internship_is_not_an_internship`.
+- **The validator built its report directory only at the write.** `data/raw/`
+  is gitignored, so a fresh checkout does not have it, and `job-validate-sources`
+  probed every source and then raised `FileNotFoundError` on the file it had
+  spent the whole run producing. The directory is now made before the first
+  probe. Reproducer:
+  `ValidatorReportTests.test_the_report_directory_exists_before_the_first_probe`.
+- **The ledger backup never retried a failed push.** `backup-applications.sh`
+  pushed only on the tick that had just committed something. A push that
+  failed left the commit local, and the next tick found no new decision,
+  reset the index and exited 0 -- so the ledger waited for the next decision
+  rather than the next tick, which is backwards: the failed push is what
+  leaves it on one disk, and days can pass before another decision is made.
+  Its own comment claimed the opposite ("will go out with the next tick").
+  Committing and pushing are now separate: any commit `origin/main` does not
+  have is pushed. Reproducer:
+  `ApplicationsBackupTests.test_a_failed_push_is_retried_on_the_next_tick`,
+  which needs flock and skips on Windows; the behaviour was measured here
+  instead by driving the script under Git Bash with a lock stub, where the old
+  script left the remote at one commit after the remote came back and the new
+  one pushed without a new decision.
+
 ### Iterative offline audit, 2026-09-20 (branch, not deployed)
 
 Reproduced against `e09d9ed` plus the work-claim commit `56cf495`, with remote

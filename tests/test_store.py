@@ -5,6 +5,7 @@ postings silently. Each strategy is covered together with the rule that only a
 complete pass may retire a posting.
 """
 import gzip
+import io
 import json
 import sqlite3
 import ast
@@ -20,9 +21,11 @@ import unittest
 from argparse import Namespace
 from contextlib import closing
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from jobdisco import jsearch
 from jobdisco import store
 from jobdisco.collector import Collector
 from jobdisco.validate_sources import Source
@@ -903,6 +906,53 @@ class EarlyStopTests(unittest.TestCase):
         self.assertEqual(c.jobs, [])
         self.assertNotIn('If-None-Match', c.session.headers)
 
+    def test_a_post_board_is_not_probed_with_a_get(self):
+        """The probe dropped the method, and a refused method is a day's pause.
+
+        Workday answers a POST and carries an ETag like any other board, so it
+        earns a conditional strategy and was then probed with a GET it refuses.
+        A 405 pauses the source for 24 hours. A POST probe would cost as much as
+        the pass it precedes, so such a board simply reads in full instead.
+        """
+        source = Source('wd:test', 'company_sources', 'sample', 'Sample', 'workday',
+                        'https://sample.wd1.myworkdayjobs.com/External',
+                        {'tenant': 'sample', 'site': 'External', 'workday_host': 'wd1'})
+        c = self.collector(source, 'conditional', 'W/"stored"')
+        c.session.request.return_value = self.response(
+            {'total': 1, 'jobPostings': [{'title': 'Engineer',
+                                          'externalPath': '/job/Engineer_R1'}]})
+        with patch('jobdisco.collector.time.sleep'):
+            self.assertEqual(c.run(), ('complete', ''))
+        self.assertEqual(c.session.request.call_count, 1)
+        self.assertEqual(c.session.request.call_args.args[0], 'POST')
+        self.assertNotIn('If-None-Match', c.session.headers)
+        self.assertEqual(len(c.jobs), 1)
+
+    def test_a_renesas_posting_keeps_its_requisition_when_its_slug_changes(self):
+        """The sitemap path never asked for the requisition the URL carries.
+
+        `html_job_id` knows that Renesas ends its slug with the requisition, and
+        knows it because a retitled or relocated posting otherwise reads as one
+        withdrawal and one arrival. The sitemap collector never called it.
+        """
+        source = replace(SOURCE, provider_key='renesas_careers',
+                         access_url='https://x/sitemap.xml')
+
+        def pass_over(location):
+            c = self.collector(source, 'full', None)
+            sitemap = f'<urlset><url><loc>{location}</loc></url></urlset>'
+            c.fetch = Mock(side_effect=lambda url: (
+                Mock(content=sitemap.encode()) if url == source.access_url
+                else Mock(text='<h1>RTL Design Engineer</h1>')))
+            self.assertEqual(c.run()[0], 'complete')
+            return c.jobs[0]
+
+        first = pass_over('https://x/job/rtl-design-engineer-in-tokyo-japan-jid-6866')
+        moved = pass_over('https://x/job/senior-rtl-engineer-in-osaka-japan-jid-6866')
+        self.assertEqual(first['source_job_id'], '6866')
+        self.assertEqual(moved['source_job_id'], '6866')
+        self.assertNotEqual(first['url'], moved['url'])
+
     def test_sitemap_refetches_changed_known_and_discovers_old_unknown_urls(self):
         source = replace(SOURCE, provider_key='renesas_careers', access_url='https://x/sitemap.xml')
         c = self.collector(source, 'lastmod', '2026-09-18T00:00:00+00:00')
@@ -1084,6 +1134,30 @@ class EmptyBoardTests(unittest.TestCase):
             self.assertEqual(c.run(), ('complete', ''))
 
     def test_a_blank_later_page_just_ends_pagination(self):
+        """Nothing here contradicts the blank page, so it is the end of the list.
+
+        This board states no count. It used to state 99 while listing one
+        posting, which made it a board disagreeing with itself rather than one
+        ending, and the case below is what that actually is.
+        """
+        c = self.collector('eightfold', 'https://careers.x.com/api/pcsx/search?domain=x.com')
+        position = {'id': '1', 'name': 'Engineer', 'positionUrl': '/careers/job/1'}
+        c.session.request.side_effect = [
+            self.response({'data': {'positions': [position]}}),
+            self.response({'data': {'positions': []}}),
+        ]
+        with patch('jobdisco.collector.time.sleep'):
+            self.assertEqual(c.run(), ('complete', ''))
+        self.assertEqual(len(c.jobs), 1)
+
+    def test_a_board_that_stops_short_of_its_own_count_is_not_complete(self):
+        """99 advertised and one listed is a board that broke, not one that ended.
+
+        Completeness is what retires everything the pass did not list, and the
+        provider's own number is the evidence that the pass did not see the
+        board. The same number is already believed in the other direction: it
+        is what ends pagination early at `offset >= total`.
+        """
         c = self.collector('eightfold', 'https://careers.x.com/api/pcsx/search?domain=x.com')
         position = {'id': '1', 'name': 'Engineer', 'positionUrl': '/careers/job/1'}
         c.session.request.side_effect = [
@@ -1091,7 +1165,9 @@ class EmptyBoardTests(unittest.TestCase):
             self.response({'data': {'positions': [], 'count': 99}}),
         ]
         with patch('jobdisco.collector.time.sleep'):
-            self.assertEqual(c.run(), ('complete', ''))
+            status, reason = c.run()
+        self.assertEqual(status, 'partial')
+        self.assertIn('99', reason)
         self.assertEqual(len(c.jobs), 1)
 
 
@@ -1235,6 +1311,11 @@ class ScoreOnceTests(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.dir.cleanup)
+        # A rescore now writes its corrections to the log as well as to the
+        # database, so the log this class writes to has to be its own.
+        log_patcher = patch.object(store, 'LOG', Path(self.dir.name) / 'store')
+        log_patcher.start()
+        self.addCleanup(log_patcher.stop)
         self.db_path = Path(self.dir.name) / 'catalog.sqlite'
         with closing(sqlite3.connect(self.db_path)) as db:
             db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
@@ -1294,6 +1375,74 @@ class ScoreOnceTests(unittest.TestCase):
             with closing(store.connect(rebuilt)) as db:
                 self.assertEqual(db.execute('SELECT relevance FROM jobs').fetchone()[0], 0)
 
+    def test_a_rescore_reaches_the_log_so_a_rebuild_keeps_it(self):
+        """SQLite is derived, so a correction only it holds is undone by a rebuild.
+
+        `--rescore` is run after a term-list edit, precisely to change the
+        ranking. Writing the new scores only to the index left the next
+        `--bootstrap` replaying the old ones, silently restoring the ranking the
+        rescore was run to fix.
+        """
+        stale = dict(row('https://x/1', title='Accountant'),
+                     raw={'job_description': 'General ledger and tax reporting.',
+                          'relevance': {'confidence': 99}})
+        delta = store.record_source(self.db, SOURCE, [stale], 'complete', 'full', 1)
+        store.append_log(self.db, delta['new_urls'], [], delta['stamp'])
+        store.write_manifest(self.db, delta['stamp'], [])
+        self.db.commit()
+        self.assertEqual(self.stored('https://x/1'), 99)
+
+        store.rescore(self.db_path)
+        self.assertEqual(self.stored('https://x/1'), 0)
+
+        rebuilt = Path(self.dir.name) / 'rebuilt.sqlite'
+        with closing(sqlite3.connect(rebuilt)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.rebuild(rebuilt)
+        with closing(store.connect(rebuilt)) as db:
+            self.assertEqual(db.execute('SELECT relevance FROM jobs').fetchone()[0], 0)
+        # The day it appended to still matches the manifest that describes it.
+        self.assertEqual([state for _, state in store.verify()], ['ok'])
+
+    def test_a_rescore_the_log_refused_leaves_the_index_where_it_was(self):
+        """The index must not end up holding a score the log never received.
+
+        Written index-first, a failed append left the new score in SQLite and
+        the old one in the log: the rebuild put the old score back, the manifest
+        still matched its file so nothing said so, and running the command again
+        found the index already holding the new value, counted nothing as
+        changed and published nothing. The correction could not be recovered by
+        repeating the command that made it.
+        """
+        stale = dict(row('https://x/1', title='Accountant'),
+                     raw={'job_description': 'General ledger and tax reporting.',
+                          'relevance': {'confidence': 99}})
+        delta = store.record_source(self.db, SOURCE, [stale], 'complete', 'full', 1)
+        store.append_log(self.db, delta['new_urls'], [], delta['stamp'])
+        store.write_manifest(self.db, delta['stamp'], [])
+        self.db.commit()
+
+        with patch.object(store, 'append_scores', side_effect=OSError('no space left')):
+            with self.assertRaises(OSError):
+                store.rescore(self.db_path)
+        self.assertEqual(self.stored('https://x/1'), 99)
+
+        store.rescore(self.db_path)
+        self.assertEqual(self.stored('https://x/1'), 0)
+        rebuilt = Path(self.dir.name) / 'rebuilt.sqlite'
+        with closing(sqlite3.connect(rebuilt)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.rebuild(rebuilt)
+        with closing(store.connect(rebuilt)) as db:
+            self.assertEqual(db.execute('SELECT relevance FROM jobs').fetchone()[0], 0)
+        self.assertEqual([state for _, state in store.verify()], ['ok'])
+
+    def test_a_rescore_that_changes_nothing_writes_nothing(self):
+        store.record_source(self.db, SOURCE, [self.silicon('https://x/1')], 'complete', 'full', 1)
+        self.db.commit()
+        store.rescore(self.db_path)
+        self.assertFalse(list((store.LOG / 'runs').glob('*.ndjson.gz')))
+
     def test_rescore_ignores_a_stale_score_embedded_in_raw(self):
         stale = dict(row('https://x/1', title='Accountant'),
                      raw={'job_description': 'General ledger and tax reporting.',
@@ -1305,6 +1454,131 @@ class ScoreOnceTests(unittest.TestCase):
         store.rescore(self.db_path)
 
         self.assertEqual(self.stored('https://x/1'), 0)
+
+
+class OneBatchOneUrlTests(unittest.TestCase):
+    """Two requisitions at one address, in one batch, are not one posting."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        log = patch.object(store, 'LOG', Path(self.dir.name) / 'store')
+        log.start()
+        self.addCleanup(log.stop)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+        self.db = store.connect(self.db_path)
+        self.addCleanup(self.db.close)
+
+    def test_the_later_posting_does_not_inherit_the_earlier_one(self):
+        """The row already prepared is what the second one follows.
+
+        Nothing is written until the whole batch is prepared, so a second row on
+        the same URL read the index, found the requisition that was there before
+        the pass, and merged with that instead. The description and identity of
+        the posting it displaced were blended into it -- and the review queue
+        then dropped it, because the description it was holding did not carry
+        the vocabulary its title had to be justified by.
+        """
+        # Two providers' field names for the same thing: whichever key the
+        # displaced posting used and this one does not is what survives a merge.
+        old = dict(row('https://x/shared', title='Accountant'), source_job_id='R-1',
+                   raw={'description': 'General ledger and tax reporting.'})
+        new = dict(row('https://x/shared', title='RTL Design Engineer'), source_job_id='R-2',
+                   raw={'job_description': 'UVM SystemVerilog AXI testbench tape-out.'})
+        store.record_source(self.db, SOURCE, [old, new], 'complete', 'full', 1)
+        held = self.db.execute('SELECT title, source_job_id, raw FROM jobs').fetchall()
+        self.assertEqual(len(held), 1)
+        self.assertEqual((held[0]['title'], held[0]['source_job_id']),
+                         ('RTL Design Engineer', 'R-2'))
+        self.assertNotIn('General ledger', held[0]['raw'])
+        # The description the review queue reads is the one this posting has.
+        self.assertIn('SystemVerilog', jsearch.description_text(
+            {'raw': json.loads(held[0]['raw'])}))
+        self.assertEqual([r['source_job_id'] for r in self.db.execute(
+            'SELECT source_job_id FROM job_identities')], ['R-2'])
+
+    def test_one_requisition_listed_twice_is_still_merged(self):
+        """The same opening at one address is not two, and must not churn."""
+        listing = dict(row('https://x/shared'), source_job_id='R-1',
+                       raw={'job_description': 'UVM SystemVerilog AXI testbench.'})
+        store.record_source(self.db, SOURCE, [listing, dict(listing)], 'complete', 'full', 1)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)
+
+
+class BackfillExportTests(unittest.TestCase):
+    """`--export` writes each posting into the day it was first seen.
+
+    Those days are over by definition, which is exactly what the seal refuses.
+    The seal protects a record that already exists; a backfill runs only against
+    a store that holds none, which the emptiness check above it enforces.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        log = patch.object(store, 'LOG', Path(self.dir.name) / 'store')
+        log.start()
+        self.addCleanup(log.stop)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+        self.db = store.connect(self.db_path)
+        self.addCleanup(self.db.close)
+
+    def test_it_exports_a_posting_first_seen_on_a_day_that_has_sealed(self):
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        store.record_source(self.db, SOURCE, [row('https://x/1')], 'complete', 'full', 1,
+                            stamp=yesterday)
+        self.db.commit()
+        with patch('sys.argv', ['job-store', '--export', '--db', str(self.db_path)]), \
+             patch('sys.stdout', new_callable=io.StringIO) as out:
+            self.assertEqual(store.main(), 0)
+        self.assertIn('exported: 1 jobs', out.getvalue())
+        self.assertTrue((store.LOG / 'runs' / (yesterday[:10] + '.ndjson.gz')).is_file())
+        self.assertEqual([state for _, state in store.verify()], ['ok'])
+
+        rebuilt = Path(self.dir.name) / 'rebuilt.sqlite'
+        with closing(sqlite3.connect(rebuilt)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.rebuild(rebuilt)
+        with closing(store.connect(rebuilt)) as db:
+            self.assertEqual(db.execute('SELECT url FROM jobs').fetchone()[0], 'https://x/1')
+
+    def test_it_writes_a_manifest_for_a_day_that_only_closed_a_posting(self):
+        """A closure lands in the day it happened, which may have nothing else.
+
+        The manifests were written for the days postings were first seen, so a
+        day holding only closures produced a run file nothing described -- the
+        export finished, and the store it produced failed its own integrity
+        check and could not be rebuilt from.
+        """
+        first_seen = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+        closed_at = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        store.record_source(self.db, SOURCE, [row('https://x/1')], 'complete', 'full', 1,
+                            stamp=first_seen)
+        self.db.execute('UPDATE jobs SET closed_at=? WHERE url=?', (closed_at, 'https://x/1'))
+        self.db.commit()
+        with patch('sys.argv', ['job-store', '--export', '--db', str(self.db_path)]), \
+             patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(store.main(), 0)
+        self.assertEqual({state for _, state in store.verify()}, {'ok'})
+        self.assertTrue((store.LOG / 'manifests' / (closed_at[:10] + '.json')).is_file())
+
+    def test_a_store_that_already_holds_history_is_still_refused(self):
+        store.record_source(self.db, SOURCE, [row('https://x/1')], 'complete', 'full', 1)
+        self.db.commit()
+        store.append_log(self.db, ['https://x/1'], [], store.now())
+        with patch('sys.argv', ['job-store', '--export', '--db', str(self.db_path)]), \
+             patch('sys.stderr', new_callable=io.StringIO), \
+             patch('sys.stdout', new_callable=io.StringIO):
+            with self.assertRaises(SystemExit):
+                store.main()
 
 
 class BoardRowIdentityTests(unittest.TestCase):

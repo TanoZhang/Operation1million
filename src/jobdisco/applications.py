@@ -110,7 +110,11 @@ def queue(db_path=DB, path=None, now=None):
     since = (now - timedelta(days=3)).isoformat()
     with locked(path):
         events = read_events(path)
-    group_states, url_states = {}, {}
+    # group_states: scoped requisition -> decision. url_states: the URL
+    # fallback, for ledger records too old to carry a scoped snapshot.
+    # moved_states: URL -> (provider it was decided under, decision), which is
+    # how a decision survives the same posting changing provider.
+    group_states, url_states, moved_states = {}, {}, {}
     for order, event in enumerate(events):
         event = dict(event, replay_order=order)
         # Replay old snapshots through the same normalization without rewriting
@@ -126,8 +130,27 @@ def queue(db_path=DB, path=None, now=None):
             for key, jobs in requisitions.items():
                 first = jobs[0]
                 title = clean_title(snapshot['title'], first.get('location', ''))
-                group_states[key] = dict(event, group_id=key, group=dict(
+                decision = dict(event, group_id=key, group=dict(
                     snapshot, id=key, title=title, jobs=jobs))
+                group_states[key] = decision
+                for job in jobs:
+                    # A posting found first through JSearch and later on the
+                    # company's own board keeps its URL -- the store merges the
+                    # two discoveries into one row -- but takes the direct
+                    # provider, and the key above is scoped by provider. Without
+                    # this the decision was lost and a job already applied for
+                    # came back as pending.
+                    #
+                    # A changed provider is not on its own evidence that it is
+                    # the same opening: an address can be handed to a different
+                    # board carrying a different job. So the company and the
+                    # title have to agree as well. A posting that was genuinely
+                    # retitled will come back as pending, which is the side to
+                    # err on -- showing a posting twice is recoverable, hiding
+                    # one is not.
+                    moved_states.setdefault(job['url'], []).append(
+                        ((job.get('provider_key') or '', job.get('company_key') or '',
+                          job.get('title') or ''), decision))
             continue
         # Only records without a scoped snapshot may fall back to URL identity.
         # Applying a modern decision by URL too hides a replacement requisition
@@ -137,19 +160,57 @@ def queue(db_path=DB, path=None, now=None):
             url_states[job['url']] = event
 
     def decision_for(job):
-        candidates = [event for event in (
-            group_states.get(decision_key(job)), url_states.get(job['url'])) if event]
+        provider = job.get('provider_key') or ''
+        here = (provider, job.get('company_key') or '', job.get('title') or '')
+        moved = [decision for under, decision in moved_states.get(job['url'], ())
+                 if under[0] and under[0] != here[0] and under[1:] == here[1:]]
+        candidates = [event for event in (group_states.get(decision_key(job)),
+                                          url_states.get(job['url']), *moved) if event]
         return max(candidates, key=lambda event: event['replay_order'], default=None)
     uri = Path(db_path).resolve().as_uri() + '?mode=ro'
     groups, backlog, legacy_history = {}, {}, []
     rules = jsearch.load_plan()[0]['filter']
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
+        # A pass that rejects a posting it already holds does not store the
+        # description it rejected -- a rejected posting is recognised, not
+        # stored -- so the index keeps the text from the pass that accepted it,
+        # and the queue went on offering a posting whose published terms now
+        # disqualify it. The rejection itself is on record in `seen_jobs`, and
+        # it is newer than the copy being shown, which is what this reads.
+        #
+        # Matched on the requisition and not on the address: a rejected posting
+        # would otherwise take down whatever holds its URL now, and one posting
+        # refused and another accepted at the same address is precisely what a
+        # reused URL produces. `record_seen` stores the provider's id where it
+        # gives one and the url where it does not, which is what the COALESCE
+        # below mirrors -- and that pair is `seen_jobs`'s primary key, so the
+        # lookup is one index seek instead of a scan of every row sharing a URL.
+        #
+        # Only the same provider, and only the reasons that are properties of
+        # the posting rather than of the query that found it: an employer
+        # mismatch says the query asked the wrong question, not that the job is
+        # wrong. Both stamps are written by this codebase, so they are
+        # comparable -- as instants, never as strings.
+        settled = ', '.join("'%s'" % reason for reason in sorted(jsearch.HARD_REJECTIONS)
+                            if reason.replace('_', '').isalnum())
+        # An index built before the seen table, or a hand-made one, simply has
+        # no rejections to read; the queue is not the place to insist on them.
+        if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                          "AND name='seen_jobs'").fetchone():
+            settled = None
         select = '''SELECT j.url, j.company_key, j.source_job_id,
                             COALESCE(c.name, json_extract(j.raw, '$.employer_name'), j.company_key) AS company,
                             j.title, j.location, j.first_seen, j.posted_at, j.provider_key,
-                            COALESCE(j.relevance, 0) AS confidence, j.raw
-                            FROM jobs j LEFT JOIN companies c USING(company_key)'''
+                            COALESCE(j.relevance, 0) AS confidence, j.raw,
+                            %s AS superseded
+                            FROM jobs j LEFT JOIN companies c USING(company_key)''' % (
+            '''(SELECT s.decision FROM seen_jobs s
+                 WHERE s.provider_key = j.provider_key
+                   AND s.source_job_id = COALESCE(NULLIF(j.source_job_id, ''), j.url)
+                   AND s.decision IN (%s)
+                   AND julianday(s.last_seen) > julianday(j.last_seen)
+                LIMIT 1)''' % settled if settled else 'NULL')
 
         # Both checks are pure functions of a string, and the strings repeat.
         # Measured on 39,765 open postings: 413 distinct company keys and 29,088
@@ -169,6 +230,8 @@ def queue(db_path=DB, path=None, now=None):
         def collect_into(target, rows):
             for row in rows:
                 job = dict(row)
+                if job.pop('superseded', None):
+                    continue
                 job['title'] = clean_title(job['title'], job['location'])
                 # Keyed on what employer_excluded actually reads -- the display
                 # name -- not on company_key. One key can carry several names:
@@ -236,6 +299,7 @@ def queue(db_path=DB, path=None, now=None):
                 row = db.execute(select + ' WHERE j.url=?', (url,)).fetchone()
             if row:
                 job = dict(row)
+                job.pop('superseded', None)
                 if decision_for(job) is not event:
                     continue
                 job.pop('raw', None)
