@@ -9,8 +9,8 @@ Owner: codex
 Scope: Tenth offline audit: function-by-function collector.py inspection, provider adapters, pagination and failure-to-store contracts; findings only.
 Files: docs/file-audit-round10-2026-09-21.md, docs/audit-repro-round10-2026-09-21.py, docs/agent-protocol.md
 Base commit: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
-Status: claimed
-Next: Reproduce new collector defects with synthetic responses and real temporary persistence; no external collection or business-code changes.
+Status: done
+Next: User reviews B50-B57 and the remaining direct-intake B45 instance in docs/file-audit-round10-2026-09-21.md. Complete collector function inventory recorded; all cases and 19 positive adapter controls reproduced offline, 119 existing tests passed. Next module is store.py; no business-code changes.
 ```
 
 ```text
