@@ -9,8 +9,8 @@ Owner: codex
 Scope: Thirteenth offline audit: deployment, backup and workflow scripts, function by function; findings only.
 Files: docs/file-audit-round13-2026-09-21.md, docs/audit-repro-round13-2026-09-21.py, docs/agent-protocol.md
 Base commit: 5e78ae814514115866532bf96f8397d0331354d2
-Status: claimed
-Next: Exercise failure paths using temporary repositories and mocked commands; no production requests or business-code changes.
+Status: done
+Next: User reviews B68-B73 in docs/file-audit-round13-2026-09-21.md. Six offline cases pass; 52 existing tests discovered, 44 executed and 8 platform skips. Complete deployment/workflow inventory recorded. Next: configuration/catalog validation and local credentials. No production requests or business-code changes.
 ```
 
 ```text
