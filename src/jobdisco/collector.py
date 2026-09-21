@@ -1027,7 +1027,7 @@ def main():
         # at a time, so this discards only the source that was in flight.
         db.rollback()
         store.export_state(db)
-        store.write_manifest(db, run_stamp, reports, search_stats)
+        store.finalize_manifest(db, run_stamp, reports, search_stats)
         db.commit()
         store.export_seen(db)
 
@@ -1172,14 +1172,19 @@ def main():
             store.finish_run(db, run_id, len(reports), totals['seen'], totals['new'],
                              totals['closed'], sum(r['requests'] for r in reports))
             store.export_state(db)
-            manifest = store.write_manifest(db, run_stamp, reports, search_stats,
-                                            extra=pass_facts)
+            manifest = store.finalize_manifest(db, run_stamp, reports, search_stats,
+                                               extra=pass_facts)
             db.commit()
             # The collector owns recovery state for manual and Actions runs too.
             # Relying on the VPS wrapper alone loses rejections on a fresh index.
             store.export_seen(db)
-            print('manifest: %s records=%s sha256=%s' % (
-                manifest['run_date'], manifest['records'], (manifest['sha256'] or '-')[:12]), flush=True)
+            if manifest:
+                print('manifest: %s records=%s sha256=%s' % (
+                    manifest['run_date'], manifest['records'], (manifest['sha256'] or '-')[:12]),
+                    flush=True)
+            if store.sealed(run_stamp):
+                print(f'note: {run_stamp[:10]} ended while this pass ran; its manifest describes '
+                      'the file as each append left it, without this pass summary', flush=True)
             print(f"store: {totals['new']} new, {totals['closed']} closed, "
                   f"{totals['seen']} seen", flush=True)
         # One block, always in the same shape, whether the pass was clean or

@@ -208,6 +208,62 @@ that posting after the selection had moved to another. The fixes hold. The
 harness is not committed -- it needs an npm install, and the suite is offline --
 so this is a measurement made here, not a test the suite will repeat.
 
+### Store lifecycle, B58-B62, from Codex's eleventh audit, 2026-09-21 UTC (not deployed)
+
+Five in `store.py`. Each has a test red on the code before it. Codex's own
+reproducer, run to completion against this tree with only one line of its
+defect-path bookkeeping skipped, no longer holds at any defect assertion, and
+its controls -- replay equal to the live store, a direct description passing on
+its own -- still hold. B62 in particular is shown there through
+`collector.main` with an injected clock, which this suite's store-level test
+cannot do alone.
+
+- **Slimming deleted the only description some records carry.** `description_short`
+  and `descriptionTeaser` were in `DROP_FIELDS` as truncated renderings "of a
+  description we keep in full" -- true only when there is one. Where a record
+  had nothing else, its requirements went with them, before the log was
+  written, so no replay could restore them. A teaser is now dropped only where
+  a full description stands beside it. Reproducer:
+  `StoreLifecycleTests.test_the_only_description_is_kept_whatever_it_is_called`.
+- **A moved requisition survived or not depending on batch order.** With A
+  moving from `/shared` to `/new-A` and B taking over `/shared`, A's alias
+  pinned it back onto `/shared` if it came first, and B then displaced it there
+  -- a complete pass that lost A, durably, including through a rebuild. The
+  batch's own addresses are now read before any alias is followed: a posting
+  whose old address the batch lists under another requisition keeps the
+  address it is listed at, and the stale alias goes. Reproducers:
+  `StoreLifecycleTests.test_a_moved_requisition_survives_whichever_order_the_batch_lists_it_in`
+  and `...test_the_replay_keeps_both_as_well`.
+- **One batch could make a run file of any size.** The shard limit was checked
+  against what was already on disk, never against the batch arriving, and not
+  at all on an empty day. A batch is now split until each part fits; a single
+  record larger than a shard is written alone, because a record is never split
+  across files. A failure part-way through a split batch leaves the log ahead of
+  the index, the direction a rebuild repairs. Reproducer:
+  `StoreLifecycleTests.test_no_run_file_outgrows_a_shard_because_one_batch_was_large`.
+- **A superseded paid description overruled the board's current one.** When a
+  company's own board took over a posting first found through the paid
+  provider, the two payloads were merged flat, and twice: once while preparing
+  the batch and once more against the stored row while writing it. The paid
+  "5 years" sat beside the board's "2 years" as though both were current, and
+  the gate took the larger. The paid payload is now kept as provenance under
+  `jsearch`, as the reverse direction already did, and the experience gate does
+  not read it. Relevance still does, deliberately: a superseded requirement can
+  only refuse a posting wrongly, while extra vocabulary can only add. Reproducer:
+  `StoreLifecycleTests.test_the_board_that_replaced_a_paid_posting_is_the_posting`,
+  which checks the review queue as well as the gate.
+- **A day that ended mid-pass was left without a manifest.** The manifest was
+  written once, at the end of a pass, and a day seals when the clock passes it,
+  so a pass that appended before UTC midnight and finished after could not
+  describe the file it had written -- not at completion, not on the failure
+  path -- and the day failed `verify` and refused to replay. Every append now
+  describes its day as part of the append, with the seal decided once, when the
+  append begins; a pass whose day has sealed by the time it finishes leaves that
+  description as it is and does not reopen the day to add its summary. Neither
+  clock moves. Reproducer:
+  `StoreLifecycleTests.test_a_day_that_ends_mid_pass_is_left_verifiable`, and
+  Codex's collector-level case.
+
 ### Direct collection, B50-B57, from Codex's tenth audit, 2026-09-21 UTC (not deployed)
 
 Eight in `collector.py`, and the direct-intake half of B45. Each has a test red

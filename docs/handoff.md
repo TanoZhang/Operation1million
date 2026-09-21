@@ -1,6 +1,34 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Store lifecycle, B58-B62 - 2026-09-21 UTC
+
+Codex's eleventh audit, in `store.py`, fixed on `main`. Mechanisms and
+reproducers are in the architecture bug log.
+
+What changes in operation:
+
+- **Every append now rewrites the day's manifest.** That is what keeps a day
+  verifiable across UTC midnight. It costs one digest of the day file per
+  source committed; on an ordinary day that file is small.
+- **A large batch is written as several shards** instead of one oversized file.
+- **Direct postings that took over a paid one keep the paid payload under
+  `raw.jsearch`.** Rows already stored flat stay flat until their board lists
+  them again; `job-store --rescore` does not restructure raw, it only rescores.
+- **More descriptions are kept.** A teaser that was a record's only description
+  is no longer dropped, so some postings will start being judged on text they
+  were always sent.
+
+One of my own test gaps is worth recording: the B61 test first checked only the
+experience gate, not the review queue where the symptom is. Codex's reproducer
+prints a literal `pending: 0` there, which is bookkeeping and not a measurement;
+checking the queue directly showed the posting is pending again, and the test
+now asserts that too.
+
+Measured: 515 offline tests, exit 0, 8 skips on Windows; each new test red on
+the code before it. Codex's reproducer completes against this tree and holds at
+none of its defect assertions. Nothing collected, spent or deployed.
+
 # Direct collection, B50-B57 - 2026-09-21 UTC
 
 Codex's tenth audit, in `collector.py`, fixed on `main`. Mechanisms and

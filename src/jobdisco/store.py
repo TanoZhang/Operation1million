@@ -292,6 +292,16 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     # until the second loop, so a row landing on a URL another row in the same
     # batch just claimed cannot see it by querying.
     batch_rows = {}
+    # B59: which requisitions the batch itself lists at each address, before
+    # any row is pinned back to an old one. A requisition that moved to a new
+    # address while another took over its old one used to be pinned back onto
+    # the old address by its alias -- and then displaced there by the posting
+    # that now owns it. Whether it survived depended on which of the two the
+    # provider happened to list first.
+    claimed = {}
+    for original in rows:
+        if original.get('source_job_id'):
+            claimed.setdefault(original['url'], set()).add(str(original['source_job_id']))
     for original in rows:
         row = dict(original)
         scope = '' if row['provider_key'] == 'jsearch' else row['company_key']
@@ -303,6 +313,13 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                 # Repair stale aliases written before URL reuse was handled.
                 db.execute('DELETE FROM job_identities WHERE provider_key=? AND scope=? AND source_job_id=?', identity)
                 mapped = None
+        if (mapped and mapped[0] != row['url']
+                and claimed.get(mapped[0], set()) - {str(row['source_job_id'])}):
+            # Its old address is listed in this batch under another requisition,
+            # so the posting moved and the address was reused. It keeps the
+            # address it is listed at, and the stale alias goes.
+            db.execute('DELETE FROM job_identities WHERE provider_key=? AND scope=? AND source_job_id=?', identity)
+            mapped = None
         if mapped:
             row['url'] = mapped[0]
         elif identity in pending_identities:
@@ -338,6 +355,18 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                 for field in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at'):
                     row[field] = previous[field]
                 row['raw'] = enrichment
+            elif previous['provider_key'] == 'jsearch' and row['provider_key'] != 'jsearch':
+                # B61: the company's own board has taken over a posting first
+                # found through the paid provider. Merged flat, the paid
+                # description's fields sat beside the board's as though both
+                # were current, and the stale one won: a five-year requirement
+                # since cut to two refused the posting. The paid payload is kept
+                # as provenance under `jsearch`, as the other direction already
+                # does, and the board's own fields are the posting.
+                raw = dict(row.get('raw') or {})
+                raw['jsearch'] = merge_raw((old_raw or {}).get('jsearch'),
+                                           {k: v for k, v in (old_raw or {}).items() if k != 'jsearch'})
+                row['raw'] = raw
             else:
                 row['raw'] = merge_raw(old_raw, row.get('raw'))
         prepared.append((row, identity))
@@ -357,8 +386,15 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     new = len({u for u in incoming if u not in known})
     for row in rows:
         raw = slim(row.get('raw'))
-        current = db.execute('SELECT raw, title, relevance FROM jobs WHERE url=?', (row['url'],)).fetchone()
-        if current:
+        current = db.execute('SELECT raw, title, relevance, provider_key FROM jobs WHERE url=?',
+                             (row['url'],)).fetchone()
+        # B61: a direct row replacing a paid one arrives with its raw already
+        # resolved -- the board's fields, and the paid payload nested under
+        # `jsearch`. Merging the stored flat paid payload back in here is what
+        # put the superseded description beside the current one.
+        taken_over = (current is not None and current['provider_key'] == 'jsearch'
+                      and row['provider_key'] != 'jsearch')
+        if current and not taken_over:
             raw = slim(merge_raw(json.loads(current['raw'] or 'null'), raw))
         posted_relative = lastmod = None
         if isinstance(raw, dict):
@@ -559,6 +595,9 @@ LOG = Path(os.environ.get('JOBDISCO_STORE') or DATA / 'store')
 # assets, employer ratings, the provider's own relevance scoring and parser output,
 # duplicate renderings of a description we already keep, and the row markup we
 # scraped the normalized fields out of.
+TEASERS = ('descriptionTeaser', 'description_short')
+FULL_DESCRIPTIONS = ('descriptionPlain', 'job_description', 'description', 'descriptionHtml',
+                     'jobDescriptionHtml', 'jobDescription', 'content')
 DROP_FIELDS = {
     # Branding and employer reputation.
     'employer_logo', 'hiring_organization_logo', 'logo', 'employer_reviews',
@@ -570,8 +609,6 @@ DROP_FIELDS = {
     'ranking', 'ranking_score', 'review_counts', 'employer_review_count',
     # Benefits blurbs: marketing copy, identical across a company's postings.
     'benefits', 'jobBenefits', 'job_benefits', 'job_benefits_strings',
-    # Duplicate or truncated renderings of a description we keep in full.
-    'descriptionTeaser', 'description_short',
     # The scraped row markup; normalize() already took the fields out of it.
     'html',
     # A relative age the board recomputes on every read: "8 days" becomes
@@ -617,6 +654,14 @@ def slim(raw):
     result = {k: slim(v) if isinstance(v, dict) else
               [slim(x) for x in v] if isinstance(v, list) else v
               for k, v in raw.items() if k not in DROP_FIELDS}
+    # B58: a teaser or short description is a truncated rendering only when
+    # the full one is here too. Dropping it unconditionally deleted the only
+    # description some records carry, and with it the experience requirement
+    # the filters were about to read -- before the log was written, so no
+    # replay could bring it back.
+    if any(isinstance(result.get(key), str) and result[key].strip() for key in FULL_DESCRIPTIONS):
+        for key in TEASERS:
+            result.pop(key, None)
     # Drop duplicate HTML only after verifying equivalent full plain text.
     plain = next((str(result[k]).strip() for k in ('descriptionPlain', 'job_description', 'description')
                   if result.get(k)), '')
@@ -720,10 +765,21 @@ def shard_daily_log(stamp):
 
 def _append_records(stamp, records):
     if not records:
-        return
-    path = daily_log(stamp)
+        return False
     member = gzip.compress((''.join(json.dumps(r, ensure_ascii=True, sort_keys=True) + '\n'
                                     for r in records)).encode('utf-8'), mtime=0)
+    if len(member) > MAX_DAILY_LOG_BYTES and len(records) > 1:
+        # B60: the shard limit was checked against what was already on disk,
+        # never against the batch arriving, so one large batch made one file
+        # of any size. Split until each part fits; a single record larger than
+        # a shard is written alone, because a record is never split across
+        # files. A failure part-way leaves the log ahead of the index, which is
+        # the direction a rebuild repairs.
+        half = len(records) // 2
+        _append_records(stamp, records[:half])
+        _append_records(stamp, records[half:])
+        return True
+    path = daily_log(stamp)
     if path.exists() and path.stat().st_size + len(member) > MAX_DAILY_LOG_BYTES:
         shard_daily_log(stamp)
     size = path.stat().st_size if path.exists() else 0
@@ -736,6 +792,7 @@ def _append_records(stamp, records):
         with path.open('r+b') as handle:
             handle.truncate(size)
         raise
+    return True
 
 
 def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None,
@@ -778,7 +835,8 @@ def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None,
         state = db.execute('SELECT * FROM source_state WHERE source_id=?', (source_id,)).fetchone()
         if state:
             records.append({'type': 'source_state', 'state': dict(state)})
-    _append_records(stamp, records)
+    if _append_records(stamp, records):
+        describe_day(db, stamp)
 
 
 def append_scores(db, stamp, urls=None):
@@ -799,7 +857,8 @@ def append_scores(db, stamp, urls=None):
                 % ','.join('?' * len(chunk)), chunk))
     records = [{'type': 'score', 'url': row['url'], 'relevance': row['relevance']}
                for row in rows]
-    _append_records(stamp, records)
+    if _append_records(stamp, records):
+        describe_day(db, stamp)
     return len(records)
 
 
@@ -849,6 +908,43 @@ def write_manifest(db, stamp, reports, jsearch_stats=None, extra=None,
         manifest.update(extra)
     _write_json_atomic(manifest_path(stamp), manifest)
     return manifest
+
+
+def describe_day(db, stamp):
+    """Bring a day's manifest into agreement with its file, as part of an append.
+
+    B62: a manifest used to be written once, when a pass finished, and a day
+    seals when the clock passes it. A pass that appended before UTC midnight
+    and finished after it could no longer write the manifest for the file it
+    had just written -- on the way out or on the failure path -- so the day
+    failed `verify` and a rebuild refused to replay it.
+
+    The seal is decided once, when the append begins, and this is part of the
+    append, so it does not ask again. It restates only the file's facts: what a
+    pass reports about itself is written by `write_manifest`, while the day is
+    still open.
+    """
+    path = manifest_path(stamp)
+    if not path.is_file():
+        return write_manifest(db, stamp, [], allow_sealed=True)
+    manifest = json.loads(path.read_text(encoding='utf-8'))
+    digest, records = _file_facts(daily_log(stamp))
+    manifest.update({'records': records, 'sha256': digest})
+    _write_json_atomic(path, manifest)
+    return manifest
+
+
+def finalize_manifest(db, stamp, reports, jsearch_stats=None, extra=None):
+    """A pass's own manifest, if its day is still open when it finishes.
+
+    Every append has already described the day, so a day that sealed while the
+    pass was running is verifiable as it stands. What it does not get is the
+    pass's summary, and a day that is over is not reopened to add one.
+    """
+    if not sealed(stamp):
+        return write_manifest(db, stamp, reports, jsearch_stats, extra)
+    path = manifest_path(stamp)
+    return json.loads(path.read_text(encoding='utf-8')) if path.is_file() else None
 
 
 def refresh_manifest(db, stamp):
@@ -1236,9 +1332,8 @@ def rescore(path=DB, batch=500, progress=None, publish=True):
             # which is the direction a later rescore repairs by itself.
             if publish and changed:
                 try:
-                    stamp = now()
-                    append_scores(writer, stamp, changed)
-                    refresh_manifest(writer, stamp)
+                    # `append_scores` describes the day as part of the append.
+                    append_scores(writer, now(), changed)
                 except BaseException:
                     writer.rollback()
                     raise

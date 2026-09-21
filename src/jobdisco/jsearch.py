@@ -539,6 +539,12 @@ def description_text(row, structured=False):
         # The title is scored separately with its higher title weight. Only
         # suppress these names at the payload root: a nested skill `name` is
         # useful prose and must remain searchable.
+        # B61: a direct posting that replaced a paid one keeps the paid payload
+        # under `jsearch` as provenance. It is not read for requirements, where
+        # a superseded one can only refuse the posting wrongly; relevance still
+        # reads it, where extra vocabulary can only add.
+        if structured and key == 'jsearch':
+            continue
         if key not in NON_PROSE_FIELDS and key not in TITLE_FIELDS and key not in COLLECTOR_FIELDS:
             # B49: a qualification heading is scoped to its own field. The mark
             # after the field closes it, so "preferred qualifications" no

@@ -5,6 +5,7 @@ postings silently. Each strategy is covered together with the rule that only a
 complete pass may retire a posting.
 """
 import gzip
+import hashlib
 import io
 import json
 import sqlite3
@@ -1578,6 +1579,136 @@ class SitemapDetailTests(unittest.TestCase):
         self.assertIn('5 years of experience required', c.jobs[0]['raw']['description'])
         self.assertEqual(jsearch.experience_debug(c.jobs[0])['hard_pass_reason'],
                          'required_experience_over_2_years')
+
+
+class StoreLifecycleTests(unittest.TestCase):
+    """B58-B62: what storage keeps, where it keeps it, and when it says so."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        log = patch.object(store, 'LOG', Path(self.dir.name) / 'store')
+        log.start()
+        self.addCleanup(log.stop)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+        self.db = store.connect(self.db_path)
+        self.addCleanup(self.db.close)
+
+    def raw(self, url):
+        return json.loads(self.db.execute('SELECT raw FROM jobs WHERE url=?', (url,)).fetchone()[0])
+
+    def rebuilt(self):
+        target = Path(self.dir.name) / f'rebuilt-{len(list(Path(self.dir.name).glob("rebuilt*")))}.sqlite'
+        with closing(sqlite3.connect(target)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.rebuild(target)
+        with closing(store.connect(target)) as db:
+            return sorted(r[0] for r in db.execute(
+                'SELECT source_job_id FROM jobs WHERE closed_at IS NULL'))
+
+    def test_the_only_description_is_kept_whatever_it_is_called(self):
+        """B58: a teaser is truncated only when the full description is there too."""
+        short = dict(row('https://x/1'), raw={'description_short': '5 years of experience required.'})
+        store.record_source(self.db, SOURCE, [short], 'complete', 'full', 1)
+        kept = self.raw('https://x/1')
+        self.assertEqual(kept, {'description_short': '5 years of experience required.'})
+        self.assertEqual(jsearch.experience_debug({'title': 'RTL Engineer', 'raw': kept})
+                         ['hard_pass_reason'], 'required_experience_over_2_years')
+        both = dict(row('https://x/2'), raw={'description_short': 'Build chips.',
+                                             'job_description': 'Build chips with UVM.'})
+        store.record_source(self.db, SOURCE, [short, both], 'complete', 'full', 1)
+        self.assertNotIn('description_short', self.raw('https://x/2'))
+
+    def test_a_moved_requisition_survives_whichever_order_the_batch_lists_it_in(self):
+        """B59: its alias pinned it back onto an address another posting now owns."""
+        for order in ('moved first', 'replacement first'):
+            with self.subTest(order=order):
+                self.db.execute('DELETE FROM jobs')
+                self.db.execute('DELETE FROM job_identities')
+                self.db.commit()
+                store.record_source(self.db, SOURCE,
+                                    [dict(row('https://x/shared'), source_job_id='A')],
+                                    'complete', 'full', 1)
+                moved = dict(row('https://x/new-A'), source_job_id='A')
+                replacement = dict(row('https://x/shared'), source_job_id='B')
+                batch = [moved, replacement] if order == 'moved first' else [replacement, moved]
+                delta = store.record_source(self.db, SOURCE, batch, 'complete', 'full', 1)
+                held = dict(self.db.execute('SELECT source_job_id, url FROM jobs WHERE closed_at IS NULL'))
+                self.assertEqual(held, {'A': 'https://x/new-A', 'B': 'https://x/shared'})
+                self.assertEqual(delta['closed'], 0)
+
+    def test_the_replay_keeps_both_as_well(self):
+        store.record_source(self.db, SOURCE, [dict(row('https://x/shared'), source_job_id='A')],
+                            'complete', 'full', 1)
+        first = store.record_source(self.db, SOURCE,
+                                    [dict(row('https://x/new-A'), source_job_id='A'),
+                                     dict(row('https://x/shared'), source_job_id='B')],
+                                    'complete', 'full', 1)
+        store.append_log(self.db, first['new_urls'] + first.get('changed_urls', []),
+                         first['closed_urls'], first['stamp'])
+        store.write_manifest(self.db, first['stamp'], [])
+        self.db.commit()
+        self.assertEqual(self.rebuilt(), ['A', 'B'])
+
+    def test_no_run_file_outgrows_a_shard_because_one_batch_was_large(self):
+        """B60: the limit was checked against what was on disk, not what arrived."""
+        # Text gzip cannot fold away, so the batch really is larger than a shard.
+        rows = [dict(row(f'https://x/{n}'), source_job_id=str(n),
+                     raw={'job_description': ' '.join(
+                         hashlib.sha256(f'{n}-{k}'.encode()).hexdigest() for k in range(12))})
+                for n in range(12)]
+        delta = store.record_source(self.db, SOURCE, rows, 'complete', 'full', 1)
+        with patch.object(store, 'MAX_DAILY_LOG_BYTES', 1024):
+            store.append_log(self.db, delta['new_urls'], [], delta['stamp'])
+        self.db.commit()
+        files = sorted((store.LOG / 'runs').glob('*.ndjson.gz'))
+        self.assertGreater(len(files), 1, 'the batch was written as one file')
+        self.assertTrue(all(path.stat().st_size <= 1024 for path in files),
+                        [path.stat().st_size for path in files])
+        self.assertEqual({state for _, state in store.verify()}, {'ok'})
+        self.assertEqual(len(self.rebuilt()), 12)
+
+    def test_the_board_that_replaced_a_paid_posting_is_the_posting(self):
+        """B61: a paid description since superseded kept refusing it."""
+        paid = dict(row('https://x/1', title='RTL Intern'), provider_key='jsearch',
+                    company_key='matx', source_job_id='js-1',
+                    raw={'job_description': '5 years of experience required.',
+                         'job_title': 'RTL Intern'})
+        paid_source = replace(SOURCE, source_id='q', provider_key='jsearch')
+        store.record_source(self.db, paid_source, [paid], 'query_limited', 'full', 1)
+        direct = dict(row('https://x/1', title='RTL Engineer'), source_job_id='req-1',
+                      raw={'content': '2 years of experience required.'})
+        store.record_source(self.db, SOURCE, [direct], 'complete', 'full', 1)
+        kept = self.raw('https://x/1')
+        self.assertEqual(kept['content'], '2 years of experience required.')
+        self.assertNotIn('job_description', kept)
+        self.assertIn('5 years', kept['jsearch']['job_description'])
+        self.assertEqual(jsearch.experience_debug({'title': 'RTL Engineer', 'raw': kept})
+                         ['hard_pass_reason'], '')
+        # And the symptom itself: the posting is back in the review queue.
+        self.db.commit()
+        from jobdisco import applications
+        queue = applications.queue(self.db_path, Path(self.dir.name) / 'ledger.ndjson')
+        self.assertIn('https://x/1', {job['url'] for group in queue['pending']
+                                      for job in group['jobs']})
+
+    def test_a_day_that_ends_mid_pass_is_left_verifiable(self):
+        """B62: the manifest used to be written only at the end of the pass."""
+        delta = store.record_source(self.db, SOURCE, [row('https://x/1')], 'complete', 'full', 1)
+        stamp = delta['stamp']
+        store.append_log(self.db, delta['new_urls'], [], stamp)
+        self.db.commit()
+        tomorrow = (datetime.fromisoformat(stamp) + timedelta(days=1)).isoformat()
+        with patch.object(store, 'now', return_value=tomorrow):
+            self.assertTrue(store.sealed(stamp))
+            manifest = store.finalize_manifest(self.db, stamp, [])
+            self.assertIsNotNone(manifest)
+            self.assertEqual({state for _, state in store.verify()}, {'ok'})
+            self.assertEqual(self.rebuilt(), ['1'])
 
 
 class OneBatchOneUrlTests(unittest.TestCase):

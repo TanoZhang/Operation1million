@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   B58-B62 from the eleventh audit: teaser descriptions, batch order of a
+         moved requisition, shard size, superseded paid descriptions, and a day
+         that seals mid-pass.
+Files:   src/jobdisco/{store,collector,jsearch}.py, tests/test_store.py, docs/
+Base commit: ca501dc41640a09c0650d92bcb12ddddbf2025ca
+Status:  done
+Next:    Merged into main; 515 offline tests pass.
+```
+
+```text
+Owner:   claude
 Scope:   B50-B57 from the tenth audit and the direct-intake half of B45: HiBob
          batch preparation, Eightfold incremental reconciliation, page-scoped
          validators, links built from missing ids, rejected pages read as
