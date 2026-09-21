@@ -32,12 +32,22 @@ Next:    Merged into main; 509 offline tests pass. Install runs migration 006, a
 
 ```text
 Owner: codex
+Scope: Twelfth offline audit: quota, pacing, ledger comparison and workflow cursor recovery, function by function; findings only.
+Files: docs/file-audit-round12-2026-09-21.md, docs/audit-repro-round12-2026-09-21.py, docs/agent-protocol.md
+Base commit: 6dc9a0510d2088baa7db28c9b8ee1f19402a2e11
+Inspected main: ca501dc41640a09c0650d92bcb12ddddbf2025ca
+Status: done
+Next: User reviews B63-B67 in docs/file-audit-round12-2026-09-21.md. Four-module function inventory complete; five offline cases and recovery control pass, 121 existing tests pass. B67 combines executed filesystem simulation with traced VPS caller code. Next: full deployment/configuration audit. No business-code edits.
+```
+
+```text
+Owner: codex
 Scope: Eleventh offline audit: complete store.py function inventory, identity, persistence, replay and recovery; findings only.
 Files: docs/file-audit-round11-2026-09-21.md, docs/audit-repro-round11-2026-09-21.py, docs/agent-protocol.md
 Base commit: e5c9440ff707eadc44a679d63de5beafcaf48542
 Inspected main: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
-Status: claimed
-Next: Reproduce storage defects in temporary databases and logs; no production state or business-code edits.
+Status: done
+Next: User reviews B58-B62 in docs/file-audit-round11-2026-09-21.md. Full store function inventory recorded; five defects reproduced on baseline and concurrent user fixes, 175 existing baseline tests passed. Next: quota/pacing and ledger/workflow recovery. No business-code edits.
 ```
 
 ```text
