@@ -239,6 +239,23 @@ class EquivalentFasterTests(unittest.TestCase):
                          'the report no longer reads in catalog order')
 
 
+class NoStoreTests(unittest.TestCase):
+    """B55: a run told to leave the store alone does not create one."""
+
+    def test_a_missing_index_is_not_built_to_read_the_catalog(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        db_path = root / 'absent.sqlite'
+        arguments = ['collector', '--no-store', '--db', str(db_path), '--output', str(root / 'run')]
+        with patch.object(collector, 'load_sources', return_value=[]) as catalog, \
+             patch.object(collector, 'RequestGuard', return_value=Mock(attempts=0)), \
+             patch('sys.argv', arguments), patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(collector.main(), 0)
+        catalog.assert_called_once()
+        self.assertFalse(db_path.exists(), 'a --no-store run built the job index')
+
+
 class CollectionTests(unittest.TestCase):
     def setUp(self):
         robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
@@ -273,11 +290,17 @@ class CollectionTests(unittest.TestCase):
         AttributeError here, not ValueError, and that used to end the source
         along with every later page of good postings.
         """
+        # A missing externalPath is now refused by name, before anything is
+        # built from it (B53), so the non-ValueError path is exercised by a
+        # field that still fails the old way: a city sent as a number.
         c=Collector(self.source(),self.args())
         c.add([{'title':'Broken','externalPath':None},{'title':'Good','externalPath':'/job/Good_R2'}])
         self.assertEqual([r['title'] for r in c.jobs],['Good'])
-        self.assertEqual(len(c.rejected),1)
-        self.assertIn('AttributeError',c.rejected[0]['reason'])
+        self.assertIn('externalPath',c.rejected[0]['reason'])
+        amd=Collector(replace(self.source(),provider_key='amd_careers'),self.args())
+        amd.add([{'title':'Broken','req_id':'1','city':7},{'title':'Good','req_id':'2','city':'Austin'}])
+        self.assertEqual([r['title'] for r in amd.jobs],['Good'])
+        self.assertIn('TypeError',amd.rejected[0]['reason'])
 
     def test_the_job_cap_is_never_a_complete_board(self):
         """A pass that ran out of room did not watch the board end.
@@ -365,6 +388,79 @@ class CollectionTests(unittest.TestCase):
             self.assertEqual(c.run(),('complete',''))
         self.assertEqual(len(c.jobs),1)
         self.assertIsNone(c.etag);self.assertIsNone(c.last_modified)
+
+    def test_a_hibob_record_without_an_id_costs_itself_and_not_the_batch(self):
+        """B50: the batch was prepared outside the per-record boundary."""
+        source=replace(self.source(),provider_key='hibob',access_url='https://x.careers.hibob.com',
+                       fields={'subdomain':'x'})
+        c=Collector(source,self.args())
+        c.fetch=lambda *a:Response({'jobAdDetails':[{'id':'1','title':'RTL Engineer'},
+                                                    {'title':'No id'}]})
+        c.run()
+        self.assertEqual([r['source_job_id'] for r in c.jobs],['1'])
+        self.assertEqual(len(c.rejected),1)
+
+    def test_a_link_is_not_built_from_a_missing_id(self):
+        """B53: `/job/None` is a public address as far as a URL check can tell."""
+        oracle=replace(self.source(),provider_key='oracle_cloud',
+                       access_url='https://example.test/en/sites/CX_1/jobs')
+        with self.assertRaises(ValueError):
+            normalize(oracle,{'Title':'RTL Engineer'})
+        for provider,fields,item in (
+                ('smartrecruiters',{'company_slug':'x'},{'name':'RTL Engineer'}),
+                ('phenom',{'career_domain':'jobs.example'},{'title':'RTL Engineer'}),
+                ('amd_careers',{},{'title':'RTL Engineer'})):
+            with self.subTest(provider=provider):
+                with self.assertRaises(ValueError):
+                    normalize(replace(self.source(),provider_key=provider,fields=fields),item)
+
+    def test_a_page_of_unreadable_records_is_not_a_repeated_page(self):
+        """B54: nothing accepted is a repeat only if nothing was refused either."""
+        c=Collector(self.source(),self.args())
+        pages=[Response({'total':2,'jobPostings':[{'title':'Broken','externalPath':None}]}),
+               Response({'total':2,'jobPostings':[{'title':'RTL Engineer','externalPath':'/job/RTL_A'}]})]
+        c.fetch=lambda *a:pages.pop(0)
+        c.run()
+        self.assertEqual([r['title'] for r in c.jobs],['RTL Engineer'])
+        self.assertEqual(len(c.rejected),1)
+
+    def test_a_validator_from_the_first_page_does_not_speak_for_the_second(self):
+        """B52: a board that needed two pages keeps no validator."""
+        c=Collector(self.source(),self.args())
+        c.etag='W/"page-one"'
+        pages=[Response({'total':2,'jobPostings':[{'title':'A','externalPath':'/job/A_1'}]}),
+               Response({'total':2,'jobPostings':[{'title':'B','externalPath':'/job/B_2'}]})]
+        c.fetch=lambda *a:pages.pop(0)
+        self.assertEqual(c.run(),('complete',''))
+        self.assertIsNone(c.etag)
+        single=Collector(self.source(),self.args())
+        single.etag='W/"whole"'
+        single.fetch=lambda *a:Response({'total':1,'jobPostings':[{'title':'A','externalPath':'/job/A_1'}]})
+        single.run()
+        self.assertEqual(single.etag,'W/"whole"')
+
+    def test_structured_data_for_some_listed_jobs_does_not_hide_the_rest(self):
+        """B56: JSON-LD is evidence about the jobs it names, not a count of the page."""
+        linked=''.join(f'<a href="/job/role-{n}"><h3>Role {n}</h3></a>' for n in range(1,6))
+        structured=''.join(
+            '<script type="application/ld+json">{"@type":"JobPosting","title":"Role %d",'
+            '"url":"https://achronix.test/job/role-%d"}</script>' % (n,n) for n in range(1,5))
+        items,_=html_items(structured+linked,'https://achronix.test','achronix_careers')
+        self.assertEqual(sorted(i['url'].rsplit('/',1)[-1] for i in items),
+                         [f'role-{n}' for n in range(1,6)])
+
+    def test_a_whitespace_title_is_refused_at_the_record_not_the_commit(self):
+        """B45 on the direct path: cleaning emptied it after the check had passed."""
+        greenhouse=replace(self.source(),provider_key='greenhouse')
+        with self.assertRaises(ValueError):
+            normalize(greenhouse,{'title':'   ','absolute_url':'https://x.test/1'})
+        c=Collector(greenhouse,self.args())
+        c.add([{'title':'   ','absolute_url':'https://x.test/1'},
+               {'title':'RTL Engineer','absolute_url':'https://x.test/2',
+                'first_published':{'date':'2026-09-20'}}])
+        self.assertEqual([r['title'] for r in c.jobs],['RTL Engineer'])
+        self.assertIsNone(c.jobs[0]['posted_at'])
+        self.assertEqual(len(c.rejected),1)
 
     def test_employer_filter(self):
         self.assertTrue(employer_matches('Advanced Micro Devices, Inc.',['Advanced Micro Devices']))

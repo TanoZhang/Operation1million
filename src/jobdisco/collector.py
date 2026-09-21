@@ -109,6 +109,11 @@ def posted_from_text(text):
     return None
 
 
+def present(value):
+    """Whether a provider field holds something a link can be built from."""
+    return value is not None and str(value).strip() != ''
+
+
 def normalize(source, item):
     p = source.provider_key
     title = item.get('title') or item.get('Title') or item.get('jobTitle') or item.get('name')
@@ -121,24 +126,40 @@ def normalize(source, item):
     if not posted and p == 'greenhouse':
         # first_published is the original posting; updated_at only tracks edits.
         posted = item.get('first_published') or item.get('updated_at')
+    # B53: every link built below is built from a provider field, and a
+    # missing one used to be stringified into it -- `/job/None` is a public
+    # HTTP address as far as a URL check can tell. The record was accepted, the
+    # pass stayed complete, and the posting it could not identify was taken as
+    # proof that another one had been withdrawn. A link with nothing to build
+    # it from is a malformed record, and a malformed record keeps a pass partial.
     if p == 'workday':
-        url = source.access_url.rstrip('/') + '/' + item.get('externalPath', '').lstrip('/')
-        ident = item.get('externalPath', '').rsplit('_', 1)[-1] or None
+        path = item.get('externalPath')
+        if not isinstance(path, str) or not path.strip('/'):
+            raise ValueError('Workday record has no externalPath')
+        url = source.access_url.rstrip('/') + '/' + path.lstrip('/')
+        ident = path.rsplit('_', 1)[-1] or None
         # Relative dates remain in raw; do not pretend they are absolute timestamps.
         posted = None
     elif p == 'oracle_cloud':
+        if not present(ident):
+            raise ValueError('Oracle requisition has no Id')
         parts = urlsplit(source.access_url)
         path = parts.path.split('/jobs')[0] + '/job/' + str(ident)
         url = urlunsplit(parts._replace(path=path, query='', fragment=''))
     elif p == 'smartrecruiters':
-        url = item.get('applyUrl') or f"https://jobs.smartrecruiters.com/{source.fields['company_slug']}/{ident}"
+        url = item.get('applyUrl') or (
+            f"https://jobs.smartrecruiters.com/{source.fields['company_slug']}/{ident}"
+            if present(ident) else None)
         posted = item.get('releasedDate')
     elif p == 'phenom':
-        url = url or f"https://{source.fields['career_domain']}/global/en/job/{ident}"
+        url = url or (f"https://{source.fields['career_domain']}/global/en/job/{ident}"
+                      if present(ident) else None)
     elif p == 'amd_careers':
         # apply_url points at the iCIMS login wall; the public posting is on careers.amd.com.
-        url = f"https://careers.amd.com/careers-home/jobs/{item.get('req_id') or item.get('slug')}"
         ident = item.get('req_id') or item.get('slug')
+        if not present(ident):
+            raise ValueError('AMD record has neither req_id nor slug')
+        url = f"https://careers.amd.com/careers-home/jobs/{ident}"
         location = item.get('full_location') or ', '.join(filter(None, [item.get('city'), item.get('state'), item.get('country')]))
         posted = item.get('posted_date') or item.get('create_date')
     elif p == 'eightfold':
@@ -155,10 +176,19 @@ def normalize(source, item):
         ident = item.get('id_icims') or ident
         url = urljoin('https://www.amazon.jobs', item.get('job_path') or url) if item.get('job_path') or url else None
         posted = item.get('posted_date')
+    # The title is checked after cleaning, because cleaning is what can empty
+    # it: a title of whitespace passed the check, was emptied by `clean`, and
+    # raised in SQLite at commit -- outside the per-item boundary, taking every
+    # valid posting in the batch with it. The same for a date sent as an
+    # object: the field is optional, so it is dropped rather than refused, and
+    # the provider's value stays in raw.
+    title = clean(title) if title else ''
+    if posted is not None and not isinstance(posted, (str, int, float)):
+        posted = None
     address = urlsplit(str(url)) if url else None
     if not title or not address or address.scheme not in {'http', 'https'} or not address.netloc:
         raise ValueError('Job record lacks a title or public HTTP URL')
-    return dict(zip(FIELDS, [source.company_key, source.company_name, p, clean(title), location_text(location), str(url), str(ident) if ident is not None else None, posted, item]))
+    return dict(zip(FIELDS, [source.company_key, source.company_name, p, title, location_text(location), str(url), str(ident) if ident is not None else None, posted, item]))
 
 
 def jsonld(soup):
@@ -239,8 +269,6 @@ def html_job_id(href, provider):
 def html_items(text, base, provider):
     soup = BeautifulSoup(text, 'html.parser')
     structured = list(jsonld(soup))
-    if structured:
-        return structured, soup
     patterns = {
         'achronix_careers': r'/job/[^/]+', 'apple_jobs': r'/details/[^/]+/[^/]+$',
         'jobs2web': r'/job/.+/\d+/?$', 'talentbrew': r'/job/.+/\d+/\d+',
@@ -268,6 +296,21 @@ def html_items(text, base, provider):
             loc = row.select_one('[class*=location], [class*=Location]')
             d = row.select_one('[class*=posted-date], [class*=date-posted]')
             items.append({'title': title, 'url': urljoin(base, href), 'location': loc.get_text(' ', strip=True) if loc else None, 'source_job_id': html_job_id(href, provider), 'posted_text': d.get_text(' ', strip=True) if d else None, 'html': str(row)})
+    if structured:
+        # B56: a page may publish JobPosting metadata for some of the jobs it
+        # lists and not the rest, and returning at the first structured record
+        # made those four the inventory -- the fifth, still linked on the page,
+        # was retired by a pass that called itself complete. Structured records
+        # are preferred where they exist; a listed job they do not cover is
+        # kept from its link. Covered means the same address, or, where the
+        # provider's URLs carry a requisition this code can name, the same one.
+        covered = {urljoin(base, entry['url']).rstrip('/') for entry in structured
+                   if isinstance(entry.get('url'), str) and entry['url'].strip()}
+        named = ({html_job_id(address, provider) for address in covered}
+                 if provider in ID_FROM_URL else set())
+        return structured + [item for item in items
+                             if item['url'].rstrip('/') not in covered
+                             and item['source_job_id'] not in named], soup
     return items, soup
 
 
@@ -353,12 +396,25 @@ class Collector:
             self.jobs.append(row)
         return len(self.jobs) - before
 
+    def partial_validator(self):
+        """The board needed a second page, so no one response describes all of it.
+
+        A 304 on the first page says the first page is unchanged. Kept as the
+        source's validator, it ended every later pass there: the conditional
+        probe asked only for page one, got its 304, and reported the whole board
+        unchanged while page two filled up behind it.
+        """
+        self.etag = self.last_modified = None
+        self.validator = False
+
     def collect_json(self):
         p = self.source.provider_key
         url, method, payload = request_for(self.source)
         offset = 0
         stated_total = None
         for page in range(self.args.max_pages):
+            if page:
+                self.partial_validator()
             target = url
             if p == 'workday':
                 payload['offset'] = offset
@@ -412,6 +468,7 @@ class Collector:
                     return 'complete', ''
                 offset += len(items)
                 continue
+            rejected_before = len(self.rejected)
             added = self.add(items)
             offset += len(items)
             if p in {'greenhouse', 'ashby'}:
@@ -420,7 +477,12 @@ class Collector:
                 if p == 'amazon_jobs' and total >= 10000:
                     return 'partial', 'Amazon search returned its 10,000-result ceiling; partition searches to establish full coverage'
                 return 'complete', ''
-            if not added:
+            # B54: nothing accepted from a page is a repeat only if nothing on
+            # it was refused either. A page of malformed records also adds
+            # nothing, and reading that as the provider ignoring pagination
+            # stopped the pass there with every later, valid page unread. The
+            # pass stays partial for the rejects; it just carries on reading.
+            if not added and len(self.rejected) == rejected_before:
                 return 'partial', 'Repeated page; provider ignored pagination'
             if len(self.jobs) >= self.args.max_jobs:
                 return 'partial', 'Job cap reached; increase --max-jobs'
@@ -431,6 +493,8 @@ class Collector:
         url = source.access_url
         seen_pages = set()
         for page in range(self.args.max_pages):
+            if page:
+                self.partial_validator()
             if url in seen_pages:
                 return 'partial', 'Repeated next-page URL'
             seen_pages.add(url)
@@ -446,8 +510,9 @@ class Collector:
                 if pagination and int(pagination['data-total-pages']) <= page + 1:
                     self.add(items)
                     return 'complete', ''
+            rejected_before = len(self.rejected)
             added = self.add(items)
-            if not added:
+            if not added and len(self.rejected) == rejected_before:
                 return 'partial', 'Repeated job page; pagination requires review'
             if len(self.jobs) >= self.args.max_jobs:
                 return 'partial', 'Job cap reached; increase --max-jobs'
@@ -524,7 +589,14 @@ class Collector:
                     h = soup.select_one('h1')
                     if not h:
                         raise ValueError('Missing job title')
-                    items = [{'title': h.get_text(' ', strip=True), 'url': url}]
+                    # B57: the page was fetched whole, and keeping only its
+                    # heading threw away the requirements written beneath it --
+                    # a posting asking five years reached the review queue as
+                    # one that asked nothing. The page's main text is kept as
+                    # the description, where the same filters read it.
+                    body = soup.select_one('main, article, [role=main]') or soup.body or soup
+                    items = [{'title': h.get_text(' ', strip=True), 'url': url,
+                              'description': body.get_text('\n', strip=True)}]
                 for item in items:
                     item.setdefault('url', url)
                     if lastmod:
@@ -585,10 +657,20 @@ class Collector:
                 if not isinstance(data.get('jobAdDetails'), list):
                     raise ValueError('Unexpected HiBob job-ad schema')
                 items = data['jobAdDetails']
+                # B50: the whole batch used to be prepared before any record
+                # reached `add`, outside its per-record boundary, so one record
+                # without an id raised a KeyError that failed the source and
+                # lost every valid posting beside it.
+                prepared = []
                 for item in items:
-                    item['url'] = self.source.access_url.rstrip('/') + '/' + item['id']
-                    item['location'] = ', '.join(filter(None, [item.get('site'), item.get('country')]))
-                self.add(items)
+                    if not isinstance(item, dict) or not present(item.get('id')):
+                        self.rejected.append({'reason': 'HiBob record has no id', 'raw': item})
+                        continue
+                    prepared.append(dict(
+                        item, url=self.source.access_url.rstrip('/') + '/' + str(item['id']),
+                        location=', '.join(str(part) for part in
+                                           (item.get('site'), item.get('country')) if part)))
+                self.add(prepared)
                 return ('partial', 'Job cap reached') if len(items) > self.args.max_jobs else ('complete', '')
             if self.source.provider_key == 'ti_careers':
                 r = self.fetch(self.source.access_url)
@@ -770,8 +852,11 @@ def main():
         settings['date_posted'] = args.date_posted
     enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0 or args.backfill
     run_budget = min(args.jsearch_budget or settings['daily_budget'], settings['daily_budget']) if enabled else 0
-    if not args.db.exists() and args.jsearch_plan:
+    if not args.db.exists() and (args.jsearch_plan or not args.store):
         # Preview authored sources without creating or replaying private state.
+        # B55: `--no-store` promises the job store is left alone, and building
+        # it from scratch to read the catalog is not leaving it alone -- a
+        # diagnostic run with no index at hand used to leave one behind.
         with tempfile.TemporaryDirectory() as folder:
             preview_db = Path(folder) / 'preview.sqlite'
             with closing(sqlite3.connect(preview_db)) as connection:

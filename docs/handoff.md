@@ -1,6 +1,43 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Direct collection, B50-B57 - 2026-09-21 UTC
+
+Codex's tenth audit, in `collector.py`, fixed on `main`. Mechanisms and
+reproducers are in the architecture bug log.
+
+**A correction first.** The fourth-round section below says a TI shell ETag
+already stored "is cleared by the next complete pass". It was not: validators
+were written with `COALESCE`, so a pass supplying none kept the old one, and a
+VPS with a stored shell ETag went on answering 304 for the whole TI board after
+the B26 fix was installed. That claim was reasoned and never tested. It is true
+from this commit, with a test.
+
+What to expect after installing:
+
+- **Migration `006_source_full_pass`** adds `source_state.last_full_at`. It runs
+  on the first `migrate`, which every pass performs.
+- **The first pass reads every Eightfold board in full** -- Micron, Microsoft,
+  Qualcomm -- because none has a recorded full pass yet. That pass is slower
+  than an incremental one, at 2.5-3 seconds a request, once. From then on each
+  such board is read in full at most a week apart, and incrementally back a
+  week from its watermark in between.
+- **Multi-page boards stop being conditional.** Any validator stored for a
+  board that needs more than one page is cleared by its next complete pass, and
+  such a board is read in full each time. That costs requests on boards that
+  sent an ETag; it is the price of not trusting a validator for pages it never
+  described.
+- **More passes will report partial** where a record cannot be read or has no
+  id to build a link from. That is the intended direction: those passes used to
+  report complete and retire postings they had failed to read.
+
+Measured: 509 offline tests, exit 0, 8 skips on Windows; each new test red on
+the code before it. Codex's reproducer no longer holds at any of its nine
+defect assertions, and all nineteen of its per-provider positive controls still
+hold. No provider contacted, nothing spent, nothing deployed, and the
+Eightfold full-pass cost above is reasoned from the configured interval, not
+measured.
+
 # Paid discovery, B44-B49 - 2026-09-21 UTC
 
 Codex's ninth audit, all in `jsearch.py`, fixed on `main`. Before them, `main`
@@ -180,7 +217,8 @@ withdrawal of B20 from the round below.
   backlog of closures the bug was suppressing, not a new closure event, and the
   closure fuse still applies to it.
 - A `ti_careers` source keeps no ETag or Last-Modified validator, so it is read
-  in full every pass. A stale shell validator already stored is cleared by the
+  in full every pass. [Corrected in the B50-B57 section: until then this was
+  false.] A stale shell validator already stored is cleared by the
   next complete pass. Whether the live shell serves an ETag at all has not been
   checked; the trigger was reproduced offline.
 - B20 is withdrawn. `main.direct` already turns a pass holding rejected records

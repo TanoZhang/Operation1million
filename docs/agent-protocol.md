@@ -5,6 +5,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner:   claude
+Scope:   B50-B57 from the tenth audit and the direct-intake half of B45: HiBob
+         batch preparation, Eightfold incremental reconciliation, page-scoped
+         validators, links built from missing ids, rejected pages read as
+         repeats, --no-store, partial JSON-LD, and sitemap detail text.
+Files:   src/jobdisco/{collector,store}.py, data/config/migrations/006_source_full_pass.sql,
+         tests/, docs/
+Base commit: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
+Status:  done
+Next:    Merged into main; 509 offline tests pass. Install runs migration 006, and
+         the first pass reads every Eightfold board in full. Corrects a false B26
+         claim about stored validators.
+```
+
+```text
 Owner: codex
 Scope: Ninth offline audit, complete function inventory of jsearch.py and concrete intake, filtering and cursor failure cases; findings only.
 Files: docs/file-audit-round9-2026-09-20.md, docs/audit-repro-round9-2026-09-20.py, docs/agent-protocol.md

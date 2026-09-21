@@ -112,7 +112,12 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(store.plan(SOURCE, {'ashby:matx': dict(done, etag='W/"x"')}),
                          ('conditional', 'W/"x"'))
         eightfold = replace(SOURCE, source_id='ef:q', provider_key='eightfold')
-        self.assertEqual(store.plan(eightfold, {'ef:q': done})[0], 'since')
+        # A newest-first board reads incrementally only while its last full
+        # pass is recent; with none on record it is read in full (B51).
+        recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        self.assertEqual(store.plan(eightfold, {'ef:q': done})[0], 'full')
+        self.assertEqual(store.plan(eightfold, {'ef:q': dict(done, last_full_at=recent)})[0],
+                         'since')
         sitemap = replace(SOURCE, source_id='rn', provider_key='renesas_careers')
         self.assertEqual(store.plan(sitemap, {'rn': done})[0], 'lastmod')
         # An unrecognised board is read in full rather than guessed at.
@@ -1489,6 +1494,90 @@ class ScoreOnceTests(unittest.TestCase):
         store.rescore(self.db_path)
 
         self.assertEqual(self.stored('https://x/1'), 0)
+
+
+class IncrementalReconciliationTests(unittest.TestCase):
+    """B51 and B52: what an incremental pass may skip, and what a validator covers."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        log = patch.object(store, 'LOG', Path(self.dir.name) / 'store')
+        log.start()
+        self.addCleanup(log.stop)
+        self.db_path = Path(self.dir.name) / 'catalog.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.migrate(self.db_path)
+        self.db = store.connect(self.db_path)
+        self.addCleanup(self.db.close)
+        self.eightfold = replace(SOURCE, source_id='ef:q', provider_key='eightfold')
+
+    def ago(self, days):
+        return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    def test_an_incremental_pass_reads_back_a_week_and_a_stale_one_reads_everything(self):
+        """A posting can reach the index after its stated date, or be edited under it."""
+        success = self.ago(0)
+        strategy, watermark = store.plan(self.eightfold, {'ef:q': {
+            'last_success_at': success, 'last_full_at': self.ago(1), 'last_status': 'complete'}})
+        self.assertEqual(strategy, 'since')
+        self.assertEqual(datetime.fromisoformat(success) - datetime.fromisoformat(watermark),
+                         timedelta(days=store.RECONCILE_DAYS))
+        self.assertEqual(store.plan(self.eightfold, {'ef:q': {
+            'last_success_at': success, 'last_full_at': self.ago(8),
+            'last_status': 'complete'}})[0], 'full')
+
+    def test_only_a_complete_full_pass_is_recorded_as_one(self):
+        store.record_source(self.db, self.eightfold, [row('https://x/1')], 'complete', 'full', 1)
+        first = self.db.execute("SELECT last_full_at FROM source_state").fetchone()[0]
+        self.assertIsNotNone(first)
+        store.record_source(self.db, self.eightfold, [row('https://x/1')], 'complete', 'since', 1)
+        store.record_source(self.db, self.eightfold, [row('https://x/1')], 'partial', 'full', 1)
+        self.assertEqual(self.db.execute("SELECT last_full_at FROM source_state").fetchone()[0],
+                         first)
+
+    def test_a_complete_pass_without_a_validator_clears_the_stored_one(self):
+        """B52, and the B26 claim it corrects.
+
+        `COALESCE` kept a stored ETag whenever a pass supplied none, so a
+        validator the collector had deliberately refused -- a TI shell's, the
+        first page of a longer board -- stayed for ever and went on answering
+        304 for the whole source.
+        """
+        store.record_source(self.db, SOURCE, [row('https://x/1')], 'complete', 'full', 1,
+                            etag='W/"page-one"')
+        self.db.commit()
+        state = store.load_state(self.db_path)
+        self.assertEqual(store.plan(SOURCE, state)[0], 'conditional')
+        store.record_source(self.db, SOURCE, [row('https://x/1')], 'partial', 'full', 1)
+        self.assertEqual(self.db.execute('SELECT etag FROM source_state').fetchone()[0],
+                         'W/"page-one"')
+        store.record_source(self.db, SOURCE, [row('https://x/1')], 'complete', 'full', 1,
+                            etag=None)
+        self.db.commit()
+        self.assertIsNone(self.db.execute('SELECT etag FROM source_state').fetchone()[0])
+        self.assertEqual(store.plan(SOURCE, store.load_state(self.db_path))[0], 'full')
+
+
+class SitemapDetailTests(unittest.TestCase):
+    """B57: a detail page read without JSON-LD keeps what it says."""
+
+    def test_the_requirements_under_the_heading_are_kept(self):
+        source = replace(SOURCE, provider_key='akeana_careers', access_url='https://x/sitemap.xml')
+        args = Namespace(max_jobs=1000, max_pages=10, delay=0, timeout=1, retries=0,
+                         source_state=Path(tempfile.gettempdir()) / 'unused_pauses.sqlite')
+        c = Collector(source, args)
+        self.addCleanup(c.session.close)
+        sitemap = '<urlset><url><loc>https://x/job/rtl</loc></url></urlset>'
+        page = '<h1>RTL Engineer</h1><section>5 years of experience required.</section>'
+        c.fetch = Mock(side_effect=lambda url: (Mock(content=sitemap.encode())
+                                                if url == source.access_url else Mock(text=page)))
+        self.assertEqual(c.collect_sitemap()[0], 'complete')
+        self.assertIn('5 years of experience required', c.jobs[0]['raw']['description'])
+        self.assertEqual(jsearch.experience_debug(c.jobs[0])['hard_pass_reason'],
+                         'required_experience_over_2_years')
 
 
 class OneBatchOneUrlTests(unittest.TestCase):

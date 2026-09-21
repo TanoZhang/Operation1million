@@ -208,6 +208,83 @@ that posting after the selection had moved to another. The fixes hold. The
 harness is not committed -- it needs an npm install, and the suite is offline --
 so this is a measurement made here, not a test the suite will repeat.
 
+### Direct collection, B50-B57, from Codex's tenth audit, 2026-09-21 UTC (not deployed)
+
+Eight in `collector.py`, and the direct-intake half of B45. Each has a test red
+on the code before it. Codex's own reproducer, run against this tree with its
+defect assertions recorded rather than fatal and the bookkeeping written for
+the defective path skipped, no longer holds at any of its nine defect
+assertions -- and every one of its nineteen positive controls, one per JSON
+provider and one per HTML extractor, still holds.
+
+- **HiBob prepared its batch outside the per-record boundary.** Every record's
+  URL and location were built before any record reached `add`, so one without
+  an id raised a KeyError that failed the source and lost every valid posting
+  beside it. Records are now prepared one at a time, and one without an id is
+  a malformed record. Reproducer:
+  `CollectionTests.test_a_hibob_record_without_an_id_costs_itself_and_not_the_batch`.
+- **Eightfold's incremental pass skipped what its dates did not announce.** A
+  `since` pass stopped at the first posting published before the last run,
+  which is only safe if a posting's stated date moves when it appears or
+  changes. It need not: a posting can reach the index after its stated date,
+  and an edited one keeps the date it was published under. Both were invisible
+  to every incremental pass after, each reporting complete. An incremental pass
+  now reads back `RECONCILE_DAYS` (seven) before its watermark, and a board
+  whose last full pass is older than that, or unknown, is read in full. That
+  needs to know when the last full pass was, which `last_success_at` cannot
+  say because every incremental pass moves it, so migration `006` adds
+  `source_state.last_full_at`. Reproducers in `IncrementalReconciliationTests`.
+- **A first-page validator was taken to speak for the whole board.** The
+  first response's ETag became the source's validator, and a 304 on the next
+  pass's probe -- a request for page one -- ended the whole source, however
+  many pages the board had. A board that needs a second page now keeps no
+  validator; one read in a single response keeps its own. This also exposed
+  that a stored validator could never be cleared: see the correction to B26
+  above. A complete pass now states the validator exactly, including stating
+  that there is none. Reproducers:
+  `CollectionTests.test_a_validator_from_the_first_page_does_not_speak_for_the_second`
+  and `IncrementalReconciliationTests.test_a_complete_pass_without_a_validator_clears_the_stored_one`.
+- **A missing id was stringified into a link.** Oracle built `/job/None`,
+  which is a public HTTP address as far as any URL check can tell; the record
+  was accepted, the pass stayed complete, and the posting it could not identify
+  was taken as proof that a real one had been withdrawn. Workday, SmartRecruiters,
+  Phenom and AMD built links the same way. Each now refuses a record missing
+  the field its link is built from, which keeps the pass partial. Reproducer:
+  `CollectionTests.test_a_link_is_not_built_from_a_missing_id`.
+- **A page of unreadable records was read as a repeated page.** Pagination
+  took "nothing accepted" as the provider ignoring the offset, and a page of
+  malformed records also accepts nothing, so the pass stopped with every later
+  valid page unread and the provider blamed for it. Nothing accepted is a
+  repeat now only when nothing was refused either; the pass stays partial for
+  the rejects and carries on reading, within its page cap. Reproducer:
+  `CollectionTests.test_a_page_of_unreadable_records_is_not_a_repeated_page`.
+- **`--no-store` built the job store.** A missing index was bootstrapped to
+  read the catalog before the flag was consulted. It now reads the catalog
+  through a temporary database, as the plan preview already did. Reproducer:
+  `NoStoreTests.test_a_missing_index_is_not_built_to_read_the_catalog`.
+- **Structured data for some of a page's jobs hid the rest.** `html_items`
+  returned as soon as it found any JobPosting, so a page publishing metadata
+  for four of the five jobs it listed became a four-job inventory, and the
+  fifth -- still linked -- was retired by a pass that called itself complete,
+  under the closure fuse's threshold. Structured records are still preferred;
+  a listed job they do not cover is kept from its link. Covered means the same
+  address, or the same requisition where the provider's URLs carry one this
+  code can name. A page whose JSON-LD and links spell one job's address
+  differently can now list it twice, which is the recoverable direction.
+  Reproducer: `CollectionTests.test_structured_data_for_some_listed_jobs_does_not_hide_the_rest`.
+- **A sitemap detail page kept only its heading.** Where a detail page had no
+  JSON-LD, the fallback kept the H1 and the URL and discarded the page it had
+  just downloaded, so a posting whose requirements were written beneath its
+  heading reached the review queue as one that asked for nothing. The page's
+  main text is now kept as its description. Reproducer:
+  `SitemapDetailTests.test_the_requirements_under_the_heading_are_kept`.
+- **B45 on the direct path.** A whitespace title passed `normalize`'s check,
+  was emptied by cleaning afterwards and raised in SQLite at commit; a posting
+  date sent as an object raised there too. The title is now checked after
+  cleaning and the date dropped rather than refused, at the boundary both
+  intake paths share. Reproducer:
+  `CollectionTests.test_a_whitespace_title_is_refused_at_the_record_not_the_commit`.
+
 ### Paid discovery, B44-B49, from Codex's ninth audit, 2026-09-21 UTC (not deployed)
 
 All six in `jsearch.py`, where a posting bought from the provider is read,
@@ -532,6 +609,13 @@ The withdrawal is recorded in the round below, where the entry was.
   actually serves an ETag has not been checked against the live site; the
   trigger was reproduced offline. Reproducer:
   `CollectionTests.test_the_ti_shell_does_not_supply_the_boards_validator`.
+  **Correction, found in the B52 round:** this stopped the collector from
+  taking the shell's ETag, but a shell ETag already stored stayed stored.
+  `record_source` wrote validators with `COALESCE`, so a complete pass that
+  supplied none kept the old one, and `plan` went on returning `conditional`.
+  The handoff said the stale validator would be cleared by the next complete
+  pass; that was reasoned, never tested, and false. It is true since B52, with
+  `IncrementalReconciliationTests.test_a_complete_pass_without_a_validator_clears_the_stored_one`.
 
 ### Third review round, 2026-09-21 UTC (branch, not deployed)
 

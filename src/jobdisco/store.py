@@ -11,7 +11,7 @@ import json
 import os
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .paths import CONFIG, DATA, DB, ROOT
@@ -22,6 +22,12 @@ MIGRATION = CONFIG / 'migrations/002_job_store.sql'
 # across the whole result set. Only these may stop paginating early; a board
 # that merely trends newest-first would silently drop postings.
 MONOTONIC_NEWEST_FIRST = {'eightfold'}
+# How far behind its watermark an incremental pass on a newest-first board still
+# reads, and how old its last full pass may be before the next pass is a full
+# one. The overlap catches a posting that reached the index after its stated
+# date, and an edit to one published recently; the full pass catches the rest.
+# The same number for both, so nothing falls between them for longer than this.
+RECONCILE_DAYS = 7
 # Boards that publish <lastmod> per job URL, so unchanged detail pages are skipped.
 LASTMOD_SITEMAP = {'renesas_careers'}
 
@@ -51,6 +57,8 @@ def migrate(path=DB):
             db.executescript((CONFIG / 'migrations/004_relevance.sql').read_text(encoding='utf-8'))
         if '005_seen_jobs' not in applied:
             db.executescript((CONFIG / 'migrations/005_seen_jobs.sql').read_text(encoding='utf-8'))
+        if '006_source_full_pass' not in applied:
+            db.executescript((CONFIG / 'migrations/006_source_full_pass.sql').read_text(encoding='utf-8'))
 
 
 SEEN_SNAPSHOT = 'operational/seen_jobs.ndjson.gz'
@@ -184,7 +192,16 @@ def plan(source, state):
     if row.get('etag'):
         return 'conditional', row['etag']
     if source.provider_key in MONOTONIC_NEWEST_FIRST:
-        return 'since', row['last_success_at']
+        # B51: the watermark is when the last pass ran, and a posting's stated
+        # publication date need not be later than that for the posting to be
+        # new to us or changed since. Read back a week, and read everything
+        # when the last full pass is a week old or unknown.
+        last_success = datetime.fromisoformat(row['last_success_at'])
+        last_full = row.get('last_full_at')
+        if not last_full or (datetime.fromisoformat(now()) - datetime.fromisoformat(last_full)
+                             >= timedelta(days=RECONCILE_DAYS)):
+            return 'full', None
+        return 'since', (last_success - timedelta(days=RECONCILE_DAYS)).isoformat()
     if source.provider_key in LASTMOD_SITEMAP:
         return 'lastmod', row['last_success_at']
     return 'full', None
@@ -467,13 +484,23 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     if effective_status != 'complete':
         etag = last_modified = None
     db.execute(
+        # A complete pass states the source's validator, including stating that
+        # it has none. `COALESCE` kept the previous one whenever a pass supplied
+        # nothing, so a validator the collector had deliberately refused -- a TI
+        # shell's ETag, the first page of a board that turned out to have more --
+        # stayed in place for ever and went on answering 304 for the whole
+        # board. A pass that is not complete still leaves the stored one alone:
+        # `plan` will not use it while the last status is incomplete.
         '''INSERT INTO source_state (source_id, company_key, provider_key, etag,
                last_modified, last_success_at, last_run_at, last_status, strategy,
-               job_count, requests, note)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               job_count, requests, note, last_full_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(source_id) DO UPDATE SET
-               etag=COALESCE(excluded.etag, source_state.etag),
-               last_modified=COALESCE(excluded.last_modified, source_state.last_modified),
+               etag=CASE WHEN excluded.last_status = 'complete'
+                         THEN excluded.etag ELSE source_state.etag END,
+               last_modified=CASE WHEN excluded.last_status = 'complete'
+                                  THEN excluded.last_modified ELSE source_state.last_modified END,
+               last_full_at=COALESCE(excluded.last_full_at, source_state.last_full_at),
                last_success_at=COALESCE(excluded.last_success_at, source_state.last_success_at),
                last_run_at=excluded.last_run_at,
                last_status=excluded.last_status,
@@ -485,7 +512,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
          etag if effective_status == 'complete' else None,
          last_modified if effective_status == 'complete' else None,
          stamp if effective_status == 'complete' else None, stamp,
-         effective_status, strategy, seen_count, requests, effective_note))
+         effective_status, strategy, seen_count, requests, effective_note,
+         stamp if effective_status == 'complete' and strategy == 'full' else None))
     return {'seen': seen_count, 'new': new, 'closed': closed,
             'new_urls': fresh, 'changed_urls': changed,
             'seen_urls': sorted(live - set(fresh) - set(changed)),
