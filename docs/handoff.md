@@ -1,6 +1,25 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Experience parser: three explicit requirements it could not read - 2026-09-21 UTC
+
+B31-B33 from Codex's seventh audit, fixed on `main` directly after the merge
+that took Codex's documentation. The mechanisms are in the architecture bug
+log; four tests fail against the parser as it stood and ten pass on both sides.
+
+This one changes what the review queue shows, and in the direction that hides:
+a posting stating "5 years experience required, FPGA knowledge preferred", or
+"3 years" under a Required heading, or "3-year" or "2.5 years", was reaching
+the queue as though it stated no requirement at all. Those postings will stop
+appearing. Anything already decided keeps its decision -- the ledger is
+replayed, not recomputed -- so this affects the pending queue only.
+
+Not measured: no estimate of how many live postings use these phrasings. The
+audit says the same and calls them synthetic examples of explicit requirements,
+not a claim about their frequency.
+
+Measured: 465 offline tests, exit 0, 8 skips on Windows.
+
 # Fifth review round: three of my own fixes were wrong - 2026-09-21 UTC
 
 B27, B28 and B30 are defects in fixes made earlier in this session, found by

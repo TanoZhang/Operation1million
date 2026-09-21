@@ -136,6 +136,67 @@ class MentionedPeopleTests(unittest.TestCase):
                 self.assertEqual(found['hard_pass_reason'], '')
 
 
+class SectionsAndFormatsTests(unittest.TestCase):
+    """What a requirement may look like, and where its scope comes from."""
+
+    def found(self, body, title='ASIC Design Engineer'):
+        return experience.evaluate(title, body)
+
+    def test_an_optional_skill_does_not_erase_the_requirement_beside_it(self):
+        found = self.found('5 years experience required, FPGA knowledge preferred.')
+        self.assertEqual(found['required_experience_years'], 5)
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_marker_attaching_to_the_years_still_makes_them_optional(self):
+        for body in ('5+ years experience, preferred',
+                     '5 years experience, preferred',
+                     '5 years experience preferred, FPGA knowledge a plus.'):
+            with self.subTest(body=body):
+                self.assertEqual(self.found(body)['hard_pass_reason'], '')
+
+    def test_a_required_heading_makes_the_bullet_under_it_mandatory(self):
+        """The words are in the heading, not in the line carrying the number."""
+        found = self.found('Required qualifications:\n3 years of RTL design.')
+        self.assertEqual(found['required_experience_years'], 3)
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_preferred_heading_below_it_governs_its_own_bullets(self):
+        found = self.found('Required qualifications:\n2 years of RTL design.\n'
+                           'Preferred qualifications:\n6 years of DFT.')
+        self.assertEqual(found['hard_pass_reason'], '')
+
+    def test_a_deadline_under_a_required_heading_is_not_experience(self):
+        found = self.found('Required qualifications:\nDeliver two tape-outs within 3 years.')
+        self.assertEqual(found['hard_pass_reason'], '')
+
+    def test_responsibilities_end_the_required_section(self):
+        found = self.found('Requirements:\nBS in EE.\nResponsibilities:\n'
+                           'Own the block for 4 years.')
+        self.assertEqual(found['hard_pass_reason'], '')
+
+    def test_a_hyphen_can_carry_the_unit(self):
+        found = self.found('Minimum 3-year experience in RTL design.')
+        self.assertEqual(found['required_experience_years'], 3)
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_fractional_bound_is_neither_rounded_down_nor_split(self):
+        found = self.found('Minimum 2.5 years of professional experience.')
+        self.assertEqual(found['required_experience_years'], 2.5)
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_hyphenated_durations_that_are_not_work_stay_out(self):
+        for body in ('5-year roadmap required', '2-year degree required',
+                     '3-year program required', '5-year roadmap; 2-year degree'):
+            with self.subTest(body=body):
+                self.assertEqual(self.found(body)['hard_pass_reason'], '')
+
+    def test_exactly_two_years_is_still_within_the_gate(self):
+        for body in ('Minimum 2 years of experience.',
+                     'Required: 2.0 years of experience.'):
+            with self.subTest(body=body):
+                self.assertEqual(self.found(body)['hard_pass_reason'], '')
+
+
 class UpperBoundTests(unittest.TestCase):
     """A ceiling or a denial is not a floor."""
 

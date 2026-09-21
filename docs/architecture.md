@@ -135,6 +135,45 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Experience parser, from Codex's seventh audit, 2026-09-21 UTC (not deployed)
+
+Three ways an explicit requirement was read as no requirement at all. Each one
+kept a posting in the review queue that states terms disqualifying it, so all
+three fail in the direction that shows work rather than hides it -- which is
+why they survived: nothing downstream complains about a posting that is there.
+
+- **An optional skill erased the requirement standing beside it.** The clause
+  splitter cut a sentence only where a comma introduced another number, so
+  "5 years experience required, FPGA knowledge preferred" stayed one clause,
+  the trailing `preferred` matched, and the whole sentence was discarded --
+  requirement included. A comma now also cuts where it hands an optional marker
+  a subject of its own, which is what separates that sentence from "5 years
+  experience, preferred", where the same marker attaches to the years
+  themselves and still makes them optional. Reproducer:
+  `SectionsAndFormatsTests.test_an_optional_skill_does_not_erase_the_requirement_beside_it`.
+- **A required heading did not reach the bullet under it.** Headings only ever
+  cleared the optional context; they never established a required one. Under
+  "Required qualifications:", a line reading "3 years of RTL design." carries
+  none of the words the candidate test looks for -- `experience`, `required`, a
+  degree -- and is not a bare years expression either, so its three years were
+  discarded. There is now a required-section context beside the optional one.
+  They are not opposites: either heading replaces both, and Responsibilities,
+  About, Benefits or "What you" ends both. A bare duration admitted this way is
+  still refused where it is elapsed time rather than experience -- "deliver two
+  tape-outs within 3 years" is a deadline the job sets. Reproducer:
+  `SectionsAndFormatsTests.test_a_required_heading_makes_the_bullet_under_it_mandatory`.
+- **Two numeric formats read as no number.** "3-year experience" failed because
+  the unit had to be preceded by whitespace, and "2.5 years" failed because the
+  bound had to be an integer -- the decimal guard correctly refused to read the
+  trailing 5 as a separate number, and nothing else matched. Both are read now,
+  and 2.5 is kept as 2.5: rounding it down puts the posting on the other side
+  of a two-year gate. A hyphen carrying the unit does not make a roadmap, a
+  degree or a programme into experience; those are still refused by what
+  follows the number. Reproducers:
+  `SectionsAndFormatsTests.test_a_hyphen_can_carry_the_unit`,
+  `...test_a_fractional_bound_is_neither_rounded_down_nor_split`, and
+  `...test_hyphenated_durations_that_are_not_work_stay_out` holding the line.
+
 ### Fifth review round, 2026-09-21 UTC (branch, not deployed)
 
 Four, and three of them are defects in the fixes made earlier in this same
