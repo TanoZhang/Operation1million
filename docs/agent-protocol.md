@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Thirteenth offline audit: deployment, backup and workflow scripts, function by function; findings only.
+Files: docs/file-audit-round13-2026-09-21.md, docs/audit-repro-round13-2026-09-21.py, docs/agent-protocol.md
+Base commit: 5e78ae814514115866532bf96f8397d0331354d2
+Status: claimed
+Next: Exercise failure paths using temporary repositories and mocked commands; no production requests or business-code changes.
+```
+
+```text
 Owner:   claude
 Scope:   B63-B67 from the twelfth audit, and deployment of main to the VPS.
 Files:   src/jobdisco/{jsearch,collection_policy,ledger_guard}.py,
