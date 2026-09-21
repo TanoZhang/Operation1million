@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Tenth offline audit: function-by-function collector.py inspection, provider adapters, pagination and failure-to-store contracts; findings only.
+Files: docs/file-audit-round10-2026-09-21.md, docs/audit-repro-round10-2026-09-21.py, docs/agent-protocol.md
+Base commit: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
+Status: claimed
+Next: Reproduce new collector defects with synthetic responses and real temporary persistence; no external collection or business-code changes.
+```
+
+```text
+Owner: codex
 Scope: Ninth offline audit, complete function inventory of jsearch.py and concrete intake, filtering and cursor failure cases; findings only.
 Files: docs/file-audit-round9-2026-09-20.md, docs/audit-repro-round9-2026-09-20.py, docs/agent-protocol.md
 Base commit: 5166930b284bb070f38865685ec279c7d545de2f
