@@ -10,8 +10,8 @@ Scope: Fourteenth offline audit: complete source validator, query catalog, crede
 Files: docs/file-audit-round14-2026-09-21.md, docs/audit-repro-round14-2026-09-21.py, docs/agent-protocol.md
 Base commit: 74bec6a61db21250f4d86fb746c2182f16853dbc
 Inspected main: 5e78ae814514115866532bf96f8397d0331354d2
-Status: claimed
-Next: Reproduce validator and malformed-configuration cases with temporary files and mocked HTTP; no provider probing or business-code edits.
+Status: done
+Next: User reviews B74-B80 in docs/file-audit-round14-2026-09-21.md. Seven offline cases and adapter/credential controls pass; 118 existing tests pass without skips. Validator, legacy query catalog and credential loader function inventories complete. No provider probing or business-code edits.
 ```
 
 ```text
