@@ -201,9 +201,68 @@ class SoftBlockTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.title_blocked(title, self.rules))
 
+    def test_a_function_title_about_hardware_is_kept(self):
+        """The first version of this block dropped 38 early-career groups on
+        the live queue along with the supply planners it was aimed at."""
+        for title in ('AI GPU Power Architect - New College Grad 2026', 'CPU Power Engineer',
+                      'Intern - NAND Product Development Engineer', 'Product Validation Intern',
+                      'Intern Position (Custom IC Product Group)',
+                      'Hardware Products Early Career Rotation Program',
+                      'New College Grad - DRAM Product Test Engineer'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.title_blocked(title, self.rules))
+
+    def test_a_hardware_word_without_a_role_does_not_rescue(self):
+        for title in ('Business Operations Analyst, Processor', 'Supply Chain Planner, Memory'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.title_blocked(title, self.rules))
+
+    def test_the_older_block_is_not_softened(self):
+        """Analog and software were the user's own earlier choices, and a
+        hardware word never argued them back in."""
+        for title in ('Analog IC Design Engineer, Intern', 'GPU Fleet Software Development Engineer'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.title_blocked(title, self.rules))
+
     def test_principal_is_a_level(self):
         self.assertTrue(jsearch.excluded('Principal Digital Verification Engineer', self.rules))
         self.assertFalse(jsearch.excluded('Staff Digital Verification Engineer', self.rules))
+
+
+class UsPersonTests(unittest.TestCase):
+    """Asked for on 2026-09-22: a U.S. citizenship or U.S. person requirement
+    is a hard pass. The phrasings are the ones measured in the live index."""
+
+    def setUp(self):
+        self.rules = jsearch.load_plan()[0]['filter']
+
+    def test_the_requirement_is_recognised_however_it_is_put(self):
+        for text in ('Must be a U.S. citizen, lawful permanent resident of the U.S., or other U.S. Person.',
+                     'Due to applicable export control laws and regulations, candidates must be a '
+                     'U.S. citizen or national, U.S. permanent resident (i.e., current Green Card holder)',
+                     'This position requires that the candidate selected be a US Citizen.',
+                     'applicant must be a (i) U.S. citizen or national, (ii) U.S. lawful, permanent resident',
+                     'access to the AWS GovCloud region will be restricted to Amazon employees who are U.S. Citizens.',
+                     'US citizenship is required due to potential training delivery on military bases.'):
+            with self.subTest(text=text[:50]):
+                self.assertTrue(jsearch.us_person_required(text, self.rules))
+
+    def test_what_is_not_a_requirement_is_left_alone(self):
+        for text in ('We consider applicants without regard to race, citizenship status or national origin.',
+                     'the offer may be contingent upon your citizenship/permanent residency status or '
+                     'ability to obtain prior license approval',
+                     'Under these laws, U.S. persons (which includes U.S. citizens, lawful permanent '
+                     'residents, refugees, and asylees) will be',
+                     'Applicants must be authorized to work in the United States.',
+                     'We sponsor visas; no U.S. citizenship required.'):
+            with self.subTest(text=text[:50]):
+                self.assertFalse(jsearch.us_person_required(text, self.rules))
+
+    def test_it_is_a_hard_pass_whatever_the_title(self):
+        row = {'title': 'RTL Design Engineer Intern',
+               'raw': {'description': 'RTL UVM ASIC. Must be a U.S. citizen or U.S. person.'}}
+        self.assertEqual(jsearch.rejection_reason(row, self.rules), 'us_person_required')
+        self.assertIn('us_person_required', jsearch.HARD_REJECTIONS)
 
 
 class TitleTests(unittest.TestCase):
@@ -277,6 +336,12 @@ class QueueRulesTests(unittest.TestCase):
                 with closing(sqlite3.connect(self.db)) as db, db:
                     db.execute('UPDATE jobs SET title=?, provider_key=?', (title, provider))
                 self.assertEqual(bool(self.queue()['pending']), kept)
+
+    def test_a_us_person_requirement_hides_a_direct_posting(self):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET provider_key=?, raw=?', ('workday', json.dumps(
+                {'description': 'Candidates must be a U.S. citizen or U.S. permanent resident.'})))
+        self.assertEqual(self.queue()['pending'], [])
 
     def test_existing_high_score_defense_employer_is_hidden(self):
         with closing(sqlite3.connect(self.db)) as db, db:

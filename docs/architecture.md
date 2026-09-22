@@ -135,6 +135,38 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### A softer tier for the new title words, and a U.S.-person hard pass, 2026-09-22 UTC
+
+Both asked for by the user, after the previous entry's filter went live.
+
+- **The new title words took silicon roles with them.** Power, product,
+  manufacturing and the rest were added to the soft block, which a title
+  escaped only by carrying a keep pattern or a strong term. Measured on the live
+  queue, that dropped 38 early-career groups -- "AI GPU Power Architect - New
+  College Grad", NAND and DRAM product engineering internships, "Product
+  Validation Intern" -- with the supply planners it was aimed at. They are now
+  their own group, `function_title_patterns`, and a title is kept when it names
+  the hardware it is about (`hardware_title_terms`) and an engineering role or
+  an early-career opening (`role_title_terms`). "CPU Power Engineer" stays;
+  "Business Operations Analyst, Processor" does not. The older soft block --
+  software, analog, RF, quality and the rest, the user's earlier choices -- is
+  unchanged. Measured with this code on the live queue: all six probed titles
+  back, backlog 12,996 to 13,038.
+- **U.S. citizenship or U.S. person status is a hard pass.** Read from the
+  structured description by `jsearch.us_person_required` in both the paid
+  filter and the queue, with the patterns in the config beside the title rules.
+  Drafted against the live index: the first patterns matched 662 open
+  postings, all 25 sampled real requirements; the misses sampled among the
+  other mentions added "requires that the candidate selected be a US Citizen",
+  "must be a (i) U.S. citizen" and GovCloud's "restricted to ... who are U.S.
+  Citizens". Left alone on purpose: an offer "contingent upon ... citizenship
+  ... or ability to obtain prior license approval", a definition of who counts
+  as a U.S. person, EEO lines about citizenship status, and "no U.S.
+  citizenship required". It removes 122 groups from the live queue, 7 of them
+  early-career -- Blue Origin's "ASIC Engineer - Early Career", SpaceX's
+  "Silicon Engineering Internship/Co-op". Reproducers: `UsPersonTests` and
+  `QueueRulesTests.test_a_us_person_requirement_hides_a_direct_posting`.
+
 ### R02, the B23/B27 residual, O10, and the soft block on direct boards, 2026-09-22 UTC
 
 The three follow-ups Codex's fifteenth audit left open, and a filter change the

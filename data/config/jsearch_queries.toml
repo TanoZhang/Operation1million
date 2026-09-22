@@ -205,14 +205,6 @@ reject_title_patterns = [
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
   '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
 
-  # Asked for on 2026-09-22, from the review queue: words that name another
-  # function or discipline, dropped unless the title also names the trade.
-  # "Low Power Verification" and "Power-aware RTL" stay; "Power Integrity
-  # Engineer" and "Supply Chain Planner" go. `jsearch.title_blocked` applies
-  # this group to direct boards in the review queue as well as to paid results.
-  '\bpower\b', '\bproducts?\b', '\bsupply\b', '\bmanufactur', '\bmechanical\b',
-  '\bmagnetics?\b', '\b(?:project|program)\s+manag', '\boperations?\b',
-
   # Software roles at hardware companies -- but "software" is not by itself a
   # reason to drop a posting. Embedded, firmware, drivers and silicon bring-up
   # software are adjacent targets, and rejecting on the word alone removed 231
@@ -224,6 +216,54 @@ reject_title_patterns = [
   '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design)\b).*\bsoftware\s+(?:engineer|developer|development)\b',
   '\bweb\s+developer\b', '\bfront.?end\b', '\bback.?end\b', '\bfull.?stack\b',
   '\bdata\s+(?:engineer|scientist)\b', '\bdevops\b', '\bsite\s+reliability\b',
+]
+
+# Words that name another function, added 2026-09-22 at the user's request.
+# Softer than the group above: a title is dropped for one of these unless it
+# names the trade, as above, or names the hardware it is about *and* an
+# engineering role or an early-career opening. "CPU Power Engineer", "AI GPU
+# Power Architect - New College Grad" and "Intern - NAND Product Development
+# Engineer" are silicon work and stay; "Power Integrity Engineer", "Supply
+# Chain Planner" and "Business Operations Analyst, Processor" go.
+function_title_patterns = [
+  '\bpower\b', '\bproducts?\b', '\bsupply\b', '\bmanufactur', '\bmechanical\b',
+  '\bmagnetics?\b', '\b(?:project|program)\s+manag', '\boperations?\b',
+]
+# A requirement the applicant cannot meet: U.S. citizenship or U.S. person
+# status (citizen, permanent resident, refugee, asylee), usually for export
+# control. Read from the description and a hard pass, asked for on 2026-09-22.
+# Measured on the live index before deploying: 662 open postings matched the
+# first three, every one of 25 sampled a real requirement -- most of them
+# Amazon Leo's export-control clause. Deliberately not matched: "the offer may
+# be contingent upon your citizenship/permanent residency status or ability to
+# obtain prior license approval", which leaves a licence open, a statement
+# that merely defines who counts as a U.S. person, and EEO lines about
+# "citizenship status".
+us_person_required_patterns = [
+  '\b(?:must|shall|will\s+need\s+to|required\s+to|need\s+to)\s+(?:be|hold|have|possess|maintain)\s+(?:an?\s+)?(?:\((?:i|1|a)\)\s*)?(?:active\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizen|citizenship|person)\b',
+  '(?<!\bno\s)\b(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)\s+(?:is\s+)?(?:required|mandatory|a\s+requirement|a\s+must)\b',
+  '\brequires?\s+(?:(?:active|current)\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)\b',
+  '\brequires?\s+that\s+(?:the\s+)?(?:candidate|applicant|individual|person)s?(?:\s+selected)?\s+(?:be|is|are)\s+(?:an?\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizen|person)',
+  '\b(?:only|open\s+(?:only\s+)?to|restricted\s+to\s+(?:\w+\s+){0,3}who\s+are)\s+(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens|persons)\b',
+  '\b(?:U\.?\s?S\.?|United\s+States)\s+citizens?\s+only\b',
+  '\b(?:must|required\s+to)\s+(?:be|qualify\s+as)\s+(?:an?\s+)?["“]?(?:U\.?\s?S\.?|United\s+States)\s+person',
+]
+# What the work is on. Enough, with a role below, to keep a function title.
+hardware_title_terms = [
+  '\bchips?\b', '\bIC\b', '\b3D-?IC\b', '\bsilicon\b', '\bsemiconductors?\b',
+  '\bCPU\b', '\bGPU\b', '\bNPU\b', '\bTPU\b', '\bprocessors?\b', '\baccelerators?\b',
+  '\bSRAM\b', '\bDRAM\b', '\bNAND\b', '\bHBM\b', '\bmemory\b', '\bcircuits?\b',
+  '\bhardware\b', '\belectronics?\b', '\bEDA\b',
+  # Not subjects, but at the companies this collects from a "Product
+  # Validation" or "Product Engineer - Verification" title is silicon work.
+  '\bvalidation\b', '\bverification\b',
+]
+# The role half: engineering work, or an early-career opening of any kind.
+role_title_terms = [
+  '\bengineer', '\bdesign', '\barchitect', '\bverification\b', '\bvalidation\b',
+  '\btest\b', '\bcharacteri[sz]ation\b', '\bdevelopment\b', '\bdeveloper\b',
+  '\bintern', '\bco-?op\b', '\bnew\s+college\s+grad', '\bnew\s+grad', '\bgraduate\b',
+  '\bearly\s+career\b', '\bstudent\b', '\bapprentice',
 ]
 
 [[query]]

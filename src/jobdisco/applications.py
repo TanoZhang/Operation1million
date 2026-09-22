@@ -341,8 +341,11 @@ def queue(db_path=DB, path=None, now=None):
                     raw = json.loads(job.pop('raw') or '{}')
                 except (TypeError, ValueError):
                     raw = {}
-                experience = jsearch.experience_debug({'title': job['title'], 'raw': raw})
+                requirements = jsearch.description_text({'raw': raw}, structured=True)
+                experience = jsearch.experience_debug({'title': job['title'], 'raw': raw}, requirements)
                 if experience['hard_pass_reason']:
+                    continue
+                if jsearch.us_person_required(requirements, rules):
                     continue
                 job['experience_filter'] = experience
                 # An evidence title with supplied prose has to earn its place.

@@ -123,6 +123,8 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     if not isinstance(rules, dict):
         raise ValueError('filter must be a table')
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
+                  'function_title_patterns', 'hardware_title_terms', 'role_title_terms',
+                  'us_person_required_patterns',
                   'keep_title_patterns', 'evidence_title_patterns', 'strong_terms', 'common_terms'):
         expressions = rules.get(group, [])
         if not isinstance(expressions, list) or any(not isinstance(p, str) for p in expressions):
@@ -451,8 +453,24 @@ def title_blocked(title, rules):
     question through this, so a direct board's posting is held to the rule a
     paid result is.
     """
+    title = title or ''
+    if names_the_trade(title, rules):
+        return False
     combined = any_of(rules.get('reject_title_patterns', []))
-    return bool(combined and combined.search(title or '')) and not names_the_trade(title, rules)
+    if combined and combined.search(title):
+        return True
+    # The softer tier. Its words name a function that is sometimes silicon work
+    # and sometimes not, and the first version dropped both alike: measured on
+    # the live queue, 38 early-career groups -- "AI GPU Power Architect - New
+    # College Grad", NAND and DRAM product engineering internships -- went with
+    # "Supply Chain Planner". A title that says what hardware it is about and
+    # what engineering it does, or that it is an early-career opening, is kept.
+    function = any_of(rules.get('function_title_patterns', []))
+    if not (function and function.search(title)):
+        return False
+    subject = any_of(rules.get('hardware_title_terms', []))
+    role = any_of(rules.get('role_title_terms', []))
+    return not (subject and subject.search(title) and role and role.search(title))
 
 
 def employer_excluded(row, rules):
@@ -591,9 +609,23 @@ def description_text(row, structured=False):
     return WHITESPACE.sub(' ', TAGS.sub(' ', ' '.join(parts))).strip()
 
 
-def experience_debug(row):
+def experience_debug(row, text=None):
     from .experience import evaluate
-    return evaluate(row.get('title'), description_text(row, structured=True))
+    return evaluate(row.get('title'),
+                    description_text(row, structured=True) if text is None else text)
+
+
+def us_person_required(text, rules):
+    """Whether the posting's own text requires U.S. citizenship or U.S. person status.
+
+    A hard pass, asked for on 2026-09-22: the applicant cannot meet it, so no
+    title or score argues it back in. Read from the structured text, the same
+    text the experience requirement is read from, so a paid listing a direct
+    posting has superseded cannot impose a requirement the company never
+    stated. What the patterns deliberately leave alone is in the config.
+    """
+    combined = any_of(rules.get('us_person_required_patterns', []))
+    return bool(combined and combined.search(text or ''))
 
 
 def rejection_reason(row, rules, description=None, score=None):
@@ -631,11 +663,14 @@ def rejection_reason(row, rules, description=None, score=None):
             prose = description_text(row)
         return prose
 
-    experience = experience_debug(row)
+    requirements = description_text(row, structured=True)
+    experience = experience_debug(row, requirements)
     if isinstance(row.get('raw'), dict):
         row['raw']['experience_filter'] = experience
     if experience['hard_pass_reason']:
         return experience['hard_pass_reason']
+    if us_person_required(requirements, rules):
+        return 'us_person_required'
     # Before the keeps, not after: the point of an evidence title is that its
     # name is not trusted, and a title that also happens to match a keep would
     # otherwise skip the check it exists for. A posting that really is the trade
@@ -660,7 +695,8 @@ def rejection_reason(row, rules, description=None, score=None):
 
 # Mechanical hard passes, including explicit required work experience.
 # Missing descriptions and domain-vocabulary judgements remain separate.
-HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'required_experience_over_2_years'})
+HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'required_experience_over_2_years',
+                             'us_person_required'})
 
 
 # Early career is what this search is for, so it is asked first -- all three
