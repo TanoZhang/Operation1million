@@ -147,6 +147,17 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Evidence-backed recruitment domain exclusions, 2026-09-22 UTC
+
+The user limited new blocks to reliable fraud evidence. Thirteen recruitment
+domains named in DOJ's June 10, 2026 seizure announcement now live in
+`exclude_publisher_domains`, separately from earlier preference text patterns.
+The existing paid filter and Review queue share exact host/subdomain matching;
+domain mentions in paths and queries do not cause rejection. Existing broader
+preference exclusions are unchanged. See `docs/blocked-recruitment-domains.md`
+for the complete list, official source, evidentiary limits and offline checks.
+No deployment or production hit count is claimed.
+
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 

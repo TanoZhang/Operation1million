@@ -122,6 +122,12 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     rules = config.setdefault('filter', {})
     if not isinstance(rules, dict):
         raise ValueError('filter must be a table')
+    domains = rules.get('exclude_publisher_domains', [])
+    if not isinstance(domains, list) or any(
+            not isinstance(domain, str) or not re.fullmatch(
+                r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}', domain)
+            for domain in domains):
+        raise ValueError('filter.exclude_publisher_domains must be an array of lowercase DNS domains')
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
                   'function_title_patterns', 'hardware_title_terms', 'role_title_terms',
                   'us_person_required_patterns', 'exclude_publisher_patterns',
@@ -481,10 +487,25 @@ def publisher_excluded(url, raw, rules):
     whichever says so. The whole link rather than its host since the user
     asked for "trabajo" to go wherever it appears, an Amazon address included.
     """
+    publisher = raw.get('job_publisher') if isinstance(raw, dict) else None
+    # Evidence-backed domains are host matches, separate from the user's
+    # broader text exclusions. Never match a domain mentioned in a URL path.
+    for value in (url, publisher):
+        if not isinstance(value, str) or not value.strip():
+            continue
+        value = value.strip()
+        try:
+            host = urlsplit(value if '://' in value or value.startswith('//')
+                            else '//' + value).hostname
+        except ValueError:
+            continue
+        host = (host or '').lower().rstrip('.')
+        if any(host == domain or host.endswith('.' + domain)
+               for domain in rules.get('exclude_publisher_domains', [])):
+            return True
     combined = any_of(rules.get('exclude_publisher_patterns', []))
     if not combined:
         return False
-    publisher = raw.get('job_publisher') if isinstance(raw, dict) else None
     return bool(combined.search(url or '')
                 or (isinstance(publisher, str) and combined.search(publisher)))
 

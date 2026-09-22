@@ -392,6 +392,45 @@ class QueueRulesTests(unittest.TestCase):
                                                        json.dumps({'job_publisher': 'Trabajo.org'})))
         self.assertEqual(self.queue()['pending'], [])
 
+    def test_evidence_domains_reject_before_keeps_and_hide_existing_rows(self):
+        rules = jsearch.load_plan()[0]['filter']
+        self.assertEqual(len(rules['exclude_publisher_domains']), 13)
+        for domain in rules['exclude_publisher_domains']:
+            for url in (f'https://{domain}/job/1', f'https://JOBS.{domain.upper()}.:443/job/1'):
+                with self.subTest(url=url):
+                    row = {'title': 'RTL Design Intern', 'url': url, 'raw': {}}
+                    self.assertEqual(jsearch.rejection_reason(row, rules), 'excluded_publisher')
+                    with closing(sqlite3.connect(self.db)) as db, db:
+                        db.execute('UPDATE jobs SET url=?', (url,))
+                    self.assertEqual(self.queue()['pending'], [])
+            self.assertTrue(jsearch.publisher_excluded(
+                'https://example.test/job', {'job_publisher': domain}, rules))
+
+    def test_evidence_domains_do_not_match_other_hosts_or_mentions(self):
+        rules = jsearch.load_plan()[0]['filter']
+        domain = rules['exclude_publisher_domains'][0]
+        for url in (f'https://not{domain}/job', f'https://{domain}.example.test/job',
+                    f'https://example.test/{domain}', f'https://example.test/?ref={domain}',
+                    f'https://{domain}@example.test/job', 'https://[broken', None):
+            with self.subTest(url=url):
+                self.assertFalse(jsearch.publisher_excluded(url, {}, rules))
+        self.assertFalse(jsearch.publisher_excluded(
+            'https://example.test', {'job_publisher': 'Report about ' + domain}, rules))
+        self.assertTrue(jsearch.publisher_excluded(
+            f'https://example.test@{domain}/job', {}, rules))
+        self.assertTrue(jsearch.publisher_excluded(
+            f'//{domain}/job', {}, {'exclude_publisher_domains': [domain]}))
+
+    def test_domain_configuration_rejects_urls_wildcards_and_wrong_types(self):
+        config = self.db.parent / 'plan.toml'
+        for value in ('"example.com"', '[42]', '["https://example.com"]',
+                      '["*.example.com"]', '["example.com/path"]', '["Example.com"]'):
+            with self.subTest(value=value):
+                config.write_text('[filter]\nexclude_publisher_domains = ' + value,
+                                  encoding='utf-8')
+                with self.assertRaisesRegex(ValueError, 'exclude_publisher_domains'):
+                    jsearch.load_plan(config)
+
     def test_a_us_person_requirement_hides_a_direct_posting(self):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute('UPDATE jobs SET provider_key=?, raw=?', ('workday', json.dumps(
