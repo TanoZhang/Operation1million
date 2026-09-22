@@ -1,6 +1,20 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# User-supplied domain exclusions - 2026-09-22 UTC (codex, not deployed)
+
+Added all eight domains from the user's explicit list to the existing hard
+domain blocklist: trabajo.org, bebee.com, experteer.com, jobsora.com, geebo.com,
+higher-hire.com, nexxt.com and adviesvanspijk.nl. The list now has 21 distinct
+entries including the prior 13 DOJ-seized domains. These eight are documented
+as preference exclusions, without adopting the supplied fraud allegations.
+Existing broader publisher patterns remain unchanged. Domain and subdomain
+checks apply before paid keeps and when reading the Review queue. No deployment
+or live measurement was performed. Fetched main remained d9aed44; no overlapping
+remote work needed integration.
+All 35 offline Review rules tests passed, including every configured domain,
+subdomains, hard rejection before keeps, and hiding existing indexed rows.
+
 # Evidence-backed recruitment blocklist - 2026-09-22 UTC (codex, not deployed)
 
 The user explicitly chose reliable fraud evidence over excluding all third-party

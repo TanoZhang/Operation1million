@@ -147,6 +147,15 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Eight explicit user domain exclusions, 2026-09-22 UTC
+
+The user subsequently supplied trabajo.org, bebee.com, experteer.com,
+jobsora.com, geebo.com, higher-hire.com, nexxt.com and adviesvanspijk.nl as
+hard exclusions. All eight now share the exact host/subdomain filter with
+the 13 enforcement-backed domains. Their reason is user preference, not a
+new fraud finding. Earlier broader text patterns remain unchanged. Offline
+regressions cover all 21 entries in paid filtering and existing Review rows.
+
 ### Evidence-backed recruitment domain exclusions, 2026-09-22 UTC
 
 The user limited new blocks to reliable fraud evidence. Thirteen recruitment

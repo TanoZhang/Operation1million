@@ -2,6 +2,9 @@
 
 Reviewed 2026-09-22 UTC. The user requested exclusions backed by reliable
 fraud evidence, not a blanket ban on third-party job boards.
+In a subsequent explicit instruction, the user supplied eight additional
+domains to hard-block as a preference. Both groups are enforced; their
+evidentiary status is kept separate.
 
 ## Added: 13 domains seized in a fake recruitment investigation
 
@@ -38,6 +41,23 @@ No application decisions, raw provider records or historical logs are deleted.
 
 ## Existing preference blocks
 
+The user's explicit domain list is now included in
+`filter.exclude_publisher_domains`, with the same exact-host and subdomain
+matching as the enforcement-backed group:
+
+- trabajo.org
+- bebee.com
+- experteer.com
+- jobsora.com
+- geebo.com
+- higher-hire.com
+- nexxt.com
+- adviesvanspijk.nl
+
+These eight entries are authorized exclusions, not independently verified
+findings of fraud. There are 21 distinct domain entries in total. Existing
+broader publisher text patterns remain in effect.
+
 Trabajo.org, Advies Van Spijk and Experteer retain their previously requested
 text exclusions. This research did not establish authoritative fraud findings
 against them. They must not be described as proven scams merely because they
@@ -58,7 +78,7 @@ enforcement announcement are not implicated as fraudulent platforms.
 
 ## Verification and limits
 
-Offline regressions cover all 13 domains, subdomains, mixed case, trailing DNS
+Offline regressions cover all 21 domains, subdomains, mixed case, trailing DNS
 dots, rejection before keeps, existing Review rows, publisher domains, URL
 userinfo, misleading suffixes, path/query mentions and malformed URLs. This
 is an evidence-backed starter list, not a complete global scam registry.

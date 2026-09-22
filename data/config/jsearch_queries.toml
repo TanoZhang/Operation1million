@@ -261,6 +261,15 @@ exclude_publisher_domains = [
   'thetruthinfo.com',
   'vandercons.com',
   'gulfpeace.org',
+  # Explicit user exclusions, separate from the DOJ evidence above.
+  'trabajo.org',
+  'bebee.com',
+  'experteer.com',
+  'jobsora.com',
+  'geebo.com',
+  'higher-hire.com',
+  'nexxt.com',
+  'adviesvanspijk.nl',
 ]
 
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person

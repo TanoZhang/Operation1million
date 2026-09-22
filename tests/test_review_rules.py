@@ -394,7 +394,12 @@ class QueueRulesTests(unittest.TestCase):
 
     def test_evidence_domains_reject_before_keeps_and_hide_existing_rows(self):
         rules = jsearch.load_plan()[0]['filter']
-        self.assertEqual(len(rules['exclude_publisher_domains']), 13)
+        domains = rules['exclude_publisher_domains']
+        self.assertEqual(len(domains), 21)
+        self.assertEqual(len(set(domains)), len(domains))
+        self.assertTrue({'trabajo.org', 'bebee.com', 'experteer.com', 'jobsora.com',
+                         'geebo.com', 'higher-hire.com', 'nexxt.com',
+                         'adviesvanspijk.nl'}.issubset(domains))
         for domain in rules['exclude_publisher_domains']:
             for url in (f'https://{domain}/job/1', f'https://JOBS.{domain.upper()}.:443/job/1'):
                 with self.subTest(url=url):
