@@ -239,6 +239,32 @@ class SoftBlockTests(unittest.TestCase):
         self.assertFalse(jsearch.excluded('Staff Digital Verification Engineer', self.rules))
 
 
+class TitleOnlyFitTests(unittest.TestCase):
+    """Asked for on 2026-09-22: a posting with no description should be judged
+    on its title, not read as barely relevant for lacking one."""
+
+    def setUp(self):
+        self.rules = jsearch.load_plan()[0]['filter']
+
+    def fit(self, title, description=''):
+        return jsearch.relevance({'title': title, 'raw': {'description': description}}, self.rules)[0]
+
+    def test_a_title_without_a_description_scores_like_its_band(self):
+        self.assertGreaterEqual(self.fit('Design Verification Intern'), 55)
+        self.assertGreaterEqual(self.fit('RTL Design Engineer'), 62)
+        self.assertGreaterEqual(self.fit('Firmware Engineer'), 21)
+        self.assertEqual(self.fit('Onsite Medical Representative'), 0)
+
+    def test_the_floor_never_lowers_and_never_rescues_an_exclusion(self):
+        described = 'RTL UVM SystemVerilog ASIC SoC Verilog testbench ' * 40
+        self.assertGreater(self.fit('Design Verification Intern', described), 55)
+        self.assertEqual(self.fit('Senior RTL Engineer'), 0)
+
+    def test_an_evidence_title_still_has_to_earn_it(self):
+        self.assertLess(self.fit('RFIC Digital Verification Engineer', 'Short.'),
+                        self.rules['min_confidence'])
+
+
 class UsPersonTests(unittest.TestCase):
     """Asked for on 2026-09-22: a U.S. citizenship or U.S. person requirement
     is a hard pass. The phrasings are the ones measured in the live index."""
@@ -346,6 +372,24 @@ class QueueRulesTests(unittest.TestCase):
                 with closing(sqlite3.connect(self.db)) as db, db:
                     db.execute('UPDATE jobs SET title=?, provider_key=?', (title, provider))
                 self.assertEqual(bool(self.queue()['pending']), kept)
+
+    def test_a_posting_located_only_abroad_is_hidden(self):
+        for where, kept in (('IN, KA, Bengaluru', False), ('Hiroshima, Japan', False),
+                            ('US, CA, Santa Clara', True), ('', True), ('2 Locations', True)):
+            with self.subTest(where=where):
+                with closing(sqlite3.connect(self.db)) as db, db:
+                    db.execute('UPDATE jobs SET location=?', (where,))
+                self.assertEqual(bool(self.queue()['pending']), kept)
+
+    def test_a_requisition_also_offered_in_the_us_keeps_that_listing(self):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET location='Bangalore, India'")
+            db.execute("""INSERT INTO jobs SELECT 'https://example.test/austin', company_key, title,
+                'Austin, Texas', source_job_id, first_seen, posted_at, provider_key, relevance,
+                closed_at, raw FROM jobs""")
+        pending = self.queue()['pending']
+        self.assertEqual([job['location'] for group in pending for job in group['jobs']],
+                         ['Austin, Texas'])
 
     def test_less_related_takes_both_the_last_band_and_a_low_score(self):
         """Asked for on 2026-09-22: barely related postings go to the back."""

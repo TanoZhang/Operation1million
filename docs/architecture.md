@@ -170,6 +170,35 @@ No deployment or production hit count is claimed.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Postings located only abroad, and a title's Fit without a description, 2026-09-22 UTC
+
+Both asked for by the user.
+
+- **Located only outside the U.S.** `location.country` places a location
+  string as U.S., abroad, or unknown, in every format the live queue holds:
+  "US, WA, Seattle" and "IN, KA, Bengaluru" (country code first), "Bangalore,
+  India", "..., United States of America", Apple's "Location Cupertino", a
+  bare "Austin, Texas". A U.S. sign wins -- a written-out state, "United
+  States", a U.S. city, a state code that is not also a country code -- so
+  "Dublin, California", "Paris, TX" and a multi-city string naming Austin stay.
+  Blank, "2 Locations", "Remote" and anything unplaced are unknown and kept.
+  The queue drops a listing only when it is placed abroad; a requisition also
+  offered in the U.S. keeps that listing. Measured on the live queue before
+  deploying: of 12,647 listings, 5,752 placed in the U.S., 5,446 abroad and
+  1,449 unknown (826 blank); 5,404 groups were located only abroad, 183 of them
+  in the recent tab. Reproducers: `tests/test_location.py` and
+  `QueueRulesTests.test_a_posting_located_only_abroad_is_hidden`.
+- **No description no longer means a low Fit.** Most boards publish none, and a
+  posting was scored on its title's words alone: "Design Verification Intern"
+  scored 12. A posting whose description is absent or shorter than
+  `min_description_chars` now scores at least `title_only_floor` for its
+  title's band -- the median score of postings in that band that do publish a
+  full description, measured on the live index: 55, 50, 62, 21 and 0, where
+  the same bands without one had medians of 29, 12, 21, 0 and 0. A floor only:
+  a higher score is kept, an excluded title still scores 0, and an RF evidence
+  title is not floored, since its name is what may not be trusted. Stored
+  scores change on `job-store --rescore`. Reproducer: `TitleOnlyFitTests`.
+
 ### One review list, less related last; hands-on durations, 2026-09-22 UTC
 
 - **The review tab is one list to work down**, at the user's request: postings

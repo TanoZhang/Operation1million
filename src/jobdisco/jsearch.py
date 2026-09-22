@@ -144,6 +144,10 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     # leaves the curve to separate postings a fixed cut would have tied.
     floors = dict.fromkeys(defaults, 1)
     floors['certain_strong_hits'] = 0
+    title_floor = rules.setdefault('title_only_floor', [])
+    if (not isinstance(title_floor, list) or len(title_floor) > 5
+            or any(type(value) is not int or not 0 <= value <= 100 for value in title_floor)):
+        raise ValueError('filter.title_only_floor must list up to five integers from 0 to 100')
     for name, default in defaults.items():
         rules.setdefault(name, default)
         if type(rules[name]) is not int or rules[name] < floors[name]:
@@ -559,7 +563,23 @@ def relevance(row, rules, description=None):
     if certain and strong_hits >= certain:
         return 100, matched
     half = rules.get('half_score', 15)
-    return (round(100 * score / (score + half)) if score else 0), matched
+    confidence = round(100 * score / (score + half)) if score else 0
+    # A posting whose board publishes no description -- or only an excerpt --
+    # was scored on its title's few words and read as barely relevant: "Design
+    # Verification Intern" scored 12. The user asked on 2026-09-22 for the
+    # title to decide instead. So such a posting scores at least what a posting
+    # with the same kind of title typically scores when it does publish a full
+    # description; see `title_only_floor` in the config for the measurement.
+    # Only a floor: a higher score from the words it has is kept. Not for an
+    # evidence title, whose name is exactly what may not be taken on trust.
+    if (len(description) < rules.get('min_description_chars', 1500)
+            and not needs_evidence(title, rules)):
+        from .ranking import bucket
+        floors = rules.get('title_only_floor', [])
+        band = bucket(title)
+        if band < len(floors):
+            confidence = max(confidence, floors[band])
+    return confidence, matched
 
 
 # Fields that carry no prose, so scanning them only invites false matches.

@@ -10,7 +10,7 @@ import uuid
 
 from .paths import DB, DATA
 from .job_text import clean_title
-from . import jsearch, ranking
+from . import jsearch, location, ranking
 
 
 def ledger_path():
@@ -348,6 +348,11 @@ def queue(db_path=DB, path=None, now=None):
                 if jsearch.us_person_required(requirements, rules):
                     continue
                 if jsearch.publisher_excluded(job['url'], raw, rules):
+                    continue
+                # Located only abroad, at the user's request on 2026-09-22. Per
+                # listing, so a requisition also offered in Austin keeps its
+                # Austin listing; a location this cannot place is kept.
+                if location.outside_us(job['location']):
                     continue
                 job['experience_filter'] = experience
                 # A paid listing's link is wherever Google Jobs found the

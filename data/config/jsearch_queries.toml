@@ -67,6 +67,13 @@ title_multiplier = 2
 # Below this length a description was truncated by the publisher rather than
 # genuinely silent, so its silence is not counted as evidence against a posting.
 min_description_chars = 1500
+# The least a posting scores when it has no description, or one shorter than
+# the line above, by its title's band in `ranking` -- intern/new grad, related
+# intern/new grad, core VLSI, related hardware, other. Each is the median score
+# of postings in that band that do publish a full description, measured on the
+# live index on 2026-09-22 (55, 50, 62, 21, 0 over 67, 57, 893, 783 and 12,571
+# postings); the same titles without one had medians of 29, 12, 21, 0 and 0.
+title_only_floor = [55, 50, 62, 21, 0]
 
 # Hard exclusions, checked before anything else. These answer "would I take this
 # job at all", which no amount of relevance can overturn: a defence programme is
