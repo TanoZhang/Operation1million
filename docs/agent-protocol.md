@@ -5,6 +5,33 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Separate degree text preparation from qualification policy and improve documentation navigation; preserve behavior.
+Files: src/jobdisco/degree.py, docs/{agent-protocol,handoff,architecture}.md
+Base commit: feda989aa91d407408f2df1d21e6f5eb8f985407
+Status: done
+Next: Review structure-only refactor. All 89 focused tests pass; 38,302 local postings have identical before/after degree verdicts.
+```
+
+```text
+Owner: codex
+Scope: Normalize coding practices and withdraw export/field-removal changes following the user's lossless-only clarification.
+Files: src/jobdisco/{degree,jsearch}.py, docs/{coding-standards,agent-protocol,handoff}.md
+Base commit: feda989aa91d407408f2df1d21e6f5eb8f985407
+Status: done
+Next: Continue measured lossless storage design under docs/coding-standards.md. All 89 focused tests pass; no deployment.
+```
+
+```text
+Owner: codex
+Scope: Fix PhD-only preference and structured-section boundary errors; centralize hard eligibility checks; no deployment.
+Files: src/jobdisco/{degree,jsearch,applications}.py, tests/{test_degree,test_review_rules}.py, docs/{agent-protocol,architecture,handoff}.md
+Base commit: feda989aa91d407408f2df1d21e6f5eb8f985407
+Status: done
+Next: Review local patch; latest alternative-scope fix and regex reuse pass all 89 focused tests. Not deployed.
+```
+
+```text
 Owner:   claude
 Scope:   Review queue filters and order at the user's direction, 2026-09-22:
          screened and merged codex (B68-B84, answer bank, sort, domain lists),

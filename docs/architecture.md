@@ -30,6 +30,9 @@ collection history, not the working state.
 
 ## Modules
 
+Coding and lossless optimization requirements: [coding standards](coding-standards.md).
+Current patch status and measurements: newest section of [handoff](handoff.md).
+
 ### Collection
 
 | File | Owns |
@@ -46,6 +49,7 @@ collection history, not the working state.
 | --- | --- |
 | `jsearch.py` | The JSearch plan, transport, and everything that decides whether a posting is kept. `load_plan` validates the config; `collect` pages the plan breadth-first within a tier; `rejection_reason` is the filter; `relevance` is the score. `TIER_ORDER` decides which queries get the budget first. |
 | `experience.py` | Deterministic required-experience parsing shared by discovery and Review, including explicit entry-level overrides and required versus preferred clauses. |
+| `degree.py` | PhD-only qualification policy. Text preparation preserves structured field boundaries; title and description decisions share degree patterns. |
 | `jsearch_access.py` | Money. Reserves a page credit **before** the request leaves, so a crash or a timeout still shows it as spent. Owns the daily allowance, the 30-day cycle, the provider cooldown, and the resumable sweep cursor. `budget_day()` decides which day's allowance is being spent. |
 | `ledger_guard.py` | Refuses to start a pass whose local credit ledger is behind the published one, which would spend credits twice. |
 | `data/config/jsearch_queries.toml` | The plan and the filter rules, with the reasoning for each in comments. Editing a term list here changes what is collected on the next pass. |
@@ -169,6 +173,70 @@ No deployment or production hit count is claimed.
 
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
+
+### Four reported by the user against the live rules, 2026-09-22 UTC
+
+All four reproduced exactly as reported.
+
+- **Several places read as one string, so their order decided the answer.**
+  A semicolon separates places and a comma separates one place's parts, and
+  `country` split on commas alone: "Salem, Oregon; Toronto, Canada" left
+  "Oregon; Toronto" as no state and the posting was removed, while the same
+  two places the other way round were kept. "Paris, TX; Toronto, Canada" went
+  the same way. Each place is now read on its own and one U.S. place keeps the
+  posting.
+- **A U.S. city name beat a country written out.** "Burlington, Canada" read
+  as the U.S. city. A country stated in full now decides before any city list;
+  a written-out state or "United States" still beats everything, so "Dublin,
+  California" and "Paris, TX" stay. Measured against the live index: six open
+  postings change from U.S. to abroad -- "Costa Rica, San Jose" and four
+  "Phoenix Building, Bangalore, India" -- and none the other way.
+- **A stated master's alternative was skipped as a heading.** "Or Master's
+  degree required." is four words and names a required section, so it was
+  taken for a heading before anything read the degree in it, and
+  "PhD required.\nOr Master's degree required." came back PhD-only. What a
+  block says about degrees is now read before it can be taken for a heading.
+- **A short preference opened a preferred section.** "Python preferred." was
+  read as a Preferred heading, which then suppressed "PhD required." on the
+  next line. A heading must now be written as one: it ends in a colon or names
+  a qualification section, so "Preferred qualifications:" and "Nice to have"
+  still open one.
+
+No live posting hit either degree bug, so the queue is unchanged there.
+Reproducers: `ReportedBugTests` in `tests/test_location.py` and
+`tests/test_degree.py`.
+
+### PhD preference and structured-field boundaries, 2026-09-22 UTC
+
+Follow-up review caught an overbroad alternative in the working-tree fix:
+`PhD required. Relevant experience with Python.` incorrectly stayed because
+the alternative matcher made `or` optional. Relevant/comparable experience now
+needs an explicit `or`; an additional skill does not erase a PhD requirement.
+Each description block also reuses its PhD and other-degree matches instead
+of scanning for them again. All 89 focused degree, experience and Review-rule
+tests passed after this follow-up; no production measurement is claimed.
+
+The first PhD-only filter treated any title naming only a PhD as exclusive,
+including `Engineer - PhD Preferred`. It also read the `PhD required`
+substring inside `No PhD required` as a requirement, and did not recognize
+`PhD or relevant/comparable experience` as another route. Preference,
+optional/negated requirements and explicit experience alternatives now stay in
+both titles and descriptions; positive `PhD required` controls still reject.
+
+The filter also split structured descriptions on the field-end marker without
+acting on that marker. A preferred heading could therefore suppress a real
+requirement in the next raw field, while a required heading could turn prose
+in the next field into a requirement. Degree parsing now shares the existing
+`experience.SECTION_END` contract and resets both heading states at every raw
+field boundary. Raw-payload regressions cover both directions. No indexed data
+or durable decisions changed.
+
+The same fix also removed duplicated orchestration between paid intake and the
+Review queue. `jsearch.eligibility_rejection` now owns the ordered experience,
+U.S.-person and PhD checks and returns the shared experience parse to either
+caller. This is a behavior-preserving maintenance boundary: adding a later hard
+eligibility rule cannot silently reach only one path. The full offline suite
+passed: 624 discovered, 615 executed and nine environment skips on Windows.
 
 ### PhD-only postings, 2026-09-22 UTC
 

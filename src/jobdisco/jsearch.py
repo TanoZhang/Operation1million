@@ -700,6 +700,32 @@ def us_person_required(text, rules):
 HEDGED = re.compile(r'\b(?:if|may|might|could|where|whether|should)\b', re.I)
 
 
+def eligibility_rejection(row, rules, requirements=None):
+    """Return the posting-level eligibility rejection and parsed experience.
+
+    Paid intake and the Review queue must apply these hard checks in the same
+    order. Keeping the orchestration here prevents a newly added eligibility
+    rule from reaching one path but not the other.
+
+    Updates raw['experience_filter'] when raw is a dictionary, preserving the
+    paid collector's diagnostic contract. The supplied requirements, when
+    present, must be structured text from this same row.
+    """
+    requirements = (description_text(row, structured=True)
+                    if requirements is None else requirements)
+    experience = experience_debug(row, requirements)
+    if isinstance(row.get('raw'), dict):
+        row['raw']['experience_filter'] = experience
+    reason = experience['hard_pass_reason']
+    if not reason and us_person_required(requirements, rules):
+        reason = 'us_person_required'
+    if not reason:
+        from .degree import phd_only
+        if phd_only(row.get('title'), requirements):
+            reason = 'phd_only'
+    return reason, experience
+
+
 def rejection_reason(row, rules, description=None, score=None):
     """Title first, then the posting's vocabulary; the unreadable is kept.
 
@@ -737,17 +763,9 @@ def rejection_reason(row, rules, description=None, score=None):
             prose = description_text(row)
         return prose
 
-    requirements = description_text(row, structured=True)
-    experience = experience_debug(row, requirements)
-    if isinstance(row.get('raw'), dict):
-        row['raw']['experience_filter'] = experience
-    if experience['hard_pass_reason']:
-        return experience['hard_pass_reason']
-    if us_person_required(requirements, rules):
-        return 'us_person_required'
-    from .degree import phd_only
-    if phd_only(title, requirements):
-        return 'phd_only'
+    reason, _ = eligibility_rejection(row, rules)
+    if reason:
+        return reason
     # Before the keeps, not after: the point of an evidence title is that its
     # name is not trusted, and a title that also happens to match a keep would
     # otherwise skip the check it exists for. A posting that really is the trade

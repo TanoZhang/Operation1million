@@ -1,6 +1,72 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Current patch overview - 2026-09-22 UTC (not deployed)
+
+Base: feda989aa91d407408f2df1d21e6f5eb8f985407 plus the local working tree.
+The patch fixes PhD preference, negation, alternative-experience and structured
+field boundary handling, and shares eligibility checks between intake and Review.
+The latest structural change separates description preparation from degree
+policy and groups patterns before helpers. All 89 focused tests pass; comparing
+the immediate pre-refactor code with the refactor on 38,302 local stored postings
+produced zero changed degree verdicts. This is local evidence, not a VPS run.
+
+Documentation responsibilities: this handoff records current status;
+[architecture](architecture.md) maps modules and preserves bug evidence;
+[coding standards](coding-standards.md) defines implementation conventions and
+the user's lossless storage requirement. Historical detail follows below.
+
+No field removal, export-format change, stored-data rewrite or deployment is
+included. Disk savings have not yet been implemented; the measurements below
+identify candidates for future lossless compression and deduplication.
+
+# Coding conventions and lossless storage scope - 2026-09-22 UTC
+
+The user clarified that optimization must preserve every content value and
+function. Withdrawn local company-values field removal and compressed-only
+export changes; collector, store and daily-pass behavior remains unchanged.
+Removed only the newly created tests/test_storage_size.py for that withdrawn
+implementation; it is recoverable from this task's patch history.
+
+Added docs/coding-standards.md covering shared responsibilities, explicit side
+effects, measured optimization and lossless round-trip requirements. Simplified
+the degree matcher from a stateless wrapper object to a typed boolean helper;
+documented the shared eligibility helper's raw diagnostic mutation. All 89
+degree, experience and Review-rule tests pass on feda989 plus this working tree.
+No deployment or stored-data modification occurred.
+
+Read-only VPS measurement: root filesystem 5.1 GB used / 33 GB available;
+code/runs 1.6 GB, durable data/runs 275 MB, data/.git 497 MB. A local historical
+export sample compresses from 447,013,279 combined CSV/JSONL bytes to 26,851,736
+JSONL gzip bytes, but that representation was withdrawn because it omits the
+existing CSV interface. These are measurements, not savings already realized.
+
+# PhD-only boundary fixes - 2026-09-22 UTC (codex, not deployed)
+
+Latest follow-up: corrected the working-tree alternative matcher so that
+`PhD required` plus `relevant experience` remains a hard reject unless `or`
+explicitly offers the experience as an alternative. Reused degree matches
+within each description block to avoid repeated regex scans. The 89 relevant
+degree, experience and Review-rule tests pass on base `feda989` plus this patch.
+The full-suite result below predates this focused follow-up.
+
+Fixed conservative-filter violations found while reviewing `886e375`.
+Titles saying a PhD is preferred, a plus or ideal now stay. So do explicit
+negations (`No PhD required`, `PhD optional`) and alternative relevant or
+comparable experience; positive PhD requirements remain hard rejects. Structured raw
+fields now end their own required/preferred heading scope through the shared
+`experience.SECTION_END` marker, preventing both a preferred field from
+hiding a later requirement and a required field from capturing later prose.
+Paid intake and Review now call one `jsearch.eligibility_rejection` helper for
+experience, U.S.-person and PhD checks, instead of independently maintaining
+the same sequence.
+
+Ten focused degree tests and 150 related cross-path tests pass. The full
+offline suite passed at `feda989aa91d407408f2df1d21e6f5eb8f985407` plus this
+working tree: 624 discovered, 615 executed, nine environment skips. No provider call,
+VPS operation, rescore or deployment was performed. The untracked local Review
+launcher was not changed.
+
 # Review filters rebuilt with the user; everything deployed - 2026-09-22 UTC
 
 **Deployed.** The VPS runs `886e375`, the head of `main`. That includes all of

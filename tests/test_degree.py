@@ -24,6 +24,15 @@ class PhdOnlyTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertFalse(phd_only(title, 'Currently pursuing a PhD in EE.'))
 
+    def test_a_title_saying_a_phd_is_optional_is_kept(self):
+        for title in ('Engineer - PhD Preferred', 'Engineer (PhD preferred)',
+                      'Engineer - PhD a plus', 'Ideally PhD - Hardware Engineer',
+                      'Engineer - PhD not required', 'Engineer - No PhD Required',
+                      'Engineer - PhD Optional', 'Engineer - PhD or relevant experience',
+                      'Engineer - PhD or comparable industry experience'):
+            with self.subTest(title=title):
+                self.assertFalse(phd_only(title, ''))
+
     def test_a_description_requiring_only_a_phd(self):
         for text in ('Minimum qualifications:\nCurrently pursuing a PhD in Electrical Engineering.\n'
                      'You must be able to work in a team.',
@@ -38,12 +47,32 @@ class PhdOnlyTests(unittest.TestCase):
                      'Requirements: MS in EE. PhD preferred.',
                      "Master's degree required. PhD a plus.",
                      'PhD or equivalent practical experience is required.',
+                     'PhD or relevant experience is required.',
+                     'Doctorate or comparable industry experience required.',
+                     'A PhD is not required.', 'No PhD required.', 'PhD optional.',
                      "Basic Qualifications\n- PhD, or Master's degree and 4+ years of CS experience",
                      "Minimum:\nPursuing a PhD in EE.\nOr a Master's degree with 2 years of research experience.",
                      'Our team includes PhDs from top universities.',
                      'We work with PhD students on research projects.'):
             with self.subTest(text=text[:40]):
                 self.assertFalse(phd_only('RTL Design Intern', text))
+
+    def test_negation_does_not_swallow_a_real_requirement(self):
+        for text in ('PhD required.', 'A PhD is required.', 'PhD mandatory.',
+                     'Must have a doctorate degree.'):
+            with self.subTest(text=text):
+                self.assertTrue(phd_only('RTL Design Intern', text))
+
+    def test_additional_experience_is_not_an_alternative_degree(self):
+        for text in ('PhD required. Relevant experience with Python.',
+                     'PhD required and relevant experience with Python.',
+                     'PhD required. Comparable industry experience with Python.'):
+            with self.subTest(text=text):
+                self.assertTrue(phd_only('RTL Engineer', text))
+        for text in ('PhD required or relevant experience.',
+                     'PhD required or comparable industry experience.'):
+            with self.subTest(text=text):
+                self.assertFalse(phd_only('RTL Engineer', text))
 
     def test_short_degree_forms_are_read_as_degrees_not_words(self):
         """Read without case, "B.E." is "be" and "M.E." is "me", and every
@@ -53,12 +82,66 @@ class PhdOnlyTests(unittest.TestCase):
         self.assertFalse(phd_only('RTL Intern', 'Requirements\nCurrently pursuing a PhD. BS or MS students '
                                                  'with research experience also considered.'))
 
+    def test_structured_field_end_stops_heading_scope(self):
+        """Qualification headings belong only to their raw payload field."""
+        preferred_then_required = {
+            'preferred_qualifications': ['PhD in EE is a plus'],
+            'description': 'Candidates must be currently pursuing a PhD.',
+        }
+        required_then_biography = {
+            'required_qualifications': ['Python experience'],
+            'description': 'PhD in electrical engineering, Jane Doe leads our research team.',
+        }
+        self.assertTrue(phd_only(
+            'Applied Scientist',
+            jsearch.description_text({'raw': preferred_then_required}, structured=True)))
+        self.assertFalse(phd_only(
+            'Applied Scientist',
+            jsearch.description_text({'raw': required_then_biography}, structured=True)))
+
     def test_it_is_a_hard_pass_in_the_paid_filter(self):
         rules = jsearch.load_plan()[0]['filter']
         row = {'title': 'Hardware Engineering Intern, PhD, Summer 2027', 'raw': {'description': 'RTL UVM ASIC'}}
         self.assertEqual(jsearch.rejection_reason(row, rules), 'phd_only')
         self.assertIn('phd_only', jsearch.HARD_REJECTIONS)
 
+    def test_shared_eligibility_entry_point_keeps_paid_and_review_checks_together(self):
+        rules = jsearch.load_plan()[0]['filter']
+        cases = (
+            ({'title': 'Engineer', 'raw': {'description': 'Requires 5 years of experience.'}},
+             'required_experience_over_2_years'),
+            ({'title': 'Engineer', 'raw': {'description': 'Applicants must be a U.S. citizen.'}},
+             'us_person_required'),
+            ({'title': 'Engineer', 'raw': {'description': 'Currently pursuing a PhD.'}},
+             'phd_only'),
+            ({'title': 'Engineer - PhD Preferred', 'raw': {'description': 'RTL UVM ASIC'}}, ''),
+        )
+        for row, expected in cases:
+            with self.subTest(expected=expected):
+                reason, experience = jsearch.eligibility_rejection(row, rules)
+                self.assertEqual(reason, expected)
+                self.assertEqual(row['raw']['experience_filter'], experience)
+
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReportedBugTests(unittest.TestCase):
+    """Reported 2026-09-22 after the rule went live."""
+
+    def test_an_alternative_stated_as_its_own_short_line_is_read(self):
+        """"Or Master's degree required." is four words and names a required
+        section, and was taken for a heading and skipped -- losing the
+        alternative that keeps the posting."""
+        self.assertFalse(phd_only('Engineer', "PhD required.\nOr Master's degree required."))
+        self.assertFalse(phd_only('Engineer', "PhD required.\nMS accepted."))
+
+    def test_a_short_preference_is_not_a_preferred_section(self):
+        """"Python preferred." was read as a Preferred heading, and suppressed
+        the requirement on the line after it."""
+        self.assertTrue(phd_only('Engineer', 'Python preferred.\nPhD required.'))
+        self.assertTrue(phd_only('Engineer', 'Travel preferred.\nCurrently pursuing a PhD.'))
+        # A real heading still opens a section.
+        self.assertFalse(phd_only('Engineer', 'Preferred qualifications:\nPhD in Electrical Engineering'))
+        self.assertFalse(phd_only('Engineer', 'Nice to have\nPhD in EE'))

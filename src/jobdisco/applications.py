@@ -10,7 +10,7 @@ import uuid
 
 from .paths import DB, DATA
 from .job_text import clean_title
-from . import degree, jsearch, location, ranking
+from . import jsearch, location, ranking
 
 
 def ledger_path():
@@ -341,15 +341,9 @@ def queue(db_path=DB, path=None, now=None):
                     raw = json.loads(job.pop('raw') or '{}')
                 except (TypeError, ValueError):
                     raw = {}
-                requirements = jsearch.description_text({'raw': raw}, structured=True)
-                experience = jsearch.experience_debug({'title': job['title'], 'raw': raw}, requirements)
-                if experience['hard_pass_reason']:
-                    continue
-                if jsearch.us_person_required(requirements, rules):
-                    continue
-                # Open to PhDs only, asked for on 2026-09-22; one a PhD is only
-                # allowed or preferred for stays. See `degree`.
-                if degree.phd_only(job['title'], requirements):
+                filter_row = {'title': job['title'], 'raw': raw}
+                reason, experience = jsearch.eligibility_rejection(filter_row, rules)
+                if reason:
                     continue
                 if jsearch.publisher_excluded(job['url'], raw, rules):
                     continue

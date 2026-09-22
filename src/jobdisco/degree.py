@@ -18,7 +18,7 @@ doubt keeps the posting:
 import html
 import re
 
-from .experience import OPTIONAL, REQUIRED
+from .experience import OPTIONAL, REQUIRED, SECTION_END
 
 PHD = r'(?:ph\.?\s?d\.?s?|doctora(?:l|te)(?:\s+degree)?)'
 _PHD = re.compile(r'(?<![\w])' + PHD + r'(?![\w])', re.I)
@@ -28,19 +28,13 @@ _PHD = re.compile(r'(?<![\w])' + PHD + r'(?![\w])', re.I)
 _OTHER_WORDS = re.compile(
     r"\b(?:bachelor\w*|master'?s|masters|master\s+(?:degree|of|in)|undergrad\w*|"
     r"associate'?s\s+degree|or\s+(?:an?\s+)?equivalent|"
-    r"equivalent\s+(?:practical\s+|work\s+|industry\s+)?experience)(?![\w])", re.I)
+    r"(?:equivalent|or\s+(?:comparable|relevant))\s+"
+    r"(?:practical\s+|work\s+|industry\s+)?experience)(?![\w])", re.I)
 _OTHER_SHORT = re.compile(
     r"(?<![\w.])(?:BS|MS|B\.\s?S\.?|M\.\s?S\.?|BSc|MSc|B\.\s?Sc\.?|M\.\s?Sc\.?|B\.\s?E\.|M\.\s?E\.|"
     r"BE|ME|B\.?\s?Tech|M\.?\s?Tech|BTech|MTech|BSEE|MSEE|BSCS|MSCS|BSCE|MSCE|MBA|MEng|BEng)(?![\w])")
 
 
-class _Other:
-    @staticmethod
-    def search(text):
-        return _OTHER_WORDS.search(text) or _OTHER_SHORT.search(text)
-
-
-OTHER_DEGREE = _Other()
 STATED = re.compile(
     r'\b(?:(?:currently\s+)?(?:pursuing|enrolled\s+in|working\s+(?:towards?|on)|studying\s+for|'
     r'candidates?\s+for|completing)\s+(?:a\s+|an\s+|your\s+)?' + PHD +
@@ -48,26 +42,74 @@ STATED = re.compile(
     r'|(?:must|shall|will)\s+(?:have|hold|possess|be\s+(?:pursuing|enrolled\s+in))\s+(?:a\s+|an\s+)?' + PHD +
     r'|' + PHD + r'\s+(?:students?|candidates?)\s+only)', re.I)
 DEGREE_LINE = re.compile(r'^\s*(?:a\s+)?' + PHD + r'\s+(?:degree\s+)?(?:in|from)\b', re.I)
+# Explicitly saying the PhD is absent or optional defeats a nearby word such as
+# "required". Without this guard, STATED read the substring in "No PhD
+# required" as a requirement. The same wording can occur in a title.
+NOT_EXCLUSIVE = re.compile(
+    r'(?:\b(?:no|without)\s+(?:a\s+)?' + PHD +
+    r'|' + PHD + r'\s+(?:degree\s+)?(?:is\s+)?(?:not\s+(?:required|needed|necessary|mandatory)|optional)\b)',
+    re.I)
+
+
+def _has_other_degree(text: str) -> bool:
+    """Recognize a second degree or an explicit experience alternative."""
+    return bool(_OTHER_WORDS.search(text) or _OTHER_SHORT.search(text))
+
+
+def _description_blocks(text):
+    """Yield prose blocks and field-end markers without losing section scope."""
+    text = html.unescape(text or '')
+    text = re.sub(r'<[^>]*>', '\n', text)
+    # Keep structured field boundaries visible to the qualification policy.
+    text = text.replace(SECTION_END, '\n' + SECTION_END + '\n')
+    for block in re.split(r'[\n;]|(?<=[.!?])\s+(?=[A-Z])', text):
+        block = block.strip(' \t-*•·')
+        if block:
+            yield block
 
 
 def title_only(title):
     """The title names a PhD and no other degree."""
     title = title or ''
-    return bool(_PHD.search(title)) and not OTHER_DEGREE.search(title)
+    # A title can state the preference itself. It is still not an exclusive
+    # PhD opening, and this filter deliberately keeps every doubtful case.
+    return (bool(_PHD.search(title)) and not _has_other_degree(title)
+            and not OPTIONAL.search(title) and not NOT_EXCLUSIVE.search(title))
+
+
+# A heading opens a section; a short sentence does not. "Python preferred."
+# is two words and names a preference, and was read as a Preferred heading --
+# which then suppressed the "PhD required." on the line after it. A heading is
+# written as one: it ends in a colon, or it is the name of a qualification
+# section.
+_HEADING_WORDS = re.compile(
+    r'^(?:minimum|basic|preferred|desired|required|requirements?|qualifications?|'
+    r'nice[-\s]to[-\s]have|education|additional|responsibilities|about|benefits|what\s+you)\b',
+    re.I)
+
+
+def _is_heading(block):
+    return block.rstrip().endswith(':') or bool(_HEADING_WORDS.match(block))
 
 
 def description_only(text):
     """The description states a PhD requirement and offers no other way in."""
-    text = html.unescape(text or '')
-    text = re.sub(r'<[^>]*>', '\n', text)
     optional_section = required_section = False
     stated, other = False, False
-    for block in re.split(r'[\n;\x1e]|(?<=[.!?])\s+(?=[A-Z])', text):
-        block = block.strip(' \t-*•·')
-        if not block:
+    for block in _description_blocks(text):
+        if block == SECTION_END:
+            optional_section = required_section = False
             continue
-        words = len(block.split())
-        if words <= 7 and not _PHD.search(block):
+        has_phd = bool(_PHD.search(block))
+        has_other = _has_other_degree(block)
+        optional = optional_section or bool(OPTIONAL.search(block))
+        # What a block states about degrees is read before it can be taken for
+        # a heading. "Or Master's degree required." is four words and matches
+        # REQUIRED, and was read as a heading and skipped -- losing the very
+        # alternative that keeps the posting.
+        if has_other and not optional:
+            other = True
+        if len(block.split()) <= 7 and not has_phd and not has_other and _is_heading(block):
             if OPTIONAL.search(block):
                 optional_section, required_section = True, False
                 continue
@@ -76,10 +118,8 @@ def description_only(text):
                 continue
             if re.match(r'^(?:responsibilities|about\b|benefits\b|what you)', block, re.I):
                 optional_section = required_section = False
-        optional = optional_section or bool(OPTIONAL.search(block))
-        if OTHER_DEGREE.search(block) and not optional:
-            other = True
-        if not _PHD.search(block) or optional or OTHER_DEGREE.search(block):
+        if (not has_phd or optional or has_other
+                or NOT_EXCLUSIVE.search(block)):
             continue
         if STATED.search(block) or (required_section and DEGREE_LINE.search(block)):
             stated = True
@@ -90,7 +130,7 @@ def phd_only(title, text):
     """Only a PhD will do, by the title or, failing that, the description."""
     if title_only(title):
         return True
-    if _PHD.search(title or '') or OTHER_DEGREE.search(title or ''):
+    if _PHD.search(title or '') or _has_other_degree(title or ''):
         # The title names degrees and a PhD is not the only one: it decides.
         return False
     return description_only(text)

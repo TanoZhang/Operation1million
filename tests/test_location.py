@@ -38,3 +38,23 @@ class CountryTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReportedBugTests(unittest.TestCase):
+    """Reported 2026-09-22 after the rule went live."""
+
+    def test_several_places_are_read_in_either_order(self):
+        """A semicolon separates places, a comma separates a place's parts.
+        Read as one string, "Oregon; Toronto" was no state and the posting was
+        removed -- while the same two places the other way round were kept."""
+        for text in ('Salem, Oregon; Toronto, Canada', 'Toronto, Canada; Salem, Oregon',
+                     'Paris, TX; Toronto, Canada', 'Austin, Texas; Bangalore, India'):
+            with self.subTest(text=text):
+                self.assertEqual(country(text), 'us')
+                self.assertFalse(outside_us(text))
+
+    def test_a_country_written_out_beats_a_shared_city_name(self):
+        self.assertEqual(country('Burlington, Canada'), 'foreign')
+        self.assertEqual(country('Burlington, VT'), 'us')
+        self.assertEqual(country('London, United Kingdom'), 'foreign')
+        self.assertEqual(country('London, KY'), 'us')

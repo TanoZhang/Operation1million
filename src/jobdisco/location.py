@@ -107,7 +107,8 @@ def _words(options):
 
 _US_WORDS = re.compile(r'\b(?:united\s+states(?:\s+of\s+america)?|usa|u\.s\.a?\.?)(?![\w])', re.I)
 _US_CITIES = _words(US_CITIES)
-_FOREIGN = _words(FOREIGN_COUNTRIES + FOREIGN_CITIES)
+_FOREIGN_COUNTRIES = _words(FOREIGN_COUNTRIES)
+_FOREIGN_CITIES = _words(FOREIGN_CITIES)
 _LEADING_CODE = re.compile(r'^\s*([a-z]{2})\s*,', re.I)
 
 
@@ -117,25 +118,28 @@ _LEADING_CODE = re.compile(r'^\s*([a-z]{2})\s*,', re.I)
 AMBIGUOUS_CODES = {'in', 'ca', 'co', 'de', 'id', 'il', 'ma', 'ar', 'ga', 'pa', 'sc', 'mt', 'al'}
 
 
-def country(location):
-    """'us', 'foreign', or None when the string does not say."""
-    text = re.sub(r'^\s*locations?\s+', '', str(location or ''), flags=re.I).strip()
-    if not text:
-        return None
+def _place(text):
+    """One place, in the order the plainer statement wins.
+
+    A country written out beats a city name: "Burlington, Canada" is the
+    Canadian one, however many Burlingtons the U.S. has.
+    """
     parts = [part.strip() for part in text.split(',') if part.strip()]
     codes = [part.lower() for part in parts if re.fullmatch(r'[A-Za-z]{2}', part)]
-    foreign = bool(_FOREIGN.search(text))
-    # The plain statements of a U.S. place win outright: the country, a state
-    # written out, a U.S. city. "Dublin, California" is not Ireland.
-    if (_US_WORDS.search(text) or re.match(r'^\s*US\b', text) or 'us' in codes
-            or any(part.lower() in US_STATES for part in parts) or _US_CITIES.search(text)):
-        return 'us'
     state_codes = [code for code in codes if code in US_STATES.values()]
+    if (_US_WORDS.search(text) or re.match(r'^\s*US\b', text) or 'us' in codes
+            or any(part.lower() in US_STATES for part in parts)):
+        return 'us'
+    if _FOREIGN_COUNTRIES.search(text):
+        return 'foreign'
     # A state code that is not also a country code settles it: "Paris, TX" and
     # "London, KY" are in the U.S. whatever the city is called.
     if any(code not in AMBIGUOUS_CODES for code in state_codes):
         return 'us'
-    if foreign or any(code in FOREIGN_CODES and code not in AMBIGUOUS_CODES for code in codes):
+    if _US_CITIES.search(text):
+        return 'us'
+    if _FOREIGN_CITIES.search(text) or any(
+            code in FOREIGN_CODES and code not in AMBIGUOUS_CODES for code in codes):
         return 'foreign'
     # "IN, KA, Bengaluru": a leading ambiguous code followed by a region code is
     # a country, not a state -- a state is never written first.
@@ -145,6 +149,25 @@ def country(location):
     if state_codes:
         return 'us'
     return None
+
+
+def country(location):
+    """'us', 'foreign', or None when the string does not say.
+
+    A posting may list several places, and the separator between them is a
+    semicolon while the separator inside one is a comma. Reading the whole
+    string at once made the answer depend on their order: "Salem, Oregon;
+    Toronto, Canada" read as abroad because "Oregon; Toronto" is no state,
+    while the same two places the other way round read as U.S. Each place is
+    now read on its own, and one U.S. place keeps the posting.
+    """
+    text = re.sub(r'^\s*locations?\s+', '', str(location or ''), flags=re.I).strip()
+    if not text:
+        return None
+    found = [_place(part) for part in re.split(r'\s*[;|\u2022]\s*|\s+/\s+', text) if part.strip()]
+    if 'us' in found:
+        return 'us'
+    return 'foreign' if 'foreign' in found else None
 
 
 def outside_us(location):
