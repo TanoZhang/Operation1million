@@ -8,7 +8,8 @@ import time
 from contextlib import closing
 from dataclasses import dataclass
 from .paths import DB, RAW
-from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds
+from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, html_challenge
+from bs4 import BeautifulSoup
 from typing import Any
 from urllib.parse import urlencode
 
@@ -168,27 +169,10 @@ def xml_items(provider: str, text: str) -> list[dict[str, str]]:
 
 
 def apple_items(text: str) -> list[dict[str, str]]:
-    items = []
-    pattern = re.compile(
-        r'<a class="[^"]*job-title[^"]*|<a class="[^"]*link-inline[^"]*"[^>]+href="(?P<href>/en-us/details/[^"]+)"[^>]*>(?P<title>.*?)</a>',
-        re.IGNORECASE | re.DOTALL,
-    )
-    for match in pattern.finditer(text):
-        href = match.groupdict().get("href")
-        title = match.groupdict().get("title")
-        if href and title:
-            clean_title = re.sub(r"<[^>]+>", "", title).strip()
-            items.append({"url": "https://jobs.apple.com" + href, "title": clean_title})
-    if items:
-        return items
-
-    fallback = re.compile(
-        r'href="(?P<href>/en-us/details/[^"]+)"[^>]*>(?P<title>[^<]+)</a>',
-        re.IGNORECASE,
-    )
-    for match in fallback.finditer(text):
-        items.append({"url": "https://jobs.apple.com" + match.group("href"), "title": match.group("title").strip()})
-    return items
+    return [{'url': 'https://jobs.apple.com' + anchor['href'],
+             'title': anchor.get_text(' ', strip=True)}
+            for anchor in BeautifulSoup(text, 'html.parser').select('a[href]')
+            if anchor['href'].startswith('/en-us/details/') and anchor.get_text(' ', strip=True)]
 
 
 def achronix_items(text: str) -> list[dict[str, str]]:
@@ -205,18 +189,9 @@ def achronix_items(text: str) -> list[dict[str, str]]:
 
 def html_signal(text: str) -> tuple[bool, str]:
     lowered = text.lower()
-    block_terms = [
-        "access denied",
-        "human verification",
-        "captcha challenge",
-        "cf-chl",
-        "akamai",
-        "you don't have permission to access",
-        "enable javascript and cookies",
-    ]
-    for term in block_terms:
-        if term in lowered:
-            return False, f"block/challenge signal: {term}"
+    challenge = html_challenge(text)
+    if challenge:
+        return False, challenge
 
     signals = [
         "/job/",
@@ -238,21 +213,22 @@ def html_signal(text: str) -> tuple[bool, str]:
 
 
 def validate(source: Source, session: requests.Session) -> dict[str, Any]:
-    url, method, payload = request_for(source)
     result: dict[str, Any] = {
         "source_id": source.source_id,
         "table": source.table_name,
         "company": source.company_name,
         "company_key": source.company_key,
         "provider": source.provider_key,
-        "method": method,
-        "tested_url": url,
+        "method": "",
+        "tested_url": source.access_url,
         "status_code": "",
         "verdict": "fail",
         "item_count": "",
         "evidence": "",
     }
     try:
+        url, method, payload = request_for(source)
+        result.update(method=method, tested_url=url)
         policy = SourcePolicy(source, 1.0)
         policy.check()
         time.sleep(policy.interval)
@@ -271,6 +247,11 @@ def validate(source: Source, session: requests.Session) -> dict[str, Any]:
         if response.status_code >= 400:
             result["evidence"] = text[:180].replace("\n", " ")
             return result
+
+        if 'json' not in content_type and 'xml' not in content_type:
+            challenge = html_challenge(text)
+            if challenge:
+                policy.pause(challenge, 86400)
 
         if "xml" in content_type or text.lstrip().startswith("<?xml"):
             items = xml_items(source.provider_key, text)
@@ -359,10 +340,14 @@ def main() -> int:
         print(f"[{index}/{len(sources)}] {source.source_id}", flush=True)
         rows.append(validate(source, session))
 
-    with OUT_CSV.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+    temporary = OUT_CSV.with_suffix('.csv.tmp')
+    with temporary.open("w", newline="", encoding="utf-8") as handle:
+        columns = list(rows[0]) if rows else ['source_id', 'table', 'company', 'company_key',
+            'provider', 'method', 'tested_url', 'status_code', 'verdict', 'item_count', 'evidence']
+        writer = csv.DictWriter(handle, fieldnames=columns)
         writer.writeheader()
         writer.writerows(rows)
+    temporary.replace(OUT_CSV)
 
     counts: dict[str, int] = {}
     for row in rows:

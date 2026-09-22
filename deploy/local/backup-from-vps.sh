@@ -16,17 +16,28 @@
 # the script never directly copies a database file that may be mid-write.
 #
 # It uses tar over ssh rather than rsync: rsync has to exist at both ends, and a
-# Windows checkout has no rsync. tar transfers everything each time, which is
-# the cost of not needing anything installed.
+# Windows checkout has no rsync. Python is required at both ends to snapshot
+# SQLite and validate the incoming operational state.
 set -euo pipefail
 
 HOST=${JOBDISCO_VPS:-ubuntu@40.160.142.175}
 KEY=${JOBDISCO_VPS_KEY:-$HOME/.ssh/op1m_vps}
 REMOTE=${JOBDISCO_VPS_DATA:-/opt/jobdisco/data}
 REMOTE_DB=${JOBDISCO_VPS_DB:-/opt/jobdisco/code/data/db/job_discovery.sqlite}
+REMOTE_STATE=${JOBDISCO_VPS_STATE:-/opt/jobdisco/code/.local}
 TARGET=${1:-${JOBDISCO_BACKUP_DIR:-$HOME/op1m-backup}}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 mkdir -p "$TARGET"
+# Recover a previous interrupted installation before discarding any staging.
+if [ -d "$TARGET/previous.tmp" ]; then
+  if [ ! -e "$TARGET/current" ]; then
+    mv "$TARGET/previous.tmp" "$TARGET/current"
+  else
+    rm -rf "$TARGET/previous"
+    mv "$TARGET/previous.tmp" "$TARGET/previous"
+  fi
+fi
 incoming=$TARGET/.incoming
 rm -rf "$incoming"
 mkdir -p "$incoming"
@@ -36,13 +47,11 @@ echo "== Pulling $HOST:$REMOTE =="
 # The working tree is: runs, manifests, source_state.json and operational/.
 # The SQLite snapshot is made through sqlite3.Connection.backup(), so it is
 # consistent even if review or collection has the live WAL database open.
-SNAPSHOT_CODE="import sqlite3, sys; src, dst = sys.argv[1:3]; source = sqlite3.connect('file:' + src.replace('?', '%3f') + '?mode=ro', uri=True); target = sqlite3.connect(dst); source.backup(target); target.close(); source.close()"
+# Quote paths for the remote shell independently of the local one.
+remote_quote() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
 ssh -i "$KEY" -o BatchMode=yes "$HOST" \
-    "tmp=\$(mktemp -d); \
-     trap 'rm -rf \"\$tmp\"' EXIT; \
-     mkdir -p \"\$tmp/sqlite\"; \
-     python3 -c \"$SNAPSHOT_CODE\" '$REMOTE_DB' \"\$tmp/sqlite/job_discovery.sqlite\"; \
-     tar czf - -C '$(dirname "$REMOTE")' --exclude=.git '$(basename "$REMOTE")' -C \"\$tmp\" sqlite" \
+    "python3 - $(remote_quote "$REMOTE") $(remote_quote "$REMOTE_DB") $(remote_quote "$REMOTE_STATE")" \
+    < "$SCRIPT_DIR/../vps/backup-snapshot.py" \
   | tar xzf - -C "$incoming"
 
 tree=$incoming/$(basename "$REMOTE")
@@ -57,16 +66,32 @@ fi
 # The four files nothing regenerates. A backup missing one of these is the kind
 # that is discovered to be useless at the moment it is needed.
 missing=0
-for name in applications.ndjson jsearch_usage.sqlite source_access.sqlite seen_jobs.ndjson.gz; do
+for name in jsearch_usage.sqlite source_access.sqlite seen_jobs.ndjson.gz; do
   if [ ! -s "$tree/operational/$name" ]; then
     echo "WARNING: operational/$name is missing or empty in the copy." >&2
     missing=1
   fi
 done
-# The snapshot is the one file here that is not simply transferred: it is
-# produced on the far end by a command whose failure the tar pipeline does not
-# report, so it is checked rather than assumed. Present and non-empty is not
-# the same question as openable, and a restore is the wrong moment to find out.
+if [ ! -f "$tree/operational/applications.ndjson" ]; then
+  echo 'WARNING: the application ledger is missing.' >&2
+  missing=1
+fi
+validator=
+for python in "${JOBDISCO_PYTHON:-}" python3 python; do
+  [ -n "$python" ] && command -v "$python" >/dev/null 2>&1 || continue
+  validator=$python
+  break
+done
+if [ -z "$validator" ]; then
+  echo 'Python is required to validate operational state; preserving existing backups.' >&2
+  exit 1
+fi
+if ! "$validator" "$SCRIPT_DIR/validate-backup.py" "$tree"; then
+  echo 'WARNING: operational state did not pass validation.' >&2
+  missing=1
+fi
+# Validate the derived index as well as the irreplaceable operational state.
+# The remote helper and pipefail propagate snapshot or transfer failures.
 snapshot=$tree/sqlite/job_discovery.sqlite
 if [ ! -s "$snapshot" ]; then
   echo "WARNING: sqlite/job_discovery.sqlite is missing or empty in the copy." >&2
@@ -76,9 +101,7 @@ elif [ "$(head -c 16 "$snapshot" | tr -d '\0')" != 'SQLite format 3' ]; then
   echo "         snapshot command on the VPS most likely failed." >&2
   missing=1
 else
-  # A deeper check where a Python happens to be available. Not required: this
-  # runs on a workstation that may not have one, and a header check has already
-  # caught the failure mode that actually happens.
+  # Python was required above; every accepted snapshot receives this check.
   for python in "${JOBDISCO_PYTHON:-}" python3 python; do
     [ -n "$python" ] && command -v "$python" >/dev/null 2>&1 || continue
     if ! "$python" -c 'import sqlite3, sys
@@ -177,9 +200,8 @@ CHECKSUMS
   break
 done
 if [ "$verified" != yes ]; then
-  echo "WARNING: no Python on this machine, so run-file checksums were not verified." >&2
-  echo "         The copy is accepted on its structure alone; verify it on restore with" >&2
-  echo "         JOBDISCO_STORE=<copy> job-store --verify" >&2
+  echo 'Run-file checksums could not be verified; preserving existing backups.' >&2
+  missing=1
 fi
 
 if [ "$missing" -ne 0 ]; then
@@ -192,11 +214,16 @@ fi
 # the next successful pull, so a bad night never leaves zero copies.
 previous=$TARGET/previous
 current=$TARGET/current
-rm -rf "$previous.tmp"
 if [ -d "$current" ]; then
   mv "$current" "$previous.tmp"
 fi
-mv "$tree" "$current"
+if ! mv "$tree" "$current"; then
+  if [ -d "$previous.tmp" ] && [ ! -e "$current" ]; then
+    mv "$previous.tmp" "$current"
+  fi
+  echo 'Backup installation failed; the previous good generation was preserved.' >&2
+  exit 1
+fi
 rm -rf "$incoming"
 if [ -d "$previous.tmp" ]; then
   rm -rf "$previous"

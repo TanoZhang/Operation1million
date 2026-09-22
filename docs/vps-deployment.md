@@ -133,10 +133,13 @@ decision log stop agreeing.
 
     ./deploy/local/backup-from-vps.sh [target-dir]
 
-It pulls the whole data tree over ssh with tar, because rsync has to exist at
-both ends and a Windows checkout has no rsync. It also asks the VPS for a
-snapshot of the index, which the data tree does not contain, and carries it back
-inside the same tarball under `sqlite/job_discovery.sqlite`.
+It streams the data tree over SSH, using the bundled `backup-snapshot.py` on
+the VPS. Python is required on both machines; `JOBDISCO_PYTHON` selects the
+workstation interpreter. The archive includes the index at
+`sqlite/job_discovery.sqlite` and replaces published credit/cooldown copies
+with snapshots of the authoritative runtime databases under
+`/opt/jobdisco/code/.local` (`JOBDISCO_VPS_STATE` overrides that directory).
+Application decisions are copied while holding the decision ledger lock.
 
 **Copying the file is not the same as copying the database.** The index is in
 WAL mode and a pass writes to it for an hour, so `cp` during that hour yields a
@@ -146,15 +149,18 @@ both are discovered on the night the copy is needed. The snapshot is taken with
 `sqlite3.Connection.backup()`, which copies under a read transaction and starts
 again if a writer moves underneath it.
 
-The snapshot is the one file here that is produced rather than transferred, and
-the tar pipeline does not report the failure of the command that produces it, so
-the copy is checked on arrival: present, non-empty, carrying a SQLite header,
-and -- where the workstation has a Python to hand -- passing `PRAGMA
-quick_check`. Present and non-empty is not the same question as openable.
+Each database snapshot is independently consistent; this is not one atomic
+snapshot of the entire store. The index is captured before quota state, so
+discoveries in that snapshot already have their reserved credits represented.
+Remote helper and transfer failures stop the pull. On arrival, SQLite integrity
+and operational schemas, application events, and the complete compressed seen
+snapshot are checked before rotation. An empty application ledger is valid.
+Run/manifest pairing and sealed-file checksums must also pass.
 
-The script also checks that the four irreplaceable files under `operational/`
-arrived and that every run file still has its manifest before it replaces the
-previous copy, and it keeps that previous copy until the next good pull.
+Validation failure preserves both installed generations and `last-pull`.
+Installation failure restores `current`; a later invocation recovers any
+remaining `previous.tmp` before reusing staging. The previous valid generation
+is retained until another successful installation.
 
 The minimum set to restore from, in the order it matters:
 
@@ -254,6 +260,13 @@ than failing partway through a write. Git history still grows until it is
 explicitly compacted: pruning the working tree removes old run files from the
 current checkout, but old blobs remain in repository history until
 `deploy/vps/compact-history.sh` replaces that history by hand.
+
+Compaction holds both collection and application-decision locks, fetches the
+remote tip, and requires a clean `main` matching it. Pruning and the replacement
+commit are built in a temporary worktree. An explicit lease protects that exact
+remote tip; the live checkout follows the candidate only after a successful
+push. A rejected push therefore leaves the original branch and files available
+for an ordinary pull or retry.
 
 ## The fixed address
 

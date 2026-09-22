@@ -29,7 +29,7 @@ except ImportError:
 from .validate_sources import Source, request_for, json_items
 from .paths import ROOT, CONFIG, DB, RUNS
 from .jsearch_access import RequestGuard, load_credentials
-from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, STATE as SOURCE_STATE
+from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, html_challenge, STATE as SOURCE_STATE
 from . import store
 from . import jsearch
 
@@ -368,8 +368,7 @@ class Collector:
         r.raise_for_status()
         if 'json' not in r.headers.get('content-type', '') and 'xml' not in r.headers.get('content-type', ''):
             soup = BeautifulSoup(r.text, 'html.parser')
-            visible = soup.get_text(' ', strip=True).lower()
-            if any(t in visible for t in ['human verification', 'verify you are human', 'enable javascript and cookies to continue', 'access denied']) or soup.select_one('#challenge-form, #cf-challenge-running'):
+            if html_challenge(soup):
                 r.close()
                 self.policy.pause('Human verification/challenge; review before retrying', 86400)
         return r

@@ -135,6 +135,72 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### B68-B84: recovery, validation and replay, 2026-09-21 UTC (fixed on codex, not deployed)
+
+Audits 13-15 remain historical reproductions. The following fixes have offline
+regression coverage in `tests/test_backup.py`, `tests/test_compaction.py` and
+`tests/test_audit_recovery.py`:
+
+- **B68:** Workstation backups now snapshot the authoritative runtime quota and
+  source-pause databases, including committed WAL contents, instead of stale
+  published copies. The index is snapshotted first; decisions are copied under
+  their own lock. Database snapshots are independently consistent, not a single
+  transaction across all files. A stale published quota versus a newer live
+  WAL reservation was tested.
+- **B69:** Backup validation now requires Python, checks both operational SQLite
+  schemas and integrity, parses application events, and decompresses/parses the
+  full seen snapshot. Corruption of each operational file preserves both good
+  generations. An empty decision ledger is accepted.
+- **B70:** Failed backup installation restores `current`; startup recovers a
+  leftover `previous.tmp` before staging cleanup. Repeated installation failure
+  preserves both generations and the last successful pull marker.
+- **B71:** History compaction fetches and compares the actual remote tip and
+  pushes with an explicit lease for that hash. Both an already published remote
+  change and a change after the fetch are tested to survive.
+- **B72:** Compaction constructs its candidate in a temporary worktree and changes
+  the live checkout only after push acceptance. Rejected push, normal pull and
+  successful retry were tested with disposable local bare repositories. The
+  script also holds the application-decision lock alongside the collection lock;
+  these tests stub `flock` on Windows and do not prove Linux lock contention.
+- **B73:** Before collection, merge published source pauses into the local ledger
+  using the later `retry_at`, preserving the reason belonging to that deadline.
+  The merge is tested offline; scheduled-pass invocation is checked from code.
+- **B74:** Request construction is inside the validator's per-source exception
+  boundary. A malformed source becomes a failed report row and subsequent
+  sources are still processed.
+- **B75:** Empty catalogs produce a header-only validation report, written to a
+  temporary file and installed after completion, instead of indexing `rows[0]`.
+- **B76:** Apple validation extracts nested anchor text through BeautifulSoup;
+  a normal nested job-title link is recognized.
+- **B77:** Challenge detection uses visible text and explicit challenge elements,
+  shared by validation and collection. An Akamai script URL alone does not pause
+  a source.
+- **B78:** HTML challenges are checked before provider-specific link extraction,
+  so a challenge page containing a job link still records a durable pause.
+- **B79:** All seven pattern groups must be arrays of strings before regex
+  compilation. Scalar, table and mixed-value groups fail at configuration load.
+- **B80:** Pre-migration query-catalog backups include a hash of the canonical
+  source database path. Migrating two distinct databases no longer collides at
+  one fixed backup filename; both original backups remain available.
+- **B81:** When an old address is reused during a requisition move, capture the
+  moving identity's row before processing either batch order. Carry its first
+  seen time, publication metadata and description to the new address and log a
+  full changed snapshot. Both orders and rebuild preserve that history without
+  giving it to the replacement requisition.
+- **B82:** Seen-snapshot import retains the earliest first observation and only
+  updates disposition/metadata from a strictly newer observation. An older
+  accepted snapshot cannot undo a newer rejection during an in-place rebuild.
+- **B83:** Interrupted multi-member appends describe the surviving primary
+  fragment (or remove an empty fragment) before propagating failure. An injected
+  second-member fsync failure, verification, next-day retry and rebuild are
+  tested. This does not promise successful recovery writes on a persistently
+  failing disk.
+- **B84:** Review's queue cache includes the active filter fingerprint. A rule
+  edit with unchanged ledger/index files rebuilds the queue on the next request;
+  tested through loopback HTTP.
+
+No provider requests, paid credits, VPS execution or deployment were involved.
+
 ### A bug check of the review path and the store CLI, 2026-09-21 UTC (not deployed)
 
 Three defects, each reproduced before it was fixed and each with a test that is

@@ -1,5 +1,6 @@
 """Initialize and read the SQLite search keyword catalog without paid requests."""
 import argparse
+import hashlib
 from contextlib import closing
 from pathlib import Path
 import sqlite3
@@ -15,7 +16,8 @@ def migrate(path=DB):
         # Back up before the first migration, including the existing source catalog.
         applied = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='search_queries'").fetchone()
         if not applied:
-            backup = ROOT / '.local/backups/job_discovery_before_search_queries.sqlite'
+            identity = hashlib.sha256(str(path.resolve()).encode('utf-8')).hexdigest()[:16]
+            backup = ROOT / '.local/backups' / f'{path.stem}-{identity}-before-search-queries.sqlite'
             backup.parent.mkdir(parents=True, exist_ok=True)
             if backup.exists():
                 raise FileExistsError('Migration backup already exists; inspect it before retrying')

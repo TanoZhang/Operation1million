@@ -45,11 +45,17 @@ echo "== Before =="
 echo "  history:      $(du -sm .git | cut -f1) MiB"
 echo "  working tree: $(du -sm --exclude=.git . | cut -f1) MiB"
 
-if [ -n "$(git status --porcelain)" ]; then
+# Review uses a different lock: hold it too so a decision cannot arrive between
+# checking the tree and replacing it after a successful publication.
+exec 8>"$DATA/operational/applications.lock"
+flock 8
+if [ -n "$(git status --porcelain -- . ':(exclude)operational/applications.lock')" ]; then
   echo 'The data checkout has uncommitted changes. Let a pass publish them first.' >&2
   exit 1
 fi
-if ! git diff --quiet "@{u}" HEAD 2>/dev/null; then
+git fetch --quiet origin main
+expected=$(git rev-parse refs/remotes/origin/main)
+if [ "$(git branch --show-current)" != main ] || [ "$(git rev-parse HEAD)" != "$expected" ]; then
   echo 'Local and remote differ. Push or reconcile before rewriting history.' >&2
   exit 1
 fi
@@ -58,13 +64,22 @@ echo '== Verify the store before making anything permanent =='
 job-store --verify
 
 echo "== Prune to the last $KEEP days =="
-python -m jobdisco.prune --store "$DATA" --keep "$KEEP"
+# Build off to the side. A rejected push must leave the live branch, index and
+# files unchanged, so the ordinary daily pull and a later retry still work.
+staging=$(mktemp -d)
+cleanup() {
+  git -C "$DATA" worktree remove --force "$staging/tree" 2>/dev/null || true
+  rmdir "$staging" 2>/dev/null || true
+}
+trap cleanup EXIT
+git worktree add --quiet --detach "$staging/tree" HEAD
+python -m jobdisco.prune --store "$staging/tree" --keep "$KEEP"
 
 echo '== Replace the history with one commit =='
-git checkout --quiet --orphan compacted
-git add -A
-git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
-    commit --quiet -m "Snapshot $(date -u +%Y-%m-%d): a ${KEEP}-day rolling backup
+git -C "$staging/tree" add -A
+tree=$(git -C "$staging/tree" write-tree)
+candidate=$(git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
+    commit-tree "$tree" -m "Snapshot $(date -u +%Y-%m-%d): a ${KEEP}-day rolling backup
 
 The log is a backup, not the working state. The derived index lives on the VPS,
 postings close within weeks, and anything genuinely missed is collected again on
@@ -72,11 +87,17 @@ the next pass rather than recovered from an archive.
 
 Everything under operational/ is carried across unchanged: the credit ledger,
 the per-source cooldowns and the applications log are records of money and of
-decisions, and nothing regenerates them."
-git branch --quiet -M compacted main
+decisions, and nothing regenerates them.")
 
 echo '== Push =='
-git push --force origin main
+git push --force-with-lease="refs/heads/main:$expected" origin "$candidate:refs/heads/main"
+# The remote accepted the exact candidate. Keep a recovery ref until the local
+# checkout has followed it, and never update the checkout before acceptance.
+git update-ref refs/jobdisco/pre-compaction HEAD
+git reset --hard --quiet "$candidate"
+git update-ref -d refs/jobdisco/pre-compaction
+cleanup
+trap - EXIT
 
 git reflog expire --expire=now --all
 git gc --prune=now --quiet

@@ -3,6 +3,9 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import hashlib
+import gzip
+import importlib.util
+import io
 import json
 import os
 import shlex
@@ -11,7 +14,12 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import tarfile
 import unittest
+from types import SimpleNamespace
+
+from jobdisco.jsearch_access import RequestGuard
+from jobdisco.collection_policy import SourcePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 BASH = (str(Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/bash.exe')
@@ -27,9 +35,12 @@ class BackupTests(unittest.TestCase):
         data = root / 'fixture/data'
         for folder in ('runs', 'manifests', 'operational'):
             (data / folder).mkdir(parents=True)
-        for name in ('applications.ndjson', 'jsearch_usage.sqlite',
-                     'source_access.sqlite', 'seen_jobs.ndjson.gz'):
-            (data / 'operational' / name).write_bytes(b'synthetic state')
+        (data / 'operational/applications.ndjson').write_text(
+            '{"url":"https://example.test/A","at":"2026-01-01T00:00:00Z","status":"applied"}\n', encoding='utf-8')
+        RequestGuard(path=data / 'operational/jsearch_usage.sqlite')
+        SourcePolicy(SimpleNamespace(company_key='fixture'), 1,
+                     path=data / 'operational/source_access.sqlite').check()
+        (data / 'operational/seen_jobs.ndjson.gz').write_bytes(gzip.compress(b''))
         # Days are computed, never written down. The digest check exempts the
         # day still being written, so a literal date here would exercise one
         # branch today and the other one tomorrow.
@@ -71,6 +82,10 @@ class BackupTests(unittest.TestCase):
             (data / 'operational/jsearch_usage.sqlite').unlink()
         if failure == 'bad-snapshot':
             snapshot.write_bytes(b'not a SQLite snapshot')
+        if failure and failure.startswith('corrupt-') and failure != 'corrupt-run-file':
+            (data / 'operational' / failure.removeprefix('corrupt-')).write_bytes(b'broken nonempty state')
+        if failure == 'empty-decisions':
+            (data / 'operational/applications.ndjson').write_bytes(b'')
         backup = root / 'backup'
         for name in ('current', 'previous'):
             (backup / name).mkdir(parents=True)
@@ -79,6 +94,11 @@ class BackupTests(unittest.TestCase):
         driver = root / 'driver.sh'
         driver.write_text(
             "ssh() { tar czf - -C fixture data sqlite; }\n"
+            + ('''mv() {
+  if [ "$1" = 'backup/.incoming/data' ]; then return 73; fi
+  command mv "$@"
+}
+''' if failure == 'rotation' else '')
             + 'source ' + shlex.quote((ROOT / 'deploy/local/backup-from-vps.sh').as_posix())
             + ' backup\n', encoding='utf-8', newline='\n')
         result = subprocess.run([BASH, 'driver.sh'], cwd=root, capture_output=True, text=True,
@@ -88,13 +108,76 @@ class BackupTests(unittest.TestCase):
 
     def test_invalid_copies_preserve_both_recovery_generations(self):
         for failure in ('missing-ledger', 'bad-snapshot', 'mismatched-manifest',
-                        'corrupt-run-file'):
+                        'corrupt-run-file', 'corrupt-applications.ndjson',
+                        'corrupt-jsearch_usage.sqlite', 'corrupt-source_access.sqlite',
+                        'corrupt-seen_jobs.ndjson.gz'):
             with self.subTest(failure=failure):
                 result, backup = self.run_backup(failure)
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 for name in ('current', 'previous'):
                     self.assertEqual((backup / name / 'keep.txt').read_text(), name)
                 self.assertEqual((backup / 'last-pull').read_text(), 'last good pull')
+
+    def test_rotation_failure_and_retry_preserve_installed_generations(self):
+        result, backup = self.run_backup('rotation')
+        self.assertNotEqual(result.returncode, 0)
+        # Retry the exact failed transfer, not a fresh fixture.
+        retried = subprocess.run([BASH, 'driver.sh'], cwd=backup.parent, capture_output=True,
+                                 env={**os.environ, 'JOBDISCO_VPS_DATA': '/unused/data',
+                                      'JOBDISCO_PYTHON': Path(sys.executable).as_posix()})
+        self.assertNotEqual(retried.returncode, 0)
+        for name in ('current', 'previous'):
+            self.assertEqual((backup / name / 'keep.txt').read_text(), name)
+        self.assertEqual((backup / 'last-pull').read_text(), 'last good pull')
+
+    def test_no_decisions_yet_is_a_valid_ledger(self):
+        result, _ = self.run_backup('empty-decisions')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_interrupted_rotation_is_recovered_before_another_bad_transfer(self):
+        result, backup = self.run_backup('bad-snapshot')
+        self.assertNotEqual(result.returncode, 0)
+        (backup / 'current').rename(backup / 'previous.tmp')
+        retried = subprocess.run([BASH, 'driver.sh'], cwd=backup.parent, capture_output=True,
+                                 env={**os.environ, 'JOBDISCO_VPS_DATA': '/unused/data',
+                                      'JOBDISCO_PYTHON': Path(sys.executable).as_posix()})
+        self.assertNotEqual(retried.returncode, 0)
+        for name in ('current', 'previous'):
+            self.assertEqual((backup / name / 'keep.txt').read_text(), name)
+        self.assertEqual((backup / 'last-pull').read_text(), 'last good pull')
+
+    def test_archive_reads_runtime_quota_including_its_wal(self):
+        spec = importlib.util.spec_from_file_location('backup_snapshot', ROOT / 'deploy/vps/backup-snapshot.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data, runtime = root / 'data', root / 'code/.local'
+            (data / 'operational').mkdir(parents=True)
+            runtime.mkdir(parents=True)
+            (data / 'operational/applications.ndjson').write_bytes(b'')
+            index = root / 'jobs.sqlite'
+            with closing(sqlite3.connect(index)) as db, db:
+                db.execute('CREATE TABLE jobs (url TEXT)')
+            published = RequestGuard(path=data / 'operational/jsearch_usage.sqlite')
+            live = RequestGuard(path=runtime / 'jsearch_usage.sqlite')
+            policy = SourcePolicy(SimpleNamespace(company_key='fixture'), 1,
+                                  path=runtime / 'source_access.sqlite')
+            policy.check()
+            with closing(sqlite3.connect(live.path)) as writer:
+                writer.execute('PRAGMA journal_mode=WAL')
+                writer.execute('BEGIN')
+                writer.execute('SELECT * FROM credit_usage').fetchall()
+                live.get(SimpleNamespace(get=lambda *a, **kw: SimpleNamespace(status_code=200, headers={})),
+                         'https://example.test/mock')
+                self.assertTrue(Path(str(live.path) + '-wal').exists())
+                output = io.BytesIO()
+                module.archive(data, index, runtime, output)
+            self.assertEqual(published.balance()['period_used'], 0)
+            with tarfile.open(fileobj=io.BytesIO(output.getvalue()), mode='r:gz') as archive:
+                copied = root / 'copied.sqlite'
+                copied.write_bytes(archive.extractfile('data/operational/jsearch_usage.sqlite').read())
+            self.assertEqual(RequestGuard(path=copied).balance()['period_used'], 1)
 
     def test_the_day_still_being_written_may_differ_from_its_manifest(self):
         """A pass appending while tar reads is a race, not a damaged copy.

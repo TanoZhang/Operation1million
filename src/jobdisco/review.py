@@ -12,7 +12,7 @@ import threading
 from urllib.parse import urlsplit, parse_qs
 
 from bs4 import BeautifulSoup
-from . import applications, ranking
+from . import applications, ranking, jsearch
 from .job_text import clean_title
 from .paths import DB
 
@@ -84,10 +84,9 @@ def make_server(db, ledger, port=8765):
 
         Building it replays the whole ledger and reads every open posting, and
         a decision paid for that twice: once to find the group to write, and
-        once through the refresh that follows the write. The inputs are two
-        files -- the ledger, which only ever grows, and the index, which a pass
-        rewrites -- so when they last changed and how long they are answers the
-        question exactly.
+        once through the refresh that follows the write. Track the ledger and
+        index files, plus the active filter fingerprint: editing title rules
+        must invalidate the queue even before the index is rescored.
 
         The UTC date is in the key as well, because the three-day window is a
         function of the clock and nothing else. Within a day the window drifts
@@ -105,7 +104,8 @@ def make_server(db, ledger, port=8765):
         build and never a missed one.
         """
         key = (fingerprint(ledger), fingerprint(db), fingerprint(str(db) + '-wal'),
-               datetime.now(timezone.utc).date())
+               datetime.now(timezone.utc).date(),
+               jsearch.filter_fingerprint(jsearch.load_plan()[0]['filter']))
         with building:
             if cached['key'] != key:
                 cached['state'] = applications.queue(db, ledger)

@@ -31,6 +31,33 @@ class RobotsThrottled(Exception):
 USER_AGENT = 'JobSourceCollector/1.0'
 
 
+def html_challenge(text):
+    """Return explicit challenge evidence, ignoring scripts and CDN branding."""
+    from bs4 import BeautifulSoup
+    soup = text if isinstance(text, BeautifulSoup) else BeautifulSoup(text, 'html.parser')
+    visible = soup.get_text(' ', strip=True).lower()
+    for term in ('human verification', 'verify you are human', 'access denied',
+                 'captcha challenge', "you don't have permission to access",
+                 'enable javascript and cookies'):
+        if term in visible:
+            return f'block/challenge signal: {term}'
+    if soup.select_one('#challenge-form, #cf-challenge-running'):
+        return 'block/challenge signal: challenge element'
+    return None
+
+
+def merge_source_pauses(local, published):
+    """Keep the later source refusal from either supported collector."""
+    with closing(sqlite3.connect(Path(published).resolve().as_uri() + '?mode=ro', uri=True)) as remote:
+        rows = remote.execute('SELECT company_key, retry_at, reason FROM source_pauses').fetchall()
+    with closing(sqlite3.connect(local)) as db, db:
+        db.execute('''CREATE TABLE IF NOT EXISTS source_pauses (
+            company_key TEXT PRIMARY KEY, retry_at REAL NOT NULL, reason TEXT NOT NULL)''')
+        db.executemany('''INSERT INTO source_pauses VALUES (?, ?, ?)
+            ON CONFLICT(company_key) DO UPDATE SET retry_at=excluded.retry_at,
+                reason=excluded.reason WHERE excluded.retry_at > source_pauses.retry_at''', rows)
+
+
 def crawl_delay(text, agent=USER_AGENT):
     """The Crawl-delay a robots.txt gives this crawler, or None.
 
@@ -188,3 +215,12 @@ class SourcePolicy:
         stamp = datetime.fromtimestamp(retry_at, timezone.utc).isoformat()
         self.stopped = f'{self.company_key}: {reason}; retry no earlier than {stamp}'
         raise SourcePaused(self.stopped)
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Merge published source cooldowns without shortening local pauses.')
+    parser.add_argument('local', type=Path)
+    parser.add_argument('published', type=Path)
+    args = parser.parse_args()
+    merge_source_pauses(args.local, args.published)

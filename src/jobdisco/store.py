@@ -117,9 +117,14 @@ def import_seen(db, root=None):
 def _insert_seen(db, batch):
     if not batch:
         return 0
+    newer = 'julianday(excluded.last_seen) > julianday(seen_jobs.last_seen)'
+    updates = ', '.join(f'{name}=CASE WHEN {newer} THEN excluded.{name} ELSE seen_jobs.{name} END'
+                        for name in SEEN_COLUMNS if name not in {'provider_key', 'source_job_id', 'first_seen'})
     db.executemany(
-        'INSERT OR REPLACE INTO seen_jobs (%s) VALUES (%s)'
-        % (', '.join(SEEN_COLUMNS), ', '.join('?' * len(SEEN_COLUMNS))), batch)
+        'INSERT INTO seen_jobs (%s) VALUES (%s) ON CONFLICT(provider_key, source_job_id) '
+        'DO UPDATE SET first_seen=CASE WHEN julianday(excluded.first_seen) < julianday(seen_jobs.first_seen) '
+        'THEN excluded.first_seen ELSE seen_jobs.first_seen END, %s'
+        % (', '.join(SEEN_COLUMNS), ', '.join('?' * len(SEEN_COLUMNS)), updates), batch)
     return len(batch)
 
 
@@ -302,6 +307,19 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     for original in rows:
         if original.get('source_job_id'):
             claimed.setdefault(original['url'], set()).add(str(original['source_job_id']))
+    # Snapshot moves before a replacement earlier in the batch deletes the old
+    # row. The requisition owns its history; the address does not.
+    moves = {}
+    for original in rows:
+        if not original.get('source_job_id'):
+            continue
+        identity = (original['provider_key'], '' if original['provider_key'] == 'jsearch'
+                    else original['company_key'], str(original['source_job_id']))
+        old = db.execute('''SELECT j.* FROM jobs j JOIN job_identities i ON i.url=j.url
+            WHERE i.provider_key=? AND i.scope=? AND i.source_job_id=?''', identity).fetchone()
+        if (old and old['url'] != original['url'] and not replaces_requisition(old, original)
+                and claimed.get(old['url'], set()) - {str(original['source_job_id'])}):
+            moves[identity] = dict(old)
     for original in rows:
         row = dict(original)
         scope = '' if row['provider_key'] == 'jsearch' else row['company_key']
@@ -346,6 +364,13 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                 # displaced posting back in through the row it already wrote.
                 prepared = [entry for entry in prepared if entry[0]['url'] != row['url']]
             previous = None
+        if identity in moves:
+            previous = moves[identity]
+            row['_first_seen'] = previous['first_seen']
+            row['_posted_relative'] = previous['posted_relative']
+            row['_lastmod'] = previous['lastmod']
+            if row.get('posted_at') is None:
+                row['posted_at'] = previous['posted_at']
         if previous:
             old_raw = json.loads(previous['raw'] or 'null')
             if previous['provider_key'] != 'jsearch' and row['provider_key'] == 'jsearch':
@@ -383,7 +408,9 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         chunk = incoming[start:start + 400]
         known.update(r[0] for r in db.execute(
             'SELECT url FROM jobs WHERE url IN (%s)' % ','.join('?' * len(chunk)), chunk))
-    new = len({u for u in incoming if u not in known})
+    moved_urls = {r['url'] for r in rows if '_first_seen' in r}
+    known.update(moved_urls)
+    new = len(set(incoming) - known)
     for row in rows:
         raw = slim(row.get('raw'))
         current = db.execute('SELECT raw, title, relevance, provider_key FROM jobs WHERE url=?',
@@ -434,7 +461,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
                    relevance=COALESCE(excluded.relevance, jobs.relevance)''',
             (url, row['company_key'], row['provider_key'], row['title'],
              row.get('location') or '', row.get('source_job_id'), row.get('posted_at'),
-             posted_relative, lastmod, stamp, stamp,
+             posted_relative or row.get('_posted_relative'), lastmod or row.get('_lastmod'),
+             row.get('_first_seen', stamp), stamp,
              encoded_raw, relevance))
     for identity, url in pending_identities.items():
         db.execute('INSERT OR IGNORE INTO job_identities VALUES (?, ?, ?, ?)', (*identity, url))
@@ -461,7 +489,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     for url in seen - set(fresh):
         old = before_rows[url]
         latest = dict(db.execute('SELECT * FROM jobs WHERE url=?', (url,)).fetchone())
-        if old and any(old[k] != latest[k] for k in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at', 'raw', 'closed_at', 'relevance')):
+        if url in moved_urls or (old and any(old[k] != latest[k] for k in ('company_key', 'provider_key', 'title', 'location', 'source_job_id', 'posted_at', 'raw', 'closed_at', 'relevance'))):
             changed.append(url)
     # Identity resolution can retain an old canonical URL after a sitemap slug
     # changes. Successfully read rows remain live under that canonical URL too.
@@ -835,8 +863,23 @@ def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None,
         state = db.execute('SELECT * FROM source_state WHERE source_id=?', (source_id,)).fetchone()
         if state:
             records.append({'type': 'source_state', 'state': dict(state)})
-    if _append_records(stamp, records):
-        describe_day(db, stamp)
+    append_described(db, stamp, records)
+
+
+def append_described(db, stamp, records):
+    """Keep completed fragments recoverable even if a later member fails."""
+    try:
+        if _append_records(stamp, records):
+            describe_day(db, stamp)
+    except BaseException:
+        path = daily_log(stamp)
+        if path.exists():
+            if path.stat().st_size:
+                describe_day(db, stamp)
+            else:
+                path.unlink()
+                manifest_path(stamp).unlink(missing_ok=True)
+        raise
 
 
 def append_scores(db, stamp, urls=None):
@@ -857,8 +900,7 @@ def append_scores(db, stamp, urls=None):
                 % ','.join('?' * len(chunk)), chunk))
     records = [{'type': 'score', 'url': row['url'], 'relevance': row['relevance']}
                for row in rows]
-    if _append_records(stamp, records):
-        describe_day(db, stamp)
+    append_described(db, stamp, records)
     return len(records)
 
 

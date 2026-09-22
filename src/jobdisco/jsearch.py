@@ -120,9 +120,14 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
             f'{config["daily_budget"]}')
     config['daily_pages_cap'] = pages_cap
     rules = config.setdefault('filter', {})
+    if not isinstance(rules, dict):
+        raise ValueError('filter must be a table')
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
                   'keep_title_patterns', 'evidence_title_patterns', 'strong_terms', 'common_terms'):
-        for expression in rules.get(group, []):
+        expressions = rules.get(group, [])
+        if not isinstance(expressions, list) or any(not isinstance(p, str) for p in expressions):
+            raise ValueError(f'filter.{group} must be an array of strings')
+        for expression in expressions:
             re.compile(expression, re.I)
     defaults = {'min_confidence': 25, 'certain_strong_hits': 6, 'half_score': 15,
                 'strong_weight': 3, 'common_weight': 1, 'title_multiplier': 2,

@@ -180,6 +180,7 @@ done
 # SQLite with nothing in it, and it passes every check but the one that
 # matters. The local ledger may be ahead of the published one -- a pass whose
 # push failed leaves exactly that -- but it may never be behind.
+python -m jobdisco.collection_policy "$CODE/.local/source_access.sqlite" "$DATA/operational/source_access.sqlite"
 python -m jobdisco.ledger_guard   "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite"
 
 cp "$CODE/.local/jsearch_usage.sqlite" "$CODE/.local/jsearch_usage.before.sqlite"

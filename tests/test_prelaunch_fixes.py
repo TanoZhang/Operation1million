@@ -236,10 +236,10 @@ class LocalRecoveryBackupTests(unittest.TestCase):
 
     def test_snapshot_python_is_valid_and_passed_as_one_argument(self):
         body = (ROOT / 'deploy/local/backup-from-vps.sh').read_text(encoding='utf-8')
-        match = re.search(r'^SNAPSHOT_CODE="(.*)"$', body, re.MULTILINE)
-        self.assertIsNotNone(match)
-        compile(match.group(1), '<snapshot-command>', 'exec')
-        self.assertIn('python3 -c \\"$SNAPSHOT_CODE\\"', body)
+        helper = ROOT / 'deploy/vps/backup-snapshot.py'
+        compile(helper.read_text(encoding='utf-8'), str(helper), 'exec')
+        self.assertIn('$(remote_quote "$REMOTE_STATE")', body)
+        self.assertIn('< "$SCRIPT_DIR/../vps/backup-snapshot.py"', body)
 
 
 class PassStatisticsTests(unittest.TestCase):

@@ -1,6 +1,35 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# B68-B84 fixed on codex; awaiting review, not deployed - 2026-09-21 UTC
+
+Implemented all 17 findings from audits 13-15. The numbered mechanisms and
+evidence are in the newest architecture bug-log entry. Historical audit
+reproducers remain unchanged; new regression tests assert the corrected behavior.
+
+The changes cover authoritative recovery snapshots and validation, interrupted
+backup rotation, safe history-compaction publication, published source pauses,
+validator error/empty/challenge handling, configuration and migration backups,
+moving requisition history, monotonic seen import, interrupted event writes,
+and Review cache invalidation after a filter edit.
+
+Validation on the Windows worktree, with imports pinned to its `src`: 544 tests
+discovered, 535 executed successfully and nine skipped. Skips require POSIX
+process groups, `flock`, or a populated local index. Backup and compaction
+regressions use temporary files and local Git remotes; compaction stubs `flock`.
+All three changed shell scripts also pass `bash -n`. No provider calls, real
+credit spending, VPS operations, or production lock-contention tests were run.
+
+Operational changes to review before installation: workstation backups now
+require Python locally and snapshot runtime ledgers from
+`/opt/jobdisco/code/.local` (override with `JOBDISCO_VPS_STATE`). Compaction holds
+the decision lock and uses a freshly fetched explicit push lease. See
+`docs/vps-deployment.md` for the updated recovery contract.
+
+`origin/main` was rechecked at `5e78ae814514115866532bf96f8397d0331354d2`.
+The user checkout and deployment are unchanged. Merge/review the standing
+`codex` branch before installing; pushing this branch deploys nothing.
+
 # The first pass on the new code, and a Workday regression it exposed - 2026-09-21 UTC
 
 The 11:38 UTC pass ran on `2f1f7be` and succeeded: suite green with no skips,
