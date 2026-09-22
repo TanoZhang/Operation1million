@@ -148,6 +148,65 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### R02, the B23/B27 residual, O10, and the soft block on direct boards, 2026-09-22 UTC
+
+The three follow-ups Codex's fifteenth audit left open, and a filter change the
+user asked for after seeing an 18,620-posting backlog.
+
+- **R02: descriptions the review page did not look for.** `/api/job` read six
+  top-level keys. Measured on the live index, most direct boards store no
+  description at all -- Eightfold, Workday, Apple, Google and Oracle keep the
+  listing only -- and nothing here can show what was never collected. What was
+  stored and missed: Phenom's `descriptionTeaser`, the only description on
+  1,280 of its 1,314 open postings; `content`, Codex's case; and the paid
+  listing's text kept under `raw['jsearch']` when a direct posting took one
+  over. `job_text.display_description` now reads them, current payload first,
+  and says which kind it returned; the page labels an excerpt and a discovery
+  listing as such. `store.slim` reads the same two field lists, so the log and
+  the page cannot disagree about what a description is. Reproducers:
+  `DescriptionTests` in `tests/test_review_description.py`.
+- **B23/B27: the description view trusted the page.** Whether a decided posting
+  moved provider or was replaced was judged from the provider and title the
+  page sent, with no alias check, so a same-titled replacement's prose was shown
+  under an application made to the old requisition. The server now takes the
+  decided job from its own queue's snapshot and applies the queue's rule --
+  same requisition, or a provider change with company and title agreeing and the
+  decided requisition still among the address's aliases -- through
+  `applications.describes_decision`. The page no longer sends provider or title.
+  Reproducers: `test_a_replacement_under_the_same_title_is_not_shown_as_the_decided_job`
+  and its control, `test_a_posting_that_only_changed_provider_still_shows_its_description`.
+- **O10: every checkpoint re-read the whole day.** An append re-described the
+  day, and describing it hashed and decompressed the entire file: Codex counted
+  420 records visited to log 40 over twenty checkpoints. The append now extends
+  a cached digest and count by exactly what it wrote. The cache is trusted only
+  while the file's size and mtime are what that write left; another writer, a
+  truncation after a failed write and a shard rollover each force a full read.
+  Twenty checkpoints now read the file once. Reproducers:
+  `CheckpointManifestTests`, which also check each of those three cases against
+  a fresh scan. They error rather than fail on the old code, which has no
+  `_scan_file`; the reduction on the old code is Codex's measurement.
+- **The soft title block never reached direct boards.** `reject_title_patterns`
+  ran only in `rejection_reason`, on paid results as they arrived. A direct
+  board's posting was held to the hard exclusions alone, and the queue has no
+  score floor -- it cannot have one, since a board with no descriptions scores
+  on the title and 15,694 backlog groups below the floor include "Design
+  Verification Intern". So the backlog carried 2,855 groups the existing rules
+  already named: software, analog, quality, recruiting, accounting. The queue
+  now applies the soft block through `jsearch.title_blocked`, which the paid
+  filter uses too, and which lets a title through when it also names the trade
+  (a keep pattern or a strong term). RF evidence titles keep their exception.
+- **At the user's request**, `principal` is a hard exclusion, a level like
+  `senior`, and power, product, supply, manufacturing, mechanical, magnetics,
+  project and program management and operations join the soft block. Two tests
+  that held principal as an allowed individual-contributor level were changed
+  to match. Measured against the live queue before deploying: the backlog goes
+  from 18,620 to about 12,995 and the recent tab from 530 to 427. Among what
+  goes are 21 early-career titles caught by `product` -- "Intern Position
+  (Custom IC Product Group)", "Hardware Products Early Career Rotation Program"
+  -- and one by `power`, "AI GPU Power Architect - New College Grad".
+  Reproducers: `SoftBlockTests` and
+  `QueueRulesTests.test_the_soft_block_reaches_direct_boards_in_the_queue`.
+
 ### An empty review page, a 28-second decision, and a backup that could not read, 2026-09-22 UTC
 
 Two reported by the user from the live page, one found screening Codex's B68

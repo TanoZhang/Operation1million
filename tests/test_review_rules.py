@@ -23,11 +23,13 @@ class FilterPolicyTests(unittest.TestCase):
     def test_explicit_seniority_is_hard_rejected_before_keep(self):
         for title in ('Senior RTL Engineer', 'Sr. FPGA Engineer', 'Sr ASIC Engineer',
                       'ASIC Engineer, Sr.', 'SENIOR Design Verification Engineer',
-                      'Director of RTL Design', 'FPGA Engineering Manager'):
+                      'Director of RTL Design', 'FPGA Engineering Manager',
+                      # A level, like senior, since 2026-09-22 at the user's request.
+                      'Principal RTL Engineer'):
             with self.subTest(title=title):
                 row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
                 self.assertEqual(jsearch.rejection_reason(row, self.rules), 'excluded')
-        for title in ('Staff FPGA Engineer', 'Principal RTL Engineer', 'SRAM Design Engineer'):
+        for title in ('Staff FPGA Engineer', 'SRAM Design Engineer'):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.excluded(title, self.rules))
         self.assertEqual(jsearch.rejection_reason({
@@ -177,6 +179,33 @@ class FilterPolicyTests(unittest.TestCase):
                 self.assertEqual(jsearch.rejection_reason(row, self.rules), '')
 
 
+class SoftBlockTests(unittest.TestCase):
+    """Asked for on 2026-09-22: another function's word drops a title unless
+    the title also names the trade."""
+
+    def setUp(self):
+        self.rules = jsearch.load_plan()[0]['filter']
+
+    def test_another_functions_word_alone_is_blocked(self):
+        for title in ('Power Integrity Engineer', 'Supply Chain Planner', 'Product Engineer',
+                      'Manufacturing Engineering Intern', 'Mechanical Design Engineer',
+                      'Wireless Power Magnetics Architect', 'Technical Program Management',
+                      'Project Management Apprenticeship', 'Business Operations Analyst'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.title_blocked(title, self.rules))
+
+    def test_a_title_that_names_the_trade_is_scored_instead(self):
+        for title in ('Low Power Verification Engineer', 'Power-aware RTL Design Engineer',
+                      'SoC Product Validation Engineer', 'FPGA Manufacturing Test Engineer',
+                      'UVM Verification Engineer, Operations'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.title_blocked(title, self.rules))
+
+    def test_principal_is_a_level(self):
+        self.assertTrue(jsearch.excluded('Principal Digital Verification Engineer', self.rules))
+        self.assertFalse(jsearch.excluded('Staff Digital Verification Engineer', self.rules))
+
+
 class TitleTests(unittest.TestCase):
     def test_relative_dates_and_known_location_do_not_change_identity(self):
         role = 'Senior ASIC Design Verification Engineer'
@@ -234,6 +263,20 @@ class QueueRulesTests(unittest.TestCase):
 
     def queue(self):
         return applications.queue(self.db, self.ledger)
+
+    def test_the_soft_block_reaches_direct_boards_in_the_queue(self):
+        """Direct postings never went through the soft block: it ran only on
+        paid results, at collection. Measured on the live backlog, 4,434 groups
+        it names were being offered for review."""
+        for title, provider, kept in (('Business Operations Analyst', 'workday', False),
+                                      ('Supply Chain Planner', 'jsearch', False),
+                                      ('Software Development Engineer, Web', 'workday', False),
+                                      ('Low Power Verification Engineer', 'workday', True),
+                                      ('RFIC Digital Verification Engineer', 'workday', True)):
+            with self.subTest(title=title):
+                with closing(sqlite3.connect(self.db)) as db, db:
+                    db.execute('UPDATE jobs SET title=?, provider_key=?', (title, provider))
+                self.assertEqual(bool(self.queue()['pending']), kept)
 
     def test_existing_high_score_defense_employer_is_hidden(self):
         with closing(sqlite3.connect(self.db)) as db, db:

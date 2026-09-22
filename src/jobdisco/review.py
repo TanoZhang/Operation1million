@@ -13,7 +13,7 @@ from urllib.parse import urlsplit, parse_qs
 
 from bs4 import BeautifulSoup
 from . import applications, ranking, jsearch
-from .job_text import clean_title
+from .job_text import display_description
 from .paths import DB
 
 
@@ -192,40 +192,37 @@ def make_server(db, ledger, port=8765):
                     query = parse_qs(route.query)
                     url = query.get('url', [''])[0]
                     group_id = query.get('id', [''])[0]
+                    # The decision's own record of the job, from the queue this
+                    # server already holds, rather than the provider and title
+                    # the page sends back: whether a posting moved or was
+                    # replaced is decided on the snapshot, as the queue decides it.
+                    decided = None
+                    if group_id and not group_id.startswith('legacy:'):
+                        state = cached['state'] or current_queue()
+                        group = next((group for status in ('pending', 'backlog', 'applied', 'skipped')
+                                      for group in state[status] if group['id'] == group_id), None)
+                        if group:
+                            decided = next((job for job in group['jobs'] if job['url'] == url),
+                                           group['jobs'][0] if group['jobs'] else None)
                     with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
                         con.row_factory = sqlite3.Row
                         row = con.execute(
                             'SELECT raw, company_key, provider_key, source_job_id, title, location '
                             'FROM jobs WHERE url=?', (url,)).fetchone()
-                    # A decided group is replayed from the snapshot it was
-                    # decided on, and a board may since have advertised another
-                    # requisition at the same address. The row there now is a
-                    # different opening, and showing its prose under the earlier
-                    # decision's title says the applicant applied to something
-                    # they never read. Legacy groups carry no requisition to
-                    # compare, so they are answered as before.
-                    if row is not None and group_id and not group_id.startswith('legacy:'):
-                        held = applications.decision_key(
-                            {'provider_key': row['provider_key'], 'company_key': row['company_key'],
-                             'source_job_id': row['source_job_id'], 'url': url})
-                        # The same opening found again on the company's own
-                        # board keeps its URL and takes the direct provider,
-                        # which changes the key it is identified by. That is a
-                        # posting that moved, not one that was replaced, and
-                        # reporting it as replaced hid the description of a job
-                        # the applicant had actually applied to. The page sends
-                        # the provider and title it is showing so the two can be
-                        # told apart; the URL already fixes the employer.
-                        moved = (query.get('provider', [''])[0] or '') not in (
-                            '', row['provider_key'] or '')
-                        same = moved and clean_title(
-                            row['title'] or '', row['location'] or '') == query.get('title', [''])[0]
-                        if held != group_id and not same:
+                        # A decided group is replayed from the snapshot it was
+                        # decided on, and a board may since have advertised
+                        # another requisition at the same address. Showing that
+                        # opening's prose under the earlier decision says the
+                        # applicant applied to something they never read. A
+                        # posting that only changed provider -- found through
+                        # JSearch, then on the company's own board -- is still
+                        # the one decided on, and the store's aliases say which
+                        # of the two happened.
+                        if row is not None and decided is not None and (
+                                not applications.describes_decision(con, url, dict(row), decided)):
                             return self.send({'description': '', 'replaced': True})
                     raw = json.loads(row['raw'] or '{}') if row else {}
-                    description = (raw.get('job_description') or raw.get('description') or
-                                   raw.get('descriptionPlain') or raw.get('jobDescription') or
-                                   raw.get('descriptionHtml') or raw.get('jobDescriptionHtml') or '') if isinstance(raw, dict) else ''
+                    description, kind = display_description(raw)
                     description = str(description)
                     # Parsed only where there is markup to parse. Everything
                     # used to go through the parser, including descriptions the
@@ -233,7 +230,10 @@ def make_server(db, ledger, port=8765):
                     # about `vector<T>` came back missing the type.
                     if MARKUP.search(description):
                         description = BeautifulSoup(description, 'html.parser').get_text('\n', strip=True)
-                    return self.send({'description': description.strip()})
+                    body = {'description': description.strip()}
+                    if kind in ('excerpt', 'discovery'):
+                        body['kind'] = kind
+                    return self.send(body)
                 names = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
                          '/style.css': ('style.css', 'text/css')}
                 if route.path in names:

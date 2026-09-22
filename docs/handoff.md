@@ -61,10 +61,12 @@ review page could show "All done for today" over hundreds of postings, and a
 decision left the posting in the list until a full rebuild answered. Both are
 in the bug log with what was measured.
 
-Still open from Codex's round 15, not fixed here: R02 (`/api/job` misses
-`raw.content` and other description fields), the B23/B27 residual (`/api/job`
-still lets a provider change plus an equal title override the alias check),
-and O10 (per-checkpoint manifests re-read the whole day).
+R02, the B23/B27 residual and O10 from Codex's round 15 were fixed in the
+commit after it, along with the soft title block now reaching direct boards and
+the user's added title words; see the bug log. The backlog is postings still
+open and undecided that were first seen more than three days ago -- not
+expired -- and it was 18,620 because the queue has no score floor and direct
+boards were never held to the soft block.
 
 # B68-B84 fixed on codex; awaiting review, not deployed - 2026-09-21 UTC
 

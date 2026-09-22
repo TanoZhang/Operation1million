@@ -1337,7 +1337,7 @@ class HardExclusionTests(unittest.TestCase):
 
     def test_allowed_individual_contributor_titles_are_untouched(self):
         for title in ('RTL Design Engineer', 'Design Verification Engineer',
-                      'Principal Engineer, SoC', 'Staff FPGA Engineer'):
+                      'Staff Engineer, SoC', 'Staff FPGA Engineer'):
             with self.subTest(title=title):
                 self.assertFalse(self.jsearch.excluded(title, self.rules))
 
