@@ -160,6 +160,10 @@ live index held 25 open Trabajo.org postings, one from Advies Van Spijk (an
 Intel listing attributed to "成都intel") and none from experteer.com. Reproducer:
 `QueueRulesTests.test_a_blocked_job_site_is_hidden_by_host_or_by_publisher`.
 
+`lead` joined `senior`, `sr` and `principal` as a level excluded outright, at the
+user's request the same day. It is the word only: "Leadership Development
+Program" and "Leading-Edge" are untouched.
+
 ### Third-party listing links, 2026-09-22 UTC
 
 The user asked why a posting linked to interviewsense.org. A paid listing's

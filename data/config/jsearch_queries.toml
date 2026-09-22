@@ -110,7 +110,7 @@ exclude_title_patterns = [
   # technician postings were surviving exactly that way.
   '\bsales\b', '\bmarketing\b', '\btechnician\b',
   # Levels above what an early-career application reaches
-  '\bsenior\b', '\bsr\b\.?', '\bprincipal\b',
+  '\bsenior\b', '\bsr\b\.?', '\bprincipal\b', '\blead\b',
   '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
   # Unrelated disciplines: title-only exclusions, before explicit trade keeps.
   '\bphotonics?\b', '\boptical\s+engineer\b', '\boptics\s+engineer\b',

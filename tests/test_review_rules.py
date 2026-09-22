@@ -226,6 +226,15 @@ class SoftBlockTests(unittest.TestCase):
 
     def test_principal_is_a_level(self):
         self.assertTrue(jsearch.excluded('Principal Digital Verification Engineer', self.rules))
+        # Lead too, asked for the same day; the word, not words that contain it.
+        for title in ('Lead Product Validation Engineer', 'Design Verification Tech Lead',
+                      'RTL Design Engineer - Team Lead'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.excluded(title, self.rules))
+        for title in ('Leadership Development Program - Hardware Engineer',
+                      'ASIC Engineer, Leading-Edge Nodes'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
         self.assertFalse(jsearch.excluded('Staff Digital Verification Engineer', self.rules))
 
 
