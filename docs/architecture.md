@@ -170,6 +170,26 @@ No deployment or production hit count is claimed.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### One review list, less related last; hands-on durations, 2026-09-22 UTC
+
+- **The review tab is one list to work down**, at the user's request: postings
+  new in the last 72 hours, then the backlog, then everything less related from
+  either, each section sorted by the menu and headed by a divider. "Less
+  related" is set by the server: a title in the last band *and* a Fit under
+  `min_confidence`. The band alone would have buried "SDC, Synthesis and STA
+  Engineer" (Fit 69); the score alone would bury every board that publishes no
+  description. The Backlog tab is the backlog alone, less related last.
+- **"8+ years of hands-on FPGA designs" was read as no requirement.** A
+  duration counted only beside "experience", "professional", "industry", a
+  required marker or a degree. `HANDS_ON` now admits the work named right after
+  the duration -- hands-on, practical, proven, or a verb of the trade --
+  capped at 15 years and not after "within" or "in", so company boilerplate
+  and deadlines stay out. Measured against every open posting in the live
+  index: 3 more hard passes, each a real requirement ("5+ years building ...
+  distributed systems", "10+ years designing ... boards"). Checked in the same
+  run: the 317 postings passed on a requirement over 15 years are all real
+  requirements, not a company's age. Reproducer: `HandsOnDurationTests`.
+
 ### Blocked job sites, 2026-09-22 UTC
 
 At the user's request, listings republished by experteer.com, Trabajo.org and

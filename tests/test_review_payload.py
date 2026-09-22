@@ -136,6 +136,16 @@ class ClientSourceContractTests(unittest.TestCase):
                         'a failed first load leaves the list saying it is loading')
 
 
+    def test_the_review_list_runs_new_then_backlog_then_less_related(self):
+        """Asked for on 2026-09-22: one list, with what is barely related at the
+        back of it whether it is new or old."""
+        body = self.script().split('function filtered() {')[1].split('\n}\n')[0]
+        self.assertTrue("[['recent', state.pending.filter(related)], ['backlog', state.backlog.filter(related)],"
+                        in body, 'the review tab no longer leads with new, then backlog')
+        self.assertTrue("['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]"
+                        in body, 'less related postings are not gathered at the end')
+        self.assertIn('less_related', review.GROUP_FIELDS)
+
     def test_a_saved_decision_leaves_the_list_before_the_refresh(self):
         """Asked for on 2026-09-22: Skip or Mark applied should take the posting
         out of the list and into its tab at once, not after a reload."""

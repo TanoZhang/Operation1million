@@ -347,6 +347,16 @@ class QueueRulesTests(unittest.TestCase):
                     db.execute('UPDATE jobs SET title=?, provider_key=?', (title, provider))
                 self.assertEqual(bool(self.queue()['pending']), kept)
 
+    def test_less_related_takes_both_the_last_band_and_a_low_score(self):
+        """Asked for on 2026-09-22: barely related postings go to the back."""
+        for title, relevance, less in (('Onsite Medical Representative', 0, True),
+                                       ('SDC, Synthesis and STA Engineer', 69, False),
+                                       ('RTL Design Engineer', 0, False)):
+            with self.subTest(title=title):
+                with closing(sqlite3.connect(self.db)) as db, db:
+                    db.execute('UPDATE jobs SET title=?, relevance=?', (title, relevance))
+                self.assertIs(self.queue()['pending'][0]['less_related'], less)
+
     def test_a_third_party_listing_says_who_published_it(self):
         """Every open JSearch posting measured on 2026-09-22 linked to a
         third-party site, with no direct option to prefer."""

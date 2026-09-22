@@ -284,3 +284,26 @@ class UpperBoundTests(unittest.TestCase):
                 found = experience.evaluate('ASIC Design Engineer', body)
                 self.assertEqual(found['hard_pass_reason'],
                                  'required_experience_over_2_years', body)
+
+
+class HandsOnDurationTests(unittest.TestCase):
+    """Reported on 2026-09-22: "8+ years of hands-on FPGA designs" was read as
+    asking nothing, because it never says "experience"."""
+
+    def test_the_work_named_after_the_years_is_a_requirement(self):
+        for text, years in (
+                ('Core profile: FPGA design, high-speed digital, hardware debug, embedded SW '
+                 'and systems design.\n8+ years of hands-on FPGA designs.', 8),
+                ('5 years designing ASICs.', 5),
+                ('3 years of hands-on FPGA work.', 3)):
+            with self.subTest(text=text[-40:]):
+                found = evaluate('FPGA Engineer', text)
+                self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+                self.assertEqual(found['required_experience_years'], years)
+
+    def test_what_is_not_a_requirement_stays_out(self):
+        for text in ('Founded 25 years ago.', 'For 30 years of pioneering chips, we have led.',
+                     'You will ship two tape-outs within 3 years of hands-on work.',
+                     '1 year of hands-on lab work is a plus.', '2 years of hands-on FPGA work.'):
+            with self.subTest(text=text):
+                self.assertEqual(evaluate('FPGA Engineer', text)['hard_pass_reason'], '')

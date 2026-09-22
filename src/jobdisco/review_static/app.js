@@ -88,20 +88,46 @@ async function refresh() {
     if (!loaded) $('#list').innerHTML = `<div class="empty">The queue could not be loaded: ${escapeText(err.message)}. Use Refresh to try again.</div>`;
   }
 }
-function filtered() {
-  const text = $('#search').value.trim().toLowerCase();
-  const groups = state[tab].filter(group => `${group.company} ${group.title}`.toLowerCase().includes(text));
+// The sort the menu asks for, over one section. Equal fits keep server order;
+// absent scores go last in either direction, and state is never mutated.
+function sorted(groups) {
   if (sortMode === 'recommended') return groups;
-  // Sort the entire result before pagination. Equal fits retain server order;
-  // absent scores go last in either direction, and state is never mutated.
   const score = group => typeof group.confidence === 'number' && Number.isFinite(group.confidence)
     ? group.confidence : null;
-  return groups.sort((a, b) => {
+  return [...groups].sort((a, b) => {
     const left = score(a), right = score(b);
     if (left === null) return right === null ? 0 : 1;
     if (right === null) return -1;
     return sortMode === 'fit-asc' ? left - right : right - left;
   });
+}
+// Which section each listed group was placed in, for the dividers.
+let sectionOf = new Map();
+const SECTION_NAMES = {recent: 'New in the last 72 hours', backlog: 'Backlog',
+                       less: 'Less related'};
+// Asked for on 2026-09-22: one list to work down -- what is new, then the
+// backlog -- with what is barely related at the back of it, new or old. The
+// server says which groups those are (`less_related`); the order inside each
+// section is the menu's. The Backlog tab is the same idea over the backlog.
+function filtered() {
+  const text = $('#search').value.trim().toLowerCase();
+  const match = group => `${group.company} ${group.title}`.toLowerCase().includes(text);
+  const related = group => !group.less_related;
+  let sections;
+  if (tab === 'pending') {
+    sections = [['recent', state.pending.filter(related)], ['backlog', state.backlog.filter(related)],
+                ['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]];
+  } else if (tab === 'backlog') {
+    sections = [['backlog', state.backlog.filter(related)],
+                ['less', state.backlog.filter(group => group.less_related)]];
+  } else {
+    sections = [[null, state[tab]]];
+  }
+  sectionOf = new Map();
+  return sections.flatMap(([name, groups]) => sorted(groups.filter(match)).map(group => {
+    sectionOf.set(group.id, name);
+    return group;
+  }));
 }
 // Bands 0 and 1 are both early-career openings and read as one number here,
 // even though a core one still leads an adjacent one in the list itself.
@@ -115,10 +141,10 @@ function bandSummary(groups) {
 }
 function render() {
   if (!loaded) return;
-  $('#remaining').textContent = state.pending.length;
+  $('#remaining').textContent = state.pending.length + state.backlog.length;
   $('#applied').textContent = state.applied.length;
   $('#skipped').textContent = state.skipped.length;
-  $('#pending-count').textContent = state.pending.length;
+  $('#pending-count').textContent = state.pending.length + state.backlog.length;
   $('#backlog-count').textContent = state.backlog.length;
   const groups = filtered();
   if (!groups.some(group => group.id === selected)) selected = groups[0]?.id ?? null;
@@ -127,7 +153,14 @@ function render() {
   if (!groups.length) {
     $('#list').innerHTML = '<div class="empty">No matching positions</div>';
   }
-  groups.slice(0, visibleLimit).forEach(group => {
+  groups.slice(0, visibleLimit).forEach((group, index) => {
+    const section = sectionOf.get(group.id);
+    if (section && section !== sectionOf.get(groups[index - 1]?.id)) {
+      const divider = document.createElement('div');
+      divider.className = 'list-divider';
+      divider.textContent = `${SECTION_NAMES[section]} \u00b7 ${groups.filter(item => sectionOf.get(item.id) === section).length}`;
+      $('#list').append(divider);
+    }
     const button = document.createElement('button');
     button.className = 'job' + (group.id === selected ? ' selected' : '');
     button.setAttribute('aria-pressed', group.id === selected);
@@ -154,8 +187,8 @@ function render() {
 async function renderDetail(group) {
   const version = ++detailVersion;
   if (!group) {
-    $('#detail').innerHTML = tab === 'pending' && !state.pending.length
-      ? '<div class="empty"><span class="done">&#10003;</span><h2>All done for today</h2><p>No unreviewed positions in the last 72 hours.</p></div>'
+    $('#detail').innerHTML = tab === 'pending' && !state.pending.length && !state.backlog.length
+      ? '<div class="empty"><span class="done">&#10003;</span><h2>All done</h2><p>No unreviewed positions left.</p></div>'
       : '<div class="empty">No position selected</div>';
     return;
   }

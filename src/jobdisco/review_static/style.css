@@ -34,3 +34,4 @@ main{max-width:none;padding:16px 20px 12px}
   .overview{gap:14px}
   .detail{padding:20px 14px}
 }
+.list-divider{padding:10px 20px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#567262;background:#f3f6f3;border-bottom:1px solid #e3e8e3;position:sticky;top:0;z-index:1}

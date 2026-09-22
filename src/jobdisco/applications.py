@@ -449,6 +449,14 @@ def queue(db_path=DB, path=None, now=None):
     # rather than folded into it.
     result['pending'] = ranking.order(undecided(groups))
     result['backlog'] = ranking.order(undecided(backlog))
+    # Asked for on 2026-09-22: what is barely related goes to the back of the
+    # page, new or old. The band alone is too blunt -- "SDC, Synthesis and STA
+    # Engineer" names no band's words and scores 69 -- so it takes both: a title
+    # in the last band and a score under the filter's own threshold. Measured on
+    # the live queue, most of that band ("Onsite Medical Representative",
+    # "Strategic Client Leader") and none of its high scorers.
+    for group in result['pending'] + result['backlog']:
+        group['less_related'] = group['bucket'] == 4 and group['confidence'] < minimum
     for key, event in group_states.items():
         if event['status'] != 'pending':
             group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))

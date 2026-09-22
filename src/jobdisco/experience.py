@@ -14,6 +14,18 @@ NUMBER = r'(?P<low>\d{1,2}(?:\.\d)?)(?:\s*(?:-|–|—|to)\s*\d{1,2})?\s*\+?'
 YEARS = re.compile(r'(?<![\w.])' + NUMBER + r'(?:\s+|\s*[-–—]\s*)years?\b', re.I)
 SHORT_DEGREE = re.compile(r'\b(?P<degree>BS|MS)\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
 EXPERIENCE = re.compile(r'\b(?:experience|professional|industry)\b', re.I)
+# The work itself, named straight after the duration. "8+ years of hands-on
+# FPGA designs" asks for eight years as plainly as "8 years of experience" does,
+# and was read as asking nothing because none of the words above is in it --
+# reported by the user on 2026-09-22. Only practice words and verbs of the
+# trade: "30 years of pioneering" and "25 years of innovation" are a company
+# describing itself, which is also why the bound below caps the number.
+HANDS_ON = re.compile(
+    r'^\s*(?:of\s+)?(?:(?:hands[-\s]?on|practical|proven|relevant|direct|demonstrated)\b'
+    r'|(?:designing|developing|building|working|writing|coding|programming|debugging|'
+    r'verifying|validating|testing|implementing|architecting|using|delivering|'
+    r'shipping|performing|creating|doing)\b)', re.I)
+HANDS_ON_MAX_YEARS = 15
 # A duration that has to pass, not one that has to have passed. Under a
 # required heading a bare number of years is read as a requirement, and "ship
 # two tape-outs within three years" is a deadline the job sets, not experience
@@ -205,8 +217,11 @@ def evaluate(title, description):
                     continue
                 standalone = YEARS.fullmatch(clause.strip())
                 under_heading = required_section and not ELAPSED.search(before)
+                hands_on = (HANDS_ON.match(after) and not ELAPSED.search(before)
+                            and years_value(match['low']) <= HANDS_ON_MAX_YEARS)
                 if not (EXPERIENCE.search(clause) or REQUIRED.search(clause)
-                        or DEGREE.search(before) or standalone or under_heading):
+                        or DEGREE.search(before) or standalone or under_heading
+                        or hands_on):
                     continue
                 degrees = list(DEGREE.finditer(before))
                 degree = degrees[-1].group().lower() if degrees else ''
