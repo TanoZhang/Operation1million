@@ -5,6 +5,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner:   claude
+Scope:   Review queue filters and order at the user's direction, 2026-09-22:
+         screened and merged codex (B68-B84, answer bank, sort, domain lists),
+         and deployed each step to the VPS.
+Files:   src/jobdisco/{applications,review,jsearch,experience,ranking,
+         location,degree,store,job_text}.py, review_static/, data/config/
+         jsearch_queries.toml, deploy/, tests/, docs/
+Base commit: 5e78ae8
+Status:  done -- main and the VPS at 886e375
+Next:    See the newest handoff. Filter changes must be measured on the live
+         queue and their removals read before deploying.
+```
+
+```text
 Owner: codex
 Scope: Add the user's eight explicit domain exclusions; no deployment.
 Files: data/config/jsearch_queries.toml, tests/test_review_rules.py, docs/{blocked-recruitment-domains,agent-protocol,architecture,handoff}.md

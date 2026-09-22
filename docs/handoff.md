@@ -1,6 +1,52 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Review filters rebuilt with the user; everything deployed - 2026-09-22 UTC
+
+**Deployed.** The VPS runs `886e375`, the head of `main`. That includes all of
+Codex's work below this section -- the answer bank, the highest-Fit sort, the
+DOJ and user domain blocklists -- which those sections still call "not
+deployed": they were merged and deployed the same day. Suite green on the VPS
+(620 tests, no skips); stored scores rescored for all 41,923 postings after
+the last change to scoring.
+
+What the review queue now does, all asked for by the user during the day; the
+bug log in `architecture.md` has the measurement behind each:
+
+- **One list.** "To review" runs new (72 h), then backlog, then everything
+  `less_related` (last band and Fit under `min_confidence`) at the end. A
+  decision moves the posting immediately; the server patches its cached queue
+  instead of rebuilding.
+- **Removed outright** (queue and paid filter alike): titles naming principal,
+  lead or trabajo (except "up to Principal Level" and "Lead & IC Engineers");
+  the soft title block now reaching direct boards, with a softer
+  `function_title_patterns` tier kept when the title names hardware and a
+  role; blocked job sites by host, publisher or word; descriptions requiring
+  U.S. citizenship or U.S. person status (not hedged ones); a hands-on
+  duration over two years ("8+ years of hands-on FPGA designs"); listings
+  placed only outside the U.S. (`location.py`, unknown kept); PhD-only
+  postings (`degree.py`, any other degree or "or equivalent" kept).
+- **Fit** of a posting without a full description is floored at the median
+  Fit of described postings in its title band (`title_only_floor`).
+- Third-party paid listings are labelled with their publisher and offer a
+  search of the employer's own site.
+
+**The user's standing instruction for filters: do not remove the wrong
+postings.** Every rule above was run against the live queue before deploying
+and its removals read; a full audit found and undid about 80 wrong catches
+(see "Reading every removal" in the bug log). A new rule should be measured the
+same way -- build the queue with and without it on the VPS, read what it
+removes, and let every doubt keep the posting. The audit and measurement
+scripts were one-off and are not in the repository.
+
+Open, waiting on the user: whether to send the postings these rules cannot
+settle to a language model (paid API, cached per posting). Nothing is built;
+the proposal is to count that slice first and quote a real cost.
+
+Heredocs through the Bash tool turned `\b` into a backspace character twice
+today; both were found and fixed. Write patches through files, and scan for
+control characters before committing a regex.
+
 # User-supplied domain exclusions - 2026-09-22 UTC (codex, not deployed)
 
 Added all eight domains from the user's explicit list to the existing hard
