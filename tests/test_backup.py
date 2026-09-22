@@ -93,7 +93,7 @@ class BackupTests(unittest.TestCase):
         (backup / 'last-pull').write_text('last good pull', encoding='utf-8')
         driver = root / 'driver.sh'
         driver.write_text(
-            "ssh() { tar czf - -C fixture data sqlite; }\n"
+            "ssh() { printf '%s\\n' \"$@\" > ssh-args; tar czf - -C fixture data sqlite; }\n"
             + ('''mv() {
   if [ "$1" = 'backup/.incoming/data' ]; then return 73; fi
   command mv "$@"
@@ -206,6 +206,15 @@ class BackupTests(unittest.TestCase):
             with module.decision_lock(ledger):
                 with open(lock, 'rb') as probe, self.assertRaises(BlockingIOError):
                     fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def test_the_snapshot_runs_as_the_service_account(self):
+        """As the SSH user it failed on the VPS whenever nothing else held the
+        index open: a WAL database with no -shm cannot be read by a user who
+        may not create one. Measured 2026-09-22."""
+        result, backup = self.run_backup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        remote = (backup.parent / 'ssh-args').read_text(encoding='utf-8').splitlines()[-1]
+        self.assertTrue(remote.startswith("sudo -n -u 'jobdisco' python3 - "), remote)
 
     def test_the_day_still_being_written_may_differ_from_its_manifest(self):
         """A pass appending while tar reads is a race, not a damaged copy.

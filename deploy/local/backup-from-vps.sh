@@ -25,6 +25,7 @@ KEY=${JOBDISCO_VPS_KEY:-$HOME/.ssh/op1m_vps}
 REMOTE=${JOBDISCO_VPS_DATA:-/opt/jobdisco/data}
 REMOTE_DB=${JOBDISCO_VPS_DB:-/opt/jobdisco/code/data/db/job_discovery.sqlite}
 REMOTE_STATE=${JOBDISCO_VPS_STATE:-/opt/jobdisco/code/.local}
+REMOTE_USER=${JOBDISCO_VPS_USER:-jobdisco}
 TARGET=${1:-${JOBDISCO_BACKUP_DIR:-$HOME/op1m-backup}}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
@@ -49,8 +50,12 @@ echo "== Pulling $HOST:$REMOTE =="
 # consistent even if review or collection has the live WAL database open.
 # Quote paths for the remote shell independently of the local one.
 remote_quote() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
+# Run as the service account, which owns every file read here. As the SSH
+# user it failed whenever nothing else had the index open: a WAL database with
+# no -shm needs one created, and the SSH user cannot write that directory --
+# measured on the VPS, 2026-09-22. The same account owns the decision lock.
 ssh -i "$KEY" -o BatchMode=yes "$HOST" \
-    "python3 - $(remote_quote "$REMOTE") $(remote_quote "$REMOTE_DB") $(remote_quote "$REMOTE_STATE")" \
+    "sudo -n -u $(remote_quote "$REMOTE_USER") python3 - $(remote_quote "$REMOTE") $(remote_quote "$REMOTE_DB") $(remote_quote "$REMOTE_STATE")" \
     < "$SCRIPT_DIR/../vps/backup-snapshot.py" \
   | tar xzf - -C "$incoming"
 

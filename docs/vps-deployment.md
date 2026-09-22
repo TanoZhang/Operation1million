@@ -141,6 +141,13 @@ with snapshots of the authoritative runtime databases under
 `/opt/jobdisco/code/.local` (`JOBDISCO_VPS_STATE` overrides that directory).
 Application decisions are copied while holding the decision ledger lock.
 
+The helper runs as the service account (`sudo -n -u jobdisco`, overridden by
+`JOBDISCO_VPS_USER`), so the SSH user needs passwordless sudo, which the
+default `ubuntu` user has. As `ubuntu` itself it failed, measured on the VPS:
+it could not take the lock, which it had no write access to, and it could not
+open the index whenever no other process had it open, because a WAL database
+with no `-shm` needs one created in a directory `ubuntu` cannot write.
+
 **Copying the file is not the same as copying the database.** The index is in
 WAL mode and a pass writes to it for an hour, so `cp` during that hour yields a
 main file missing every committed transaction still sitting in the WAL, or a

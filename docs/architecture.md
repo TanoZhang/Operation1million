@@ -135,7 +135,7 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
-### An empty review page, a 28-second decision, and a backup that could not lock, 2026-09-22 UTC
+### An empty review page, a 28-second decision, and a backup that could not read, 2026-09-22 UTC
 
 Two reported by the user from the live page, one found screening Codex's B68
 fix on the VPS before merging it.
@@ -176,6 +176,16 @@ fix on the VPS before merging it.
   needs no write access, so an existing lock is now opened read-only on POSIX.
   Reproducer: `BackupTests.test_a_lock_file_the_backup_user_cannot_write_is_still_honoured`,
   which runs on the VPS and skips on Windows and as root.
+- **...and could not open the index as the backup user either.** After the
+  deploy restarted the review server, nothing held the index open, its `-wal`
+  and `-shm` were gone, and a read-only connection as `ubuntu` failed with
+  "attempt to write a readonly database": a WAL database needs a `-shm`, and
+  `ubuntu` cannot create one in that directory. The run before had succeeded
+  only because a reader happened to be holding the sidecars. This predates
+  B68 -- the old one-line snapshot opened the index the same way. The helper
+  now runs as the service account, which owns every file it reads; run that
+  way on the VPS, the archive carried all six files and every pipe stage
+  exited 0. Reproducer: `BackupTests.test_the_snapshot_runs_as_the_service_account`.
 
 ### B68-B84: recovery, validation and replay, 2026-09-21 UTC (merged and deployed 2026-09-22)
 
