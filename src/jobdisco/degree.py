@@ -121,7 +121,13 @@ def description_only(text):
         if (not has_phd or optional or has_other
                 or NOT_EXCLUSIVE.search(block)):
             continue
-        if STATED.search(block) or (required_section and DEGREE_LINE.search(block)):
+        # A requirement may sit behind its own heading on one line:
+        # "Required: PhD in EE". The heading names the section, the rest states
+        # the degree, and neither half is read alone.
+        body = block.split(':', 1)[1].strip(' \t-*•·') if ':' in block else block
+        under_heading = required_section or bool(
+            REQUIRED.search(block[:block.index(':')]) if ':' in block else False)
+        if STATED.search(block) or (under_heading and DEGREE_LINE.search(body)):
             stated = True
     return stated and not other
 

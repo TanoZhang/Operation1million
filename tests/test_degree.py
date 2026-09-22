@@ -145,3 +145,9 @@ class ReportedBugTests(unittest.TestCase):
         # A real heading still opens a section.
         self.assertFalse(phd_only('Engineer', 'Preferred qualifications:\nPhD in Electrical Engineering'))
         self.assertFalse(phd_only('Engineer', 'Nice to have\nPhD in EE'))
+
+    def test_a_requirement_behind_its_own_heading_on_one_line(self):
+        self.assertTrue(phd_only('Engineer', 'Required: PhD in EE'))
+        self.assertTrue(phd_only('Engineer', 'Minimum qualification: PhD in Physics'))
+        self.assertFalse(phd_only('Engineer', 'Preferred: PhD in EE'))
+        self.assertFalse(phd_only('Engineer', 'Requirements: PhD in EE or MS with 5 years'))

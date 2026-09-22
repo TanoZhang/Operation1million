@@ -1,6 +1,29 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# The eligibility refactor reviewed, merged and deployed - 2026-09-22 UTC
+
+**Deployed.** The sections below written as "not deployed" -- the shared
+eligibility entry point, the PhD preference, negation and structured-field
+fixes, and `coding-standards.md` -- were reviewed, merged and deployed in
+`bb8e934` and the commit carrying this section. Their own claims are otherwise
+unchanged; only their deployment status is.
+
+What the review checked, rather than taking the green suite for it:
+
+- `jsearch.eligibility_rejection` runs the same three checks in the same order
+  the two callers ran separately -- experience, U.S. person, PhD -- and still
+  writes `experience_filter` into the row for the paid collector's diagnostics.
+  The queue keeps setting `job['experience_filter']` from its return.
+- The PhD additions only ever keep more: a title that says a PhD is preferred
+  or a plus, "No PhD required", "PhD optional", and an explicit "or relevant
+  experience" alternative. Measured against every open posting in the live
+  index, they change no verdict.
+- One gap left: a requirement behind its own heading on one line, "Required:
+  PhD in EE", was read as neither a heading nor a requirement. Both halves are
+  now read. Measured on the live index: no posting changes verdict, so this is
+  a latent case closed, not a change to the queue.
+
 # Current patch overview - 2026-09-22 UTC (not deployed)
 
 Base: feda989aa91d407408f2df1d21e6f5eb8f985407 plus the local working tree.

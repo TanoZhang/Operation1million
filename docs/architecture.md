@@ -174,6 +174,16 @@ No deployment or production hit count is claimed.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### A requirement behind its own heading, 2026-09-22 UTC
+
+"Required: PhD in EE" states a section and a requirement on one line, and was
+read as neither: the heading test rejected it because it names a degree, and
+the requirement test wanted the line to begin with the degree. The heading and
+the rest of the line are now read separately. "Preferred: PhD in EE" is
+unaffected, and "Education: PhD in EE" still keeps the posting, because that
+heading does not say the degree is required. Measured against every open
+posting in the live index: no verdict changes.
+
 ### Four reported by the user against the live rules, 2026-09-22 UTC
 
 All four reproduced exactly as reported.
