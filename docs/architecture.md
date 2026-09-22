@@ -170,6 +170,25 @@ No deployment or production hit count is claimed.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### PhD-only postings, 2026-09-22 UTC
+
+Asked for by the user: remove postings open only to PhDs, keep those a PhD is
+merely allowed or preferred for, and remove nothing by mistake. `degree.phd_only`
+answers only that question, and every doubt keeps the posting. A title decides
+when it names a PhD and no other degree ("Software Engineer, PhD, Early
+Career"; "Intern, MS/PhD" is kept). Otherwise the description decides, only on
+an explicit statement -- "currently pursuing a PhD", "PhD required", a "PhD
+in ..." line under a required heading -- with no other degree and no "or
+equivalent" in the same sentence, outside any preferred section, and with no
+bachelor's or master's offered anywhere else. Short degree forms are matched as
+written, because without case "B.E." is the word "be" in every description.
+
+Run over the live queue before deploying and every removal read: 75 by title,
+all naming only a PhD, and 6 by description, all Amazon Applied Scientist
+postings whose required qualifications list only a PhD. The Amazon postings
+saying "PhD, or Master's degree and 4+ years" were not caught. Reproducer:
+`tests/test_degree.py`.
+
 ### Reading every removal: the wrong catches in today's rules, 2026-09-22 UTC
 
 At the user's request ("don't catch the wrong ones"), the queue was built on

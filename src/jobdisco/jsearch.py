@@ -745,6 +745,9 @@ def rejection_reason(row, rules, description=None, score=None):
         return experience['hard_pass_reason']
     if us_person_required(requirements, rules):
         return 'us_person_required'
+    from .degree import phd_only
+    if phd_only(title, requirements):
+        return 'phd_only'
     # Before the keeps, not after: the point of an evidence title is that its
     # name is not trusted, and a title that also happens to match a keep would
     # otherwise skip the check it exists for. A posting that really is the trade
@@ -771,7 +774,7 @@ def rejection_reason(row, rules, description=None, score=None):
 # Missing descriptions and domain-vocabulary judgements remain separate.
 HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'excluded_publisher',
                              'required_experience_over_2_years',
-                             'us_person_required'})
+                             'us_person_required', 'phd_only'})
 
 
 # Early career is what this search is for, so it is asked first -- all three

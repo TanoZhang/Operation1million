@@ -10,7 +10,7 @@ import uuid
 
 from .paths import DB, DATA
 from .job_text import clean_title
-from . import jsearch, location, ranking
+from . import degree, jsearch, location, ranking
 
 
 def ledger_path():
@@ -346,6 +346,10 @@ def queue(db_path=DB, path=None, now=None):
                 if experience['hard_pass_reason']:
                     continue
                 if jsearch.us_person_required(requirements, rules):
+                    continue
+                # Open to PhDs only, asked for on 2026-09-22; one a PhD is only
+                # allowed or preferred for stays. See `degree`.
+                if degree.phd_only(job['title'], requirements):
                     continue
                 if jsearch.publisher_excluded(job['url'], raw, rules):
                     continue
