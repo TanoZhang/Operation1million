@@ -78,6 +78,8 @@ answers.json` is atomically saved under a lock; `answers.sqlite` is a derived
 view refreshed after writes and can be rebuilt. This is not application decision
 state, does not write the VPS ledger, and is never read by job-index rebuilds.
 It emits no personal-review answer automatically and performs no browser writes.
+Position-restricted bindings withhold answers unless the caller supplies the
+matching position ID; passing no context cannot silently reuse a prior cycle.
 See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
 
 ### Operations

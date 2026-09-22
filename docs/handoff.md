@@ -1,6 +1,27 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Qualcomm answer import and position restrictions - 2026-09-22 UTC (codex)
+
+The user authorized importing the filled Chrome application and automatic
+reuse of its known answers. The ignored workstation bank now holds 27 answered,
+bound questions, with no pending mapping. Real values and the local import
+report remain under `.local/autofill`; none are committed. No website answer
+was changed and no application was submitted. Six values omitted from browser
+text output were verified from visible screenshots, not inferred to be blank.
+
+Two answers depend on the particular summer internship. Bindings can now require
+a position ID. `observe`/`resolve` with missing or different position context
+withhold those answers, even when automatic filling is enabled. The exact
+matching position resolves all 27 local entries; SQLite integrity, source digest
+and the two context rejection paths were checked locally. Seventeen focused
+offline answer-bank tests pass. Final live reinspection was unavailable because
+Chrome could list the tab but could not attach to it; earlier DOM/screenshot
+observations are the import evidence. No persistent browser watcher was added.
+
+The concurrent `main` changes through `de12047` were inspected and left intact;
+this work stays on the standing Codex branch and is not deployed.
+
 # Local reusable autofill answers - 2026-09-22 UTC (codex, not deployed)
 
 Added `jobdisco.answer_bank` and the `job-answers` CLI. Canonical fields each own

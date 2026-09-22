@@ -56,6 +56,7 @@ Status values:
 | `incompatible_control` | Stored answer type does not match the control. |
 | `option_mismatch` | The exact answer is absent from the observed options. |
 | `requires_review` | This field requires confirmation for each use; no answer is emitted. |
+| `position_context_required` | A job-specific mapping requires its exact position ID; no answer is emitted for missing or different context. |
 | `ready` | A compatible answer can be proposed; this is not permission to transmit it. |
 
 Personal fields default to `review`. Do not create reusable automatic consent
@@ -84,6 +85,15 @@ The answer file contains a JSON value, for example `"Example Person"`, `2028`,
 read from a file to avoid putting them into command history; keep that file
 private too. `resolve`/`observe` can print ordinary ready answers to the terminal.
 The installed console command is `job-answers`.
+
+For an answer that depends on a particular internship or recruiting cycle,
+bind with `--position-id JOB_ID`. Pass the same `--position-id` to `resolve`
+or `observe`. Omitting it or supplying a different ID withholds the answer.
+Rebinding without the option does not remove the restriction. The SQLite
+questions table includes `required_position_id` for downstream consumers.
+Browser adapters must get the current position ID from the page, not copy it
+from the stored answer. Confirmed local fields may use `fill` when the user
+authorizes automatic reuse; built-in personal-field defaults remain `review`.
 
 Extend personal questions without changing code:
 

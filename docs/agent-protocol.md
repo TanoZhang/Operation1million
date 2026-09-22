@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Enforce position context for imported job-specific autofill answers; local personal data stays ignored.
+Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, docs/{answer-bank,agent-protocol,architecture,handoff}.md
+Base commit: 53b51452ed64ef365879cb78d5bde958a9342497
+Status: done
+Next: Review codex position-context guard. Seventeen offline tests pass; 27 local imported answers verified, two require the matching position. No browser submission or deployment.
+```
+
+```text
+Owner: codex
 Scope: Local reusable answer bank, scoped question learning and extensible personal fields; no browser filling or deployment.
 Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, pyproject.toml, docs/{answer-bank,agent-protocol,architecture,handoff}.md
 Base commit: bcfe9533292e5c6fb0f2c1327b4af6de88574319

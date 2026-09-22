@@ -157,3 +157,24 @@ class AnswerBankTests(unittest.TestCase):
                 self.bank.set_answer('name.first', 'Saved')
         self.bank.rebuild_index()
         self.assertEqual(self.observe('First name')['answer'], 'Saved')
+
+    def test_job_specific_answer_requires_matching_position_on_every_read(self):
+        self.bank.add_field('internship.availability', 'Availability', 'choice', 'fill')
+        self.bank.set_answer('internship.availability', 'Yes')
+        question = self.observe('Available next summer?', kind='select', options=['Yes', 'No'])
+        ident = question['question_id']
+        self.assertEqual(self.bank.bind(ident, 'internship.availability', position_id='job-2027')['status'], 'ready')
+        for context in (None, 'job-2028'):
+            result = self.bank.resolve(ident, position_id=context)
+            self.assertEqual(result['status'], 'position_context_required')
+            self.assertIsNone(result['answer'])
+            self.assertEqual(self.observe('Available next summer?', kind='select', options=['Yes', 'No'],
+                                         position_id=context)['status'], 'position_context_required')
+        self.assertEqual(self.bank.resolve(ident, position_id='job-2027')['answer'], 'Yes')
+        with self.assertRaises(ValueError):
+            self.bank.bind(ident, 'internship.availability', position_id='job-2028')
+        self.assertEqual(self.bank.bind(ident, 'internship.availability')['status'], 'position_context_required')
+        self.bank.rebuild_index()
+        with closing(sqlite3.connect(self.bank.index)) as db:
+            self.assertEqual(db.execute('SELECT required_position_id FROM questions WHERE question_id=?',
+                                       (ident,)).fetchone()[0], 'job-2027')

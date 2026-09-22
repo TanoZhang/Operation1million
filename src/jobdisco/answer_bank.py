@@ -144,7 +144,7 @@ class AnswerBank:
             field.update(answer=value, updated_at=_now())
             self._write(data)
 
-    def observe(self, label, *, site, section='', kind='text', options=()):
+    def observe(self, label, *, site, section='', kind='text', options=(), position_id=None):
         """Register an encountered heading, then resolve only approved meaning.
 
         New wording is stored even when no answer is available. Exact built-in
@@ -177,9 +177,9 @@ class AnswerBank:
             question['last_seen'] = _now()
             question['observations'] += 1
             self._write(data)
-            return self._resolve(data, ident)
+            return self._resolve(data, ident, position_id)
 
-    def bind(self, question_id, field_key):
+    def bind(self, question_id, field_key, *, position_id=None):
         with locked(self.path):
             data = self._read()
             if field_key not in data['fields']:
@@ -187,21 +187,29 @@ class AnswerBank:
             question = data['questions'][question_id]
             if question['field_key'] not in (None, field_key):
                 raise ValueError('Question is already bound to a different field')
+            if position_id is not None:
+                if not isinstance(position_id, str) or not position_id.strip():
+                    raise ValueError('Position ID must be a nonempty string')
+                if question.get('required_position_id') not in (None, position_id):
+                    raise ValueError('Question is already restricted to a different position')
+                question['required_position_id'] = position_id
             question.update(field_key=field_key, binding='confirmed')
             self._write(data)
-            return self._resolve(data, question_id)
+            return self._resolve(data, question_id, position_id)
 
-    def resolve(self, question_id):
+    def resolve(self, question_id, *, position_id=None):
         with locked(self.path):
-            return self._resolve(self._read(), question_id)
+            return self._resolve(self._read(), question_id, position_id)
 
     @staticmethod
-    def _resolve(data, ident):
+    def _resolve(data, ident, position_id=None):
         q = data['questions'][ident]
         result = {'question_id': ident, 'label': q['label'], 'field_key': q['field_key'],
                   'status': 'unknown', 'answer': None}
         if not q['field_key']:
             return result
+        if q.get('required_position_id') and position_id != q['required_position_id']:
+            return dict(result, status='position_context_required')
         field = data['fields'][q['field_key']]
         value = field['answer']
         if value is None:
@@ -244,7 +252,7 @@ class AnswerBank:
                     CREATE TABLE aliases (field_key TEXT, label TEXT);
                     CREATE TABLE questions (question_id TEXT PRIMARY KEY, site TEXT, section TEXT,
                         label TEXT, kind TEXT, options_json TEXT, field_key TEXT, binding TEXT,
-                        first_seen TEXT, last_seen TEXT, observations INTEGER);
+                            first_seen TEXT, last_seen TEXT, observations INTEGER, required_position_id TEXT);
                     CREATE TABLE metadata (source_sha256 TEXT);
                 ''')
                 for key, f in data['fields'].items():
@@ -252,9 +260,10 @@ class AnswerBank:
                                (key, f['label'], f['type'], f['policy'], json.dumps(f['answer']), f['updated_at']))
                     db.executemany('INSERT INTO aliases VALUES (?,?)', [(key, a) for a in f['aliases']])
                 for key, q in data['questions'].items():
-                    db.execute('INSERT INTO questions VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                    db.execute('INSERT INTO questions VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
                         (key, q['site'], q['section'], q['label'], q['kind'], json.dumps(q['options']),
-                         q['field_key'], q['binding'], q['first_seen'], q['last_seen'], q['observations']))
+                         q['field_key'], q['binding'], q['first_seen'], q['last_seen'], q['observations'],
+                         q.get('required_position_id')))
                 db.execute('INSERT INTO metadata VALUES (?)',
                            (hashlib.sha256(self.path.read_bytes()).hexdigest(),))
             os.replace(temporary, self.index)
@@ -285,11 +294,14 @@ def main(argv=None):
     observe.add_argument('--section', default='')
     observe.add_argument('--kind', choices=KINDS, default='text')
     observe.add_argument('--options', nargs='*', default=[])
+    observe.add_argument('--position-id')
     bind = sub.add_parser('bind')
     bind.add_argument('question_id')
     bind.add_argument('field_key')
+    bind.add_argument('--position-id')
     resolve = sub.add_parser('resolve')
     resolve.add_argument('question_id')
+    resolve.add_argument('--position-id')
     args = parser.parse_args(argv)
     bank = AnswerBank(args.directory)
     try:
@@ -308,11 +320,11 @@ def main(argv=None):
             result = {'field_key': args.key, 'status': 'saved'}
         elif args.command == 'observe':
             result = bank.observe(args.label, site=args.site, section=args.section,
-                                  kind=args.kind, options=args.options)
+                                  kind=args.kind, options=args.options, position_id=args.position_id)
         elif args.command == 'bind':
-            result = bank.bind(args.question_id, args.field_key)
+            result = bank.bind(args.question_id, args.field_key, position_id=args.position_id)
         else:
-            result = bank.resolve(args.question_id)
+            result = bank.resolve(args.question_id, position_id=args.position_id)
     except (ValueError, KeyError, OSError, sqlite3.Error) as exc:
         parser.exit(1, f'Answer bank error: {exc}\n')
     print(json.dumps(result, ensure_ascii=True, indent=2))
