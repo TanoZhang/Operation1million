@@ -6,6 +6,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Fourteenth offline audit: complete source validator, query catalog, credential loader, and configuration validation contracts; findings only.
+Files: docs/file-audit-round14-2026-09-21.md, docs/audit-repro-round14-2026-09-21.py, docs/agent-protocol.md
+Base commit: 74bec6a61db21250f4d86fb746c2182f16853dbc
+Inspected main: 5e78ae814514115866532bf96f8397d0331354d2
+Status: claimed
+Next: Reproduce validator and malformed-configuration cases with temporary files and mocked HTTP; no provider probing or business-code edits.
+```
+
+```text
+Owner: codex
 Scope: Thirteenth offline audit: deployment, backup and workflow scripts, function by function; findings only.
 Files: docs/file-audit-round13-2026-09-21.md, docs/audit-repro-round13-2026-09-21.py, docs/agent-protocol.md
 Base commit: 5e78ae814514115866532bf96f8397d0331354d2
