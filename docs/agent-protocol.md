@@ -10,8 +10,8 @@ Scope: Fifteenth offline audit: source identity moves, snapshot replay, interrup
 Files: docs/file-audit-round15-2026-09-21.md, docs/audit-repro-round15-2026-09-21.py, docs/agent-protocol.md
 Base commit: 4064c55
 Inspected main: 5e78ae814514115866532bf96f8397d0331354d2
-Status: claimed
-Next: Compare persisted and replayed state with temporary databases, injected failures and loopback HTTP; no business-code edits.
+Status: done
+Next: User reviews B81-B84, remaining R02 and B23/B27 paths, and measured O10 in docs/file-audit-round15-2026-09-21.md. All offline cases pass; 193 existing tests pass without skips. Next: provider response-shape and pagination contracts. No business-code edits.
 ```
 
 ```text
