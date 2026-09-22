@@ -147,6 +147,26 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Eight explicit user domain exclusions, 2026-09-22 UTC
+
+The user subsequently supplied trabajo.org, bebee.com, experteer.com,
+jobsora.com, geebo.com, higher-hire.com, nexxt.com and adviesvanspijk.nl as
+hard exclusions. All eight now share the exact host/subdomain filter with
+the 13 enforcement-backed domains. Their reason is user preference, not a
+new fraud finding. Earlier broader text patterns remain unchanged. Offline
+regressions cover all 21 entries in paid filtering and existing Review rows.
+
+### Evidence-backed recruitment domain exclusions, 2026-09-22 UTC
+
+The user limited new blocks to reliable fraud evidence. Thirteen recruitment
+domains named in DOJ's June 10, 2026 seizure announcement now live in
+`exclude_publisher_domains`, separately from earlier preference text patterns.
+The existing paid filter and Review queue share exact host/subdomain matching;
+domain mentions in paths and queries do not cause rejection. Existing broader
+preference exclusions are unchanged. See `docs/blocked-recruitment-domains.md`
+for the complete list, official source, evidentiary limits and offline checks.
+No deployment or production hit count is claimed.
+
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 

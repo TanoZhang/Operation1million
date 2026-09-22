@@ -6,6 +6,24 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Add the user's eight explicit domain exclusions; no deployment.
+Files: data/config/jsearch_queries.toml, tests/test_review_rules.py, docs/{blocked-recruitment-domains,agent-protocol,architecture,handoff}.md
+Base commit: b9c7d90970300a864a9675b3acc36a337d2161d0; fetched main remains d9aed44
+Status: done
+Next: Review codex domain additions. All 35 offline Review rules tests pass, covering all 21 domain entries. Not deployed.
+```
+
+```text
+Owner: codex
+Scope: Evidence-backed recruitment domain blocklist; preserve preference blocks; no deployment.
+Files: data/config/jsearch_queries.toml, src/jobdisco/jsearch.py, tests/test_review_rules.py, docs/{blocked-recruitment-domains,agent-protocol,architecture,handoff}.md
+Base commit: d9aed44 (fetched and fast-forwarded before editing)
+Status: done
+Next: Review codex evidence-backed blocklist. All 134 offline Review/filter tests pass. No deployment or production measurement.
+```
+
+```text
+Owner: codex
 Scope: Review UI defaults to descending Fit with selectable original ordering; no deployment.
 Files: src/jobdisco/review_static/{app.js,index.html,style.css}, docs/{agent-protocol,architecture,handoff}.md
 Base commit: ef978587e19c0ca99d670ef6bef0ea23d9cbb808 (origin/main de12047 merged before editing)

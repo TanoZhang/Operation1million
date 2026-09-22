@@ -237,10 +237,39 @@ function_title_patterns = [
 # JSearch reports, so a republisher is caught either way; a hard pass in the
 # paid filter and in the review queue. The live index held 25 open postings
 # from us.trabajo.org and none from experteer.com when these were added.
+# These preference exclusions are not findings of fraud.
 exclude_publisher_patterns = [
   '\bexperteer\b', '\btrabajo\b',
   # One open posting when added: an Intel listing republished in Dutch.
   '\badviesvanspijk\b', '\badvies\s+van\s+spijk\b',
+]
+
+# DOJ seizure announcement, 2026-06-10: fake consulting recruitment domains.
+# Exact host and subdomains only; evidence and limits in
+# docs/blocked-recruitment-domains.md. Seizure is not a criminal conviction.
+exclude_publisher_domains = [
+  'centrikglobalconsulting.com',
+  'rightinfoconsult.com',
+  'finnaclevesperconsulting.com',
+  'cydfconsulting.com',
+  'pulsewaveglobal.com',
+  'catalystglobalsolutions.com',
+  'thehorizzen.com',
+  'geoindopacific.com',
+  'gpf-ina.org',
+  'safesec-group.com',
+  'thetruthinfo.com',
+  'vandercons.com',
+  'gulfpeace.org',
+  # Explicit user exclusions, separate from the DOJ evidence above.
+  'trabajo.org',
+  'bebee.com',
+  'experteer.com',
+  'jobsora.com',
+  'geebo.com',
+  'higher-hire.com',
+  'nexxt.com',
+  'adviesvanspijk.nl',
 ]
 
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person
