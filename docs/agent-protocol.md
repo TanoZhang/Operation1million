@@ -6,6 +6,33 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Review UI defaults to descending Fit with selectable original ordering; no deployment.
+Files: src/jobdisco/review_static/{app.js,index.html,style.css}, docs/{agent-protocol,architecture,handoff}.md
+Base commit: ef978587e19c0ca99d670ef6bef0ea23d9cbb808 (origin/main de12047 merged before editing)
+Status: done
+Next: Review codex Fit ordering. Node behavior checks passed; full suite 584 discovered, 574 passed, 10 environment skips. Not deployed.
+```
+
+```text
+Owner: codex
+Scope: Enforce position context for imported job-specific autofill answers; local personal data stays ignored.
+Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, docs/{answer-bank,agent-protocol,architecture,handoff}.md
+Base commit: 53b51452ed64ef365879cb78d5bde958a9342497
+Status: done
+Next: Review codex position-context guard. Seventeen offline tests pass; 27 local imported answers verified, two require the matching position. No browser submission or deployment.
+```
+
+```text
+Owner: codex
+Scope: Local reusable answer bank, scoped question learning and extensible personal fields; no browser filling or deployment.
+Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, pyproject.toml, docs/{answer-bank,agent-protocol,architecture,handoff}.md
+Base commit: bcfe9533292e5c6fb0f2c1327b4af6de88574319
+Status: done
+Next: Review codex answer-bank implementation. Local empty bank created; 16 focused tests pass; full suite 569 discovered, 559 passed and 10 environment skips. Browser reader/filler is a separate integration step.
+```
+
+```text
+Owner: codex
 Scope: Implement and regression-test B68-B84 from audits 13-15; no deployment.
 Files: deploy/local/, deploy/vps/backup-snapshot.py, deploy/vps/compact-history.sh, deploy/vps/daily-pass.sh, src/jobdisco/{collection_policy,collector,validate_sources,jsearch,query_catalog,store,review}.py, tests/, docs/{agent-protocol,architecture,handoff,vps-deployment}.md
 Base commit: 34a77f6d0b8694b71d5582cf43aac388254c90a2

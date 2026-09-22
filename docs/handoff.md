@@ -1,6 +1,77 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Review UI: highest Fit first - 2026-09-22 UTC (codex, not deployed)
+
+The user requested descending Fit. Review now defaults to highest Fit first
+across the selected tab, with a selector for lowest Fit first or the original
+Recommended order. Sorting occurs after search and before the 75-row display
+limit. Equal scores retain server order; missing/nonfinite scores stay last.
+Sorting a filtered copy preserves the original server queue for switching back.
+Refresh and decision updates rerender through the same sorting function.
+
+Node executed the actual filtering function against 161 fixture rows, covering
+pagination, equal scores, missing scores, both directions, original ordering,
+tab changes, search and source immutability. JavaScript syntax and 19 Review
+payload tests passed. No browser visual verification or VPS deployment is
+claimed. The user's uncommitted main-checkout edits were left untouched.
+The complete merged-worktree suite passed: 584 discovered, 574 executed, ten
+environment skips. Imports were pinned to this worktree's source.
+
+Before editing, `origin/main` at `de12047` was merged into the Codex worktree,
+retaining its description, queue, filtering and store fixes alongside the answer
+bank. The live review page changes only after these assets are installed.
+The later main commit `39bd8c5` was inspected before pushing; its filter changes
+do not touch these UI assets and were not included in this tested tree.
+
+# Qualcomm answer import and position restrictions - 2026-09-22 UTC (codex)
+
+The user authorized importing the filled Chrome application and automatic
+reuse of its known answers. The ignored workstation bank now holds 27 answered,
+bound questions, with no pending mapping. Real values and the local import
+report remain under `.local/autofill`; none are committed. No website answer
+was changed and no application was submitted. Six values omitted from browser
+text output were verified from visible screenshots, not inferred to be blank.
+
+Two answers depend on the particular summer internship. Bindings can now require
+a position ID. `observe`/`resolve` with missing or different position context
+withhold those answers, even when automatic filling is enabled. The exact
+matching position resolves all 27 local entries; SQLite integrity, source digest
+and the two context rejection paths were checked locally. Seventeen focused
+offline answer-bank tests pass. Final live reinspection was unavailable because
+Chrome could list the tab but could not attach to it; earlier DOM/screenshot
+observations are the import evidence. No persistent browser watcher was added.
+
+The concurrent `main` changes through `de12047` were inspected and left intact;
+this work stays on the standing Codex branch and is not deployed.
+
+# Local reusable autofill answers - 2026-09-22 UTC (codex, not deployed)
+
+Added `jobdisco.answer_bank` and the `job-answers` CLI. Canonical fields each own
+one typed answer; observed headings link to fields rather than copying values.
+New wording is recorded as pending, exact ordinary aliases can resolve, and
+confirmed mappings remain scoped to site/section/control/options. Personal
+questions default to per-use review. There is no browser watcher, form filling,
+or submission in this change. The next integration is a Chrome form reader
+calling `observe` and presenting pending mappings for confirmation.
+
+Authoritative state is local JSON under a file lock with atomic replacement;
+SQLite is refreshed after writes and is recoverable from that JSON. This is
+separate from VPS application decisions. Back up the local JSON privately; the
+VPS backup does not contain it. See `docs/answer-bank.md`.
+
+Created the user's ignored workstation store at
+`D:/Operation1million/.local/autofill`: 17 empty fields and seven text questions
+observed in the Qualcomm application. Four headings resolve to fields with
+missing answers; three address headings await mapping. No personal answer was
+inferred or copied from the browser, and no external form was changed.
+
+Sixteen focused tests cover synonym reuse, ambiguity, scope isolation, changed
+options/negation, personal review, answer types, interrupted writes and derived
+index recovery. Full offline suite: 569 discovered, 559 passed, ten environment
+skips on Windows; imports were pinned to the Codex worktree. The user's separate uncommitted changes in the main checkout
+were left untouched. Implementation is based on `bcfe953` in the Codex worktree.
+
 # Codex's B68-B84 merged; the review page's empty state and slow decisions fixed - 2026-09-22 UTC
 
 Codex's `79e44e2` (B68-B84) was screened and merged into `main`. One defect

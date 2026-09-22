@@ -33,6 +33,7 @@ job-validate-sources = "jobdisco.validate_sources:main"
 job-queries = "jobdisco.query_catalog:main"
 job-store = "jobdisco.store:main"
 job-review = "jobdisco.review:main"
+job-answers = "jobdisco.answer_bank:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

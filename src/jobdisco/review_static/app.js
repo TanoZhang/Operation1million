@@ -1,5 +1,6 @@
 let state = {pending: [], backlog: [], applied: [], skipped: [], labels: []};
 let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLimit = 75;
+let sortMode = 'fit-desc';
 // Two refreshes can be in flight -- a click on Refresh, a decision saving, a
 // slow first request -- and they do not answer in the order they were asked.
 // The later answer is the current one; an earlier one arriving after it used
@@ -89,7 +90,18 @@ async function refresh() {
 }
 function filtered() {
   const text = $('#search').value.trim().toLowerCase();
-  return state[tab].filter(group => `${group.company} ${group.title}`.toLowerCase().includes(text));
+  const groups = state[tab].filter(group => `${group.company} ${group.title}`.toLowerCase().includes(text));
+  if (sortMode === 'recommended') return groups;
+  // Sort the entire result before pagination. Equal fits retain server order;
+  // absent scores go last in either direction, and state is never mutated.
+  const score = group => typeof group.confidence === 'number' && Number.isFinite(group.confidence)
+    ? group.confidence : null;
+  return groups.sort((a, b) => {
+    const left = score(a), right = score(b);
+    if (left === null) return right === null ? 0 : 1;
+    if (right === null) return -1;
+    return sortMode === 'fit-asc' ? left - right : right - left;
+  });
 }
 // Bands 0 and 1 are both early-career openings and read as one number here,
 // even though a core one still leads an adjacent one in the list itself.
@@ -224,6 +236,13 @@ document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () =>
   render();
 });
 $('#refresh').onclick = refresh;
+$('#sort').onchange = event => {
+  sortMode = event.target.value;
+  selected = null;
+  visibleLimit = 75;
+  $('#list').scrollTop = 0;
+  render();
+};
 $('#search').oninput = () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => { visibleLimit = 75; render(); }, 120);
