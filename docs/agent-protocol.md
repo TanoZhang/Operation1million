@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Local reusable answer bank, scoped question learning and extensible personal fields; no browser filling or deployment.
+Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, pyproject.toml, docs/{answer-bank,agent-protocol,architecture,handoff}.md
+Base commit: bcfe9533292e5c6fb0f2c1327b4af6de88574319
+Status: claimed
+Next: Implement authoritative local JSON, derived SQLite export, CLI and offline matching/recovery tests.
+```
+
+```text
+Owner: codex
 Scope: Implement and regression-test B68-B84 from audits 13-15; no deployment.
 Files: deploy/local/, deploy/vps/backup-snapshot.py, deploy/vps/compact-history.sh, deploy/vps/daily-pass.sh, src/jobdisco/{collection_policy,collector,validate_sources,jsearch,query_catalog,store,review}.py, tests/, docs/{agent-protocol,architecture,handoff,vps-deployment}.md
 Base commit: 34a77f6d0b8694b71d5582cf43aac388254c90a2
