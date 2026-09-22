@@ -358,6 +358,28 @@ class QueueRulesTests(unittest.TestCase):
         self.assertNotIn('publisher', job, 'a direct link is not a third-party one')
         self.assertNotIn('employer_site', job)
 
+    def test_a_blocked_job_site_is_hidden_by_host_or_by_publisher(self):
+        """Blocked at the user's request on 2026-09-22."""
+        rules = jsearch.load_plan()[0]['filter']
+        for url, publisher, blocked in (
+                ('https://us.trabajo.org/job/123', 'Trabajo.org', True),
+                ('https://us.trabajo.org/job/123', None, True),
+                ('https://www.experteer.com/career/view-jobs/x', 'LinkedIn', True),
+                ('https://www.linkedin.com/jobs/view/1', 'Experteer', True),
+                ('https://www.adviesvanspijk.nl/vacature/1', None, True),
+                ('https://www.linkedin.com/jobs/view/1', 'Advies Van Spijk', True),
+                ('https://www.linkedin.com/jobs/view/1', 'LinkedIn', False),
+                ('https://careers.example.test/trabajos-en-rtl', 'Example', False)):
+            with self.subTest(url=url, publisher=publisher):
+                self.assertEqual(jsearch.publisher_excluded(url, {'job_publisher': publisher}, rules), blocked)
+        row = {'title': 'RTL Design Engineer', 'url': 'https://us.trabajo.org/job/1',
+               'raw': {'job_publisher': 'Trabajo.org', 'description': 'RTL UVM ASIC'}}
+        self.assertEqual(jsearch.rejection_reason(row, rules), 'excluded_publisher')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET url=?, raw=?', ('https://us.trabajo.org/job/1',
+                                                       json.dumps({'job_publisher': 'Trabajo.org'})))
+        self.assertEqual(self.queue()['pending'], [])
+
     def test_a_us_person_requirement_hides_a_direct_posting(self):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute('UPDATE jobs SET provider_key=?, raw=?', ('workday', json.dumps(

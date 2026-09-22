@@ -124,7 +124,7 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
         raise ValueError('filter must be a table')
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
                   'function_title_patterns', 'hardware_title_terms', 'role_title_terms',
-                  'us_person_required_patterns',
+                  'us_person_required_patterns', 'exclude_publisher_patterns',
                   'keep_title_patterns', 'evidence_title_patterns', 'strong_terms', 'common_terms'):
         expressions = rules.get(group, [])
         if not isinstance(expressions, list) or any(not isinstance(p, str) for p in expressions):
@@ -473,6 +473,22 @@ def title_blocked(title, rules):
     return not (subject and subject.search(title) and role and role.search(title))
 
 
+def publisher_excluded(url, raw, rules):
+    """Whether the posting comes through a job site the user has blocked.
+
+    Asked on the link's host and on the publisher JSearch names, because one
+    can be missing or disagree with the other; a blocked site is blocked by
+    whichever says so.
+    """
+    combined = any_of(rules.get('exclude_publisher_patterns', []))
+    if not combined:
+        return False
+    host = urlsplit(url or '').netloc.lower()
+    publisher = raw.get('job_publisher') if isinstance(raw, dict) else None
+    return bool(combined.search(host)
+                or (isinstance(publisher, str) and combined.search(publisher)))
+
+
 def employer_excluded(row, rules):
     raw = row.get('raw') if isinstance(row.get('raw'), dict) else {}
     employer = row.get('company_name') or row.get('company') or raw.get('employer_name') or ''
@@ -644,6 +660,8 @@ def rejection_reason(row, rules, description=None, score=None):
     title = row.get('title') or ''
     if employer_excluded(row, rules):
         return 'excluded_employer'
+    if publisher_excluded(row.get('url'), row.get('raw'), rules):
+        return 'excluded_publisher'
     if excluded(title, rules):
         return 'excluded'
     # Walking a posting's payload is the expensive part of judging it, and this
@@ -695,7 +713,8 @@ def rejection_reason(row, rules, description=None, score=None):
 
 # Mechanical hard passes, including explicit required work experience.
 # Missing descriptions and domain-vocabulary judgements remain separate.
-HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'required_experience_over_2_years',
+HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'excluded_publisher',
+                             'required_experience_over_2_years',
                              'us_person_required'})
 
 

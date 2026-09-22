@@ -347,6 +347,8 @@ def queue(db_path=DB, path=None, now=None):
                     continue
                 if jsearch.us_person_required(requirements, rules):
                     continue
+                if jsearch.publisher_excluded(job['url'], raw, rules):
+                    continue
                 job['experience_filter'] = experience
                 # A paid listing's link is wherever Google Jobs found the
                 # posting, and for every open JSearch posting measured on

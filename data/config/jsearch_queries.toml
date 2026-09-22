@@ -229,6 +229,17 @@ function_title_patterns = [
   '\bpower\b', '\bproducts?\b', '\bsupply\b', '\bmanufactur', '\bmechanical\b',
   '\bmagnetics?\b', '\b(?:project|program)\s+manag', '\boperations?\b',
 ]
+# Job sites whose listings are not worth opening, blocked at the user's request
+# on 2026-09-22. Matched against the posting link's host and the publisher name
+# JSearch reports, so a republisher is caught either way; a hard pass in the
+# paid filter and in the review queue. The live index held 25 open postings
+# from us.trabajo.org and none from experteer.com when these were added.
+exclude_publisher_patterns = [
+  '\bexperteer\b', '\btrabajo\b',
+  # One open posting when added: an Intel listing republished in Dutch.
+  '\badviesvanspijk\b', '\badvies\s+van\s+spijk\b',
+]
+
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person
 # status (citizen, permanent resident, refugee, asylee), usually for export
 # control. Read from the description and a hard pass, asked for on 2026-09-22.

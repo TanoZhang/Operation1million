@@ -150,6 +150,16 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Blocked job sites, 2026-09-22 UTC
+
+At the user's request, listings republished by experteer.com, Trabajo.org and
+Advies Van Spijk are a hard pass (`excluded_publisher`) in the paid filter and
+the review queue. `exclude_publisher_patterns` in the config is matched against
+the link's host and the publisher JSearch names, so either one is enough. The
+live index held 25 open Trabajo.org postings, one from Advies Van Spijk (an
+Intel listing attributed to "成都intel") and none from experteer.com. Reproducer:
+`QueueRulesTests.test_a_blocked_job_site_is_hidden_by_host_or_by_publisher`.
+
 ### Third-party listing links, 2026-09-22 UTC
 
 The user asked why a posting linked to interviewsense.org. A paid listing's
