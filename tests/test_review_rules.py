@@ -231,6 +231,7 @@ class SoftBlockTests(unittest.TestCase):
                       'RTL Design Engineer - Team Lead'):
             with self.subTest(title=title):
                 self.assertTrue(jsearch.excluded(title, self.rules))
+        self.assertTrue(jsearch.excluded('Médico/a del Trabajo, Workplace Health and Safety', self.rules))
         for title in ('Leadership Development Program - Hardware Engineer',
                       'ASIC Engineer, Leading-Edge Nodes'):
             with self.subTest(title=title):
@@ -378,7 +379,9 @@ class QueueRulesTests(unittest.TestCase):
                 ('https://www.adviesvanspijk.nl/vacature/1', None, True),
                 ('https://www.linkedin.com/jobs/view/1', 'Advies Van Spijk', True),
                 ('https://www.linkedin.com/jobs/view/1', 'LinkedIn', False),
-                ('https://careers.example.test/trabajos-en-rtl', 'Example', False)):
+                # "trabajo" anywhere in the link, as asked the same day.
+                ('https://www.amazon.jobs/en/jobs/1/medico-a-del-trabajo-whs', 'Amazon', True),
+                ('https://careers.example.test/rtl-design', 'Example', False)):
             with self.subTest(url=url, publisher=publisher):
                 self.assertEqual(jsearch.publisher_excluded(url, {'job_publisher': publisher}, rules), blocked)
         row = {'title': 'RTL Design Engineer', 'url': 'https://us.trabajo.org/job/1',

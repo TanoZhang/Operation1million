@@ -164,6 +164,11 @@ Intel listing attributed to "成都intel") and none from experteer.com. Reproduc
 user's request the same day. It is the word only: "Leadership Development
 Program" and "Leading-Edge" are untouched.
 
+"trabajo" is blocked wherever it appears, also at the user's request: in a
+title, and anywhere in a posting's link -- the site blocklist now reads the
+whole link rather than its host, which caught an Amazon posting whose address
+contained the word.
+
 ### Third-party listing links, 2026-09-22 UTC
 
 The user asked why a posting linked to interviewsense.org. A paid listing's

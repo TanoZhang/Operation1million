@@ -476,16 +476,16 @@ def title_blocked(title, rules):
 def publisher_excluded(url, raw, rules):
     """Whether the posting comes through a job site the user has blocked.
 
-    Asked on the link's host and on the publisher JSearch names, because one
+    Asked on the whole link and on the publisher JSearch names, because one
     can be missing or disagree with the other; a blocked site is blocked by
-    whichever says so.
+    whichever says so. The whole link rather than its host since the user
+    asked for "trabajo" to go wherever it appears, an Amazon address included.
     """
     combined = any_of(rules.get('exclude_publisher_patterns', []))
     if not combined:
         return False
-    host = urlsplit(url or '').netloc.lower()
     publisher = raw.get('job_publisher') if isinstance(raw, dict) else None
-    return bool(combined.search(host)
+    return bool(combined.search(url or '')
                 or (isinstance(publisher, str) and combined.search(publisher)))
 
 

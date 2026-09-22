@@ -111,6 +111,9 @@ exclude_title_patterns = [
   '\bsales\b', '\bmarketing\b', '\btechnician\b',
   # Levels above what an early-career application reaches
   '\bsenior\b', '\bsr\b\.?', '\bprincipal\b', '\blead\b',
+  # Blocked wherever it appears, at the user's request on 2026-09-22; the
+  # same word is in exclude_publisher_patterns, which reads the whole link.
+  '\btrabajos?\b',
   '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
   # Unrelated disciplines: title-only exclusions, before explicit trade keeps.
   '\bphotonics?\b', '\boptical\s+engineer\b', '\boptics\s+engineer\b',
@@ -230,7 +233,7 @@ function_title_patterns = [
   '\bmagnetics?\b', '\b(?:project|program)\s+manag', '\boperations?\b',
 ]
 # Job sites whose listings are not worth opening, blocked at the user's request
-# on 2026-09-22. Matched against the posting link's host and the publisher name
+# on 2026-09-22. Matched against the whole posting link and the publisher name
 # JSearch reports, so a republisher is caught either way; a hard pass in the
 # paid filter and in the review queue. The live index held 25 open postings
 # from us.trabajo.org and none from experteer.com when these were added.
