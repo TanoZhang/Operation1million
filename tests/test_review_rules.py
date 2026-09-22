@@ -337,6 +337,27 @@ class QueueRulesTests(unittest.TestCase):
                     db.execute('UPDATE jobs SET title=?, provider_key=?', (title, provider))
                 self.assertEqual(bool(self.queue()['pending']), kept)
 
+    def test_a_third_party_listing_says_who_published_it(self):
+        """Every open JSearch posting measured on 2026-09-22 linked to a
+        third-party site, with no direct option to prefer."""
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET raw=?', (json.dumps({
+                'job_publisher': 'InterviewSense', 'job_apply_is_direct': False,
+                'employer_website': 'https://www.micron.com'}),))
+        job = self.queue()['pending'][0]['jobs'][0]
+        self.assertEqual((job['publisher'], job['employer_site']),
+                         ('InterviewSense', 'https://www.micron.com'))
+        from jobdisco import review
+        self.assertEqual(review.slim({'pending': [{'id': 'x', 'jobs': [job]}]})['pending'][0]['jobs'][0]
+                         ['publisher'], 'InterviewSense')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET raw=?', (json.dumps({
+                'job_publisher': 'Micron', 'job_apply_is_direct': True,
+                'employer_website': 'javascript:alert(1)'}),))
+        job = self.queue()['pending'][0]['jobs'][0]
+        self.assertNotIn('publisher', job, 'a direct link is not a third-party one')
+        self.assertNotIn('employer_site', job)
+
     def test_a_us_person_requirement_hides_a_direct_posting(self):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute('UPDATE jobs SET provider_key=?, raw=?', ('workday', json.dumps(

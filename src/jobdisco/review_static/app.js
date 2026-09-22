@@ -52,6 +52,21 @@ const asDate = value => {
 const date = value => value ? asDate(value).toLocaleDateString(undefined, {month:'short', day:'numeric'}) : 'Unknown';
 const postedToday = job => job.posted_at && asDate(job.posted_at).toDateString() === new Date().toDateString();
 const postedLabel = job => !job.posted_at ? 'Posting date unavailable' : postedToday(job) ? 'Posted today' : `Posted ${date(job.posted_at)}`;
+// A paid listing links to wherever Google Jobs found the posting, which is
+// usually a third-party site. Say so, and offer the employer's own copy: a
+// search of the employer's site for the exact title, since the provider gives
+// no direct link to it.
+const companySearch = (job, title) => {
+  try {
+    const host = new URL(job.employer_site).hostname.replace(/^www\./, '');
+    return 'https://www.google.com/search?q=' + encodeURIComponent(`site:${host} "${title}"`);
+  } catch { return null; }
+};
+const listingRow = (job, title) => {
+  const via = job.publisher ? `via ${job.publisher} (third-party site)` : job.provider_key;
+  const search = job.employer_site ? companySearch(job, title) : null;
+  return `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(via)}</span></span><div class="listing-links">${search ? `<a href="${safeLink(search)}" target="_blank" rel="noopener noreferrer">Find on company site &#8599;</a>` : ''}<a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a></div></div>`;
+};
 function error(message) { $('#error').textContent = message; $('#error').hidden = !message; }
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -133,7 +148,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${bandChip(group)}${flagChip(group)}${internChip(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${tab === 'pending' || tab === 'backlog' ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(job.provider_key)}</span></span><a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a></div>`).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${bandChip(group)}${flagChip(group)}${internChip(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${tab === 'pending' || tab === 'backlog' ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';

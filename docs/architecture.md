@@ -135,6 +135,20 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Third-party listing links, 2026-09-22 UTC
+
+The user asked why a posting linked to interviewsense.org. A paid listing's
+link is wherever Google Jobs found the posting. Measured on the live index:
+every one of the 1,033 open JSearch postings has exactly one apply option and
+none is direct -- LinkedIn 264, JobLeads 222, BeBee 49, ZipRecruiter 48 -- so
+there is no employer link to prefer. What the payload does carry is the
+publisher and the employer's website. The queue now passes both for a
+non-direct paid listing, and the page shows "via <publisher> (third-party
+site)" and a "Find on company site" search of the employer's domain for the
+exact title. Checked in a browser against the local index on a Keysight
+listing published by InterviewSense. Reproducer:
+`QueueRulesTests.test_a_third_party_listing_says_who_published_it`.
+
 ### A softer tier for the new title words, and a U.S.-person hard pass, 2026-09-22 UTC
 
 Both asked for by the user, after the previous entry's filter went live.

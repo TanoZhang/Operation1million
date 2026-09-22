@@ -348,6 +348,19 @@ def queue(db_path=DB, path=None, now=None):
                 if jsearch.us_person_required(requirements, rules):
                     continue
                 job['experience_filter'] = experience
+                # A paid listing's link is wherever Google Jobs found the
+                # posting, and for every open JSearch posting measured on
+                # 2026-09-22 that was a third-party site -- LinkedIn, JobLeads,
+                # InterviewSense -- with no direct option offered. Say who
+                # published it, and where the employer's own site is, so the
+                # page can offer the company's copy instead.
+                if job['provider_key'] == 'jsearch' and not raw.get('job_apply_is_direct'):
+                    publisher = raw.get('job_publisher')
+                    site = jsearch.public_link(raw.get('employer_website'))
+                    if isinstance(publisher, str) and publisher.strip():
+                        job['publisher'] = publisher.strip()
+                    if site:
+                        job['employer_site'] = site
                 # An evidence title with supplied prose has to earn its place.
                 # Missing prose is not evidence against a posting, so inspect
                 # raw before treating a low stored score as a rejection. Raw is

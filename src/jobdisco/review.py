@@ -42,7 +42,8 @@ MARKUP = re.compile(
 # it here; leaving it out shows as undefined rather than as stale data.
 GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience')
-JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at')
+JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
+              'publisher', 'employer_site')
 
 
 def slim(state):
