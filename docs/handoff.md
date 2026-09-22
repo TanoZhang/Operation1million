@@ -1,6 +1,29 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Review UI: highest Fit first - 2026-09-22 UTC (codex, not deployed)
+
+The user requested descending Fit. Review now defaults to highest Fit first
+across the selected tab, with a selector for lowest Fit first or the original
+Recommended order. Sorting occurs after search and before the 75-row display
+limit. Equal scores retain server order; missing/nonfinite scores stay last.
+Sorting a filtered copy preserves the original server queue for switching back.
+Refresh and decision updates rerender through the same sorting function.
+
+Node executed the actual filtering function against 161 fixture rows, covering
+pagination, equal scores, missing scores, both directions, original ordering,
+tab changes, search and source immutability. JavaScript syntax and 19 Review
+payload tests passed. No browser visual verification or VPS deployment is
+claimed. The user's uncommitted main-checkout edits were left untouched.
+The complete merged-worktree suite passed: 584 discovered, 574 executed, ten
+environment skips. Imports were pinned to this worktree's source.
+
+Before editing, `origin/main` at `de12047` was merged into the Codex worktree,
+retaining its description, queue, filtering and store fixes alongside the answer
+bank. The live review page changes only after these assets are installed.
+The later main commit `39bd8c5` was inspected before pushing; its filter changes
+do not touch these UI assets and were not included in this tested tree.
+
 # Qualcomm answer import and position restrictions - 2026-09-22 UTC (codex)
 
 The user authorized importing the filled Chrome application and automatic

@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Review UI defaults to descending Fit with selectable original ordering; no deployment.
+Files: src/jobdisco/review_static/{app.js,index.html,style.css}, docs/{agent-protocol,architecture,handoff}.md
+Base commit: ef978587e19c0ca99d670ef6bef0ea23d9cbb808 (origin/main de12047 merged before editing)
+Status: done
+Next: Review codex Fit ordering. Node behavior checks passed; full suite 584 discovered, 574 passed, 10 environment skips. Not deployed.
+```
+
+```text
+Owner: codex
 Scope: Enforce position context for imported job-specific autofill answers; local personal data stays ignored.
 Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, docs/{answer-bank,agent-protocol,architecture,handoff}.md
 Base commit: 53b51452ed64ef365879cb78d5bde958a9342497
