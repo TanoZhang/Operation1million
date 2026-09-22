@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Implement and regression-test B68-B84 from audits 13-15; no deployment.
+Files: deploy/local/, deploy/vps/backup-snapshot.py, deploy/vps/compact-history.sh, deploy/vps/daily-pass.sh, src/jobdisco/{collection_policy,collector,validate_sources,jsearch,query_catalog,store,review}.py, tests/, docs/{agent-protocol,architecture,handoff,vps-deployment}.md
+Base commit: 34a77f6d0b8694b71d5582cf43aac388254c90a2
+Status: claimed
+Next: Fix each audited contract, add offline regression controls, then run the complete suite and push codex for review.
+```
+
+```text
+Owner: codex
 Scope: Fifteenth offline audit: source identity moves, snapshot replay, interrupted sharded writes, and Review cache dependencies; findings only.
 Files: docs/file-audit-round15-2026-09-21.md, docs/audit-repro-round15-2026-09-21.py, docs/agent-protocol.md
 Base commit: 4064c55
