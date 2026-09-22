@@ -6,6 +6,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Fifteenth offline audit: source identity moves, snapshot replay, interrupted sharded writes, and Review cache dependencies; findings only.
+Files: docs/file-audit-round15-2026-09-21.md, docs/audit-repro-round15-2026-09-21.py, docs/agent-protocol.md
+Base commit: 4064c55
+Inspected main: 5e78ae814514115866532bf96f8397d0331354d2
+Status: claimed
+Next: Compare persisted and replayed state with temporary databases, injected failures and loopback HTTP; no business-code edits.
+```
+
+```text
+Owner: codex
 Scope: Fourteenth offline audit: complete source validator, query catalog, credential loader, and configuration validation contracts; findings only.
 Files: docs/file-audit-round14-2026-09-21.md, docs/audit-repro-round14-2026-09-21.py, docs/agent-protocol.md
 Base commit: 74bec6a61db21250f4d86fb746c2182f16853dbc
