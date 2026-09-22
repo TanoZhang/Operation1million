@@ -121,6 +121,69 @@ class ClientSourceContractTests(unittest.TestCase):
                         'decide() ignores the posting it was given')
 
 
+    def test_nothing_is_drawn_until_the_first_queue_arrives(self):
+        """Seen on 2026-09-22: a page reading "All done for today", 0 to review,
+        over a queue of 532. The placeholder state was rendered before the first
+        response, by a tab click or a keystroke during a cold build."""
+        script = self.script()
+        render = script.split('function render() {')[1]
+        self.assertTrue(render.lstrip().startswith('if (!loaded) return;'),
+                        'render() draws the placeholder state before any queue is loaded')
+        refresh = script.split('async function refresh()')[1].split('function filtered')[0]
+        self.assertTrue('state = next; loaded = true;' in refresh,
+                        'only a successful response may mark the queue loaded')
+        self.assertTrue('if (!loaded) $('#list').innerHTML' in refresh,
+                        'a failed first load leaves the list saying it is loading')
+
+
+    def test_a_saved_decision_leaves_the_list_before_the_refresh(self):
+        """Asked for on 2026-09-22: Skip or Mark applied should take the posting
+        out of the list and into its tab at once, not after a reload."""
+        decide = self.script().split('async function decide(')[1].split('\n}\n')[0]
+        self.assertTrue('moveDecided(id, written);' in decide, 'the page waits for the reload')
+        self.assertLess(decide.index('moveDecided(id, written);'), decide.index('refresh();'))
+        self.assertFalse('await refresh();' in decide,
+                         'the next decision is held until the reload answers')
+
+class QueueCacheTests(unittest.TestCase):
+    """A read of the index must not cost the next visitor a 28-second build."""
+
+    def setUp(self):
+        import tempfile
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.wal = Path(self.folder.name) / 'index.sqlite-wal'
+
+    def test_an_empty_sidecar_has_no_fingerprint_however_often_it_is_touched(self):
+        import os
+        self.assertIsNone(review.wal_fingerprint(self.wal), 'an absent sidecar')
+        self.wal.write_bytes(b'')
+        self.assertIsNone(review.wal_fingerprint(self.wal), 'an empty sidecar')
+        os.utime(self.wal, ns=(1, 10**18))
+        self.assertIsNone(review.wal_fingerprint(self.wal), 'a touched empty sidecar')
+
+    def test_a_sidecar_holding_a_commit_still_invalidates(self):
+        self.wal.write_bytes(b'x' * 32)
+        first = review.wal_fingerprint(self.wal)
+        self.assertIsNotNone(first)
+        self.wal.write_bytes(b'x' * 64)
+        self.assertNotEqual(review.wal_fingerprint(self.wal), first)
+
+    def test_the_warm_up_builds_before_anyone_asks_and_survives_a_failure(self):
+        import threading
+        calls = []
+        stop = threading.Event()
+
+        class Server:
+            def current_queue(self):
+                calls.append(1)
+                if len(calls) == 1:
+                    raise OSError('index locked')
+                stop.set()
+        review.keep_warm(Server(), every=0, stop=stop)
+        self.assertEqual(len(calls), 2, 'one failed build stopped the warm-up')
+
+
 class ClientContractTests(unittest.TestCase):
     """If the page reads a field, the projection has to carry it."""
 

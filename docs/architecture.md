@@ -135,7 +135,49 @@ reproducer and update its evidence below.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
-### B68-B84: recovery, validation and replay, 2026-09-21 UTC (fixed on codex, not deployed)
+### An empty review page, a 28-second decision, and a backup that could not lock, 2026-09-22 UTC
+
+Two reported by the user from the live page, one found screening Codex's B68
+fix on the VPS before merging it.
+
+- **The page said "All done for today" over a queue of 532.** The page starts
+  from an empty placeholder state until `/api/queue` answers, and a tab click
+  or a keystroke in the search box rendered that placeholder: zero to review,
+  zero applied, zero skipped, and the all-done message. The server was holding
+  532 recent and 18,619 backlog groups at the time, measured over the same
+  tunnel. The page now draws nothing until the first queue has arrived, and a
+  first load that fails says so where the jobs would be. Measured in a browser
+  against a local server: a tab click during the load leaves "Loading jobs...".
+- **Why the load was slow enough to click through.** The cache key included
+  the `-wal` sidecar's timestamp. Every reader that opens the index recreates
+  an empty sidecar and moves that timestamp -- measured on the VPS, a 0-byte
+  `-wal` touched at 03:03 UTC with no pass running -- so the cache was thrown
+  away by ordinary reads and the next visitor paid a full build, about 28
+  seconds. An empty or absent sidecar holds no commit and now has no
+  fingerprint; a non-empty one still invalidates. The server also rebuilds in a
+  background thread when the inputs change, so the first request after a pass
+  finds the queue built.
+- **A decision cost a full rebuild before the posting left the list.** The
+  ledger is part of the cache key, so each Skip or Mark applied made the next
+  queue request -- the page's own refresh -- a cold build, and the posting stayed
+  where it was until that answered; the next decision waited behind it. The
+  server now moves the decided group in its cached queue when the ledger is the
+  only input that changed, and builds in full otherwise; a test holds the moved
+  queue equal to a full replay of the same ledger. The page moves the posting
+  into Applied or Skipped the moment the save succeeds and selects the next
+  one. Measured locally: 66 ms for Mark applied, 485 ms for Skip. Moving a
+  posting back to review is still decided by the full build, because whether
+  it belongs in the recent tab or the backlog is the server's call.
+- **Codex's B68 archive failed as the backup user.** `backup-snapshot.py` took
+  the decision lock by opening `applications.lock` for append. The workstation
+  backup runs as `ubuntu`, which can read the data checkout but not write that
+  file, owned by `jobdisco` with mode 644. Run on the VPS before merging: every
+  archive stopped with `Permission denied` after the SQLite snapshots. `flock`
+  needs no write access, so an existing lock is now opened read-only on POSIX.
+  Reproducer: `BackupTests.test_a_lock_file_the_backup_user_cannot_write_is_still_honoured`,
+  which runs on the VPS and skips on Windows and as root.
+
+### B68-B84: recovery, validation and replay, 2026-09-21 UTC (merged and deployed 2026-09-22)
 
 Audits 13-15 remain historical reproductions. The following fixes have offline
 regression coverage in `tests/test_backup.py`, `tests/test_compaction.py` and

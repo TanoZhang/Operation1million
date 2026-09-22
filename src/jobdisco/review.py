@@ -69,6 +69,20 @@ def fingerprint(path):
     return state.st_mtime_ns, state.st_size
 
 
+def wal_fingerprint(path):
+    """The same, for a WAL sidecar -- except an empty one says nothing.
+
+    An empty or absent sidecar holds no commit; everything is in the main
+    file, whose own fingerprint covers it. But every reader that opens the
+    index recreates an empty sidecar and moves its timestamp, and keying on
+    that threw the cache away whenever anything read the index: measured on
+    the VPS, a 0-byte `-wal` touched at 03:03 UTC with no pass running, and the
+    next page load paid a 28-second build.
+    """
+    state = fingerprint(path)
+    return state if state and state[1] else None
+
+
 def make_server(db, ledger, port=8765):
     token = secrets.token_urlsafe(32)
     assets = Path(__file__).with_name('review_static')
@@ -78,6 +92,37 @@ def make_server(db, ledger, port=8765):
     writing = threading.Lock()
     building = threading.Lock()
     cached = {'key': None, 'state': None}
+
+    def queue_key():
+        return (fingerprint(ledger), fingerprint(db), wal_fingerprint(str(db) + '-wal'),
+                datetime.now(timezone.utc).date(),
+                jsearch.filter_fingerprint(jsearch.load_plan()[0]['filter']))
+
+    def record_decision(before, state, source, group, written):
+        """Move a just-decided group in the cached queue instead of rebuilding it.
+
+        A decision changes the ledger, and a changed ledger meant a full build:
+        about 28 seconds on the live queue, during which the page showed the
+        posting still waiting and the next decision queued behind the build.
+        Replaying one appended event against the queue it was decided from is
+        the same answer, and `ApplicationsTests` holds the two equal. It is
+        taken only when the ledger is the one input that moved since `before`;
+        anything else -- a pass committing, the date turning -- leaves the cache
+        stale and the next request builds it in full, as before.
+        """
+        if written['status'] not in {'applied', 'skipped'} or source not in {'pending', 'backlog'}:
+            return
+        after = queue_key()
+        if after[1:] != before[1:]:
+            return
+        with building:
+            if cached['key'] != before or cached['state'] is not state:
+                return
+            state[source] = [item for item in state[source] if item is not group]
+            decided = dict(group, jobs=list(group['jobs']), at=written['at'],
+                           reason=written.get('reason', ''))
+            state[written['status']].insert(0, decided)
+            cached['key'] = after
 
     def current_queue():
         """The queue, rebuilt only when what it is derived from has changed.
@@ -103,9 +148,7 @@ def make_server(db, ledger, port=8765):
         checkpointed sidecar moves its timestamp too, which costs one extra
         build and never a missed one.
         """
-        key = (fingerprint(ledger), fingerprint(db), fingerprint(str(db) + '-wal'),
-               datetime.now(timezone.utc).date(),
-               jsearch.filter_fingerprint(jsearch.load_plan()[0]['filter']))
+        key = queue_key()
         with building:
             if cached['key'] != key:
                 cached['state'] = applications.queue(db, ledger)
@@ -212,19 +255,42 @@ def make_server(db, ledger, port=8765):
                 data = json.loads(self.rfile.read(size))
                 with writing:
                     state = current_queue()
-                    group = next((group for status in ('pending', 'backlog', 'applied', 'skipped')
-                                  for group in state[status] if group['id'] == data.get('id')), None)
+                    before = cached['key']
+                    source, group = next(((status, group) for status in ('pending', 'backlog', 'applied', 'skipped')
+                                          for group in state[status] if group['id'] == data.get('id')),
+                                         (None, None))
                     if group is None:
                         return self.send({'error': 'This item changed. Refresh the queue.'}, 409)
                     written = applications.append_decision(
                         ledger, group, data.get('status'), data.get('reason', ''))
+                    record_decision(before, state, source, group, written)
                 self.send(written)
             except (ValueError, TypeError, AttributeError) as exc:
                 self.send({'error': str(exc)}, 400)
             except (OSError, sqlite3.Error) as exc:
                 self.send({'error': str(exc)}, 500)
 
-    return ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    server.current_queue = current_queue
+    return server
+
+
+def keep_warm(server, every=30, stop=None):
+    """Rebuild the queue when its inputs change, before anyone asks for it.
+
+    A cold build takes about half a minute on the live queue, and every pass
+    makes the next build cold. The first person to open the page after a pass
+    paid for it, looking at a page with no jobs on it. A build here costs the
+    same and nobody waits for it; when nothing has changed it is a few stat
+    calls. A failure is left for the request that repeats it to report.
+    """
+    stop = stop or threading.Event()
+    while not stop.is_set():
+        try:
+            server.current_queue()
+        except Exception as exc:
+            print(f'Queue warm-up failed: {exc}', flush=True)
+        stop.wait(every)
 
 
 def main():
@@ -237,6 +303,7 @@ def main():
         parser.error('Job database missing. Restore private history and run job-store --bootstrap first.')
     server = make_server(args.db, args.ledger or applications.ledger_path(), args.port)
     print(f'Review: http://127.0.0.1:{server.server_port}', flush=True)
+    threading.Thread(target=keep_warm, args=(server,), daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -10,6 +10,7 @@ from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import socket
 import sqlite3
@@ -596,8 +597,10 @@ class HttpTests(ApplicationsTests):
 
             with urlopen(root + '/api/queue') as response:
                 after = json.load(response)
-            self.assertEqual(len(builds), 2, 'the ledger changed and the queue did not')
-            self.assertEqual(len(after['applied']), 1)
+            # The decision is moved into the cached queue rather than paid for
+            # with a second build; see test_a_decision_moves_its_group_...
+            self.assertEqual(len(builds), 1, 'the decision was rebuilt rather than recorded')
+            self.assertEqual(len(after['applied']), 1, 'the ledger changed and the queue did not')
 
     def test_a_pass_that_is_still_running_reaches_the_queue(self):
         """A commit in WAL mode lands in the sidecar, not in the database file.
@@ -654,6 +657,70 @@ class HttpTests(ApplicationsTests):
             refreshed = json.load(response)
         self.assertEqual(len(refreshed['pending']), len(state['pending']) - 1)
         self.assertEqual(len(refreshed['applied']), 1)
+
+    def test_a_decision_moves_its_group_without_rebuilding_the_queue(self):
+        """Clicking Skip or Mark applied used to cost a full rebuild -- about 28
+        seconds live -- before the posting left the list. The cached queue is
+        moved in place instead, and must say exactly what a full replay says."""
+        server = review.make_server(self.db, self.ledger, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.shutdown)
+        root = f'http://127.0.0.1:{server.server_port}'
+        with urlopen(root + '/api/queue') as response:
+            state = json.load(response)
+        decisions = [(state['pending'][0]['id'], 'applied'), (state['pending'][1]['id'], 'skipped'),
+                     (state['backlog'][0]['id'], 'skipped')]
+        builds = []
+        real = applications.queue
+        with patch.object(applications, 'queue', side_effect=lambda *a, **k: builds.append(1) or real(*a, **k)):
+            for ident, status in decisions:
+                body = json.dumps({'id': ident, 'status': status, 'reason': 'fixture'}).encode()
+                with urlopen(Request(root + '/api/decision', data=body,
+                                     headers={'X-Review-Token': state['token']})) as response:
+                    self.assertEqual(json.load(response)['status'], status)
+            with urlopen(root + '/api/queue') as response:
+                moved = json.load(response)
+        self.assertEqual(builds, [], 'a decision still rebuilt the whole queue')
+        replayed = review.slim(real(self.db, self.ledger))
+
+        def shape(queue):
+            return {name: [(g['id'], sorted(j['url'] for j in g['jobs']), g.get('reason'))
+                           for g in queue[name]] for name in ('pending', 'backlog', 'applied', 'skipped')}
+        self.assertEqual(shape(moved), shape(replayed))
+        self.assertEqual([g['at'] for g in moved['skipped']], [g['at'] for g in replayed['skipped']])
+
+    def test_a_decision_made_while_the_index_changed_rebuilds_in_full(self):
+        server = review.make_server(self.db, self.ledger, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.shutdown)
+        root = f'http://127.0.0.1:{server.server_port}'
+        with urlopen(root + '/api/queue') as response:
+            state = json.load(response)
+        real = applications.append_decision
+
+        def and_a_pass_commits(*args, **kwargs):
+            written = real(*args, **kwargs)
+            with closing(sqlite3.connect(self.db)) as db, db:
+                db.execute("""INSERT INTO jobs VALUES ('https://example.test/e', 'sample',
+                    'Fresh Engineer', 'E', 'req-e', ?, NULL, 'direct', 80, NULL, '{}', ?)""",
+                           (self.now.isoformat(), self.now.isoformat()))
+            os.utime(self.db, ns=(1, os.stat(self.db).st_mtime_ns + 10**9))
+            return written
+        with patch.object(applications, 'append_decision', side_effect=and_a_pass_commits):
+            body = json.dumps({'id': state['pending'][0]['id'], 'status': 'applied'}).encode()
+            urlopen(Request(root + '/api/decision', data=body,
+                            headers={'X-Review-Token': state['token']})).close()
+        with urlopen(root + '/api/queue') as response:
+            after = json.load(response)
+        self.assertIn('https://example.test/e',
+                      {job['url'] for group in after['pending'] for job in group['jobs']},
+                      'the cache was patched over a change it had not read')
 
     def test_a_backlog_item_can_be_decided_over_http(self):
         server = review.make_server(self.db, self.ledger, 0)

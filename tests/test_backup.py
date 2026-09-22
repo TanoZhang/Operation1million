@@ -179,6 +179,34 @@ class BackupTests(unittest.TestCase):
                 copied.write_bytes(archive.extractfile('data/operational/jsearch_usage.sqlite').read())
             self.assertEqual(RequestGuard(path=copied).balance()['period_used'], 1)
 
+    @unittest.skipIf(os.name == 'nt' or os.geteuid() == 0, 'needs a POSIX user a mode bit can refuse')
+    def test_a_lock_file_the_backup_user_cannot_write_is_still_honoured(self):
+        """Measured on the VPS before deploying: the SSH user cannot write the
+        service account's `applications.lock`, and opening it for append
+        failed every archive with Permission denied."""
+        import fcntl
+        spec = importlib.util.spec_from_file_location('backup_snapshot', ROOT / 'deploy/vps/backup-snapshot.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / 'applications.ndjson'
+            lock = ledger.with_suffix('.lock')
+            lock.write_bytes(b'')
+            lock.chmod(0o444)
+            with open(lock, 'rb') as other:
+                fcntl.flock(other.fileno(), fcntl.LOCK_EX)
+                held = True
+                try:
+                    with open(lock, 'rb') as probe:
+                        fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    held = False
+                except BlockingIOError:
+                    pass
+                self.assertTrue(held, 'the fixture lock does not exclude')
+            with module.decision_lock(ledger):
+                with open(lock, 'rb') as probe, self.assertRaises(BlockingIOError):
+                    fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
     def test_the_day_still_being_written_may_differ_from_its_manifest(self):
         """A pass appending while tar reads is a race, not a damaged copy.
 

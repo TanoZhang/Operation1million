@@ -1,6 +1,23 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Codex's B68-B84 merged; the review page's empty state and slow decisions fixed - 2026-09-22 UTC
+
+Codex's `79e44e2` (B68-B84) was screened and merged into `main`. One defect
+was found in it by running it on the VPS as the backup user, not by reading it:
+the new archive could not open the service account's lock file. Fixed; see the
+bug log.
+
+Reported by the user from the live page and fixed in the same commit: the
+review page could show "All done for today" over hundreds of postings, and a
+decision left the posting in the list until a full rebuild answered. Both are
+in the bug log with what was measured.
+
+Still open from Codex's round 15, not fixed here: R02 (`/api/job` misses
+`raw.content` and other description fields), the B23/B27 residual (`/api/job`
+still lets a provider change plus an equal title override the alias check),
+and O10 (per-checkpoint manifests re-read the whole day).
+
 # B68-B84 fixed on codex; awaiting review, not deployed - 2026-09-21 UTC
 
 Implemented all 17 findings from audits 13-15. The numbered mechanisms and

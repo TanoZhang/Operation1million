@@ -5,6 +5,11 @@ let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLi
 // The later answer is the current one; an earlier one arriving after it used
 // to put the queue back to a state the user had already moved on from.
 let queueVersion = 0;
+// Nothing is known until the first queue arrives. The state above is a
+// placeholder, and rendering it -- which a tab click or a keystroke in the
+// search box did while a cold build was still running -- drew an empty queue
+// and "All done for today" over a queue holding hundreds of postings.
+let loaded = false;
 // The group the skip dialog was opened for. A refresh landing while the dialog
 // is open can change which group is selected, and the reason typed for one
 // posting was then filed against another.
@@ -60,8 +65,12 @@ async function refresh() {
     const next = await api('/api/queue');
     if (version !== queueVersion) return;
     described = {key: null, text: null};
-    state = next; error(''); render();
-  } catch (err) { if (version === queueVersion) error(err.message); }
+    state = next; loaded = true; error(''); render();
+  } catch (err) {
+    if (version !== queueVersion) return;
+    error(err.message);
+    if (!loaded) $('#list').innerHTML = `<div class="empty">The queue could not be loaded: ${escapeText(err.message)}. Use Refresh to try again.</div>`;
+  }
 }
 function filtered() {
   const text = $('#search').value.trim().toLowerCase();
@@ -78,6 +87,7 @@ function bandSummary(groups) {
   return text ? ' · ' + text : '';
 }
 function render() {
+  if (!loaded) return;
   $('#remaining').textContent = state.pending.length;
   $('#applied').textContent = state.applied.length;
   $('#skipped').textContent = state.skipped.length;
@@ -150,17 +160,41 @@ async function renderDetail(group) {
     if (version === detailVersion) { described = {key, text}; $('#description').textContent = text; }
   } catch (err) { if (version === detailVersion) $('#description').textContent = err.message; }
 }
+// The saved posting leaves the list the moment the server has it, and the next
+// one in the list is selected. It used to stay put until the refresh after the
+// save came back, which on the live queue was a full rebuild. The refresh still
+// follows, and replaces this local move with the server's own answer.
+function moveDecided(id, written) {
+  const visible = filtered();
+  const at = visible.findIndex(group => group.id === id);
+  const from = ['pending', 'backlog', 'applied', 'skipped'].find(name => state[name].some(group => group.id === id));
+  if (!from) return;
+  const group = state[from].find(item => item.id === id);
+  state[from] = state[from].filter(item => item.id !== id);
+  // Moved back to review: whether it belongs in the recent tab or the backlog
+  // is the server's call, and the refresh that follows makes it.
+  const {at: _at, reason: _reason, ...undecided} = group;
+  state[written.status] = [written.status === 'pending' ? undecided
+    : {...group, at: written.at, reason: written.reason ?? ''}, ...state[written.status]];
+  if (selected === id) {
+    const rest = visible.filter(item => item.id !== id);
+    selected = rest[Math.min(at, rest.length - 1)]?.id ?? null;
+  }
+  described = {key: null, text: null};
+  render();
+}
 async function decide(status, reason = '', target = null) {
   const id = target ?? selected;
   if (busy || !id) return;
   busy = true;
   document.querySelectorAll('.actions button, .dialog-actions button').forEach(button => button.disabled = true);
   try {
-    await api('/api/decision', {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify({id,status,reason})});
+    const written = await api('/api/decision', {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify({id,status,reason})});
     $('#skip-dialog').close();
     skipTarget = null;
     $('#saved').textContent = `Saved locally at ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-    await refresh();
+    moveDecided(id, written);
+    refresh();
   } catch (err) { error(err.message); }
   finally { busy = false; document.querySelectorAll('.actions button, .dialog-actions button').forEach(button => button.disabled = false); }
 }

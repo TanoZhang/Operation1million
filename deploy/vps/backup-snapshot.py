@@ -23,7 +23,12 @@ def sqlite_snapshot(source, target):
 
 @contextmanager
 def decision_lock(path):
-    with path.with_suffix('.lock').open('a+b') as handle:
+    # The backup runs as the SSH user, who can read the data checkout but not
+    # write the service account's lock file. flock needs no write access, so an
+    # existing lock is opened read-only; msvcrt locking does need it.
+    lock = path.with_suffix('.lock')
+    mode = 'rb' if os.name != 'nt' and lock.exists() else 'a+b'
+    with lock.open(mode) as handle:
         if os.name == 'nt':
             import msvcrt
             if handle.tell() == 0:
