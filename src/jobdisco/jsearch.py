@@ -681,8 +681,23 @@ def us_person_required(text, rules):
     posting has superseded cannot impose a requirement the company never
     stated. What the patterns deliberately leave alone is in the config.
     """
-    combined = any_of(rules.get('us_person_required_patterns', []))
-    return bool(combined and combined.search(text or ''))
+    text = text or ''
+    for pattern in rules.get('us_person_required_patterns', []):
+        for match in re.finditer(pattern, text, re.I):
+            # The sentence the match stands in, up to it. A requirement stated
+            # conditionally is not this posting's requirement: "ITAR projects,
+            # which may require U.S. citizenship" and Microsoft's boilerplate
+            # "If the role requires US citizenship, as indicated in the job
+            # description" were both passing postings that ask for neither --
+            # found reading every removal in the live queue, 2026-09-22.
+            lead = re.split(r'[.;:!?\n\u2022]', text[max(0, match.start() - 200):match.start()])[-1]
+            if not HEDGED.search(lead):
+                return True
+    return False
+
+
+# Words that make what follows conditional rather than stated.
+HEDGED = re.compile(r'\b(?:if|may|might|could|where|whether|should)\b', re.I)
 
 
 def rejection_reason(row, rules, description=None, score=None):

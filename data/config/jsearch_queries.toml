@@ -117,7 +117,12 @@ exclude_title_patterns = [
   # technician postings were surviving exactly that way.
   '\bsales\b', '\bmarketing\b', '\btechnician\b',
   # Levels above what an early-career application reaches
-  '\bsenior\b', '\bsr\b\.?', '\bprincipal\b', '\blead\b',
+  '\bsenior\b', '\bsr\b\.?',
+  # Principal and lead at the user's request, 2026-09-22 -- but not a posting
+  # hiring across levels: "SoC RTL Design Engineer (Up to Principal Level)"
+  # and "... Lead & IC Engineers" are open to the levels below, and were the
+  # only titles of 2,221 these took that were not a level of their own.
+  '(?<!\bup\sto\s)\bprincipal\b', '\blead\b(?!\s*(?:&|and|/)\s*(?:ic|individual)\b)',
   # Blocked wherever it appears, at the user's request on 2026-09-22; the
   # same word is in exclude_publisher_patterns, which reads the whole link.
   '\btrabajos?\b',
@@ -223,8 +228,18 @@ reject_title_patterns = [
   # scoring instead; it is not a keep, so a cloud posting that happens to say
   # "hardware" is still dropped by the score. Benchmarking, ML performance and
   # web work name nothing of the sort and are still rejected here.
-  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design)\b).*\bsoftware\s+(?:engineer|developer|development)\b',
-  '\bweb\s+developer\b', '\bfront.?end\b', '\bback.?end\b', '\bfull.?stack\b',
+  # EDA, circuit and memory software joined the list on 2026-09-22, when the
+  # block first reached direct boards and took "Software Engineer (Integrity
+  # 3D-IC Infra)" and "SRAM Software Engineer Intern" with it.
+  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design|eda|3d-?ic|circuits?|sram|dram|semiconductors?)\b).*\bsoftware\s+(?:engineer|developer|development)\b',
+  # Front end and back end are web words and chip words: RTL is a chip's front
+  # end and physical design its back end. Measured the same day: "GPU Front-End
+  # Infrastructure/Methodology" and "EDA PV Intern for Digital Backend Flow"
+  # were going as web roles. A title with a chip-design word stays.
+  '\bweb\s+developer\b',
+  '^(?!.*\b(?:gpu|cpu|asic|soc|chip|silicon|rtl|cad|dv|methodology|digital|design|verification|eda)\b).*\bfront.?end\b',
+  '^(?!.*\b(?:digital|physical|pd|flow|eda|asic|soc|chip|silicon|rtl|sta|timing|implementation|design|verification)\b).*\bback.?end\b',
+  '\bfull.?stack\b',
   '\bdata\s+(?:engineer|scientist)\b', '\bdevops\b', '\bsite\s+reliability\b',
 ]
 
@@ -236,7 +251,13 @@ reject_title_patterns = [
 # Engineer" are silicon work and stay; "Power Integrity Engineer", "Supply
 # Chain Planner" and "Business Operations Analyst, Processor" go.
 function_title_patterns = [
-  '\bpower\b', '\bproducts?\b', '\bsupply\b', '\bmanufactur', '\bmechanical\b',
+  # "Product" is product management and design, not the product engineering,
+  # development and test that is post-silicon work at a chip company: "Product
+  # Engineering Intern" and "New College Grad - Product Test Engineer" were
+  # going with "Product Management Intern" until 2026-09-22.
+  '\bpower\b',
+  '\bproducts?\b(?!\s*(?:/\s*test|test|development|engineer|engineering|validation|verification|yield|application))',
+  '\bsupply\b', '\bmanufactur', '\bmechanical\b',
   '\bmagnetics?\b', '\b(?:project|program)\s+manag', '\boperations?\b',
 ]
 # Job sites whose listings are not worth opening, blocked at the user's request
@@ -304,6 +325,12 @@ hardware_title_terms = [
   '\bCPU\b', '\bGPU\b', '\bNPU\b', '\bTPU\b', '\bprocessors?\b', '\baccelerators?\b',
   '\bSRAM\b', '\bDRAM\b', '\bNAND\b', '\bHBM\b', '\bmemory\b', '\bcircuits?\b',
   '\bhardware\b', '\belectronics?\b', '\bEDA\b',
+  # Firmware and embedded work is on hardware too, and a chip's power is work
+  # of the trade: "Power Management Firmware Engineer" and "Power Analysis and
+  # Optimization Intern" were going with "Power Integrity Engineer" until
+  # 2026-09-22.
+  '\bfirmware\b', '\bembedded\b', '\bsubsystems?\b',
+  '\bpower\s+(?:analysis|optimization|estimation|modell?ing|performance|management)\b',
   # Not subjects, but at the companies this collects from a "Product
   # Validation" or "Product Engineer - Verification" title is silicon work.
   '\bvalidation\b', '\bverification\b',

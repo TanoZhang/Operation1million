@@ -187,7 +187,8 @@ class SoftBlockTests(unittest.TestCase):
         self.rules = jsearch.load_plan()[0]['filter']
 
     def test_another_functions_word_alone_is_blocked(self):
-        for title in ('Power Integrity Engineer', 'Supply Chain Planner', 'Product Engineer',
+        for title in ('Power Integrity Engineer', 'Supply Chain Planner', 'Product Owner',
+                      'Product Management Intern', 'Product Design Intern',
                       'Manufacturing Engineering Intern', 'Mechanical Design Engineer',
                       'Wireless Power Magnetics Architect', 'Technical Program Management',
                       'Project Management Apprenticeship', 'Business Operations Analyst'):
@@ -237,6 +238,63 @@ class SoftBlockTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.excluded(title, self.rules))
         self.assertFalse(jsearch.excluded('Staff Digital Verification Engineer', self.rules))
+
+
+class AuditedWrongCatchTests(unittest.TestCase):
+    """Every removal the 2026-09-22 rules made in the live queue was read, rule
+    by rule, at the user's request. These are the wrong catches found, and the
+    right ones beside them that must stay caught."""
+
+    def setUp(self):
+        self.rules = jsearch.load_plan()[0]['filter']
+
+    def test_chip_work_the_soft_block_took_is_kept(self):
+        for title in ('Power Management Firmware Engineer', 'Power Analysis and Optimization Intern - 2027',
+                      'System Software Engineer - Embedded Power Management (RDSS Intern)',
+                      'Product Engineering Intern', 'Intern - Product Development Engineer',
+                      'New College Grad - Product Test Engineer', 'Product/Test Engineering Intern - TMG',
+                      'Staff Engineer, GPU Front-End Infrastructure/ Methodology',
+                      'Front-End CAD Methodology Engineer - Design/DV Interface',
+                      'EDA PV Intern for Digital Backend Flow', 'Software Engineer (Integrity 3D-IC Infra)',
+                      'SRAM Software Engineer Intern, BS - Summer 2027'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.title_blocked(title, self.rules))
+
+    def test_what_it_was_meant_to_take_still_goes(self):
+        for title in ('Frontend Engineer, EE&P - IS&T Early Career', 'Backend Compiler Engineer - New College Grad 2026',
+                      'Software Engineer, PhD, Early Career, 2026', 'GPU Software Engineer - GPU Libraries',
+                      'Mechanical Engineering Internship - Summer 2027', 'Operations & Logistics Internship',
+                      'Business Operations Analyst, Processor', 'Analog IC Design Engineer, Intern'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.title_blocked(title, self.rules))
+
+    def test_a_posting_hiring_up_to_principal_is_not_a_principal_posting(self):
+        for title in ('SoC RTL Design Engineer (Up to Principal Level)',
+                      'Physical Design Engineer (Engineer up to Principal Level)',
+                      'CPU Micro-Architect/RTL; Lead & IC Engineers'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
+        self.assertTrue(jsearch.excluded('Principal Engineer, SoC', self.rules))
+
+    def test_a_conditional_citizenship_line_is_not_a_requirement(self):
+        for text in ('Must be eligible to work on ITAR-controlled projects, which may require U.S. '
+                     'citizenship or lawful permanent resident status',
+                     'This position requires verification of citizenship. If the role requires US '
+                     'citizenship, as indicated in the job description, a valid US passport must be provided.'):
+            with self.subTest(text=text[:40]):
+                self.assertFalse(jsearch.us_person_required(text, self.rules))
+        self.assertTrue(jsearch.us_person_required(
+            'Candidates for regular U.S and Puerto Rico positions must be a U.S. citizen, national, '
+            'or an alien admitted as permanent resident', self.rules))
+
+    def test_the_trades_tooling_is_not_ranked_as_unrelated(self):
+        from jobdisco import ranking
+        for title, band in (('Timing Design Engineer', 2), ('CAD Gate-level 3DIC EM/IR Engineer', 2),
+                            ('Digital Layout Design Engineer', 3), ('EDA/CAD SW Engineer', 3),
+                            ('PhD Research Intern, Circuits - 2027', 1),
+                            ('Onsite Medical Representative', 4)):
+            with self.subTest(title=title):
+                self.assertEqual(ranking.bucket(title), band)
 
 
 class TitleOnlyFitTests(unittest.TestCase):

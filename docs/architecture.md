@@ -170,6 +170,40 @@ No deployment or production hit count is claimed.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### Reading every removal: the wrong catches in today's rules, 2026-09-22 UTC
+
+At the user's request ("don't catch the wrong ones"), the queue was built on
+the VPS with each of today's rules switched off and compared with the live
+one, and every posting a rule removed was attributed and read. Nothing was
+removed without a rule to account for it. By rule:
+
+- **Abroad, 5,404: no wrong catch.** Every location with a U.S.-looking token
+  (204) and every one placed by a city alone (79) was read; the ambiguous
+  ones -- Cadence's "DUBLIN" and "CORK 01", Apple's "Location Vancouver" --
+  are Ireland and British Columbia.
+- **Blocked sites, 34: none wrong.** All BeBee, Trabajo.org or Advies Van Spijk.
+- **U.S. person, 121: two wrong of 40 distinct wordings.** "ITAR projects,
+  which may require U.S. citizenship" and Microsoft's "If the role requires
+  US citizenship, as indicated in the job description" state no requirement
+  for the posting. A match now does not count when its sentence puts if, may,
+  might, could, where, whether or should before it. Wärtsilä's "U.S. and
+  Puerto Rico positions must be a U.S. citizen ... [not] F-1, H-1B" stays.
+- **Principal and lead, 2,221: five wrong.** "(Up to Principal Level)" and
+  "Lead & IC Engineers" hire across levels; both patterns now leave them.
+- **Soft block, 4,120: chip work in four places.** Power-management firmware
+  and chip power analysis (firmware, embedded, subsystem and "power analysis"
+  now name hardware); semiconductor product engineering, development and test
+  (the product word now means management and design only); the chip senses of
+  front end and back end ("GPU Front-End Methodology", "Digital Backend
+  Flow"); and EDA, 3D-IC, circuit and memory software. GPU and CPU application
+  software, analog, RF and PCB stay blocked as chosen.
+- **Less related, 4,324: sorted, not removed, but mis-banded.** Timing design,
+  gate-level, EM/IR, CAD/EDA, layout, circuits, packaging and "Design
+  Engineering" openings were in the last band; `ranking` now knows them.
+
+Measured with this code on the live queue before deploying: 79 postings
+restored, every one read. Reproducer: `AuditedWrongCatchTests`.
+
 ### Postings located only abroad, and a title's Fit without a description, 2026-09-22 UTC
 
 Both asked for by the user.

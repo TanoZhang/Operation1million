@@ -43,7 +43,8 @@ CORE = re.compile(r"""\b(?:
       \s+ validation
     | design \s+ for \s+ test(?:ability)?
     | micro-? architecture
-    | (?: static \s+ )? timing \s+ (?: closure | analysis | engineer )
+    | (?: static \s+ )? timing \s+ (?: closure | analysis | engineer | design | signoff | sign-off )
+    | gate[-\s]?level
     | place \s* (?: and | & ) \s* route
     | synthesis \s+ engineer
     | (?: hardware \s+ )? emulation
@@ -69,6 +70,13 @@ RELATED = re.compile(r"""\b(?:
     | (?: hardware | silicon | chip | product | board | system | ate | device
         | fpga | asic | soc ) \s+ test
     | electrical \s+ engineer | electronics? \s+ engineer
+    # The trade's tooling and its neighbours, missing until 2026-09-22, when the
+    # queue's "less related" section was read title by title and held "Timing
+    # Design Engineer", "CAD Gate-level 3DIC EM/IR Engineer", "Digital Layout
+    # Design Engineer" and "PhD Research Intern, Circuits".
+    | cad | eda | layout | circuits | em \s* / \s* ir | emir | 3d-?ic | chipdev
+    | packag(?:e|ing) \s+ (?: design | engineer | integration ) | advanced \s+ packaging
+    | design \s+ engineering
 )\b""", re.I | re.X)
 
 
