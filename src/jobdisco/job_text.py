@@ -37,3 +37,39 @@ def clean_title(title, location=''):
     while title != previous:
         previous, title = title, once(title)
     return title
+
+
+# Where providers put a posting's description, plain renderings first so that
+# markup is parsed only when nothing else says it. `store.slim` reads the same
+# two lists to decide when a teaser is a duplicate, so a field named here is
+# one both the log and the review page recognise.
+FULL_DESCRIPTIONS = ('descriptionPlain', 'job_description', 'description', 'jobDescription',
+                     'content', 'descriptionHtml', 'jobDescriptionHtml')
+TEASERS = ('descriptionTeaser', 'description_short')
+
+
+def display_description(raw):
+    """The description to show for a stored payload, and what kind it is.
+
+    Returns (text, kind): kind is 'full' for the provider's own description,
+    'excerpt' for a teaser the provider cut short, and 'discovery' for the text
+    of the paid listing a direct posting took over, which the store keeps under
+    `raw['jsearch']` for provenance. The current payload is always asked first,
+    so a superseded listing is shown only where the current one says nothing.
+    Measured on the live index, 2026-09-22: 1,280 of Phenom's 1,314 open
+    postings carry a teaser and no full description, and the review page
+    showed none of them.
+    """
+    if not isinstance(raw, dict):
+        return '', None
+    for fields, kind in ((FULL_DESCRIPTIONS, 'full'), (TEASERS, 'excerpt')):
+        for key in fields:
+            value = raw.get(key)
+            if isinstance(value, str) and value.strip():
+                return value, kind
+    paid = raw.get('jsearch')
+    if isinstance(paid, dict):
+        value = paid.get('job_description')
+        if isinstance(value, str) and value.strip():
+            return value, 'discovery'
+    return '', None

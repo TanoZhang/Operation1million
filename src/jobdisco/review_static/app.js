@@ -150,13 +150,17 @@ async function renderDetail(group) {
   const key = `${first.url}\u0000${group.id}`;
   if (described.key === key) { $('#description').textContent = described.text; return; }
   try {
+    // Whether the posting moved or was replaced is decided on the server, from
+    // the decision's own snapshot; the page sends only which one it is showing.
     const body = await api('/api/job?url=' + encodeURIComponent(first.url)
-      + '&id=' + encodeURIComponent(group.id)
-      + '&provider=' + encodeURIComponent(first.provider_key ?? '')
-      + '&title=' + encodeURIComponent(group.title ?? ''));
+      + '&id=' + encodeURIComponent(group.id));
+    // A teaser is not the whole description, and the paid listing's text is
+    // not the company's own; each says so rather than passing for the full one.
+    const note = {excerpt: 'Excerpt only. The full description is on the original listing.\n\n',
+                  discovery: 'From the listing this posting was first found in.\n\n'}[body.kind] ?? '';
     const text = body.replaced
       ? 'This address now advertises a different requisition, so the description published here is not the one this decision was about.'
-      : (body.description || 'Description unavailable. Open the original listing.');
+      : (body.description ? note + body.description : 'Description unavailable. Open the original listing.');
     if (version === detailVersion) { described = {key, text}; $('#description').textContent = text; }
   } catch (err) { if (version === detailVersion) $('#description').textContent = err.message; }
 }

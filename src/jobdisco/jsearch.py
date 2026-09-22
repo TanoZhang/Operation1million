@@ -435,6 +435,26 @@ def needs_evidence(title, rules):
     return bool(combined and combined.search(title or ''))
 
 
+def names_the_trade(title, rules):
+    """Whether a title itself names VLSI work: a keep pattern or a strong term."""
+    keep = any_of(rules.get('keep_title_patterns', []))
+    strong = any_of(rules.get('strong_terms', []))
+    return bool((keep and keep.search(title or '')) or (strong and strong.search(title or '')))
+
+
+def title_blocked(title, rules):
+    """The soft title block: another function's word, and none of the trade's.
+
+    Unlike `excluded`, a title that also names the work is let through to be
+    scored -- "Low Power Verification Engineer" is the trade, "Power Integrity
+    Engineer" is not. The paid filter and the review queue ask the same
+    question through this, so a direct board's posting is held to the rule a
+    paid result is.
+    """
+    combined = any_of(rules.get('reject_title_patterns', []))
+    return bool(combined and combined.search(title or '')) and not names_the_trade(title, rules)
+
+
 def employer_excluded(row, rules):
     raw = row.get('raw') if isinstance(row.get('raw'), dict) else {}
     employer = row.get('company_name') or row.get('company') or raw.get('employer_name') or ''
@@ -627,7 +647,7 @@ def rejection_reason(row, rules, description=None, score=None):
         return '' if confidence >= rules.get('min_confidence', 25) else 'no_evidence'
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):
         return ''
-    if any(re.search(p, title, re.I) for p in rules.get('reject_title_patterns', [])):
+    if title_blocked(title, rules):
         return 'title_mismatch'
     confidence = score if score is not None else relevance(row, rules, description())[0]
     if confidence >= rules.get('min_confidence', 25):

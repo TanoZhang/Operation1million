@@ -623,9 +623,7 @@ LOG = Path(os.environ.get('JOBDISCO_STORE') or DATA / 'store')
 # assets, employer ratings, the provider's own relevance scoring and parser output,
 # duplicate renderings of a description we already keep, and the row markup we
 # scraped the normalized fields out of.
-TEASERS = ('descriptionTeaser', 'description_short')
-FULL_DESCRIPTIONS = ('descriptionPlain', 'job_description', 'description', 'descriptionHtml',
-                     'jobDescriptionHtml', 'jobDescription', 'content')
+from .job_text import TEASERS, FULL_DESCRIPTIONS  # noqa: E402 -- shared with review
 DROP_FIELDS = {
     # Branding and employer reputation.
     'employer_logo', 'hiring_organization_logo', 'logo', 'employer_reviews',
@@ -727,14 +725,50 @@ def manifest_path(stamp):
     return LOG / 'manifests' / f'{stamp[:10]}.json'
 
 
-def _file_facts(path):
+# O10: what this process last knew about each day file it appends to -- the
+# size and mtime its own write left, the running digest, and the record count.
+# Every append re-described the day, and describing it read and decompressed the
+# whole file: twenty one-job checkpoints visited 420 records to log 40, and the
+# work grows with the square of the checkpoints in a shard. An append knows
+# exactly what it added, so it extends the digest and the count instead. The
+# entry is trusted only while the file is exactly as that write left it; any
+# other writer, a truncation after a failed write, or a rollover to a new
+# shard changes the size or the mtime, and the file is read in full again.
+_FACTS = {}
+
+
+def _scan_file(path):
     sha = hashlib.sha256()
     with path.open('rb') as handle:
         for block in iter(lambda: handle.read(1 << 20), b''):
             sha.update(block)
     with gzip.open(path, 'rt', encoding='utf-8') as handle:
         records = sum(1 for line in handle if line.strip())
+    return sha, records
+
+
+def _file_facts(path):
+    key = str(Path(path).resolve())
+    state = Path(path).stat()
+    known = _FACTS.get(key)
+    if known and known[:2] == (state.st_size, state.st_mtime_ns):
+        return known[2].hexdigest(), known[3]
+    sha, records = _scan_file(path)
+    _FACTS[key] = (state.st_size, state.st_mtime_ns, sha, records)
     return sha.hexdigest(), records
+
+
+def _extend_facts(path, before, member, count):
+    """Carry the cached facts across an append this process just made."""
+    key = str(Path(path).resolve())
+    known = _FACTS.pop(key, None)
+    if not known or known[:2] != before:
+        return
+    sha = known[2].copy()
+    sha.update(member)
+    state = Path(path).stat()
+    if state.st_size == before[0] + len(member):
+        _FACTS[key] = (state.st_size, state.st_mtime_ns, sha, known[3] + count)
 
 
 def _file_digest(path):
@@ -810,16 +844,19 @@ def _append_records(stamp, records):
     path = daily_log(stamp)
     if path.exists() and path.stat().st_size + len(member) > MAX_DAILY_LOG_BYTES:
         shard_daily_log(stamp)
-    size = path.stat().st_size if path.exists() else 0
+    before = (path.stat().st_size, path.stat().st_mtime_ns) if path.exists() else None
+    size = before[0] if before else 0
     try:
         with path.open('ab') as handle:
             handle.write(member)
             handle.flush()
             os.fsync(handle.fileno())
     except OSError:
+        _FACTS.pop(str(path.resolve()), None)
         with path.open('r+b') as handle:
             handle.truncate(size)
         raise
+    _extend_facts(path, before, member, len(records))
     return True
 
 

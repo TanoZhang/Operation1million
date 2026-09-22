@@ -110,7 +110,7 @@ exclude_title_patterns = [
   # technician postings were surviving exactly that way.
   '\bsales\b', '\bmarketing\b', '\btechnician\b',
   # Levels above what an early-career application reaches
-  '\bsenior\b', '\bsr\b\.?',
+  '\bsenior\b', '\bsr\b\.?', '\bprincipal\b',
   '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
   # Unrelated disciplines: title-only exclusions, before explicit trade keeps.
   '\bphotonics?\b', '\boptical\s+engineer\b', '\boptics\s+engineer\b',
@@ -204,6 +204,14 @@ reject_title_patterns = [
   '\bfield\s+application\b', '\bclinical\b',
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
   '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
+
+  # Asked for on 2026-09-22, from the review queue: words that name another
+  # function or discipline, dropped unless the title also names the trade.
+  # "Low Power Verification" and "Power-aware RTL" stay; "Power Integrity
+  # Engineer" and "Supply Chain Planner" go. `jsearch.title_blocked` applies
+  # this group to direct boards in the review queue as well as to paid results.
+  '\bpower\b', '\bproducts?\b', '\bsupply\b', '\bmanufactur', '\bmechanical\b',
+  '\bmagnetics?\b', '\b(?:project|program)\s+manag', '\boperations?\b',
 
   # Software roles at hardware companies -- but "software" is not by itself a
   # reason to drop a posting. Embedded, firmware, drivers and silicon bring-up

@@ -101,6 +101,35 @@ def read_events(path):
     return events
 
 
+def describes_decision(db, url, row, decided):
+    """Whether the posting now at `url` is the opening `decided` was made on.
+
+    `row` is what the index holds at the address now, and `decided` the job as
+    the decision's snapshot recorded it. The same test the queue applies before
+    letting a decision follow a posting: the same requisition, or a provider
+    change with company and title agreeing *and* the decided requisition still
+    among the address's aliases. The description view used to accept the
+    provider change and the title alone, so a board that reused an address for
+    a new opening under the same title showed that opening's prose under an
+    application made to the old one.
+    """
+    if decision_key(dict(row, url=url)) == decision_key(decided):
+        return True
+    here = (row['provider_key'] or '', row['company_key'] or '',
+            clean_title(row['title'] or '', row['location'] or ''))
+    under = (decided.get('provider_key') or '', decided.get('company_key') or '',
+             decided.get('title') or '')
+    if not (under[0] and under[0] != here[0] and under[1:] == here[1:]):
+        return False
+    identity = scoped_identity(decided)
+    if identity is None or not db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='job_identities'").fetchone():
+        return True
+    held = {(provider or '', scope or '', str(requisition)) for provider, scope, requisition in db.execute(
+        'SELECT provider_key, scope, source_job_id FROM job_identities WHERE url=?', (url,))}
+    return not held or identity in held
+
+
 def append_decision(path, group, status, reason=''):
     if status not in {'applied', 'skipped', 'pending'}:
         raise ValueError('Invalid application status')
@@ -276,9 +305,17 @@ def queue(db_path=DB, path=None, now=None):
 
         def verdict(title):
             """(refused outright, must be justified by its description)."""
+            # The soft block as well as the hard one. It used to run only on
+            # paid results as they were collected, so a direct board's posting
+            # -- most of the queue -- was never asked, and the backlog carried
+            # 2,855 software, analog, quality and recruiting titles the rules
+            # already said to drop. An evidence title is not blocked by name,
+            # here as in `rejection_reason`: its description decides it.
             if title not in titles:
-                titles[title] = (jsearch.excluded(title, rules),
-                                 jsearch.needs_evidence(title, rules))
+                evidence = jsearch.needs_evidence(title, rules)
+                titles[title] = (jsearch.excluded(title, rules)
+                                 or (not evidence and jsearch.title_blocked(title, rules)),
+                                 evidence)
             return titles[title]
 
         def collect_into(target, rows):
