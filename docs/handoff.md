@@ -1,6 +1,33 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Local reusable autofill answers - 2026-09-22 UTC (codex, not deployed)
+
+Added `jobdisco.answer_bank` and the `job-answers` CLI. Canonical fields each own
+one typed answer; observed headings link to fields rather than copying values.
+New wording is recorded as pending, exact ordinary aliases can resolve, and
+confirmed mappings remain scoped to site/section/control/options. Personal
+questions default to per-use review. There is no browser watcher, form filling,
+or submission in this change. The next integration is a Chrome form reader
+calling `observe` and presenting pending mappings for confirmation.
+
+Authoritative state is local JSON under a file lock with atomic replacement;
+SQLite is refreshed after writes and is recoverable from that JSON. This is
+separate from VPS application decisions. Back up the local JSON privately; the
+VPS backup does not contain it. See `docs/answer-bank.md`.
+
+Created the user's ignored workstation store at
+`D:/Operation1million/.local/autofill`: 17 empty fields and seven text questions
+observed in the Qualcomm application. Four headings resolve to fields with
+missing answers; three address headings await mapping. No personal answer was
+inferred or copied from the browser, and no external form was changed.
+
+Sixteen focused tests cover synonym reuse, ambiguity, scope isolation, changed
+options/negation, personal review, answer types, interrupted writes and derived
+index recovery. Full offline suite: 569 discovered, 559 passed, ten environment
+skips on Windows; imports were pinned to the Codex worktree. The user's separate uncommitted changes in the main checkout
+were left untouched. Implementation is based on `bcfe953` in the Codex worktree.
+
 # Codex's B68-B84 merged; the review page's empty state and slow decisions fixed - 2026-09-22 UTC
 
 Codex's `79e44e2` (B68-B84) was screened and merged into `main`. One defect

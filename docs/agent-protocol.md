@@ -9,8 +9,8 @@ Owner: codex
 Scope: Local reusable answer bank, scoped question learning and extensible personal fields; no browser filling or deployment.
 Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, pyproject.toml, docs/{answer-bank,agent-protocol,architecture,handoff}.md
 Base commit: bcfe9533292e5c6fb0f2c1327b4af6de88574319
-Status: claimed
-Next: Implement authoritative local JSON, derived SQLite export, CLI and offline matching/recovery tests.
+Status: done
+Next: Review codex answer-bank implementation. Local empty bank created; 16 focused tests pass; full suite 569 discovered, 559 passed and 10 environment skips. Browser reader/filler is a separate integration step.
 ```
 
 ```text

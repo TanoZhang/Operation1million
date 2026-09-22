@@ -69,6 +69,17 @@ collection history, not the working state.
 | `review.py` | The loopback HTTP server. Binds `127.0.0.1` only, checks the Host header so an SSH tunnel still works, and requires a token for writes. `slim()` projects the queue down to what the page renders. |
 | `review_static/` | The page. `app.js` reads only the fields `review.GROUP_FIELDS` and `JOB_FIELDS` send; a contract test enforces that. |
 
+### Local personal answer preparation
+
+`answer_bank.py` owns a separate workstation-only autofill knowledge store:
+canonical fields and one answer per field, exact built-in aliases, scoped
+observed questions and confirmed bindings. Its authoritative `.local/autofill/
+answers.json` is atomically saved under a lock; `answers.sqlite` is a derived
+view refreshed after writes and can be rebuilt. This is not application decision
+state, does not write the VPS ledger, and is never read by job-index rebuilds.
+It emits no personal-review answer automatically and performs no browser writes.
+See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
+
 ### Operations
 
 | File | Owns |
