@@ -99,6 +99,9 @@ rather be paged on it, change the final `exit` handling in `daily-pass.sh`.
 
     sudo bash /opt/jobdisco/code/deploy/vps/install.sh
 
+From the Windows machine, `deploy/local/deploy-vps.bat` runs the same command
+over ssh with the deploy key, and leaves its output on screen.
+
 Both checkouts advance only by fast-forward. Local source edits or divergent
 history stop installation instead of being discarded. Installation and daily
 collection use the same lock, so an update cannot replace running collector code.
