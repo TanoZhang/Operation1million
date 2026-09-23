@@ -5,6 +5,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Offline audit of the latest PhD eligibility, description refresh and Review display changes; reproducible findings only.
+Files: docs/review-audit-2026-09-23.md, docs/review-audit-repro-2026-09-23.py, docs/agent-protocol.md
+Base commit: b2c9340f84dbe5f7fb020301c2d724af32587424
+Last inspected main: b2c9340f84dbe5f7fb020301c2d724af32587424
+Branch: local codex/review-audit, published to standing remote codex
+Date: 2026-09-23 UTC
+Status: claimed
+Next: Run focused offline tests and synthetic boundary cases against the exact source checkout.
+```
+
+```text
 Owner:   claude
 Scope:   Review detail shows the paid description beside qualification-only
          fields instead of hiding it; add deploy/local/open-review.bat.
