@@ -288,7 +288,9 @@ class AuditedWrongCatchTests(unittest.TestCase):
                       'Software and System Architect', 'Executive Assistant',
                       'Software QA Engineer- New College Grad 2026',
                       'Software Engineering Intern, DLFW Comms - 2027',
-                      'Developer Technology Engineer, Energy'):
+                      'Developer Technology Engineer, Energy',
+                      'Optical Module Software/Firmware Intern',
+                      'Hardware Design Engineer, Optical Validation'):
             with self.subTest(title=title):
                 self.assertTrue(jsearch.excluded(title, self.rules)
                                 or jsearch.title_blocked(title, self.rules))

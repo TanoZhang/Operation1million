@@ -133,7 +133,10 @@ exclude_title_patterns = [
   '\btrabajos?\b',
   '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
   # Unrelated disciplines: title-only exclusions, before explicit trade keeps.
-  '\bphotonics?\b', '\boptical\s+engineer\b', '\boptics\s+engineer\b',
+  # "Optical" on its own since 2026-09-23 at the user's request, like
+  # photonics: "Optical Module Firmware Intern" and "Hardware Design Engineer,
+  # Optical Validation" went through when only "Optical Engineer" was named.
+  '\bphotonics?\b', '\boptical\b', '\boptics\s+engineer\b',
   '\boptoelectronics?\b', '\blaser\s+engineer\b',
   '\bprocess\s+(?:engineer|integration)\b', '\bsemiconductor\s+process\b',
   # "Device" on its own is not a fab word: Device Validation, Embedded Device,
