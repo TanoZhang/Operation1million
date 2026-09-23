@@ -107,7 +107,10 @@ exclude_title_patterns = [
   '\bsecurity\s+clearance\b',
   # Management: not an individual-contributor track
   '\bdirector\b', '\bmanaging\s+director\b', '\bmanagers?\b',
-  '\bvice\s+president\b', '\bVP\b', '\bSVP\b', '\bEVP\b', '\bhead\s+of\b',
+  '\bvice\s+president\b', '\bVP\b', '\bSVP\b', '\bEVP\b', '\bAVP\b', '\bhead\s+of\b',
+  # The same levels abbreviated: "Engineering Mgr" and "Snr. Engineer" were
+  # let through while "Manager" and "Senior" were not.
+  '\bmgrs?\b', '\bsnr\b',
   '\bchief\b', '\bC[TEIF]O\b',
   # Functions that are not the trade at all. These were soft rejects, and a soft
   # reject is only consulted when confidence falls below min_confidence -- but a
@@ -117,7 +120,9 @@ exclude_title_patterns = [
   # technician postings were surviving exactly that way.
   '\bsales\b', '\bmarketing\b', '\btechnician\b',
   # Levels above what an early-career application reaches
-  '\bsenior\b', '\bsr\b\.?',
+  # Not the SR of SR-IOV, a PCIe virtualisation feature firmware and driver
+  # postings name in the title.
+  '\bsenior\b', '\bsr\b(?![-\s]?iov\b)\.?',
   # Principal and lead at the user's request, 2026-09-22 -- but not a posting
   # hiring across levels: "SoC RTL Design Engineer (Up to Principal Level)"
   # and "... Lead & IC Engineers" are open to the levels below, and were the
@@ -311,13 +316,16 @@ exclude_publisher_domains = [
 # that merely defines who counts as a U.S. person, and EEO lines about
 # "citizenship status".
 us_person_required_patterns = [
-  '\b(?:must|shall|will\s+need\s+to|required\s+to|need\s+to)\s+(?:be|hold|have|possess|maintain)\s+(?:an?\s+)?(?:\((?:i|1|a)\)\s*)?(?:active\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizen|citizenship|person)\b',
+  '\b(?:must|shall|will\s+need\s+to|required\s+to|need\s+to)\s+(?:be|hold|have|possess|maintain)\s+(?:an?\s+)?(?:\((?:i|1|a)\)\s*)?(?:active\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens?|citizenship|persons?)\b',
   '(?<!\bno\s)\b(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)\s+(?:is\s+)?(?:required|mandatory|a\s+requirement|a\s+must)\b',
   '\brequires?\s+(?:(?:active|current)\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)\b',
   '\brequires?\s+that\s+(?:the\s+)?(?:candidate|applicant|individual|person)s?(?:\s+selected)?\s+(?:be|is|are)\s+(?:an?\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizen|person)',
   '\b(?:only|open\s+(?:only\s+)?to|restricted\s+to\s+(?:\w+\s+){0,3}who\s+are)\s+(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens|persons)\b',
   '\b(?:U\.?\s?S\.?|United\s+States)\s+citizens?\s+only\b',
   '\b(?:must|required\s+to)\s+(?:be|qualify\s+as)\s+(?:an?\s+)?["“]?(?:U\.?\s?S\.?|United\s+States)\s+person',
+  # The citizen rather than the citizenship, as a form's value or a bare line:
+  # "Citizenship: US Citizen Required", "US Citizen or Green Card required".
+  '(?<!\bno\s)\b(?:U\.?\s?S\.?|United\s+States)\s+citizens?(?:\s+or\s+(?:an?\s+)?(?:green\s+card(?:\s+holders?)?|(?:lawful\s+)?permanent\s+residents?))?\s+(?:is\s+|are\s+)?(?:required|mandatory)\b',
 ]
 # What the work is on. Enough, with a role below, to keep a function title.
 hardware_title_terms = [

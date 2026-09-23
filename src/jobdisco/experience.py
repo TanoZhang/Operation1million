@@ -2,7 +2,12 @@
 import html
 import re
 
-ENTRY = re.compile(r'\b(?:intern|internship|new\s+(?:college\s+)?grad(?:uate)?|university\s+graduate)\b', re.I)
+# A co-op is an internship under another name, and a recent or college graduate
+# a new one; "Hardware Co-op" asking three years of Python was refused while
+# the same posting called an internship was not. "Early career" and "entry
+# level" stay out on purpose: those postings may still ask for years.
+ENTRY = re.compile(r'\b(?:intern|internship|co-?op|new\s+(?:college\s+)?grad(?:uate)?|'
+                   r'(?:university|college|recent)\s+graduate)\b', re.I)
 OPTIONAL = re.compile(r'\b(?:preferred|desired|nice\s+to\s+have|a\s+plus|bonus|ideally)\b', re.I)
 REQUIRED = re.compile(r'\b(?:required|requirements?|minimum|basic\s+qualifications|must\s+have|at\s+least)\b', re.I)
 DEGREE = re.compile(r"\b(?:BS|MS|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
@@ -10,8 +15,31 @@ DEGREE = re.compile(r"\b(?:BS|MS|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
 # what "3 years experience" states. And the bound can be fractional, which this
 # gate has to be able to exceed -- reading 2.5 as 2 decides the posting the
 # other way, and reading it as 5 decides it wrongly in the other direction.
-NUMBER = r'(?P<low>\d{1,2}(?:\.\d)?)(?:\s*(?:-|–|—|to)\s*\d{1,2})?\s*\+?'
-YEARS = re.compile(r'(?<![\w.])' + NUMBER + r'(?:\s+|\s*[-–—]\s*)years?\b', re.I)
+# "3 or more years" is a floor like "3+ years", and "yrs" is how a terse
+# posting abbreviates the unit; both used to read as stating nothing.
+NUMBER = (r'(?P<low>\d{1,2}(?:\.\d)?)(?:\s*(?:-|–|—|to)\s*\d{1,2})?\s*\+?'
+          r'(?:\s+or\s+(?:more|greater))?')
+YEARS = re.compile(r'(?<![\w.])' + NUMBER + r'\s*(?:[-–—]\s*)?(?:years?|yrs?)\b', re.I)
+# Nobody asks for more than this. A bigger number is the company describing
+# itself -- "with over 40 years of experience, Acme leads..." -- and was read
+# as a forty-year requirement.
+MAX_REQUIRED_YEARS = 20
+# Spelled-out counts, rewritten as digits before anything is read: "five years
+# of experience" and "three (3) years" asked as plainly as "5 years" and were
+# read as asking nothing.
+NUMBER_WORDS = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7,
+                'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12,
+                'fifteen': 15, 'twenty': 20}
+SPELLED = re.compile(r'\b(%s)\b(?=\s*(?:\(\s*\d{1,2}\s*\)\s*)?(?:\+|\s*-?\s*plus\b)?'
+                     r'(?:\s+or\s+more)?\s*(?:[-–—]\s*)?(?:years?|yrs?)\b)'
+                     % '|'.join(NUMBER_WORDS), re.I)
+# "3 (three) years" and "three (3) years" once the word is a digit: one number.
+PAREN_REPEAT = re.compile(r'\b(\d{1,2})\s*\(\s*(?:\d{1,2}|%s)\s*\)' % '|'.join(NUMBER_WORDS), re.I)
+# A form's label ahead of its value: "Years of experience: 5+" is "5+ years of
+# experience" written the other way round.
+LABELLED = re.compile(
+    r'\byears\s+of\s+((?:\w+\s+){0,2}?experience)\s*(?:required\s*)?[:\-–—]\s*'
+    r'(\d{1,2}(?:\.\d)?(?:\s*(?:-|–|to)\s*\d{1,2})?\s*\+?)(?!\s*(?:years?|yrs?)\b)', re.I)
 SHORT_DEGREE = re.compile(r'\b(?P<degree>BS|MS)\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
 EXPERIENCE = re.compile(r'\b(?:experience|professional|industry)\b', re.I)
 # The work itself, named straight after the duration. "8+ years of hands-on
@@ -143,6 +171,9 @@ def evaluate(title, description):
     text = html.unescape(description or '')
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)
     text = re.sub(r'<[^>]*>', '\n', text)
+    text = SPELLED.sub(lambda found: str(NUMBER_WORDS[found.group(1).lower()]), text)
+    text = PAREN_REPEAT.sub(r'\1', text)
+    text = LABELLED.sub(r'\2 years of \1', text)
     debug = dict(entry_override=entry_level(title, text),
                  internship_experience=internship_experience(text),
                  required_experience_years=None, effective_experience_years=None,
@@ -211,7 +242,7 @@ def evaluate(title, description):
             matches = list(YEARS.finditer(clause))
             for match in matches:
                 before, after = clause[:match.start()], clause[match.end():]
-                if NON_WORK.search(after) or NOT_REQUIRED.search(after) or (
+                if years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or NOT_REQUIRED.search(after) or (
                         NOT_A_MINIMUM.search(before)
                         and not STILL_A_MINIMUM.search(before)):
                     continue

@@ -78,7 +78,8 @@ def _with_qualifications(description, raw):
 
 POSTED_SUFFIX = re.compile(
     r'\s+(?:[|\-]\s*)?Posted\s+(?:today|yesterday|just now|'
-    r'(?:a|an|one|\d+)\s+(?:minute|hour|day|week|month)s?\s+ago|'
+    # "30+ Days Ago" is how Workday says a month or more.
+    r'(?:a|an|one|\d+\+?)\s+(?:minute|hour|day|week|month)s?\s+ago|'
     r'(?:on\s+)?\d{4}-\d{2}-\d{2}|(?:on\s+)?[A-Za-z]+\s+\d{1,2},?\s+\d{4})\s*$', re.I)
 
 

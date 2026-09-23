@@ -165,6 +165,29 @@ def posted_day(value):
     return None
 
 
+# Workday prints a posting's age, never its date: "Posted Today", "Posted 6
+# Days Ago". Its postings were all shown as having no date and ranked on the
+# day we first saw them, though the board had said how old each was. "30+
+# Days Ago" is only a lower bound, and is left unread.
+RELATIVE_DAY = re.compile(
+    r'^\s*posted\s+(?:(?P<today>today|just\s+now)|(?P<yesterday>yesterday)|'
+    r'(?P<days>\d{1,2})\s+days?\s+ago)\s*$', re.I)
+
+
+def relative_day(text, as_of):
+    """The ISO day a board's relative age names, read against when it said it.
+
+    `as_of` is the stamp of the pass that read the text; the store updates the
+    two together. None when either is missing or the text is not an exact age.
+    """
+    found = RELATIVE_DAY.match(str(text or ''))
+    seen = posted_day(as_of)
+    if not found or seen is None:
+        return None
+    back = 0 if found['today'] else 1 if found['yesterday'] else int(found['days'])
+    return date.fromordinal(seen.toordinal() - back).isoformat()
+
+
 def _seconds(value):
     """A monotone number for an ISO stamp, so it can be sorted descending."""
     found = ISO_SECONDS.match(' '.join(str(value or '').split()))

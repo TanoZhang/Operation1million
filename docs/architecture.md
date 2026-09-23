@@ -151,6 +151,53 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Twenty from a read of the filters, location and queue, 2026-09-23 UTC
+
+Found by probing each rule with the wordings the boards use, not by an audit
+list. Every item has a test red on `b2c9340` and green after; the full suite
+is 663 tests, 2 skipped. No production index was available: the only real-data
+check was Marvell's live Workday board (229 postings) collected into a
+throwaway store, where the queue lost one posting (AVP) and 38 of 40 went from
+undated to dated. Verdict changes over the full index are not measured.
+
+Hard passes that were wrong (postings removed that should stay):
+1. "You do not need to be a U.S. citizen", "don't need to", "are not required
+   to hold U.S. citizenship" matched the citizenship patterns; a denial just
+   ahead of the match now voids it (`jsearch.DENIED`).
+2. `\bsr\b` refused "SR-IOV" firmware and driver titles as senior.
+3. "Athens, GA": GA, PA, SC, MT and AL were treated as country codes that no
+   country here uses; the ambiguous set is now exactly the state codes that are
+   also foreign codes.
+4. "Dublin, CA", "Moscow, ID": an ambiguous code beside a city abroad read as
+   that country even when the city is not in it (`location.CODE_CITIES`).
+5. A company's age, "with over 40 years of experience", was a 40-year
+   requirement; counts over 20 are not read as requirements.
+6. A co-op or recent/college graduate opening was not an entry-level override
+   the way an internship is. "Early career" and "entry level" stay out.
+
+Requirements that were missed (postings kept that should go):
+7. Spelled-out counts: "five years", "Three or more years".
+8. "three (3) years", "Seven (7) or more years".
+9. "3 or more years".
+10. "yrs", including "5yrs".
+11. A form's label first: "Years of experience: 5+".
+12. "PhD in EE required" -- only "PhD required" with nothing between counted.
+13. Plural "must be U.S. citizens" (including "... or permanent residents").
+14. "US Citizen Required", "US Citizen or Green Card required".
+15. "AVP", "Mgr", "Snr" passed the level exclusions their full words hit.
+16. "Burlington, ON"/"Burlington, Ontario" read as Vermont: Canadian provinces
+    are now read as abroad when they follow a city.
+
+Display and ranking:
+17. Workday states only "Posted N Days Ago"; its postings reached the page
+    undated and ranked on first_seen. The queue now derives the day from the
+    age and the pass that read it (`ranking.relative_day`); "30+" stays unread.
+18. A board's printed date was stored as midnight UTC and shown a day early
+    west of Greenwich; `posted_from_text` now stores the calendar day.
+19. A requisition spanning recent and backlog kept the recent listing's score
+    even when the older listing scored higher.
+20. `clean_title` left Workday's "Posted 30+ Days Ago" on a title.
+
 ### Nested qualification details, 2026-09-22 UTC
 
 Review's qualification renderer handled strings and flat string lists only.

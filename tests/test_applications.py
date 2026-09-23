@@ -100,6 +100,28 @@ class ApplicationsTests(unittest.TestCase):
         applications.append_decision(self.ledger, groups[0], 'applied')
         self.assertEqual(len(self.queue()['applied'][0]['jobs']), 2)
 
+    def test_a_group_is_scored_on_its_best_listing_across_the_window(self):
+        # The backlog listing scored higher, and merging it into the recent
+        # group used to leave the group at the recent listing's score.
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET first_seen=?, relevance=95 WHERE url=?',
+                       ((self.now - timedelta(days=5)).isoformat(), 'https://example.test/a2'))
+        self.assertEqual(self.group_for('req-a')['confidence'], 95)
+
+    def test_a_board_that_states_only_an_age_gives_its_posting_a_date(self):
+        # Workday prints "Posted 6 Days Ago", never a date, and its postings
+        # reached the page undated.
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('ALTER TABLE jobs ADD COLUMN posted_relative TEXT')
+            db.execute("UPDATE jobs SET posted_relative='Posted 6 Days Ago', last_seen=? WHERE url=?",
+                       ('2026-09-23T11:38:00+00:00', 'https://example.test/a'))
+            db.execute("UPDATE jobs SET posted_relative='Posted 30+ Days Ago' WHERE url=?",
+                       ('https://example.test/b',))
+        dates = {job['url']: job['posted_at'] for group in self.queue()['pending']
+                 for job in group['jobs']}
+        self.assertEqual(dates['https://example.test/a'], '2026-09-17')
+        self.assertIsNone(dates['https://example.test/b'], 'a lower bound is not a date')
+
     def test_deciding_one_requisition_leaves_its_namesake_alone(self):
         applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
         remaining = self.queue()['pending']

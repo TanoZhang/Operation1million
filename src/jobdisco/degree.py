@@ -59,14 +59,20 @@ STATED = re.compile(
     r'candidates?\s+for|completing)\s+(?:a\s+|an\s+|your\s+)?' + PHD +
     r'|' + PHD + r'\s+(?:degree\s+)?(?:is\s+)?(?:required|mandatory|needed)'
     r'|(?:must|shall|will)\s+(?:have|hold|possess|be\s+(?:pursuing|enrolled\s+in))\s+(?:a\s+|an\s+)?' + PHD +
-    r'|' + PHD + r'\s+(?:students?|candidates?)\s+only)', re.I)
+    r'|' + PHD + r'\s+(?:students?|candidates?)\s+only'
+    # The field between the degree and the word: "PhD in EE required." and
+    # "Ph.D. in Electrical Engineering required" state it as plainly as "PhD
+    # required" and were read as stating nothing. Never across a "not".
+    r'|' + PHD + r'\s+(?:degree\s+)?in\s+[^.;:\n]{1,80}?\s+(?<!\bnot\s)(?:is\s+)?(?:required|mandatory)\b)',
+    re.I)
 DEGREE_LINE = re.compile(r'^\s*(?:a\s+)?' + PHD + r'\s+(?:degree\s+)?(?:in|from)\b', re.I)
 # Explicitly saying the PhD is absent or optional defeats a nearby word such as
 # "required". Without this guard, STATED read the substring in "No PhD
 # required" as a requirement. The same wording can occur in a title.
 NOT_EXCLUSIVE = re.compile(
     r'(?:\b(?:no|without)\s+(?:a\s+)?' + PHD +
-    r'|' + PHD + r'\s+(?:degree\s+)?(?:is\s+)?(?:not\s+(?:required|needed|necessary|mandatory)|optional)\b)',
+    r'|' + PHD + r'\s+(?:degree\s+)?(?:is\s+)?(?:not\s+(?:required|needed|necessary|mandatory)|optional)\b'
+    r'|' + PHD + r'\s+(?:degree\s+)?in\b[^.;\n]{0,80}?\b(?:is\s+)?(?:not\s+(?:required|needed|necessary|mandatory)|optional)\b)',
     re.I)
 
 

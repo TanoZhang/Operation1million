@@ -53,6 +53,34 @@ class ExperienceTests(unittest.TestCase):
             with self.subTest(title=title, text=text):
                 self.assertEqual(evaluate(title, text)['hard_pass_reason'], 'required_experience_over_2_years')
 
+    def test_every_way_a_count_of_years_is_written(self):
+        # Each of these asked for years and was read as asking nothing.
+        cases = [
+            ('Minimum of five years of experience in RTL design.', 5),
+            ('At least three (3) years of experience in DV', 3),
+            ('Seven (7) or more years of experience', 7),
+            ('3 or more years of experience', 3),
+            ('3+ yrs of experience with Verilog.', 3),
+            ('5yrs of experience', 5),
+            ('Years of experience: 5+', 5),
+        ]
+        for text, years in cases:
+            with self.subTest(text=text):
+                info = evaluate('Engineer', text)
+                self.assertEqual(info['effective_experience_years'], years)
+                self.assertEqual(info['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_company_describing_its_own_age_asks_for_nothing(self):
+        for text in ('Our company has 50 years of experience building chips.',
+                     'With over 40 years of experience, Acme leads the industry.'):
+            with self.subTest(text=text):
+                self.assertIsNone(evaluate('Engineer', text)['effective_experience_years'])
+
+    def test_a_co_op_is_an_internship_by_another_name(self):
+        for title in ('Hardware Co-op, Summer 2027', 'Design Engineer - Recent Graduate'):
+            with self.subTest(title=title):
+                self.assertEqual(evaluate(title, '3+ years of experience with Python')['hard_pass_reason'], '')
+
     def test_debug(self):
         info = evaluate('RTL Engineer', 'BS+4 / MS+2')
         self.assertEqual(info, dict(entry_override=False, internship_experience=False,

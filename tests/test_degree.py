@@ -18,6 +18,17 @@ class PhdOnlyTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertTrue(phd_only(title, ''))
 
+    def test_a_requirement_with_its_field_between(self):
+        # "PhD required" was recognised and "PhD in EE required" was not.
+        for text in ('PhD in EE required.', 'Ph.D. in Electrical Engineering required',
+                     'PhD in Electrical Engineering, Computer Engineering or related field is required.'):
+            with self.subTest(text=text):
+                self.assertTrue(phd_only('Engineer', text))
+        for text in ('PhD in EE is not required.', 'PhD in EE optional',
+                     'PhD in EE or MS in EE required', 'PhD in EE required, MS preferred'):
+            with self.subTest(text=text):
+                self.assertFalse(phd_only('Engineer', text))
+
     def test_a_title_naming_another_degree_is_kept(self):
         for title in ('Design Verification Intern, MS/PhD', 'ASIC Intern, BS/MS/PhD',
                       '2027 Masters/PhD AI Intern', 'Graduate Intern (BS, MS or PhD)'):

@@ -276,6 +276,18 @@ class AuditedWrongCatchTests(unittest.TestCase):
                 self.assertFalse(jsearch.excluded(title, self.rules))
         self.assertTrue(jsearch.excluded('Principal Engineer, SoC', self.rules))
 
+    def test_abbreviated_levels_are_the_levels(self):
+        for title in ('AVP, Engineering', 'Engineering Mgr', 'Snr. Design Engineer'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.excluded(title, self.rules))
+
+    def test_sr_iov_is_not_a_seniority(self):
+        # `\bsr\b` also matched the SR of SR-IOV and refused the posting outright.
+        for title in ('PCIe SR-IOV Firmware Engineer', 'SR-IOV Driver Developer Intern'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
+        self.assertTrue(jsearch.excluded('Sr. Firmware Engineer', self.rules))
+
     def test_a_conditional_citizenship_line_is_not_a_requirement(self):
         for text in ('You may work remotely, but must be a U.S. citizen.',
                      'If hired, you must be a U.S. citizen.',
@@ -358,6 +370,23 @@ class UsPersonTests(unittest.TestCase):
             with self.subTest(text=text[:50]):
                 self.assertFalse(jsearch.us_person_required(text, self.rules))
 
+    def test_plural_and_bare_citizen_wordings(self):
+        for text in ('Applicants must be U.S. citizens.',
+                     'Due to export control regulations, candidates must be U.S. citizens or permanent residents.',
+                     'US Citizen or Green Card required', 'Citizenship: US Citizen Required'):
+            with self.subTest(text=text):
+                self.assertTrue(jsearch.us_person_required(text, self.rules))
+
+    def test_a_denied_requirement_is_not_one(self):
+        # These say the opposite of the requirement the pattern after them
+        # matches, and were hard passes.
+        for text in ('You do not need to be a U.S. citizen to apply.',
+                     "You don't need to be a US citizen.",
+                     'Applicants are not required to be U.S. citizens.',
+                     'Candidates are not required to hold U.S. citizenship'):
+            with self.subTest(text=text):
+                self.assertFalse(jsearch.us_person_required(text, self.rules))
+
     def test_it_is_a_hard_pass_whatever_the_title(self):
         row = {'title': 'RTL Design Engineer Intern',
                'raw': {'description': 'RTL UVM ASIC. Must be a U.S. citizen or U.S. person.'}}
@@ -368,7 +397,8 @@ class UsPersonTests(unittest.TestCase):
 class TitleTests(unittest.TestCase):
     def test_relative_dates_and_known_location_do_not_change_identity(self):
         role = 'Senior ASIC Design Verification Engineer'
-        for suffix in ('Posted a day ago', 'Posted 2 days ago', 'Posted today', 'Posted on 2026-09-18'):
+        for suffix in ('Posted a day ago', 'Posted 2 days ago', 'Posted today', 'Posted on 2026-09-18',
+                       'Posted 30+ Days Ago'):
             noisy = role + ' Minneapolis, Minnesota, United States of America ' + suffix
             self.assertEqual(clean_title(noisy, 'Minneapolis, Minnesota, US'), role)
         self.assertEqual(clean_title('New York Hardware Engineer'), 'New York Hardware Engineer')

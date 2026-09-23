@@ -698,13 +698,17 @@ def us_person_required(text, rules):
             # position that requires a clearance" still names a condition.
             lead = re.sub(r'\bif\s+(?:hired|selected|offered\s+the\s+position)\s*(?:,|$|(?=(?:you|candidates?|applicants?)\b))',
                           '', lead, flags=re.I)
-            if not HEDGED.search(lead):
+            if not HEDGED.search(lead) and not DENIED.search(lead):
                 return True
     return False
 
 
 # Words that make what follows conditional rather than stated.
 HEDGED = re.compile(r'\b(?:if|may|might|could|where|whether|should)\b', re.I)
+# A denial just ahead of the requirement: "You do not need to be a U.S.
+# citizen" and "Candidates are not required to hold U.S. citizenship" say the
+# opposite of what the pattern after them matches, and were hard passes.
+DENIED = re.compile(r"(?:\b(?:not|never)|n't)\s+(?:\w+\s+){0,2}$", re.I)
 
 
 def eligibility_rejection(row, rules, requirements=None):

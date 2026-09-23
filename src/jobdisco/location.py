@@ -100,6 +100,36 @@ FOREIGN_CODES = {
 }
 
 
+# Canada's provinces, which a board writes where a U.S. board writes a state.
+# Without them "Burlington, ON" was the Vermont Burlington, because the city is
+# on the U.S. list and "ON" is no state. Read only after a city, never as the
+# first part: "Ontario, CA" is also a city in California.
+CANADIAN_PROVINCES = (
+    'ontario', 'quebec', 'québec', 'british columbia', 'alberta', 'manitoba',
+    'saskatchewan', 'nova scotia', 'new brunswick', 'newfoundland',
+    'newfoundland and labrador', 'prince edward island',
+)
+CANADIAN_PROVINCE_CODES = {'on', 'qc', 'bc', 'ab', 'mb', 'sk', 'ns', 'nb', 'nl', 'pe', 'nt', 'nu', 'yt'}
+
+# The places abroad above, for the countries whose ISO code is also a U.S.
+# state code. "Bengaluru, IN" is India because Bengaluru is; "Dublin, CA" is
+# Dublin, California, because Dublin is not in Canada, and "Moscow, ID" is
+# Idaho for the same reason. A city not listed here beside such a code is read
+# as the state, which keeps the posting -- the side this module errs on.
+CODE_CITIES = {
+    'in': {'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'pune', 'noida', 'gurgaon',
+           'gurugram', 'new delhi', 'delhi', 'mumbai', 'kolkata', 'ahmedabad', 'kochi',
+           'madhapur'},
+    'ca': {'toronto', 'ottawa', 'vancouver', 'montreal', 'montréal', 'markham', 'waterloo, on',
+           'calgary', 'kanata', 'burnaby'},
+    'de': {'munich', 'münchen', 'dresden', 'berlin', 'nuremberg', 'nürnberg', 'stuttgart',
+           'hamburg', 'frankfurt', 'regensburg', 'erlangen', 'aachen'},
+    'il': {'haifa', 'tel aviv', 'jerusalem', 'petah tikva', 'petah-tikva', 'herzliya',
+           "ra'anana", 'raanana', 'yokneam', 'kiryat gat'},
+    'ar': {'buenos aires'},
+}
+
+
 def _words(options):
     return re.compile(r'(?<![\w])(?:%s)(?![\w])' % '|'.join(
         re.escape(option) for option in sorted(options, key=len, reverse=True)), re.I)
@@ -109,13 +139,16 @@ _US_WORDS = re.compile(r'\b(?:united\s+states(?:\s+of\s+america)?|usa|u\.s\.a?\.
 _US_CITIES = _words(US_CITIES)
 _FOREIGN_COUNTRIES = _words(FOREIGN_COUNTRIES)
 _FOREIGN_CITIES = _words(FOREIGN_CITIES)
+_PROVINCES = _words(CANADIAN_PROVINCES)
 _LEADING_CODE = re.compile(r'^\s*([a-z]{2})\s*,', re.I)
 
 
 # Two-letter codes that are a U.S. state and a country at once. After a comma
 # they settle nothing on their own: "Carmel, IN" is Indiana, "Bengaluru, IN" is
-# India, and the place named beside the code decides.
-AMBIGUOUS_CODES = {'in', 'ca', 'co', 'de', 'id', 'il', 'ma', 'ar', 'ga', 'pa', 'sc', 'mt', 'al'}
+# India, and the place named beside the code decides. Only the codes this module
+# reads as a country: GA, PA, SC, MT and AL were listed too, though no country
+# here is written that way, and "Athens, GA" was read as Greece.
+AMBIGUOUS_CODES = set(US_STATES.values()) & FOREIGN_CODES
 
 
 def _place(text):
@@ -136,9 +169,20 @@ def _place(text):
     # "London, KY" are in the U.S. whatever the city is called.
     if any(code not in AMBIGUOUS_CODES for code in state_codes):
         return 'us'
+    region = parts[1:]
+    if (any(part.lower() in CANADIAN_PROVINCE_CODES for part in region)
+            or any(_PROVINCES.fullmatch(part) for part in region)):
+        return 'foreign'
     if _US_CITIES.search(text):
         return 'us'
-    if _FOREIGN_CITIES.search(text) or any(
+    city = _FOREIGN_CITIES.search(text)
+    if (city and state_codes
+            and not any(code in FOREIGN_CODES and code not in AMBIGUOUS_CODES for code in codes)
+            and not any(city.group(0).lower() in CODE_CITIES.get(code, ()) for code in state_codes)):
+        # A city abroad beside a code that is also a state, in a country the
+        # code does not name: the code is the state.
+        return 'us'
+    if city or any(
             code in FOREIGN_CODES and code not in AMBIGUOUS_CODES for code in codes):
         return 'foreign'
     # "IN, KA, Bengaluru": a leading ambiguous code followed by a region code is

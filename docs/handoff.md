@@ -1,6 +1,16 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Twenty filter, location and queue fixes - 2026-09-23 UTC (claude, not deployed)
+
+Base: b2c9340. Pushed to main; deploy with `deploy/vps/install.sh` (this cloud
+session has no SSH access to the VPS). Listed in the
+architecture bug log under the same date. Six were wrong hard passes, the
+worst a denied citizenship requirement ("You do not need to be a U.S.
+citizen") read as one. Suite: 663 tests, 2 skipped, on Linux in a cloud
+session with no production index. Changes the filter fingerprint, so the
+review cache rebuilds; stored relevance scores are unaffected.
+
 # PhD preference wording and stale-text rejects - 2026-09-23 UTC (claude, not deployed)
 
 Base: 583bfd7. Fixes wrong hard rejects: PhD wording that is a preference

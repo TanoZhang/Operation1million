@@ -26,6 +26,32 @@ class CountryTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(country(text), 'us')
 
+    def test_a_canadian_province_is_abroad_whatever_the_city_is_called(self):
+        # Burlington is on the U.S. list, and "ON" is no state, so the city
+        # decided and a posting in Ontario was kept as a Vermont one.
+        for text in ('Burlington, ON', 'Burlington, Ontario', 'Cambridge, ON',
+                     'Waterloo, Ontario', 'Montreal, QC', 'Vancouver, British Columbia'):
+            with self.subTest(text=text):
+                self.assertEqual(country(text), 'foreign')
+        # A province name leading the string is not a region: Ontario, California.
+        self.assertNotEqual(country('Ontario, CA'), 'foreign')
+
+    def test_a_state_code_no_country_uses_is_the_state(self):
+        # GA, PA, SC, MT and AL were treated as country codes too, so a city
+        # sharing its name with one abroad was placed there.
+        for text in ('Athens, GA', 'Athens, PA', 'Florence, SC', 'Florence, AL'):
+            with self.subTest(text=text):
+                self.assertEqual(country(text), 'us')
+
+    def test_a_city_abroad_beside_another_countrys_code_is_the_state(self):
+        # CA is Canada or California; Dublin is neither Canadian nor Indian.
+        for text in ('Dublin, CA', 'Moscow, ID', 'Berlin, MA', 'Delhi, CA'):
+            with self.subTest(text=text):
+                self.assertEqual(country(text), 'us')
+        for text in ('Toronto, CA', 'Munich, DE', 'Haifa, IL', 'Hyderabad, IN'):
+            with self.subTest(text=text):
+                self.assertEqual(country(text), 'foreign')
+
     def test_a_us_listing_anywhere_keeps_the_posting(self):
         self.assertFalse(outside_us('Austin, Texas; Bangalore, India'))
 

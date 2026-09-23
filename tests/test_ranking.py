@@ -89,6 +89,17 @@ class PostedDayTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertIsNone(ranking.posted_day(value))
 
+    def test_a_relative_age_is_read_against_the_pass_that_read_it(self):
+        seen = '2026-09-23T11:38:00+00:00'
+        for text, day in (('Posted Today', '2026-09-23'), ('Posted Yesterday', '2026-09-22'),
+                          ('Posted 6 Days Ago', '2026-09-17'), ('Posted 1 Day Ago', '2026-09-22')):
+            with self.subTest(text=text):
+                self.assertEqual(ranking.relative_day(text, seen), day)
+        for text, as_of in (('Posted 30+ Days Ago', seen), ('Posted 6 Days Ago', None),
+                            (None, seen), ('Recently posted', seen)):
+            with self.subTest(text=text, as_of=as_of):
+                self.assertIsNone(ranking.relative_day(text, as_of))
+
 
 def group(title, bucket=None, confidence=0, posted=None, seen='2026-09-19T00:00:00+00:00', id='x'):
     return {'id': id, 'title': title, 'confidence': confidence,

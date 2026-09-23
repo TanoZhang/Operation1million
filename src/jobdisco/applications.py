@@ -147,6 +147,20 @@ def append_decision(path, group, status, reason=''):
     return event
 
 
+def stated_age(job):
+    """Give a posting the day its board's relative age names, where it has none.
+
+    Workday states only "Posted 6 Days Ago", so its postings reached the page
+    as undated and ranked on the day we first saw them. The age was read by the
+    pass that last saw the posting, so it is read against that pass. Pops the
+    two helper columns either way; nothing downstream reads them.
+    """
+    relative, as_of = job.pop('posted_relative', None), job.pop('last_seen', None)
+    if not job.get('posted_at'):
+        job['posted_at'] = ranking.relative_day(relative, as_of)
+    return job
+
+
 def queue(db_path=DB, path=None, now=None):
     """Replay decisions each time; rebuilding SQLite cannot erase them."""
     path = path or ledger_path()
@@ -282,12 +296,17 @@ def queue(db_path=DB, path=None, now=None):
         if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                           "AND name='seen_jobs'").fetchone():
             settled = None
+        columns = {row[1] for row in db.execute('PRAGMA table_info(jobs)')}
         select = '''SELECT j.url, j.company_key, j.source_job_id,
                             COALESCE(c.name, json_extract(j.raw, '$.employer_name'), j.company_key) AS company,
                             j.title, j.location, j.first_seen, j.posted_at, j.provider_key,
+                            %s AS posted_relative, %s AS last_seen,
                             COALESCE(j.relevance, 0) AS confidence, j.raw,
                             %s AS superseded
                             FROM jobs j LEFT JOIN companies c USING(company_key)''' % (
+            # Only what the index has: a hand-made one may hold neither.
+            *(f'j.{name}' if name in columns else 'NULL'
+              for name in ('posted_relative', 'last_seen')),
             '''(SELECT s.decision FROM seen_jobs s
                  WHERE s.provider_key = j.provider_key
                    AND s.source_job_id = COALESCE(NULLIF(j.source_job_id, ''), j.url)
@@ -323,6 +342,7 @@ def queue(db_path=DB, path=None, now=None):
                 job = dict(row)
                 if job.pop('superseded', None):
                     continue
+                stated_age(job)
                 job['title'] = clean_title(job['title'], job['location'])
                 # Keyed on what employer_excluded actually reads -- the display
                 # name -- not on company_key. One key can carry several names:
@@ -385,6 +405,7 @@ def queue(db_path=DB, path=None, now=None):
                                                 'bucket': ranking.bucket(job['title']),
                                                 'flagged': bool(evidence),
                                                 'internship_experience': False, 'jobs': []})
+                group['confidence'] = max(group['confidence'], job['confidence'])
                 # An internship already served is a qualification, not a reason
                 # to refuse anything. It is marked because the word `internship`
                 # in a posting that is not one is worth seeing, and because this
@@ -411,7 +432,12 @@ def queue(db_path=DB, path=None, now=None):
         # otherwise POST would snapshot only whichever tab it searched first.
         for key in list(backlog):
             if key in groups:
-                groups[key]['jobs'].extend(backlog.pop(key)['jobs'])
+                older = backlog.pop(key)
+                groups[key]['jobs'].extend(older['jobs'])
+                # The group is ranked on its best listing. It kept the recent
+                # listing's score, so an older listing of the same requisition
+                # that scored higher could not lift it.
+                groups[key]['confidence'] = max(groups[key]['confidence'], older['confidence'])
         for url, event in url_states.items():
             if event['status'] == 'pending':
                 continue
@@ -422,6 +448,7 @@ def queue(db_path=DB, path=None, now=None):
             if row:
                 job = dict(row)
                 job.pop('superseded', None)
+                stated_age(job)
                 if decision_for(job) is not event:
                     continue
                 job.pop('raw', None)

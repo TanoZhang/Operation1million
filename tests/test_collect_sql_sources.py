@@ -484,6 +484,13 @@ class CollectionTests(unittest.TestCase):
         self.assertIsNone(c.jobs[0]['posted_at'])
         self.assertEqual(len(c.rejected),1)
 
+    def test_a_printed_posting_date_stays_the_day_it_names(self):
+        # Stamped midnight UTC, it was the evening before in Los Angeles and
+        # the review page showed the day before the one the board printed.
+        self.assertEqual(collector.posted_from_text('Posted Sep 20, 2026'), '2026-09-20')
+        self.assertEqual(collector.posted_from_text('09/20/2026'), '2026-09-20')
+        self.assertIsNone(collector.posted_from_text('Posted 3 days ago'))
+
     def test_employer_filter(self):
         self.assertTrue(employer_matches('Advanced Micro Devices, Inc.',['Advanced Micro Devices']))
         self.assertTrue(employer_matches('AMD',['AMD']))

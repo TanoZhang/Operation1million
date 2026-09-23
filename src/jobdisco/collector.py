@@ -99,11 +99,16 @@ POSTED_FORMATS = ['%b %d, %Y', '%B %d, %Y', '%m/%d/%Y', '%Y-%m-%d', '%d %b %Y']
 
 
 def posted_from_text(text):
-    """Absolute posting date printed in a board row, or None for relative phrasing."""
+    """Absolute posting date printed in a board row, or None for relative phrasing.
+
+    A calendar day, kept as one. It used to be stamped midnight UTC, which is
+    the evening before everywhere west of Greenwich, so the review page showed
+    every such posting a day earlier than the board printed it.
+    """
     cleaned = re.sub(r'(?i)^\s*(posted|date posted)\s*:?\s*', '', str(text or '')).strip()
     for fmt in POSTED_FORMATS:
         try:
-            return datetime.strptime(cleaned, fmt).replace(tzinfo=timezone.utc).isoformat()
+            return datetime.strptime(cleaned, fmt).date().isoformat()
         except ValueError:
             continue
     return None

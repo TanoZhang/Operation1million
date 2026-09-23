@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Bug hunt across the package at the user's request: find, test and
+         fix defects (filter rules, location, experience, ranking, store,
+         review, collector). Each fix gets a reproducer red before it.
+Files:   src/jobdisco/*, data/config/jsearch_queries.toml, tests/*,
+         docs/{agent-protocol,architecture,handoff}.md
+Base commit: b2c9340
+Status:  done -- pushed to main, not deployed
+Next:    Run deploy/vps/install.sh on the VPS (this session has no SSH
+         access to it).
+```
+
+```text
+Owner:   claude
 Scope:   Review detail shows the paid description beside qualification-only
          fields instead of hiding it; add deploy/local/open-review.bat.
 Files:   src/jobdisco/job_text.py, tests/test_review_description.py,
