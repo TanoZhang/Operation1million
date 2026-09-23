@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Review detail shows the paid description beside qualification-only
+         fields instead of hiding it; add deploy/local/open-review.bat.
+Files:   src/jobdisco/job_text.py, tests/test_review_description.py,
+         deploy/local/open-review.bat, docs/{agent-protocol,handoff}.md
+Base commit: 78c8f8e
+Status:  done -- pushed to main, not deployed
+Next:    Deploy with deploy/vps/install.sh when wanted.
+```
+
+```text
+Owner:   claude
 Scope:   PhD-only wording that is really a preference (desirable, advantage,
          encouraged, ideal, "Ph.D. Preferred", preference headings after a
          required section); stale teaser surviving a full-description update;

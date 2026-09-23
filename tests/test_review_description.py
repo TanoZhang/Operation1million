@@ -122,6 +122,18 @@ class DescriptionTests(unittest.TestCase):
             self.assertEqual(get(url=job['url']), {
                 'description': job['raw']['descriptionTeaser'], 'kind': 'excerpt'})
 
+    def test_qualification_fields_do_not_hide_the_paid_description(self):
+        job = row('taken', 'https://example.test/taken', raw={
+            'responsibilities': 'Tape out RTL blocks.',
+            'jsearch': {'job_description': 'Full paid listing: build UVM testbenches.'}})
+        self.persist([job])
+        with self.server() as get:
+            body = get(url=job['url'])
+        self.assertEqual(body['kind'], 'discovery')
+        for phrase in ('Full paid listing: build UVM testbenches.',
+                       'Responsibilities\nTape out RTL blocks.'):
+            self.assertIn(phrase, body['description'])
+
     def test_details_include_separate_qualification_fields(self):
         job = row('sections', 'https://example.test/sections', raw={
             'description': 'Build vector<T> RTL blocks.',

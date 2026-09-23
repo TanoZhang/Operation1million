@@ -140,12 +140,14 @@ def display_description(raw):
             value = raw.get(key)
             if readable_text(value):
                 return _with_qualifications(value, raw), kind
-    sections = _with_qualifications('', raw)
-    if sections:
-        return sections, 'full'
+    # Qualification fields alone are not the posting's description: shown by
+    # themselves, they hid the paid listing's full text behind one bullet.
     paid = raw.get('jsearch')
     if isinstance(paid, dict):
         value = paid.get('job_description')
         if readable_text(value):
-            return value, 'discovery'
+            return _with_qualifications(value, raw), 'discovery'
+    sections = _with_qualifications('', raw)
+    if sections:
+        return sections, 'full'
     return '', None

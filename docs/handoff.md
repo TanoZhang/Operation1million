@@ -12,10 +12,14 @@ bug log. Zero verdict changes over the local index's 38,193 open postings
 (the VPS holds more; not measured there). Pushed to main only: run
 `deploy/vps/install.sh` to deploy.
 
-Not fixed, noted from the same review: `store.slim` now keeps duplicate HTML
-whenever it has inline tags (`<b>`, `<a>`), because its line comparison
-splits at them; and a qualification-only record's detail view hides the paid
-`jsearch.job_description`.
+Follow-up, same day: a record with qualification fields but no description
+now shows the paid `jsearch.job_description` with those sections (kind
+`discovery`) instead of the sections alone; 0 of 38,193 local open postings
+had that shape, so nothing visible changes today. `store.slim` keeping
+duplicate HTML that has inline tags is deliberately left alone: dropping it
+would delete a field the plain text cannot reconstruct, which
+`docs/coding-standards.md` forbids. `deploy/local/open-review.bat` is now
+tracked.
 
 # Audit fixes deployed - 2026-09-23 UTC
 
