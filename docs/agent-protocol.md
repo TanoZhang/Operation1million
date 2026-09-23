@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Remove duplicated description field traversal inside jsearch.description_text; preserve output, eligibility policy and all database behavior.
+Files: src/jobdisco/jsearch.py, docs/{agent-protocol,architecture,handoff}.md
+Base commit: 72752c4bec0ca0f18b958f3a45197a11001df51a
+Last inspected main: b2c9340f84dbe5f7fb020301c2d724af32587424
+Branch: local codex/review-audit, published to standing remote codex
+Date: 2026-09-23 UTC
+Status: claimed
+Next: Consolidate the two dictionary loops, compare exact old/new outputs on deterministic nested payloads, and run focused consumer tests.
+```
+
+```text
+Owner: codex
 Scope: Continue offline Review/eligibility audit and measure behavior-preserving code-size, structure and algorithm improvements; no database or behavior changes.
 Files: docs/review-audit-round2-2026-09-23.md, docs/review-audit-repro-round2-2026-09-23.py, docs/review-benchmark-2026-09-23.py, docs/{agent-protocol,handoff}.md; architecture HTML report in OS temp directory
 Base commit: 8f95b07f2cf21a9f985983b105278f36a7d0516f (application source b2c9340)
