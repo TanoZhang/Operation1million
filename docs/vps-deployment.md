@@ -101,8 +101,9 @@ rather be paged on it, change the final `exit` handling in `daily-pass.sh`.
 
 From the Windows machine, three double-click files in `deploy/local/`:
 `open-review.bat` opens the review page through the ssh tunnel;
-`deploy-vps.bat` pulls, pushes whatever is committed locally, and runs the
-command above over ssh; `backup-vps.bat` runs `backup-from-vps.sh` through Git
+`deploy-vps.bat` runs the suite, commits tracked edits and new files under the
+project's own paths as "auto deploy <time>", pulls with rebase, pushes main,
+runs the command above over ssh and checks the VPS is on the pushed commit; `backup-vps.bat` runs `backup-from-vps.sh` through Git
 Bash into the usual backup folder.
 
 Both checkouts advance only by fast-forward. Local source edits or divergent
