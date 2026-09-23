@@ -9,8 +9,8 @@ Owner: codex
 Scope: Validate, commit and push accumulated audit fixes to main, then deploy and verify the VPS.
 Files: Current eleven-file audit patch; deployment status documentation.
 Base commit: c1a322edddd54aaa0a34edff8cded252cce2d99d
-Status: active
-Next: Full offline suite, live eligibility comparison, private main push and locked installer.
+Status: done
+Next: Release cc8bd4a pushed and deployed; 639 local tests (nine skips), 178 VPS tests passed, live queue and detail HTTP 200. Sync deployment-record commit.
 ```
 
 ```text

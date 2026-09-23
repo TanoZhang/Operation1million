@@ -1,6 +1,22 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Audit fixes deployed - 2026-09-23 UTC
+
+Code release: cc8bd4a014db3ee4ec00352d2800de9f909c49fd, pushed to private main
+and installed through deploy/vps/install.sh. The installer printed that exact
+commit. Earlier audit sections marked not deployed are now deployed.
+
+Evidence: full local suite 639 tests, 630 passed and nine Windows skips; VPS
+focused description, rules, payload and store suite 178 tests, all passed.
+A read-only comparison of the old and new citizenship predicate over 40,662
+open production postings found zero changed verdicts. Review queue and one
+pending job detail returned HTTP 200; queue groups were 453 pending, 6,931
+backlog, two applied and three skipped. Review service, collection timer and
+backup timer were active. No manual collection, data purge or history rewrite
+was performed. The documentation-only commit carrying this record follows the
+tested code release and is synchronized through the same installer.
+
 # Audit fixes release validation - 2026-09-22 UTC
 
 The user authorized merging the accumulated audit fixes into private main and
