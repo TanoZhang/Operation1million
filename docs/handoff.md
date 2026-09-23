@@ -1,6 +1,19 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Latest Review audit - 2026-09-23 UTC (codex, findings only)
+
+Audited application source and last fetched main:
+`b2c9340f84dbe5f7fb020301c2d724af32587424`. Three synthetic defects reproduce:
+empty HTML refresh deletes the only useful teaser and admits an ineligible
+posting; a null teaser retains obsolete experience requirements; conditional
+PhD wording hides a posting without establishing an exclusive requirement.
+See [audit report](review-audit-2026-09-23.md) and its runnable six-case
+reproducer. Existing focused tests: 177 pass. Reproducer: three failures and
+three passing controls. Published on standing `codex`; no application source
+changes, deployment, production measurement or collection. Prior deployment
+status below remains historical evidence.
+
 # PhD preference wording and stale-text rejects - 2026-09-23 UTC (claude, not deployed)
 
 Base: 583bfd7. Fixes wrong hard rejects: PhD wording that is a preference
