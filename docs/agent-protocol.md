@@ -5,6 +5,22 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner:   claude
+Scope:   PhD-only wording that is really a preference (desirable, advantage,
+         encouraged, ideal, "Ph.D. Preferred", preference headings after a
+         required section); stale teaser surviving a full-description update;
+         "If selected for a role that requires..." read as a firm citizenship
+         requirement.
+Files:   src/jobdisco/{degree,store,jsearch}.py, tests/{test_degree,
+         test_store,test_review_rules}.py, docs/{agent-protocol,architecture,
+         handoff}.md
+Base commit: 583bfd7
+Status:  done -- pushed to main, not deployed
+Next:    Deploy with deploy/vps/install.sh when wanted. Local index: zero
+         verdict changes over 38,193 open postings.
+```
+
+```text
 Owner: codex
 Scope: Validate, commit and push accumulated audit fixes to main, then deploy and verify the VPS.
 Files: Current eleven-file audit patch; deployment status documentation.

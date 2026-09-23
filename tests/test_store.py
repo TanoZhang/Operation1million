@@ -1623,6 +1623,22 @@ class StoreLifecycleTests(unittest.TestCase):
         store.record_source(self.db, SOURCE, [short, both], 'complete', 'full', 1)
         self.assertEqual(self.raw('https://x/2')['description_short'], 'Build chips.')
 
+    def test_a_new_full_description_supersedes_an_old_teaser(self):
+        """A teaser the provider stopped sending must not outlive the update."""
+        url = 'https://x/stale'
+        store.record_source(self.db, SOURCE, [dict(row(url), raw={
+            'descriptionTeaser': 'RTL role requiring 5 years of experience.'})], 'complete', 'full', 1)
+        store.record_source(self.db, SOURCE, [dict(row(url), raw={
+            'description': 'RTL role. 1 year of experience is enough.'})], 'complete', 'full', 1)
+        kept = self.raw(url)
+        self.assertNotIn('descriptionTeaser', kept)
+        self.assertEqual(jsearch.experience_debug({'title': 'RTL Engineer', 'raw': kept})
+                         ['hard_pass_reason'], '')
+        # A teaser-only pass does not erase a full description already held.
+        store.record_source(self.db, SOURCE, [dict(row(url), raw={
+            'descriptionTeaser': 'RTL role.'})], 'complete', 'full', 1)
+        self.assertEqual(self.raw(url)['description'], 'RTL role. 1 year of experience is enough.')
+
     def test_a_moved_requisition_survives_whichever_order_the_batch_lists_it_in(self):
         """B59: its alias pinned it back onto an address another posting now owns."""
         for order in ('moved first', 'replacement first'):

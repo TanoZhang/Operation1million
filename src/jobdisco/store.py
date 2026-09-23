@@ -661,6 +661,13 @@ def merge_raw(previous, incoming):
     if not isinstance(previous, dict) or not isinstance(incoming, dict):
         return incoming if incoming is not None else previous
     result = dict(previous)
+    if any(isinstance(incoming.get(k), str) and incoming[k].strip() for k in FULL_DESCRIPTIONS):
+        # A new full description supersedes an old teaser the provider no
+        # longer sends. Merged back in, "requires 5 years" from an earlier
+        # teaser hard-rejected a posting that now asks for one.
+        for key in TEASERS:
+            if key not in incoming:
+                result.pop(key, None)
     for key, value in incoming.items():
         if value is not None:
             result[key] = value

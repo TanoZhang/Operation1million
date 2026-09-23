@@ -20,6 +20,25 @@ import re
 
 from .experience import OPTIONAL, REQUIRED, SECTION_END
 
+# A PhD that is welcome rather than demanded. The experience gate's OPTIONAL
+# words alone read "PhD is highly desirable", "pursuing a PhD is an
+# advantage", "PhD students are encouraged to apply" and "the ideal candidate
+# will have a PhD" as requirements, and removed postings a PhD is only
+# preferred for. Kept local: widening OPTIONAL would also change experience.
+PREFERENCE = re.compile(
+    OPTIONAL.pattern + r'|\b(?:prefer(?:ence|ab(?:ly|le))?|desirable|advantage(?:ous)?|'
+    r'beneficial|helpful|welcomed?|encouraged|ideal|nice[-\s]to[-\s]have|pluses|'
+    r'(?:big|huge|strong|major|definite|great|added)\s+plus|extra\s+credit|'
+    r'sets?\s+you\s+apart|stand\s+out)\b', re.I)
+# A sentence that only qualifies the one before it: "Currently pursuing a
+# PhD. Strongly preferred." The sentence split had left the requirement alone.
+_TRAILING_PREFERENCE = re.compile(
+    r'^\(?(?:(?:is|are|strongly|highly|very|much|but|not|required|preferred|preferably|'
+    r'desired|desirable|a|plus|nice|to|have|optional|ideally)[\s,.!)]*)+$', re.I)
+# A heading that neither requires nor prefers, and belongs to the section it
+# sits in: "Education:" under "Minimum qualifications:".
+_NEUTRAL_HEADING = re.compile(r'^(?:education|degrees?|qualifications?|skills)\b', re.I)
+
 PHD = r'(?:ph\.?\s?d\.?s?|doctora(?:l|te)(?:\s+degree)?)'
 _PHD = re.compile(r'(?<![\w])' + PHD + r'(?![\w])', re.I)
 # Another degree, or another way in. Words in any case; the short forms only
@@ -60,6 +79,9 @@ def _description_blocks(text):
     """Yield prose blocks and field-end markers without losing section scope."""
     text = html.unescape(text or '')
     text = re.sub(r'<[^>]*>', '\n', text)
+    # "Ph.D. Preferred" ends a sentence at the abbreviation for the split
+    # below, which left "Ph.D." read apart from its own preference.
+    text = re.sub(r'\bPh\.\s?D\.', 'PhD', text, flags=re.I)
     # Keep structured field boundaries visible to the qualification policy.
     text = text.replace(SECTION_END, '\n' + SECTION_END + '\n')
     for block in re.split(r'[\n;]|(?<=[.!?])\s+(?=[A-Z])', text):
@@ -74,7 +96,7 @@ def title_only(title):
     # A title can state the preference itself. It is still not an exclusive
     # PhD opening, and this filter deliberately keeps every doubtful case.
     return (bool(_PHD.search(title)) and not _has_other_degree(title)
-            and not OPTIONAL.search(title) and not NOT_EXCLUSIVE.search(title))
+            and not PREFERENCE.search(title) and not NOT_EXCLUSIVE.search(title))
 
 
 # A heading opens a section; a short sentence does not. "Python preferred."
@@ -84,7 +106,8 @@ def title_only(title):
 # section.
 _HEADING_WORDS = re.compile(
     r'^(?:minimum|basic|preferred|desired|required|requirements?|qualifications?|'
-    r'nice[-\s]to[-\s]have|education|additional|responsibilities|about|benefits|what\s+you)\b',
+    r'nice[-\s]to[-\s]have|education|additional|responsibilities|about|benefits|what\s+you|'
+    r'desirable|bonus|pluses|ideal(?:ly)?|extra\s+credit)\b',
     re.I)
 
 
@@ -96,13 +119,16 @@ def description_only(text):
     """The description states a PhD requirement and offers no other way in."""
     optional_section = required_section = False
     stated, other = False, False
-    for block in _description_blocks(text):
+    blocks = list(_description_blocks(text))
+    for index, block in enumerate(blocks):
         if block == SECTION_END:
             optional_section = required_section = False
             continue
         has_phd = bool(_PHD.search(block))
         has_other = _has_other_degree(block)
-        optional = optional_section or bool(OPTIONAL.search(block))
+        following = blocks[index + 1] if index + 1 < len(blocks) else ''
+        optional = (optional_section or bool(PREFERENCE.search(block))
+                    or bool(PREFERENCE.search(following) and _TRAILING_PREFERENCE.match(following)))
         # What a block states about degrees is read before it can be taken for
         # a heading. "Or Master's degree required." is four words and matches
         # REQUIRED, and was read as a heading and skipped -- losing the very
@@ -110,7 +136,7 @@ def description_only(text):
         if has_other and not optional:
             other = True
         if len(block.split()) <= 7 and not has_phd and not has_other and _is_heading(block):
-            if OPTIONAL.search(block):
+            if PREFERENCE.search(block):
                 optional_section, required_section = True, False
                 continue
             if REQUIRED.search(block):
@@ -118,6 +144,10 @@ def description_only(text):
                 continue
             if re.match(r'^(?:responsibilities|about\b|benefits\b|what you)', block, re.I):
                 optional_section = required_section = False
+            elif not _NEUTRAL_HEADING.match(block):
+                # "What sets you apart:" or any heading this list does not
+                # know ends the required section: a doubt keeps the posting.
+                required_section = False
         if (not has_phd or optional or has_other
                 or NOT_EXCLUSIVE.search(block)):
             continue

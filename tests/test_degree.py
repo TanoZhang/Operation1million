@@ -151,3 +151,46 @@ class ReportedBugTests(unittest.TestCase):
         self.assertTrue(phd_only('Engineer', 'Minimum qualification: PhD in Physics'))
         self.assertFalse(phd_only('Engineer', 'Preferred: PhD in EE'))
         self.assertFalse(phd_only('Engineer', 'Requirements: PhD in EE or MS with 5 years'))
+
+
+class PreferenceWordingTests(unittest.TestCase):
+    """A PhD that is welcome rather than demanded, found reviewing 583bfd7."""
+
+    def test_preference_words_beyond_preferred_keep_the_posting(self):
+        for text in ('Pursuing a PhD is an advantage.',
+                     'A PhD would be advantageous.',
+                     'PhD is highly desirable.',
+                     'Candidates currently pursuing a PhD are encouraged to apply.',
+                     'PhD students are welcome to apply.',
+                     'The ideal candidate will have a PhD in EE.',
+                     'Preferably pursuing a PhD in EE.',
+                     'We prefer candidates pursuing a PhD.',
+                     'PhD is a big plus.'):
+            with self.subTest(text=text):
+                self.assertFalse(phd_only('RTL Engineer', text))
+        for title in ('Engineer - PhD Welcome', 'Engineer (PhD desirable)',
+                      'Engineer - PhD Preferably', 'Engineer (PhD a big plus)'):
+            with self.subTest(title=title):
+                self.assertFalse(phd_only(title, ''))
+
+    def test_a_preference_in_the_next_sentence_qualifies_the_phd(self):
+        for text in ('Pursuing a Ph.D. Preferred but not required.',
+                     'Currently pursuing a Ph.D. Strongly preferred.',
+                     'Currently pursuing a PhD. Strongly preferred.'):
+            with self.subTest(text=text):
+                self.assertFalse(phd_only('RTL Engineer', text))
+        # Abbreviated requirements are still read, and an unrelated short
+        # preference after a requirement does not soften it.
+        for text in ('Currently pursuing a Ph.D. in EE.', 'Ph.D. required.',
+                     'Minimum qualifications:\nPh.D. in EE', 'PhD required.\nPython preferred.'):
+            with self.subTest(text=text):
+                self.assertTrue(phd_only('RTL Engineer', text))
+
+    def test_a_later_heading_ends_the_required_section(self):
+        for heading in ('Desirable:', 'Nice-to-have:', 'Pluses:', 'Ideal Qualifications:',
+                        'What sets you apart:', 'Extra credit:'):
+            with self.subTest(heading=heading):
+                self.assertFalse(phd_only(
+                    'RTL Engineer', 'Requirements:\n- 2 years of Verilog\n' + heading + '\n- PhD in EE'))
+        # A neutral sub-heading stays inside the section it belongs to.
+        self.assertTrue(phd_only('RTL Engineer', 'Minimum qualifications:\nEducation:\n- PhD in EE'))

@@ -694,7 +694,9 @@ def us_person_required(text, rules):
             # An adversative starts a new clause: permission to work remotely
             # does not soften the citizenship requirement after "but".
             lead = re.split(r'\bbut\b|\bhowever\b', lead, flags=re.I)[-1]
-            lead = re.sub(r'\bif\s+(?:hired|selected|offered\s+the\s+position)\s*,?',
+            # Only the bare "If hired," is unconditional. "If selected for a
+            # position that requires a clearance" still names a condition.
+            lead = re.sub(r'\bif\s+(?:hired|selected|offered\s+the\s+position)\s*(?:,|$|(?=(?:you|candidates?|applicants?)\b))',
                           '', lead, flags=re.I)
             if not HEDGED.search(lead):
                 return True

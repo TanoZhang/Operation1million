@@ -221,6 +221,43 @@ No deployment or production hit count is claimed.
 Newest first. Each entry is what was wrong, how it showed, and what settled it,
 so that a later reader can tell whether a decision was reasoned or measured.
 
+### A PhD welcome rather than demanded, and two stale-text rejects, 2026-09-23 UTC
+
+Found reviewing 583bfd7. Each one was a hard reject of a posting the rules are
+meant to keep.
+
+- **Preference words beyond "preferred".** `degree` read preference only
+  through the experience gate's OPTIONAL, so "PhD is highly desirable",
+  "pursuing a PhD is an advantage", "PhD students are encouraged to apply",
+  "the ideal candidate will have a PhD" and titles such as "PhD Welcome" came
+  back PhD-only. `degree.PREFERENCE` widens it for degrees alone; OPTIONAL and
+  the experience gate are unchanged.
+- **"Ph.D. Preferred" split in two.** The sentence split ended a sentence at
+  the abbreviation, so "Pursuing a Ph.D." was read apart from "Preferred but
+  not required." "Ph.D." is now normalised first, and a following sentence
+  made only of preference words ("Strongly preferred.") qualifies the one
+  before it. "PhD required.\nPython preferred." still rejects.
+- **A later heading did not end the required section.** "Desirable:",
+  "Nice-to-have:", "Pluses:", "What sets you apart:" after "Requirements:" left
+  the following "PhD in EE" under the required heading. Preference headings
+  now open a preferred section, and any other unknown heading ends the
+  required one; "Education:", "Qualifications:" and "Skills:" stay neutral.
+- **A stale teaser outlived the update.** cc8bd4a kept a teaser unless it
+  equalled a full description, and `merge_raw` keeps every old key the new
+  payload omits, so an old "requires 5 years" teaser sat beside a new full
+  description asking for one and refused the posting. `merge_raw` now drops
+  old teasers when the incoming payload has a full description and no teaser
+  of that name; a teaser-only pass still does not erase a held description.
+- **"If selected for a position that requires..." read as unconditional.**
+  cc8bd4a stripped "If selected" before the hedge test, taking the condition
+  with it. Only a bare "If hired," / "If hired you" is stripped now.
+
+Measured: `phd_only` and `us_person_required` over all 38,193 open postings in
+the local index, HEAD against this patch, read-only: zero changed verdicts.
+The teaser change acts on the next merge and is not measurable on stored rows.
+Reproducers: `tests/test_degree.py` (PreferenceWordingTests),
+`tests/test_store.py`, `tests/test_review_rules.py`.
+
 ### A requirement behind its own heading, 2026-09-22 UTC
 
 "Required: PhD in EE" states a section and a requirement on one line, and was

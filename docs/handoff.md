@@ -1,6 +1,22 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# PhD preference wording and stale-text rejects - 2026-09-23 UTC (claude, not deployed)
+
+Base: 583bfd7. Fixes wrong hard rejects: PhD wording that is a preference
+(desirable, advantage, encouraged, ideal, welcome, "Ph.D. Preferred",
+preference headings after a required section), a stale teaser surviving a
+full-description update, and "If selected for a position that requires..."
+read as an unconditional citizenship requirement. Details in the architecture
+bug log. Zero verdict changes over the local index's 38,193 open postings
+(the VPS holds more; not measured there). Pushed to main only: run
+`deploy/vps/install.sh` to deploy.
+
+Not fixed, noted from the same review: `store.slim` now keeps duplicate HTML
+whenever it has inline tags (`<b>`, `<a>`), because its line comparison
+splits at them; and a qualification-only record's detail view hides the paid
+`jsearch.job_description`.
+
 # Audit fixes deployed - 2026-09-23 UTC
 
 Code release: cc8bd4a014db3ee4ec00352d2800de9f909c49fd, pushed to private main
