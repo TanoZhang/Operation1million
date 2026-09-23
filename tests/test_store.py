@@ -1621,7 +1621,7 @@ class StoreLifecycleTests(unittest.TestCase):
         both = dict(row('https://x/2'), raw={'description_short': 'Build chips.',
                                              'job_description': 'Build chips with UVM.'})
         store.record_source(self.db, SOURCE, [short, both], 'complete', 'full', 1)
-        self.assertNotIn('description_short', self.raw('https://x/2'))
+        self.assertEqual(self.raw('https://x/2')['description_short'], 'Build chips.')
 
     def test_a_moved_requisition_survives_whichever_order_the_batch_lists_it_in(self):
         """B59: its alias pinned it back onto an address another posting now owns."""

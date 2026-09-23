@@ -412,7 +412,9 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     known.update(moved_urls)
     new = len(set(incoming) - known)
     for row in rows:
-        raw = slim(row.get('raw'))
+        # Merge the current provider fields before removing duplicate renderings.
+        # Otherwise dropping a new HTML copy resurrects the old HTML on merge.
+        raw = row.get('raw')
         current = db.execute('SELECT raw, title, relevance, provider_key FROM jobs WHERE url=?',
                              (row['url'],)).fetchone()
         # B61: a direct row replacing a paid one arrives with its raw already
@@ -422,7 +424,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         taken_over = (current is not None and current['provider_key'] == 'jsearch'
                       and row['provider_key'] != 'jsearch')
         if current and not taken_over:
-            raw = slim(merge_raw(json.loads(current['raw'] or 'null'), raw))
+            raw = merge_raw(json.loads(current['raw'] or 'null'), raw)
+        raw = slim(raw)
         posted_relative = lastmod = None
         if isinstance(raw, dict):
             # normalize() emits only FIELDS, so these live on the original record.
@@ -685,15 +688,24 @@ def slim(raw):
     # description some records carry, and with it the experience requirement
     # the filters were about to read -- before the log was written, so no
     # replay could bring it back.
-    if any(isinstance(result.get(key), str) and result[key].strip() for key in FULL_DESCRIPTIONS):
-        for key in TEASERS:
+    # A provider's "full" field can be a different summary. Only an identical
+    # string proves the teaser adds no content; otherwise preserve both.
+    for key in TEASERS:
+        teaser = result.get(key)
+        if isinstance(teaser, str) and any(
+                teaser == result.get(full) for full in FULL_DESCRIPTIONS):
             result.pop(key, None)
     # Drop duplicate HTML only after verifying equivalent full plain text.
     plain = next((str(result[k]).strip() for k in ('descriptionPlain', 'job_description', 'description')
                   if result.get(k)), '')
+    def lines(text):
+        return [' '.join(line.split()) for line in text.splitlines() if line.strip()]
+
     for key in ('descriptionHtml', 'jobDescriptionHtml'):
         value = result.get(key)
-        if isinstance(value, str) and plain and ' '.join(BeautifulSoup(value, 'html.parser').stripped_strings) == ' '.join(plain.split()):
+        # Keep paragraph boundaries: flattening them can turn a required heading
+        # plus a degree bullet into an unrecognized single sentence.
+        if isinstance(value, str) and plain and lines(BeautifulSoup(value, 'html.parser').get_text('\n', strip=True)) == lines(plain):
             result.pop(key)
     return result
 

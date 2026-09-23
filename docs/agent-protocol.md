@@ -6,6 +6,42 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Validate, commit and push accumulated audit fixes to main, then deploy and verify the VPS.
+Files: Current eleven-file audit patch; deployment status documentation.
+Base commit: c1a322edddd54aaa0a34edff8cded252cce2d99d
+Status: active
+Next: Full offline suite, live eligibility comparison, private main push and locked installer.
+```
+
+```text
+Owner: codex
+Scope: Preserve nested qualification objects and arrays in Review details.
+Files: src/jobdisco/job_text.py, tests/test_review_description.py, docs/{agent-protocol,architecture,handoff}.md
+Base commit: c1a322e plus current working tree
+Status: done
+Next: Review nested qualification fix; new HTTP regression red before fix, all 132 focused tests green after. Not deployed.
+```
+
+```text
+Owner: codex
+Scope: Preserve unique teasers, qualification section meaning and literal type names beside HTML entities.
+Files: src/jobdisco/{store,job_text,review}.py, tests/{test_store,test_review_description}.py, docs/{agent-protocol,architecture,handoff}.md
+Base commit: c1a322e plus six-fix working tree
+Status: done
+Next: Review follow-up patch. All 131 focused storage and HTTP/payload tests pass. Not deployed.
+```
+
+```text
+Owner: codex
+Scope: Fix six post-location audit findings: stale HTML, structural dedupe, citizenship clause scope, empty descriptions, qualification display and malformed raw payloads.
+Files: src/jobdisco/{store,job_text,jsearch,applications,review}.py, tests/test_review_description.py, tests/test_review_rules.py, docs/{agent-protocol,architecture,handoff}.md
+Base commit: c1a322e
+Status: done
+Next: Review patch on c1a322e. Full offline suite: 635 discovered, 626 passed, nine environment skips. Not deployed.
+```
+
+```text
+Owner: codex
 Scope: Separate degree text preparation from qualification policy and improve documentation navigation; preserve behavior.
 Files: src/jobdisco/degree.py, docs/{agent-protocol,handoff,architecture}.md
 Base commit: feda989aa91d407408f2df1d21e6f5eb8f985407

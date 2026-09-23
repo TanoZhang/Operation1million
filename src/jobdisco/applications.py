@@ -341,6 +341,8 @@ def queue(db_path=DB, path=None, now=None):
                     raw = json.loads(job.pop('raw') or '{}')
                 except (TypeError, ValueError):
                     raw = {}
+                if not isinstance(raw, dict):
+                    raw = {}
                 filter_row = {'title': job['title'], 'raw': raw}
                 reason, experience = jsearch.eligibility_rejection(filter_row, rules)
                 if reason:

@@ -1,6 +1,79 @@
 """Stable display titles without publisher time and location suffixes."""
 import re
 import unicodedata
+from html import escape, unescape
+
+from bs4 import BeautifulSoup
+
+
+# Shared by storage and Review; angle-bracket types such as vector<T> alone
+# are not HTML and must remain visible.
+MARKUP = re.compile(
+    r'<\s*/?\s*(?:p|br|div|span|ul|ol|li|strong|b|em|i|h[1-6]|table|tr|td|th|a)\b'
+    r'|<!--', re.I)
+
+
+def readable_text(value):
+    """Return visible prose, preserving angle-bracket types in plain text."""
+    if not isinstance(value, str):
+        return ''
+    if MARKUP.search(value):
+        return BeautifulSoup(value, 'html.parser').get_text('\n', strip=True).strip()
+    # Entity decoding alone does not make plain text HTML. Parsing vector<T>
+    # merely because the same sentence contains &amp; deletes the type name.
+    return unescape(value).strip()
+
+
+QUALIFICATION_FIELDS = (
+    ('basic_qualifications', 'Basic qualifications'),
+    ('required_qualifications', 'Required qualifications'),
+    ('minimum_qualifications', 'Minimum qualifications'),
+    ('qualifications', 'Qualifications'),
+    ('requirements', 'Requirements'),
+    ('preferred_qualifications', 'Preferred qualifications'),
+    ('responsibilities', 'Responsibilities'),
+)
+
+
+def _qualification_text(value):
+    """Render provider JSON qualification values with their field labels."""
+    if isinstance(value, str):
+        return readable_text(value)
+    if isinstance(value, list):
+        return '\n'.join(text for item in value if (text := _qualification_text(item)))
+    if isinstance(value, dict):
+        parts = []
+        for key, item in value.items():
+            text = _qualification_text(item)
+            if text:
+                label = str(key).replace('_', ' ')
+                label = label[:1].upper() + label[1:]
+                parts.append(label + '\n' + text)
+        return '\n'.join(parts)
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, (int, float)):
+        return str(value)
+    return ''
+
+
+def _with_qualifications(description, raw):
+    """Preserve separately supplied prose and its qualification heading."""
+    sections = []
+    fields = QUALIFICATION_FIELDS + tuple((key, 'Provider excerpt') for key in TEASERS)
+    for key, label in fields:
+        value = raw.get(key)
+        if key in TEASERS and value == description:
+            continue
+        text = _qualification_text(value)
+        if text:
+            sections.append(label + '\n' + text)
+    if not sections:
+        return description
+    # Escape each plain fragment so the endpoint's HTML renderer cannot remove
+    # a literal vector<T> when another section happens to contain markup.
+    return '<div>' + '</div><div>'.join(escape(text) for text in
+        [readable_text(description)] + sections if text) + '</div>'
 
 
 POSTED_SUFFIX = re.compile(
@@ -65,11 +138,14 @@ def display_description(raw):
     for fields, kind in ((FULL_DESCRIPTIONS, 'full'), (TEASERS, 'excerpt')):
         for key in fields:
             value = raw.get(key)
-            if isinstance(value, str) and value.strip():
-                return value, kind
+            if readable_text(value):
+                return _with_qualifications(value, raw), kind
+    sections = _with_qualifications('', raw)
+    if sections:
+        return sections, 'full'
     paid = raw.get('jsearch')
     if isinstance(paid, dict):
         value = paid.get('job_description')
-        if isinstance(value, str) and value.strip():
+        if readable_text(value):
             return value, 'discovery'
     return '', None

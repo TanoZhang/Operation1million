@@ -5,25 +5,14 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
-import re
 import secrets
 import sqlite3
 import threading
 from urllib.parse import urlsplit, parse_qs
 
-from bs4 import BeautifulSoup
 from . import applications, ranking, jsearch
-from .job_text import display_description
+from .job_text import display_description, readable_text
 from .paths import DB
-
-
-# A tag this page should render, rather than any text between angle brackets.
-# A description that says `<T>` or `<int>` is naming a type, and handing it to
-# an HTML parser deleted the word: the reader was shown a sentence with a hole
-# in it and no way to know something had been removed.
-MARKUP = re.compile(
-    r'<\s*/?\s*(?:p|br|div|span|ul|ol|li|strong|b|em|i|h[1-6]|table|tr|td|th|a)\b'
-    r'|<!--|&nbsp;|&lt;|&amp;', re.I)
 
 
 # What review_static/app.js actually reads. `queue()` carries more than this
@@ -229,8 +218,7 @@ def make_server(db, ledger, port=8765):
                     # used to go through the parser, including descriptions the
                     # provider states as plain text, and a plain-text sentence
                     # about `vector<T>` came back missing the type.
-                    if MARKUP.search(description):
-                        description = BeautifulSoup(description, 'html.parser').get_text('\n', strip=True)
+                    description = readable_text(description)
                     body = {'description': description.strip()}
                     if kind in ('excerpt', 'discovery'):
                         body['kind'] = kind

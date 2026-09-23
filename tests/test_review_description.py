@@ -31,6 +31,117 @@ def row(ident, url, provider='ashby', raw=None):
 
 
 class DescriptionTests(unittest.TestCase):
+    def test_nested_qualifications_preserve_labels_and_values(self):
+        job = row('nested', 'https://example.test/nested', raw={
+            'description': 'Build RTL blocks.',
+            'requirements': {'education': 'BS in EE',
+                             'skills': ['SystemVerilog', ['UVM']],
+                             'minimum_projects': 2,
+                             'travel_required': False,
+                             'other': None}})
+        self.persist([job])
+        with self.server() as get:
+            text = get(url=job['url'])['description']
+        for fragment in ('Requirements', 'Education', 'BS in EE', 'Skills',
+                         'SystemVerilog', 'UVM', 'Minimum projects', '2',
+                         'Travel required', 'false'):
+            self.assertIn(fragment, text)
+
+    def test_unique_teaser_requirement_survives_a_nonempty_description(self):
+        from jobdisco import jsearch
+        job = row('unique', 'https://example.test/unique', raw={
+            'description': 'Build RTL blocks.',
+            'descriptionTeaser': 'Must be a U.S. citizen.'})
+        self.persist([job])
+        raw = json.loads(self.db.execute('SELECT raw FROM jobs').fetchone()[0])
+        self.assertEqual(raw['descriptionTeaser'], 'Must be a U.S. citizen.')
+        self.assertEqual(jsearch.rejection_reason(dict(job, raw=raw),
+                         jsearch.load_plan()[0]['filter']), 'us_person_required')
+        with self.server() as get:
+            self.assertIn('Must be a U.S. citizen.', get(url=job['url'])['description'])
+
+    def test_required_heading_is_not_lost_to_a_substring_in_prose(self):
+        job = row('context', 'https://example.test/context', raw={
+            'description': 'Python is preferred.', 'required_qualifications': 'Python'})
+        self.persist([job])
+        with self.server() as get:
+            text = get(url=job['url'])['description']
+        self.assertIn('Required qualifications\nPython', text)
+
+    def test_entities_do_not_make_plain_type_names_into_html(self):
+        for index, raw in enumerate((
+                {'description': 'Use vector<T> &amp; RTL.'},
+                {'description': 'Use vector<T> &amp; RTL.', 'requirements': 'Know C++.'})):
+            job = row(str(index), 'https://example.test/type/' + str(index), raw=raw)
+            self.persist([job])
+            with self.server() as get:
+                self.assertIn('Use vector<T> & RTL.', get(url=job['url'])['description'])
+
+    def test_updated_duplicate_html_does_not_restore_obsolete_requirements(self):
+        from jobdisco import jsearch
+        url = 'https://example.test/update'
+        self.persist([row('update', url, raw={
+            'descriptionPlain': 'Earlier summary.',
+            'descriptionHtml': '<p>You must be a U.S. citizen.</p>'})])
+        self.persist([row('update', url, raw={
+            'descriptionPlain': 'Build RTL blocks.',
+            'descriptionHtml': '<p>Build RTL blocks.</p>'})])
+        raw = json.loads(self.db.execute('SELECT raw FROM jobs WHERE url=?', (url,)).fetchone()[0])
+        self.assertNotIn('citizen', json.dumps(raw))
+        self.assertEqual(jsearch.rejection_reason(row('update', url, raw=raw),
+                         jsearch.load_plan()[0]['filter']), '')
+
+    def test_structural_html_survives_storage_and_replay(self):
+        from jobdisco import degree, jsearch
+        job = row('structure', 'https://example.test/structure', raw={
+            'descriptionPlain': 'Basic Qualifications PhD in EE',
+            'descriptionHtml': '<h2>Basic Qualifications</h2><p>PhD in EE</p>'})
+        self.persist([job])
+        # Rebuild a separate derived index from the event log.
+        rebuilt = self.root / 'replayed.sqlite'
+        with closing(sqlite3.connect(rebuilt)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+        store.rebuild(rebuilt)
+        for path in (self.path, rebuilt):
+            with closing(sqlite3.connect(path)) as db:
+                raw = json.loads(db.execute('SELECT raw FROM jobs').fetchone()[0])
+            self.assertIn('descriptionHtml', raw)
+            self.assertTrue(degree.phd_only(job['title'],
+                jsearch.description_text({'raw': raw}, structured=True)))
+
+    def test_empty_html_preserves_teaser_and_experience_gate(self):
+        from jobdisco import jsearch
+        job = row('teaser', 'https://example.test/teaser', raw={
+            'description': '<p></p>',
+            'descriptionTeaser': 'RTL role requiring 5 years of experience.'})
+        self.persist([job])
+        raw = json.loads(self.db.execute('SELECT raw FROM jobs').fetchone()[0])
+        self.assertEqual(jsearch.rejection_reason(dict(job, raw=raw),
+                         jsearch.load_plan()[0]['filter']), 'required_experience_over_2_years')
+        with self.server() as get:
+            self.assertEqual(get(url=job['url']), {
+                'description': job['raw']['descriptionTeaser'], 'kind': 'excerpt'})
+
+    def test_details_include_separate_qualification_fields(self):
+        job = row('sections', 'https://example.test/sections', raw={
+            'description': 'Build vector<T> RTL blocks.',
+            'basic_qualifications': ['BS in EE.', 'SystemVerilog experience.'],
+            'preferred_qualifications': '<p>UVM experience.</p>'})
+        self.persist([job])
+        with self.server() as get:
+            body = get(url=job['url'])['description']
+        for phrase in ('vector<T>', 'BS in EE.', 'SystemVerilog experience.', 'UVM experience.'):
+            self.assertIn(phrase, body)
+
+    def test_non_object_paid_payload_does_not_break_the_queue(self):
+        job = row('malformed', 'https://example.test/malformed', provider='jsearch')
+        self.persist([job], source=PAID)
+        for value in (None, [], 'provider error', 1):
+            self.db.execute('UPDATE jobs SET raw=?', (json.dumps(value),))
+            self.db.commit()
+            with self.subTest(value=value):
+                self.assertEqual(len(applications.queue(self.path, self.ledger)['pending']), 1)
+
     def setUp(self):
         folder = tempfile.TemporaryDirectory(prefix='jobdisco-description-')
         self.addCleanup(folder.cleanup)

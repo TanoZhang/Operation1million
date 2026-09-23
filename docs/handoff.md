@@ -1,6 +1,54 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Audit fixes release validation - 2026-09-22 UTC
+
+The user authorized merging the accumulated audit fixes into private main and
+deploying them through the VPS installer. The complete offline suite on c1a322e
+plus this patch ran 639 tests: 630 passed, nine Windows environment skips.
+Whitespace checks passed. No storage purge, history rewrite or collection is
+part of this release. The unrelated local open-review.bat is not included.
+Deployment and production verification are pending at this checkpoint.
+
+# Nested qualification display fix - 2026-09-22 UTC (not deployed)
+
+Base: c1a322edddd54aaa0a34edff8cded252cce2d99d plus prior local fixes.
+Fixed nested qualification dictionaries and arrays being silently omitted from
+Review details even though filtering reads their strings. Recursive display
+preserves labels and scalar values without changing raw storage or policy.
+The new HTTP regression failed before the fix; all 132 focused description,
+payload and store tests pass afterward. No production data or deployment changed.
+
+# Content-preservation follow-up - 2026-09-22 UTC (not deployed)
+
+On c1a322e plus the prior six-fix patch, fixed three additional cases: unique
+teaser requirements lost beside nonempty descriptions, required headings hidden
+by substring-based display deduplication, and literal type names lost when plain
+text contained HTML entities. Distinct excerpts are retained and shown, separate
+qualification sections preserve their meaning, and Review shares the text
+renderer. No stored-data changes or deployment occurred.
+
+Latest verification: 131 focused storage, description and payload tests passed;
+diff whitespace checks passed. The 635-test full run below predates these
+follow-up changes. New regression fixtures cover both persisted filtering and
+loopback HTTP responses.
+
+# Six post-location audit fixes - 2026-09-22 UTC (codex, not deployed)
+
+Base: c1a322edddd54aaa0a34edff8cded252cce2d99d plus the working tree.
+Claude's location and degree fixes are retained. This patch fixes stale HTML
+resurrection, structural HTML deduplication, citizenship clause scope, empty
+HTML hiding teasers, omitted qualification sections and non-object paid raw
+payloads breaking the Review queue. It also covers array-valued qualifications
+and the equivalent malformed JSON scalar/list cases.
+
+The focused suite passed 154 tests, including real storage, log replay
+and loopback HTTP. Full suite: 635 discovered, 626 passed, nine environment
+skips on Windows. No deployment, provider
+requests or production-data changes were made. Historical text already removed
+by old slimming cannot be recreated from the remaining text; future provider
+updates use the corrected write path.
+
 # The eligibility refactor reviewed, merged and deployed - 2026-09-22 UTC
 
 **Deployed.** The sections below written as "not deployed" -- the shared

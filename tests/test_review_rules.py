@@ -277,6 +277,10 @@ class AuditedWrongCatchTests(unittest.TestCase):
         self.assertTrue(jsearch.excluded('Principal Engineer, SoC', self.rules))
 
     def test_a_conditional_citizenship_line_is_not_a_requirement(self):
+        for text in ('You may work remotely, but must be a U.S. citizen.',
+                     'If hired, you must be a U.S. citizen.'):
+            with self.subTest(text=text):
+                self.assertTrue(jsearch.us_person_required(text, self.rules))
         for text in ('Must be eligible to work on ITAR-controlled projects, which may require U.S. '
                      'citizenship or lawful permanent resident status',
                      'This position requires verification of citizenship. If the role requires US '

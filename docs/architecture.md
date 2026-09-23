@@ -151,6 +151,53 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Nested qualification details, 2026-09-22 UTC
+
+Review's qualification renderer handled strings and flat string lists only.
+Nested objects such as requirements.education and nested skill arrays were
+read by filtering but omitted from the detail response. A loopback HTTP test
+failed before the fix. Qualification rendering now traverses JSON containers,
+retaining field labels, string content, numeric values and booleans. Raw data
+and filtering behavior are unchanged. The focused suite passed 132 tests.
+
+### Additional content-preservation regressions, 2026-09-22 UTC
+
+Three cases were reproduced on the six-fix working tree. A nonempty full
+description still caused a different teaser containing a citizenship requirement
+to be discarded. Teasers now survive unless their exact string is duplicated
+in a full-description field; distinct excerpts are also displayed. Separately
+supplied required qualifications could disappear when their text was a substring
+of a preferred statement in the description. Their headings now remain visible.
+Finally, an HTML entity alone caused plain `vector<T>` text to be parsed as
+markup, losing `<T>`. Entity-only prose is decoded without an HTML parser, using
+one shared renderer for the detail endpoint and description assembly.
+
+The focused store, description and payload suite passed 131 tests. No historical
+payloads were rewritten; prior lost teaser content requires a fresh source copy.
+
+### Post-location audit: stored descriptions and Review, 2026-09-22 UTC
+
+Six follow-up defects reproduced on c1a322e are fixed locally:
+
+- `record_source` now merges incoming fields before slimming. Removing a new
+  duplicate HTML field before merging had resurrected an old HTML requirement.
+- HTML deduplication compares line structure as well as words. A required
+  heading and its degree bullet must not collapse into an unrecognized line.
+- An unrelated `may` before `but` no longer suppresses an explicit citizenship
+  requirement; `If hired` is also distinguished from a conditional role rule.
+- Empty HTML is not a full description. Its nonempty teaser survives storage
+  and is selected by the detail endpoint.
+- Review includes separately stored qualification/responsibility strings and
+  arrays, preserving literal angle-bracket types when combining plain text
+  with HTML. Qualification-only records also have a readable detail response.
+- Non-object JSON payloads are treated as unavailable prose when building the
+  queue, instead of raising on the third-party publisher lookup.
+
+Regressions exercise storage updates, log replay and loopback HTTP, including
+the existing conditional-citizenship controls. No sealed logs or production
+data were rewritten. Earlier lost description structure cannot be recovered
+by this patch alone; a fresh provider payload is required.
+
 ### Eight explicit user domain exclusions, 2026-09-22 UTC
 
 The user subsequently supplied trabajo.org, bebee.com, experteer.com,

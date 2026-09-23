@@ -691,6 +691,11 @@ def us_person_required(text, rules):
             # description" were both passing postings that ask for neither --
             # found reading every removal in the live queue, 2026-09-22.
             lead = re.split(r'[.;:!?\n\u2022]', text[max(0, match.start() - 200):match.start()])[-1]
+            # An adversative starts a new clause: permission to work remotely
+            # does not soften the citizenship requirement after "but".
+            lead = re.split(r'\bbut\b|\bhowever\b', lead, flags=re.I)[-1]
+            lead = re.sub(r'\bif\s+(?:hired|selected|offered\s+the\s+position)\s*,?',
+                          '', lead, flags=re.I)
             if not HEDGED.search(lead):
                 return True
     return False
