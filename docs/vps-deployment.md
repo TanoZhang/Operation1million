@@ -99,8 +99,11 @@ rather be paged on it, change the final `exit` handling in `daily-pass.sh`.
 
     sudo bash /opt/jobdisco/code/deploy/vps/install.sh
 
-From the Windows machine, `deploy/local/deploy-vps.bat` runs the same command
-over ssh with the deploy key, and leaves its output on screen.
+From the Windows machine, three double-click files in `deploy/local/`:
+`open-review.bat` opens the review page through the ssh tunnel;
+`deploy-vps.bat` pulls, pushes whatever is committed locally, and runs the
+command above over ssh; `backup-vps.bat` runs `backup-from-vps.sh` through Git
+Bash into the usual backup folder.
 
 Both checkouts advance only by fast-forward. Local source edits or divergent
 history stop installation instead of being discarded. Installation and daily

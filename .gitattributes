@@ -4,3 +4,5 @@
 *.sh text eol=lf
 *.service text eol=lf
 *.timer text eol=lf
+# cmd.exe mislocates goto labels in LF-only batch files.
+*.bat text eol=crlf
