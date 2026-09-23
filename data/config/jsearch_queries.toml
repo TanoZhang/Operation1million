@@ -150,6 +150,11 @@ exclude_title_patterns = [
   '\b(?:etch|deposition)\s+engineer\b',
   '\bmaterials\s+(?:engineer|scientist)\b', '\b(?:chemical|battery)\s+engineer\b',
   '\belectrochem(?:ical|istry)\b',
+  # Functions with no engineering in them at all, at the user's request on
+  # 2026-09-23: legal, assistants and the energy sector. Not "energy-efficient"
+  # or Bluetooth "Low Energy", which describe a chip.
+  '\b(?:counsel|attorney|paralegal|litigation|legal)\b', '\bassistants?\b',
+  '(?<!\blow\s)\benergy\b(?![-\s]?efficien)',
   '\b(?:mechanical|thermal|structural|civil|construction|manufacturing|industrial)\s+engineer\b',
 ]
 
@@ -236,7 +241,12 @@ reject_title_patterns = [
   # EDA, circuit and memory software joined the list on 2026-09-22, when the
   # block first reached direct boards and took "Software Engineer (Integrity
   # 3D-IC Infra)" and "SRAM Software Engineer Intern" with it.
-  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design|eda|3d-?ic|circuits?|sram|dram|semiconductors?)\b).*\bsoftware\s+(?:engineer|developer|development)\b',
+  # Since 2026-09-23 the word itself, not only "software engineer|developer":
+  # "Software Engineering Intern", "Software QA Engineer - New College Grad"
+  # and "Software and System Architect" slipped past the narrower form. A
+  # board with no description scores them 0 but still lists them, so the
+  # title is the only thing that can stop them.
+  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design|eda|3d-?ic|circuits?|sram|dram|semiconductors?)\b).*\bsoftware\b',
   # Front end and back end are web words and chip words: RTL is a chip's front
   # end and physical design its back end. Measured the same day: "GPU Front-End
   # Infrastructure/Methodology" and "EDA PV Intern for Digital Backend Flow"

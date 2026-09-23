@@ -151,6 +151,19 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Direct-board titles with no description, 2026-09-23 UTC
+
+Reported by the user from the live queue: "Software Engineering Intern",
+"Software QA Engineer- New College Grad 2026", "Software and System
+Architect", "Executive Assistant", a litigation counsel and "Developer
+Technology Engineer, Energy". Direct boards gave them no description, so they
+scored 0 -- and the queue applies title rules, not the score, so they were
+listed under Less related. The software block now takes the word itself
+(same low-level exemptions), and legal titles, assistants and the energy
+sector are hard exclusions ("energy-efficient" and "Low Energy" excepted).
+On Marvell's live board this removed one more posting, an executive
+assistant. Suite 664, 2 skipped.
+
 ### Twenty from a read of the filters, location and queue, 2026-09-23 UTC
 
 Found by probing each rule with the wordings the boards use, not by an audit

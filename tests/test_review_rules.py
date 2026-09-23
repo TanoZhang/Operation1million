@@ -281,6 +281,25 @@ class AuditedWrongCatchTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertTrue(jsearch.excluded(title, self.rules))
 
+    def test_titles_the_user_reported_from_direct_boards_are_refused(self):
+        # Direct boards publish no description for these, so they scored 0 and
+        # were still listed; only the title can stop them.
+        for title in ('U.S. and Global Employment Litigation and Compliance Counsel',
+                      'Software and System Architect', 'Executive Assistant',
+                      'Software QA Engineer- New College Grad 2026',
+                      'Software Engineering Intern, DLFW Comms - 2027',
+                      'Developer Technology Engineer, Energy'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.excluded(title, self.rules)
+                                or jsearch.title_blocked(title, self.rules))
+        for title in ('Embedded Software Engineer', 'SRAM Software Engineer Intern',
+                      'Hardware/Software Co-Design Engineer',
+                      'Energy-Efficient Accelerator Architect Intern',
+                      'Bluetooth Low Energy Firmware Engineer'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules)
+                                 or jsearch.title_blocked(title, self.rules))
+
     def test_sr_iov_is_not_a_seniority(self):
         # `\bsr\b` also matched the SR of SR-IOV and refused the posting outright.
         for title in ('PCIe SR-IOV Firmware Engineer', 'SR-IOV Driver Developer Intern'):
