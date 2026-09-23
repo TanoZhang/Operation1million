@@ -1,6 +1,26 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Continued audit and improvement study - 2026-09-23 UTC (codex)
+
+Source remains `b2c9340f84dbe5f7fb020301c2d724af32587424`; the standing codex
+branch contains audit documentation and synthetic harnesses only. Four new
+defects reproduce through storage and Review: negated citizenship requirements,
+lost requirements-field headings, experience preference scope and an inline
+required PhD heading after a preferred section. The new eight-test harness has
+four failures and four passing controls; R1-R3 remain in the earlier report.
+
+Behavior-preserving prototypes pass 43 existing tests and exact-output checks.
+Reusing parsed description text cuts HTML parsing from three calls to two and
+measures 1.90x faster for synthetic details with qualification fields. Per-sort
+bounded caches measure 1.75-3.46x faster with repeated timestamps but 10.5% slower
+with all-unique inputs. Consolidating decision matching is an unimplemented
+structure proposal. See [round-two report](review-audit-round2-2026-09-23.md),
+its reproduction harness and `docs/review-benchmark-2026-09-23.py`.
+
+No application code, database/schema, log format, collection or deployment
+changed. Measurements are offline and synthetic, not production throughput.
+
 # Latest Review audit - 2026-09-23 UTC (codex, findings only)
 
 Audited application source and last fetched main:

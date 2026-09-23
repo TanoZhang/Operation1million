@@ -12,8 +12,8 @@ Base commit: 8f95b07f2cf21a9f985983b105278f36a7d0516f (application source b2c934
 Last inspected main: b2c9340f84dbe5f7fb020301c2d724af32587424
 Branch: local codex/review-audit, published to standing remote codex
 Date: 2026-09-23 UTC
-Status: claimed
-Next: Reproduce new cases beyond R1-R3; measure optimization candidates using synthetic data and unchanged-output checks.
+Status: done
+Next: Review R4-R7 and three improvement candidates in docs/review-audit-round2-2026-09-23.md. Four new defects reproduce; 43 existing tests pass with isolated optimization prototypes. Description reuse measures 1.90x faster; sort caching depends on input reuse. Application source and real databases are unchanged.
 ```
 
 ```text
