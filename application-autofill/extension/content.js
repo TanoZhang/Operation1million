@@ -1,8 +1,9 @@
 (() => {
   'use strict';
 
-  if (globalThis.__jobdiscoAutofillInstalled) return;
-  globalThis.__jobdiscoAutofillInstalled = true;
+  const SCRIPT_VERSION = 5;
+  if (globalThis.__jobdiscoAutofillInstalled === SCRIPT_VERSION) return;
+  globalThis.__jobdiscoAutofillInstalled = SCRIPT_VERSION;
 
   const UNSAFE_INPUT_TYPES = new Set(['button', 'file', 'hidden', 'image', 'password',
     'reset', 'search', 'submit', 'checkbox']);
@@ -316,11 +317,11 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     try {
-      if (message.action === 'scan') {
+      if (message.action === 'scan_v5') {
         captureQueue.then(() => respond(scan(Boolean(message.includeValues))))
           .catch(error => respond({error: error.message}));
         return true;
-      } else if (message.action === 'fill') {
+      } else if (message.action === 'fill_v5') {
         (async () => {
           const outcomes = [];
           for (const result of message.results) {

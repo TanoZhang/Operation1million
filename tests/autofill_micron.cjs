@@ -10,7 +10,7 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'application-autofill'
 const popupSource = fs.readFileSync(path.join(__dirname, '..', 'application-autofill',
   'extension', 'popup.js'), 'utf8');
 
-function loadContent(url) {
+function loadContent(url, oldInstalled = false) {
   class Input {
     constructor({type = 'text', role = null, readOnly = false, label = '', value = '',
       checked = false, name = 'group'} = {}) {
@@ -29,7 +29,8 @@ function loadContent(url) {
     querySelector() { return null; },
     getElementById() { return null; }
   };
-  const context = {document, location: new URL(url), URL, setTimeout, HTMLInputElement: Input,
+  const context = {document, location: new URL(url), URL, setTimeout,
+    __jobdiscoAutofillInstalled: oldInstalled, HTMLInputElement: Input,
     HTMLTextAreaElement: Textarea, HTMLSelectElement: Select,
     getComputedStyle: () => ({display: 'block', visibility: 'visible'}),
     chrome: {runtime: {onMessage: {addListener() {}}}}, CSS: {escape: x => x}};
@@ -38,6 +39,13 @@ function loadContent(url) {
   };\n})();`), context);
   return {api: context.testApi, Input, document};
 }
+
+test('new script activates on an open page that ran the old extension', () => {
+  const {api} = loadContent('https://careers.micron.com/careers/apply?pid=44547378', true);
+  assert.equal(typeof api.positionId, 'function');
+  assert.match(source, /message\.action === 'scan_v5'/);
+  assert.match(popupSource, /action: 'scan_v5'/);
+});
 
 test('Micron read-only radios and listbox comboboxes are recognized', () => {
   const {api, Input} = loadContent('https://careers.micron.com/careers/apply?pid=44547378');

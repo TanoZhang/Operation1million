@@ -136,7 +136,7 @@
   async function pageScan(includeValues = false) {
     const tab = await activeTab();
     await chrome.scripting.executeScript({target: {tabId: tab.id}, files: ['content.js']});
-    const payload = await chrome.tabs.sendMessage(tab.id, {action: 'scan', includeValues});
+    const payload = await chrome.tabs.sendMessage(tab.id, {action: 'scan_v5', includeValues});
     if (!payload || payload.error) throw new Error(payload && payload.error || 'Cannot read this page.');
     return {tab, payload};
   }
@@ -319,7 +319,7 @@
     const {results, learned} = await resolvePage(payload);
     renderReview(results);
     const outcome = await chrome.tabs.sendMessage(tab.id,
-      {action: 'fill', results, allowReview: false});
+      {action: 'fill_v5', results, allowReview: false});
     if (outcome.error) throw new Error(outcome.error);
     const review = results.filter(item => item.status === 'requires_review').length;
     const unknown = results.filter(item => item.status !== 'ready'
@@ -359,7 +359,7 @@
     const chosen = results.filter(item => item.status === 'requires_review'
       && selected.has(item.question_id));
     const outcome = await chrome.tabs.sendMessage(tab.id,
-      {action: 'fill', results: chosen, allowReview: true});
+      {action: 'fill_v5', results: chosen, allowReview: true});
     if (outcome.error) throw new Error(outcome.error);
     renderReview(results);
     show(`Filled ${outcome.filled} selected answer${outcome.filled === 1 ? '' : 's'}; left ${outcome.occupied} existing value${outcome.occupied === 1 ? '' : 's'} untouched.`);

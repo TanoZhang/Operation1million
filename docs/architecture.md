@@ -182,7 +182,9 @@ DOM established the control shapes; three offline Node cases were red before
 the fixes. The corrected scanner accepts these radios, captures existing form
 values at user invocation, treats the `pid` as position identity, and checks
 the open list for one exact option before filling a custom select. Its saved
-custom-select answers stay review-only and cannot be globally scoped.
+custom-select answers stay review-only and cannot be globally scoped. A
+versioned content-script guard and message actions allow an updated extension
+to scan the same completed tab after its card is reloaded.
 
 ### A paid listing came back every day under a new id, 2026-09-24 UTC
 

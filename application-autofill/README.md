@@ -44,7 +44,8 @@ option model can be verified. Workday, Greenhouse, Lever, iCIMS, SmartRecruiters
 and other ATS adapters can extend the same scanner without separate extensions.
 
 After changing the unpacked extension files, reload its card at
-`chrome://extensions` or `edge://extensions` once. Open the Micron application
-again and click the extension while the completed form is visible to capture
-its existing answers. The popup reports the number newly remembered; review
+`chrome://extensions` or `edge://extensions` once. Return to the still-open
+Micron application and click the extension while the completed form is visible to capture
+its existing answers. The form tab itself does not need a reload. The popup
+reports the number newly remembered; review
 answers remain in the browser's private extension storage.

@@ -9,13 +9,15 @@ and `/careers/apply?pid=...` was scoped by its shared path instead of `pid`.
 The live tab's read-only DOM confirmed all three. Version 0.5.0 recognizes the
 radio question and option separately, scans the Eightfold combobox, captures
 values already present when the popup opens, and captures later listbox choices.
+Versioned messages let the new script run on a tab that already injected the
+old version, without reloading the form.
 Filling a combobox requires an exact option in its opened list and explicit
 review; global reuse is unavailable for these custom selectors. The extension
 does not submit, accept terms, or overwrite existing values.
 
-Five Node behavior tests and 29 focused Python tests pass at
-`d6e897fa9b9d167d5a9d0f1315fa4fd083946c00`, pushed to the standing
-`codex` branch. The live application's DOM was inspected without changing
+Six Node behavior tests and 29 focused Python tests pass on the code branch
+based on `82e8a81`, with the audit branch merged; the standing `codex` branch
+contains the fix. The live application's DOM was inspected without changing
 answers; the new build has not been reloaded in Chrome, and browser storage has
 not yet been verified.
 Reload the unpacked extension once, then open its popup on the still-completed
