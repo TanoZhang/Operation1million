@@ -509,6 +509,10 @@ Both asked for by the user.
   `min_confidence`. The band alone would have buried "SDC, Synthesis and STA
   Engineer" (Fit 69); the score alone would bury every board that publishes no
   description. The Backlog tab is the backlog alone, less related last.
+- **Superseded 2026-09-24 UTC, at the user's request:** less related postings
+  moved to their own **Low relevance** tab. To review and Backlog no longer
+  list them and Remaining no longer counts them. The server-side rule is
+  unchanged. Contract: `test_less_related_has_its_own_tab_and_no_part_in_remaining`.
 - **"8+ years of hands-on FPGA designs" was read as no requirement.** A
   duration counted only beside "experience", "professional", "industry", a
   required marker or a degree. `HANDS_ON` now admits the work named right after

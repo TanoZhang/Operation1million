@@ -5,6 +5,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: Review page: less related postings get their own tab; Remaining and
+       the To review and Backlog tabs exclude them.
+Files: src/jobdisco/review_static/{app.js,index.html}, tests/test_review_payload.py,
+       docs/{application-review,architecture,handoff,agent-protocol}.md
+Base commit: b6422c9
+Status: done -- pushed to main, not deployed
+Next: Deploy with deploy/vps/install.sh.
+```
+
+```text
 Owner: codex
 Scope: ATS-independent standalone Chrome/Edge autofill MVP with automatic
        final-value learning, conservative fill controls and regression tests. Never

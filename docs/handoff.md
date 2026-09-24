@@ -1,6 +1,15 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Low relevance tab - 2026-09-24 UTC (claude, not deployed)
+
+At the user's request, less related postings (`less_related`: last band and Fit
+under `min_confidence`) left To review and Backlog for a separate Low relevance
+tab, and Remaining and the tab counts exclude them. Client-only change in
+`review_static/`; the queue payload is unchanged. Checked in the browser against
+the local index from 2026-09-16: 5,178 open, 1,937 in Remaining, 3,241 on the
+new tab, none in Backlog. Needs `deploy/vps/install.sh` to reach the VPS.
+
 # Application autofill MVP - 2026-09-23 UTC (codex, not deployed)
 
 Base: c10cfcb4ace8eae88b68c11fb5f7b87e3bec14da. Added an inert-by-default,

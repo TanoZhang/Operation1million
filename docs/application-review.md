@@ -17,6 +17,12 @@ It never submits an application, collects jobs, buys credits, or commits data.
 working rhythm, not an expiry, so a posting missed on Friday is still reachable
 on Monday.
 
+**Low relevance** holds what is barely related, new or old: a title in the last
+band *and* a Fit under `min_confidence` (the server's `less_related`). Those
+postings appear on that tab only, never under To review or Backlog, and
+Remaining does not count them. They can still be marked applied or skipped
+there.
+
 A position is one requisition: the provider's own job id, and the URL only where
 a provider publishes no id. The id is scoped the way the store scopes
 `job_identities` -- JSearch ids hold across the provider, a direct source's ids

@@ -136,14 +136,22 @@ class ClientSourceContractTests(unittest.TestCase):
                         'a failed first load leaves the list saying it is loading')
 
 
-    def test_the_review_list_runs_new_then_backlog_then_less_related(self):
-        """Asked for on 2026-09-22: one list, with what is barely related at the
-        back of it whether it is new or old."""
-        body = self.script().split('function filtered() {')[1].split('\n}\n')[0]
-        self.assertTrue("[['recent', state.pending.filter(related)], ['backlog', state.backlog.filter(related)],"
-                        in body, 'the review tab no longer leads with new, then backlog')
-        self.assertTrue("['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]"
-                        in body, 'less related postings are not gathered at the end')
+    def test_less_related_has_its_own_tab_and_no_part_in_remaining(self):
+        """Asked for on 2026-09-24: To review and Backlog stop listing what is
+        barely related; it gets a tab of its own, and Remaining stops counting it."""
+        script = self.script()
+        body = script.split('function filtered() {')[1].split('\n}\n')[0]
+        self.assertIn("[['recent', state.pending.filter(related)], ['backlog', state.backlog.filter(related)]]",
+                      body, 'the review tab no longer runs new, then backlog, and nothing else')
+        self.assertIn("[['backlog', state.backlog.filter(related)]]", body,
+                      'the backlog tab still lists less related postings')
+        self.assertIn("[['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]]",
+                      body, 'less related postings have no tab of their own')
+        render = script.split('function render() {')[1]
+        self.assertIn("$('#remaining').textContent = open.length;", render,
+                      'Remaining still counts less related postings')
+        self.assertIn('const open = [...state.pending, ...state.backlog].filter(related);', script)
+        self.assertIn('data-tab="less"', (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('less_related', review.GROUP_FIELDS)
 
     def test_a_saved_decision_leaves_the_list_before_the_refresh(self):
