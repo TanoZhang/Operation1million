@@ -13,8 +13,9 @@ Filling a combobox requires an exact option in its opened list and explicit
 review; global reuse is unavailable for these custom selectors. The extension
 does not submit, accept terms, or overwrite existing values.
 
-Five Node behavior tests and 29 focused Python tests pass on base `82e8a81` plus
-this working tree. The live application's DOM was inspected without changing
+Five Node behavior tests and 29 focused Python tests pass at
+`d6e897fa9b9d167d5a9d0f1315fa4fd083946c00`, pushed to the standing
+`codex` branch. The live application's DOM was inspected without changing
 answers; the new build has not been reloaded in Chrome, and browser storage has
 not yet been verified.
 Reload the unpacked extension once, then open its popup on the still-completed
