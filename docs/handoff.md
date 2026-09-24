@@ -1,6 +1,50 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Application autofill MVP - 2026-09-23 UTC (codex, not deployed)
+
+Base: c10cfcb4ace8eae88b68c11fb5f7b87e3bec14da. Added an inert-by-default,
+ATS-independent Chrome/Edge extension in the standalone
+`application-autofill/` folder. Opening its popup scans native form controls and
+fills only exact safe answers. Unknowns remain empty. Once activated on a page,
+trusted blur/change events remember final nonempty manual values without logging
+keystrokes. Learned questions are local, site-scoped and review-only; they never
+acquire guessed cross-site semantics. Review-policy answers appear as explicit
+question-and-answer rows, and only checked rows are filled. Conflicting stored
+answers and all existing form values remain unchanged.
+
+The browser has one answer bank rather than one store per site. Each selected
+review row can be scoped to all sites, the current HTTPS origin, or the current
+position. Cross-site reuse requires the user's explicit global choice plus an
+exact normalized question, control kind and option set; learned values remain
+review-only. Site and position data constrain mappings instead of duplicating
+the database.
+
+Passwords, verification codes, government identifiers, signatures, files,
+checkboxes, consent/agreement wording and unsupported platform combobox widgets
+stay manual. The extension never submits an application. The existing ignored
+bank was inspected structurally only: it contains 27 answered fields from one
+Qualcomm origin; no answer values were printed or copied into the repository.
+The complete offline suite passes 688 tests with nine environment skips on base
+`c10cfcbd7759b56aac85ab69e33ab9ec6e99306f` plus this working tree. The
+extension Manifest parses and both JavaScript files pass Node syntax checks.
+No live application page was changed and no application was submitted; visual
+browser verification remains pending.
+
+After the user explicitly confirmed installation, the browser automation layer
+blocked navigation to `chrome://extensions` and prohibited alternate UI or
+command-line workarounds. Loading the unpacked extension was therefore the one
+manual installation step.
+
+The user rejected both visible launchers and silent background startup. The
+final runtime is fully contained in the extension: no Windows `Run` entry, no
+listener on port 8768, no Python process and no pairing token. The installed
+temporary startup entry and process were removed and their absence verified.
+An ignored `local-profile.json` seeds private extension storage once; final-value
+learning then updates that browser profile. The popup scans and safely fills the
+active HTTPS page as soon as it opens. Chrome needs one extension-card reload to
+pick up version 0.4.0; after that, normal use is clicking the extension only.
+
 # Twenty filter, location and queue fixes - 2026-09-23 UTC (claude, not deployed)
 
 Base: b2c9340. Pushed to main; deploy with `deploy/vps/install.sh` (this cloud

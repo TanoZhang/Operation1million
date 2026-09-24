@@ -5,6 +5,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: ATS-independent standalone Chrome/Edge autofill MVP with automatic
+       final-value learning, conservative fill controls and regression tests. Never
+       submit applications, accept agreements, solve challenges, or store data
+       in the public repository.
+Files: src/jobdisco/answer_bank.py, application-autofill/*,
+       tests/test_{answer_bank,autofill_extension,autofill_profile}.py,
+       docs/{answer-bank,agent-protocol,architecture,handoff}.md
+Base commit: c10cfcb4ace8eae88b68c11fb5f7b87e3bec14da
+Status: done
+Next: Reload the unpacked extension once and verify version 0.4.0 on a benign
+      HTTPS form. Focused 29 and full 688 tests pass on the base plus this tree.
+```
+
+```text
 Owner:   claude
 Scope:   Bug hunt across the package at the user's request: find, test and
          fix defects (filter rules, location, experience, ranking, store,

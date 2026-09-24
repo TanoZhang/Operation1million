@@ -12,6 +12,7 @@ __pycache__/
 
 # Persistent local quota ledger
 .local/
+/application-autofill/extension/local-profile.json
 
 # Generated discovery runs. latest.json used to be excepted, and it was a
 # pointer to a run directory that this ignore rule keeps out of the repository:

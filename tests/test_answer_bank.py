@@ -64,6 +64,15 @@ class AnswerBankTests(unittest.TestCase):
         self.assertEqual(self.observe('Full legal name')['answer'], 'Example Person')
         self.assertEqual(self.observe('First name', section='Reference')['status'], 'unknown')
 
+    def test_common_ats_identity_sections_reuse_only_exact_safe_aliases(self):
+        self.bank.set_answer('contact.email', 'person@example.test')
+        for section in ('Basic Information', 'Candidate Information', 'Apply for this Job'):
+            result = self.bank.observe('Email address', site='https://ats.example.test/apply',
+                                       section=section)
+            self.assertEqual(result['answer'], 'person@example.test')
+        self.assertEqual(self.bank.observe('Reference email', site='https://ats.example.test/apply',
+                                           section='References')['status'], 'unknown')
+
     def test_personal_fields_require_review_and_preserve_false(self):
         self.bank.add_field('personal.enrolled', 'Currently enrolled', 'boolean')
         self.bank.set_answer('personal.enrolled', False)

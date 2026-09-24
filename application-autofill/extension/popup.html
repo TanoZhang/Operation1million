@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Application Autofill</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <h1>Application Autofill</h1>
+    <div class="actions">
+      <button id="fill-known">Rescan and fill known answers</button>
+    </div>
+    <section id="review-panel" hidden>
+      <h2>Review before filling</h2>
+      <p class="scope-note">Choose where each answer may be suggested. All sites still requires the same question and options.</p>
+      <div id="review-items"></div>
+      <button id="fill-review" class="review" disabled>Save scope and fill selected</button>
+    </section>
+    <p id="status" role="status">Scanning this page...</p>
+    <p class="note">Unknown fields stay empty. Values you enter are remembered after you leave the field.</p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-"""Local answer knowledge: durable JSON, disposable SQLite, no browser writes."""
+"""Local answer knowledge: durable JSON and a disposable SQLite view."""
 import argparse
 from contextlib import closing
 from datetime import datetime, timezone
@@ -27,10 +27,10 @@ DEFAULT_FIELDS = {
     'name.preferred': ('Preferred name', 'text', 'fill', ['Preferred name']),
     'contact.email': ('Email', 'text', 'fill', ['Email', 'Email address']),
     'contact.phone': ('Phone', 'text', 'fill', ['Phone', 'Phone number']),
-    'address.street': ('Street address', 'text', 'fill', []),
-    'address.city': ('City', 'text', 'fill', []),
+    'address.street': ('Street address', 'text', 'fill', ['Street address', 'Address line 1']),
+    'address.city': ('City', 'text', 'fill', ['City']),
     'address.state': ('State', 'choice', 'fill', []),
-    'address.postal_code': ('Postal code', 'text', 'fill', []),
+    'address.postal_code': ('Postal code', 'text', 'fill', ['Postal code', 'ZIP code', 'Zip/Postal Code']),
     'address.country': ('Country', 'choice', 'fill', []),
     'education.graduation_month': ('Graduation month', 'choice', 'review', []),
     'education.graduation_year': ('Graduation year', 'integer', 'review', []),
@@ -144,6 +144,48 @@ class AnswerBank:
             field.update(answer=value, updated_at=_now())
             self._write(data)
 
+    @staticmethod
+    def _question_identity(label, site, section, kind, options):
+        normalized = normalize(label)
+        if not isinstance(section, str) or kind not in KINDS:
+            raise ValueError('Invalid section or control kind')
+        if (not isinstance(options, (list, tuple))
+                or any(not isinstance(v, str) or not v.strip() for v in options)):
+            raise ValueError('Options must be a list of nonempty display labels')
+        if kind in ('select', 'radio', 'multiselect') and not options:
+            raise ValueError('Capture the actual options before registering a choice control')
+        values = sorted(set(options))
+        identity = [origin(site), normalize(section) if section.strip() else '',
+                    normalized, kind, values]
+        ident = hashlib.sha256(json.dumps(identity, ensure_ascii=True).encode()).hexdigest()
+        return ident, identity
+
+    @staticmethod
+    def _observe_in_data(data, label, *, site, section='', kind='text', options=()):
+        ident, identity = AnswerBank._question_identity(label, site, section, kind, options)
+        if ident not in data['questions']:
+            candidates = [key for key, field in data['fields'].items()
+                          if kind == 'text' and field['type'] == 'text'
+                          and identity[1] in ('', 'contact information', 'personal information',
+                                              'applicant information', 'about you',
+                                              'contact information section', 'my information',
+                                              'legal name', 'address', 'basic information',
+                                              'personal details', 'contact details',
+                                              'candidate information', 'applicant details',
+                                              'your information', 'profile', 'application',
+                                              'apply for this job')
+                          and identity[2] in {normalize(alias) for alias in field['aliases']}]
+            data['questions'][ident] = dict(
+                site=identity[0], section=section, label=label, normalized=identity[2],
+                kind=kind, options=identity[4],
+                field_key=candidates[0] if len(candidates) == 1 else None,
+                binding='builtin' if len(candidates) == 1 else None,
+                first_seen=_now(), last_seen=_now(), observations=0)
+        question = data['questions'][ident]
+        question['last_seen'] = _now()
+        question['observations'] += 1
+        return ident
+
     def observe(self, label, *, site, section='', kind='text', options=(), position_id=None):
         """Register an encountered heading, then resolve only approved meaning.
 
@@ -151,31 +193,10 @@ class AnswerBank:
         aliases apply only to ordinary text controls. Personal/custom questions
         require explicit site/section/control/options-specific binding.
         """
-        normalized = normalize(label)
-        if not isinstance(section, str) or kind not in KINDS:
-            raise ValueError('Invalid section or control kind')
-        if not isinstance(options, (list, tuple)) or any(not isinstance(v, str) or not v.strip() for v in options):
-            raise ValueError('Options must be a list of nonempty display labels')
-        if kind in ('select', 'radio', 'multiselect') and not options:
-            raise ValueError('Capture the actual options before registering a choice control')
-        options = sorted(set(options))
-        identity = [origin(site), normalize(section) if section.strip() else '', normalized, kind, options]
-        ident = hashlib.sha256(json.dumps(identity, ensure_ascii=True).encode()).hexdigest()
         with locked(self.path):
             data = self._read()
-            if ident not in data['questions']:
-                candidates = [key for key, f in data['fields'].items()
-                              if kind == 'text' and f['type'] == 'text'
-                              and identity[1] in ('', 'contact information', 'personal information', 'applicant information', 'about you')
-                              and normalized in {normalize(a) for a in f['aliases']}]
-                data['questions'][ident] = dict(site=identity[0], section=section, label=label,
-                    normalized=normalized, kind=kind, options=options,
-                    field_key=candidates[0] if len(candidates) == 1 else None,
-                    binding='builtin' if len(candidates) == 1 else None,
-                    first_seen=_now(), last_seen=_now(), observations=0)
-            question = data['questions'][ident]
-            question['last_seen'] = _now()
-            question['observations'] += 1
+            ident = self._observe_in_data(data, label, site=site, section=section,
+                                          kind=kind, options=options)
             self._write(data)
             return self._resolve(data, ident, position_id)
 

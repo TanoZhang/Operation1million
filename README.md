@@ -34,6 +34,7 @@ and leaves the rest in a review page where I mark each posting applied or skippe
 | `tests/` | offline test suite |
 | `deploy/vps/` | installer, daily pass, systemd units |
 | `deploy/local/` | double-click scripts: open review, deploy, back up |
+| `application-autofill/` | standalone local-only application form reader and filler |
 | `docs/` | design notes and operating rules |
 
 ## Run it locally
@@ -53,3 +54,4 @@ Paid search stays off unless you pass `--jsearch` and set `JSEARCH_API_KEY` in
 - [Collection rules](docs/collection-rules.md): pacing, cooldowns, stop conditions
 - [Job store](docs/job-store.md): incremental passes and what closes a posting
 - [VPS deployment](docs/vps-deployment.md)
+- [Local answer bank and application autofill](docs/answer-bank.md)

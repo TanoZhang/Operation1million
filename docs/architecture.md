@@ -81,7 +81,20 @@ observed questions and confirmed bindings. Its authoritative `.local/autofill/
 answers.json` is atomically saved under a lock; `answers.sqlite` is a derived
 view refreshed after writes and can be rebuilt. This is not application decision
 state, does not write the VPS ledger, and is never read by job-index rebuilds.
-It emits no personal-review answer automatically and performs no browser writes.
+The ATS-independent Chrome/Edge extension under `application-autofill/extension`
+is injected into the active HTTPS tab only after a user action. It imports an
+ignored local profile seed once, then owns its working copy in private browser
+storage. It needs no local server, startup entry or background process. Safe
+answers are filled when the popup opens; review-policy answers remain behind a
+separate question-and-answer checklist that fills only selected rows. While
+installed on that page, the content script
+stores final nonempty values from trusted blur/change events, never keystrokes.
+The browser owns one answer bank; learned mappings carry explicit global, site,
+or position reuse scope. Global reuse requires an exact normalized question,
+control kind and option set and remains review-only. It never submits or
+overwrites an existing value. Sensitive identifiers, consent
+controls, checkboxes, files and unsupported custom comboboxes remain manual.
+Platform adapters extend this scanner rather than introducing separate extensions.
 Position-restricted bindings withhold answers unless the caller supplies the
 matching position ID; passing no context cannot silently reuse a prior cycle.
 See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
