@@ -122,6 +122,55 @@ class ApplicationsTests(unittest.TestCase):
         self.assertEqual(dates['https://example.test/a'], '2026-09-17')
         self.assertIsNone(dates['https://example.test/b'], 'a lower bound is not a date')
 
+    def add_paid(self, job_id, location, age=1):
+        title = 'Hardware (CPU, GPU, SoC, Digital Design, DV) Engineering Internship – Summer 2027'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (f'https://linkedin.test/{job_id}', 'sample', title, location, job_id,
+                        (self.now - timedelta(days=age)).isoformat(), None, 'jsearch', 81, None,
+                        json.dumps({'description': 'RTL SoC DV internship.'}),
+                        (self.now - timedelta(days=age)).isoformat()))
+
+    def paid_groups(self, bucket='pending'):
+        return [g for g in self.queue()[bucket]
+                if any(job['provider_key'] == 'jsearch' for job in g['jobs'])]
+
+    def test_a_paid_listing_decided_once_does_not_come_back_under_a_new_id(self):
+        # Reported 2026-09-24: applied on day one, back the next day, twice.
+        self.add_paid('gid-1', 'Santa Clara, California, US', age=2)
+        applications.append_decision(self.ledger, self.paid_groups()[0], 'applied')
+        self.add_paid('gid-2', 'Santa Clara, California, US', age=1)
+        self.add_paid('gid-3', 'Santa Clara,  California, US', age=0)
+        self.assertEqual(self.paid_groups(), [])
+        self.assertEqual(len(self.paid_groups('applied')), 1)
+        # Another city is another listing and stays open.
+        self.add_paid('gid-4', 'Boxborough, Massachusetts, US', age=0)
+        self.assertEqual(len(self.paid_groups()), 1)
+
+    def test_copies_of_one_paid_listing_are_one_decision(self):
+        self.add_paid('gid-1', 'Santa Clara, California, US', age=5)
+        self.add_paid('gid-2', 'Santa Clara, California, US', age=0)
+        groups = self.paid_groups()
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(len(groups[0]['jobs']), 2)
+        applications.append_decision(self.ledger, groups[0], 'skipped')
+        self.assertEqual(self.paid_groups() + self.paid_groups('backlog'), [])
+
+    def test_reopening_a_paid_listing_brings_its_copies_back(self):
+        self.add_paid('gid-1', 'Santa Clara, California, US', age=2)
+        group = self.paid_groups()[0]
+        applications.append_decision(self.ledger, group, 'applied')
+        self.add_paid('gid-2', 'Santa Clara, California, US', age=0)
+        applications.append_decision(self.ledger, self.paid_groups('applied')[0], 'pending')
+        self.assertEqual(len(self.paid_groups()[0]['jobs']), 2)
+
+    def test_direct_requisitions_sharing_a_title_and_city_stay_apart(self):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET title='RTL Engineer', location='Austin' "
+                       "WHERE url IN ('https://example.test/a', 'https://example.test/b')")
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
+        self.assertEqual(len(self.queue()['pending']), 1, 'req-b is its own requisition')
+
     def test_deciding_one_requisition_leaves_its_namesake_alone(self):
         applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
         remaining = self.queue()['pending']

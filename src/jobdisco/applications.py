@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import sqlite3
 import uuid
@@ -57,6 +58,23 @@ def scoped_identity(job):
     return (provider,
             '' if provider == 'jsearch' else (job.get('company_key') or ''),
             requisition)
+
+
+def listing_signature(job):
+    """Company, title and place of a paid listing, for spotting the same job twice.
+
+    JSearch's `job_id` names a listing, not a requisition: LinkedIn reposting
+    the same internship, or showing it twice, comes back under a new id, and
+    each one arrived as a job never decided on. Reported 2026-09-24: a Qualcomm
+    internship applied to on Sep 22 was back the next day, twice in one city.
+    Only paid listings are matched this way. A direct board's id is the
+    company's own requisition, and one title in one city can be several of
+    those.
+    """
+    def plain(value):
+        return ' '.join(re.sub(r'[\W_]+', ' ', str(value or '')).casefold().split())
+    return (plain(job.get('company_key') or job.get('company')),
+            plain(job.get('title')), plain(job.get('location')))
 
 
 @contextmanager
@@ -172,7 +190,9 @@ def queue(db_path=DB, path=None, now=None):
     # fallback, for ledger records too old to carry a scoped snapshot.
     # moved_states: URL -> (provider it was decided under, decision), which is
     # how a decision survives the same posting changing provider.
-    group_states, url_states, moved_states = {}, {}, {}
+    # signature_states: a paid listing's company, title and place -> the latest
+    # decision on any paid listing of the same job; see `listing_signature`.
+    group_states, url_states, moved_states, signature_states = {}, {}, {}, {}
     for order, event in enumerate(events):
         event = dict(event, replay_order=order)
         # Replay old snapshots through the same normalization without rewriting
@@ -192,6 +212,8 @@ def queue(db_path=DB, path=None, now=None):
                     snapshot, id=key, title=title, jobs=jobs))
                 group_states[key] = decision
                 for job in jobs:
+                    if job.get('provider_key') == 'jsearch':
+                        signature_states[listing_signature(job)] = decision
                     # A posting found first through JSearch and later on the
                     # company's own board keeps its URL -- the store merges the
                     # two discoveries into one row -- but takes the direct
@@ -249,8 +271,11 @@ def queue(db_path=DB, path=None, now=None):
         moved = [decision for under, identity, decision in moved_states.get(job['url'], ())
                  if under[0] and under[0] != here[0] and under[1:] == here[1:]
                  and still_the_decided_opening(job['url'], identity)]
+        same_job = (signature_states.get(listing_signature(job))
+                    if provider == 'jsearch' else None)
         candidates = [event for event in (group_states.get(decision_key(job)),
-                                          url_states.get(job['url']), *moved) if event]
+                                          url_states.get(job['url']), same_job, *moved)
+                      if event]
         return max(candidates, key=lambda event: event['replay_order'], default=None)
     uri = Path(db_path).resolve().as_uri() + '?mode=ro'
     groups, backlog, legacy_history = {}, {}, []
@@ -320,6 +345,8 @@ def queue(db_path=DB, path=None, now=None):
         # rules do not change inside one call, so remembering an answer is the
         # same answer.
         titles, employers = {}, {}
+        # A paid listing's signature -> the group its first copy opened.
+        paid_groups = {}
         minimum = rules.get('min_confidence', 25)
 
         def verdict(title):
@@ -399,7 +426,14 @@ def queue(db_path=DB, path=None, now=None):
                     if jsearch.description_text({'raw': raw}):
                         continue
                 key = decision_key(job)
-                group = target.setdefault(key, {'id': key, 'company': job['company'],
+                into = target
+                if job['provider_key'] == 'jsearch':
+                    # Copies of one paid listing are one group, recent or not,
+                    # so one decision covers every id they arrived under.
+                    key = paid_groups.setdefault(listing_signature(job), key)
+                    if key in groups:
+                        into = groups
+                group = into.setdefault(key, {'id': key, 'company': job['company'],
                                                 'title': job['title'],
                                                 'confidence': job['confidence'],
                                                 'bucket': ranking.bucket(job['title']),

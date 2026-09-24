@@ -151,6 +151,19 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### A paid listing came back every day under a new id, 2026-09-24 UTC
+
+Reported by the user with a screenshot: one Qualcomm internship, applied to on
+Sep 22, sat in Applied three times -- it had returned as pending each day, twice
+in Santa Clara. A paid decision was keyed on JSearch's `job_id`, which names a
+listing, not a requisition; LinkedIn reposts and duplicates arrive under new
+ids. Paid listings now also match on company, title and location
+(`applications.listing_signature`): copies group into one entry, and a decision
+on any copy covers the others, including a reopen. Direct boards are unchanged,
+since their ids are real requisitions. Reproducers in `ApplicationsTests`,
+red before; suite 668, 2 skipped. JSearch reissuing ids is inferred from the
+screenshot, not measured in the index.
+
 ### Direct-board titles with no description, 2026-09-23 UTC
 
 Reported by the user from the live queue: "Software Engineering Intern",
