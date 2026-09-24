@@ -14,8 +14,9 @@ review; global reuse is unavailable for these custom selectors. The extension
 does not submit, accept terms, or overwrite existing values.
 
 Five Node behavior tests and 29 focused Python tests pass on base `82e8a81` plus
-this working tree. The live application's DOM was inspected without changing answers; the new build
-has not been reloaded in Chrome, and browser storage has not yet been verified.
+this working tree. The live application's DOM was inspected without changing
+answers; the new build has not been reloaded in Chrome, and browser storage has
+not yet been verified.
 Reload the unpacked extension once, then open its popup on the still-completed
 Micron page to capture values into private browser storage. No personal answers
 were copied into the repository.
@@ -82,6 +83,39 @@ worst a denied citizenship requirement ("You do not need to be a U.S.
 citizen") read as one. Suite: 663 tests, 2 skipped, on Linux in a cloud
 session with no production index. Changes the filter fingerprint, so the
 review cache rebuilds; stored relevance scores are unaffected.
+
+# Continued audit and improvement study - 2026-09-23 UTC (codex)
+
+Source remains `b2c9340f84dbe5f7fb020301c2d724af32587424`; the standing codex
+branch contains audit documentation and synthetic harnesses only. Four new
+defects reproduce through storage and Review: negated citizenship requirements,
+lost requirements-field headings, experience preference scope and an inline
+required PhD heading after a preferred section. The new eight-test harness has
+four failures and four passing controls; R1-R3 remain in the earlier report.
+
+Behavior-preserving prototypes pass 43 existing tests and exact-output checks.
+Reusing parsed description text cuts HTML parsing from three calls to two and
+measures 1.90x faster for synthetic details with qualification fields. Per-sort
+bounded caches measure 1.75-3.46x faster with repeated timestamps but 10.5% slower
+with all-unique inputs. Consolidating decision matching is an unimplemented
+structure proposal. See [round-two report](review-audit-round2-2026-09-23.md),
+its reproduction harness and `docs/review-benchmark-2026-09-23.py`.
+
+No application code, database/schema, log format, collection or deployment
+changed. Measurements are offline and synthetic, not production throughput.
+
+# Latest Review audit - 2026-09-23 UTC (codex, findings only)
+
+Audited application source and last fetched main:
+`b2c9340f84dbe5f7fb020301c2d724af32587424`. Three synthetic defects reproduce:
+empty HTML refresh deletes the only useful teaser and admits an ineligible
+posting; a null teaser retains obsolete experience requirements; conditional
+PhD wording hides a posting without establishing an exclusive requirement.
+See [audit report](review-audit-2026-09-23.md) and its runnable six-case
+reproducer. Existing focused tests: 177 pass. Reproducer: three failures and
+three passing controls. Published on standing `codex`; no application source
+changes, deployment, production measurement or collection. Prior deployment
+status below remains historical evidence.
 
 # PhD preference wording and stale-text rejects - 2026-09-23 UTC (claude, not deployed)
 

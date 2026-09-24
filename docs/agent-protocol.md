@@ -26,6 +26,18 @@ Next: Deploy with deploy/vps/install.sh.
 
 ```text
 Owner: codex
+Scope: Repository-wide review for small code-size simplifications with identical behavior, plus new offline bug reproductions; includes the in-progress description traversal simplification.
+Files: src/jobdisco/ Python and Review static files (only proven local simplifications), associated tests, docs/{agent-protocol,architecture,handoff}.md and one repository review report/reproducer. Deployment/config files are inspected read-only.
+Base commit: 72752c4bec0ca0f18b958f3a45197a11001df51a
+Last inspected main: b2c9340f84dbe5f7fb020301c2d724af32587424
+Branch: local codex/review-audit, published to standing remote codex
+Date: 2026-09-23 UTC
+Status: claimed
+Next: Finish description traversal verification, inspect every runtime module and deployment/config area, make only contained equivalent cleanups, reproduce new bugs separately, then run the offline suite.
+```
+
+```text
+Owner: codex
 Scope: ATS-independent standalone Chrome/Edge autofill MVP with automatic
        final-value learning, conservative fill controls and regression tests. Never
        submit applications, accept agreements, solve challenges, or store data
@@ -50,6 +62,30 @@ Base commit: b2c9340
 Status:  done -- pushed to main, not deployed
 Next:    Run deploy/vps/install.sh on the VPS (this session has no SSH
          access to it).
+```
+
+```text
+Owner: codex
+Scope: Continue offline Review/eligibility audit and measure behavior-preserving code-size, structure and algorithm improvements; no database or behavior changes.
+Files: docs/review-audit-round2-2026-09-23.md, docs/review-audit-repro-round2-2026-09-23.py, docs/review-benchmark-2026-09-23.py, docs/{agent-protocol,handoff}.md; architecture HTML report in OS temp directory
+Base commit: 8f95b07f2cf21a9f985983b105278f36a7d0516f (application source b2c9340)
+Last inspected main: b2c9340f84dbe5f7fb020301c2d724af32587424
+Branch: local codex/review-audit, published to standing remote codex
+Date: 2026-09-23 UTC
+Status: done
+Next: Review R4-R7 and three improvement candidates in docs/review-audit-round2-2026-09-23.md. Four new defects reproduce; 43 existing tests pass with isolated optimization prototypes. Description reuse measures 1.90x faster; sort caching depends on input reuse. Application source and real databases are unchanged.
+```
+
+```text
+Owner: codex
+Scope: Offline audit of the latest PhD eligibility, description refresh and Review display changes; reproducible findings only.
+Files: docs/review-audit-2026-09-23.md, docs/review-audit-repro-2026-09-23.py, docs/{agent-protocol,handoff}.md
+Base commit: b2c9340f84dbe5f7fb020301c2d724af32587424
+Last inspected main: b2c9340f84dbe5f7fb020301c2d724af32587424
+Branch: local codex/review-audit, published to standing remote codex
+Date: 2026-09-23 UTC
+Status: done
+Next: Review three reproduced defects: empty HTML refresh loses the teaser, null teaser retains obsolete requirements, conditional PhD wording rejects. Existing 177 focused tests pass; six-case reproducer has three failures and three passing controls. No application code changed or deployed.
 ```
 
 ```text
