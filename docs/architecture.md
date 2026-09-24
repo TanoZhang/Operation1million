@@ -161,7 +161,7 @@ ids. Paid listings now also match on company, title and location
 (`applications.listing_signature`): copies group into one entry, and a decision
 on any copy covers the others, including a reopen. Direct boards are unchanged,
 since their ids are real requisitions. Reproducers in `ApplicationsTests`,
-red before; suite 668, 2 skipped. JSearch reissuing ids is inferred from the
+red before; suite 676, 2 skipped. JSearch reissuing ids is inferred from the
 screenshot, not measured in the index.
 
 ### Direct-board titles with no description, 2026-09-23 UTC
