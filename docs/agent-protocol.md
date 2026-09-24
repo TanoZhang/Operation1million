@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Recognize and remember answers on Micron's Eightfold application form, including native radios and custom comboboxes, with position-safe matching.
+Files: application-autofill/extension/{content,popup}.js, application-autofill/extension/{popup.html,manifest.json}, application-autofill/README.md, tests/{autofill_micron.cjs,test_autofill_extension.py}, docs/{agent-protocol,answer-bank,architecture,handoff}.md
+Base commit: 82e8a81b45c866fb4f25ae012f0c92a23aebc491
+Status: done
+Next: Reload extension version 0.5.0 in Chrome and verify captures on the open Micron page.
+```
+
+```text
 Owner: claude
 Scope: Review page: less related postings get their own tab; Remaining and
        the To review and Backlog tabs exclude them.

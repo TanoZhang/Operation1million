@@ -43,6 +43,10 @@
   function sectionLabel(element) {
     const fieldset = element.closest('fieldset');
     if (fieldset) {
+      const headings = Array.from(fieldset.querySelectorAll('h1, h2, h3, h4'))
+        .filter(heading => heading.compareDocumentPosition(element)
+          & Node.DOCUMENT_POSITION_FOLLOWING);
+      if (headings.length) return cleanText(headings[headings.length - 1].textContent);
       const legend = fieldset.querySelector(':scope > legend');
       if (legend && cleanText(legend.textContent)) return cleanText(legend.textContent);
     }
@@ -61,15 +65,21 @@
   }
 
   function isUsable(element) {
-    if (element.disabled || element.readOnly || element.getAttribute('aria-disabled') === 'true') return false;
+    if (element.disabled || (element.readOnly && element.type !== 'radio')
+      || element.getAttribute('aria-disabled') === 'true') return false;
     if (element instanceof HTMLInputElement && UNSAFE_INPUT_TYPES.has(element.type)) return false;
-    if (element.getAttribute('role') === 'combobox') return false;
+    if (element.getAttribute('role') === 'combobox'
+      && !(element.getAttribute('aria-controls')
+        && element.closest('[class*="select-module_select-wrapper"]'))) return false;
     const style = getComputedStyle(element);
     return style.display !== 'none' && style.visibility !== 'hidden';
   }
 
   function radioLabel(element) {
-    return nearbyLabel(element) || cleanText(element.value);
+    const explicit = element.id
+      && document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
+    return cleanText(explicit && explicit.textContent) || nearbyLabel(element)
+      || cleanText(element.value);
   }
 
   function blockedLabel(label) {
@@ -83,7 +93,11 @@
     const group = first.closest('[role="radiogroup"]');
     const groupLabel = group && (cleanText(group.getAttribute('aria-label'))
       || textFromIds(group.getAttribute('aria-labelledby')));
-    const label = cleanText(legend && legend.textContent) || groupLabel || nearbyLabel(first);
+    const aria = cleanText(first.getAttribute('aria-label'));
+    const option = radioLabel(first);
+    const composite = aria.startsWith(`${option}, `) ? aria.slice(option.length + 2) : '';
+    const label = groupLabel || composite || cleanText(legend && legend.textContent)
+      || nearbyLabel(first);
     if (!label || blockedLabel(label)) return null;
     const selected = members.find(item => item.checked);
     return {
@@ -111,6 +125,9 @@
         : (element.selectedOptions[0] && !element.selectedOptions[0].disabled
           && element.selectedOptions[0].value !== ''
           ? cleanText(element.selectedOptions[0].textContent) : '');
+    } else if (element.getAttribute('role') === 'combobox') {
+      kind = 'combobox';
+      value = element.getAttribute('aria-expanded') === 'true' ? '' : element.value;
     } else if (element instanceof HTMLInputElement && element.type === 'number') {
       kind = 'number';
       value = element.value === '' ? '' : Number(element.value);
@@ -177,9 +194,8 @@
       Array.from(new Set(capture.options || [])).sort(), capture.position_id]);
   }
 
-  function rememberFinalValue(event) {
-    if (!event.isTrusted) return;
-    const control = captureFromElement(event.target);
+  function rememberControl(element) {
+    const control = captureFromElement(element);
     if (!control || !hasValue(control.value)) return;
     const capture = {...control, site: location.origin, position_id: positionId(),
       captured_at: new Date().toISOString()};
@@ -195,10 +211,27 @@
     }).catch(() => {});
   }
 
+  function rememberFinalValue(event) {
+    if (event.isTrusted) rememberControl(event.target);
+  }
+
   document.addEventListener('change', rememberFinalValue, true);
   document.addEventListener('blur', rememberFinalValue, true);
+  document.addEventListener('click', event => {
+    if (!event.isTrusted || !(event.target instanceof Element)) return;
+    const option = event.target.closest('[role="option"]');
+    const list = option && option.closest('[role="listbox"]');
+    if (!list || !list.id) return;
+    const input = document.querySelector(`input[role="combobox"][aria-controls="${CSS.escape(list.id)}"]`);
+    if (input && input.closest('[class*="select-module_select-wrapper"]')) {
+      setTimeout(() => rememberControl(input), 0);
+    }
+  }, true);
 
   function positionId() {
+    const current = new URL(location.href);
+    const requisition = current.searchParams.get('pid');
+    if (requisition && /^[A-Za-z0-9-]+$/.test(requisition)) return requisition;
     const canonical = document.querySelector('link[rel="canonical"]');
     const value = canonical ? canonical.href : location.href;
     const parsed = new URL(value);
@@ -224,7 +257,7 @@
     element.dispatchEvent(new Event('blur', {bubbles: true}));
   }
 
-  function fillOne(match) {
+  async function fillOne(match) {
     const element = elementForId(match.control_id);
     if (!element || match.answer === null || match.answer === undefined) return 'missing';
     if (match.status === 'requires_review' && !match.allow_review) return 'review';
@@ -236,6 +269,25 @@
       if (!target) return 'option_mismatch';
       if (!target.checked) target.click();
       return 'filled';
+    }
+    if (element.getAttribute('role') === 'combobox') {
+      if (element.value) return 'occupied';
+      const listId = element.getAttribute('aria-controls');
+      if (!listId || !element.closest('[class*="select-module_select-wrapper"]')) {
+        return 'unavailable';
+      }
+      element.click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const list = document.getElementById(listId);
+      const options = list && Array.from(list.querySelectorAll('[role="option"]'))
+        .filter(option => cleanText(option.textContent) === String(match.answer));
+      if (!options || options.length !== 1) {
+        element.blur();
+        return 'option_mismatch';
+      }
+      options[0].click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return cleanText(element.value) === String(match.answer) ? 'filled' : 'option_mismatch';
     }
     if (element instanceof HTMLSelectElement) {
       const current = Array.from(element.selectedOptions)
@@ -269,9 +321,17 @@
           .catch(error => respond({error: error.message}));
         return true;
       } else if (message.action === 'fill') {
-        const outcomes = message.results.map(result => fillOne({...result, allow_review: message.allowReview}));
-        respond({filled: outcomes.filter(value => value === 'filled').length,
-          occupied: outcomes.filter(value => value === 'occupied').length});
+        (async () => {
+          const outcomes = [];
+          for (const result of message.results) {
+            outcomes.push(await fillOne({...result, allow_review: message.allowReview}));
+          }
+          return outcomes;
+        })().then(outcomes =>
+          respond({filled: outcomes.filter(value => value === 'filled').length,
+            occupied: outcomes.filter(value => value === 'occupied').length}))
+          .catch(error => respond({error: error.message}));
+        return true;
       }
     } catch (error) {
       respond({error: error.message});

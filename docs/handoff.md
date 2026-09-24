@@ -1,6 +1,25 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Micron application autofill recognition - 2026-09-24 UTC (codex, not deployed)
+
+The user's Micron Eightfold application screenshot exposed three scanner defects:
+read-only native radios were rejected, custom listbox comboboxes were omitted,
+and `/careers/apply?pid=...` was scoped by its shared path instead of `pid`.
+The live tab's read-only DOM confirmed all three. Version 0.5.0 recognizes the
+radio question and option separately, scans the Eightfold combobox, captures
+values already present when the popup opens, and captures later listbox choices.
+Filling a combobox requires an exact option in its opened list and explicit
+review; global reuse is unavailable for these custom selectors. The extension
+does not submit, accept terms, or overwrite existing values.
+
+Five Node behavior tests and 29 focused Python tests pass on base `82e8a81` plus
+this working tree. The live application's DOM was inspected without changing answers; the new build
+has not been reloaded in Chrome, and browser storage has not yet been verified.
+Reload the unpacked extension once, then open its popup on the still-completed
+Micron page to capture values into private browser storage. No personal answers
+were copied into the repository.
+
 # Low relevance tab - 2026-09-24 UTC (claude, not deployed)
 
 At the user's request, less related postings (`less_related`: last band and Fit

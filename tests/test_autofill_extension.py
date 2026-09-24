@@ -41,13 +41,16 @@ class AutofillExtensionTests(unittest.TestCase):
         self.assertIn('run(fillKnown)', script)
         self.assertIn("status: 'unknown'", script)
 
-    def test_learning_records_only_final_trusted_events(self):
+    def test_learning_records_existing_values_and_final_trusted_events(self):
         source = (EXTENSION / 'content.js').read_text()
+        popup = (EXTENSION / 'popup.js').read_text()
         self.assertIn('answerCaptures', source)
         self.assertIn("document.addEventListener('change', rememberFinalValue, true)", source)
         self.assertIn("document.addEventListener('blur', rememberFinalValue, true)", source)
         self.assertNotIn("document.addEventListener('input', rememberFinalValue", source)
-        self.assertIn('if (!event.isTrusted) return', source)
+        self.assertIn('if (event.isTrusted) rememberControl(event.target)', source)
+        self.assertIn('pageScan(true)', popup)
+        self.assertIn('const current = absorbCaptures(profile, payload.controls', popup)
 
     def test_learned_answers_require_review_and_conflicts_are_preserved(self):
         script = (EXTENSION / 'popup.js').read_text()
@@ -78,7 +81,7 @@ class AutofillExtensionTests(unittest.TestCase):
             self.assertIn(label, script)
         self.assertIn("field.reuse_scope = scope", script)
         self.assertIn("field.reuse_signature = questionSignature(question)", script)
-        self.assertIn("const groups = ['position', 'site', 'global']", script)
+        self.assertIn("control.kind === 'combobox' ? ['position', 'site']", script)
         self.assertIn("binding: builtinKey ? 'builtin' : (fieldKey ? 'reused' : null)", script)
 
 

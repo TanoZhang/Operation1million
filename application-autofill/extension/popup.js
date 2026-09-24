@@ -93,7 +93,8 @@
         const option = document.createElement('option');
         option.value = value;
         option.textContent = label;
-        option.disabled = value === 'position' && !item.position_id;
+        option.disabled = (value === 'position' && !item.position_id)
+          || (value === 'global' && item.kind === 'combobox');
         scope.append(option);
       });
       scope.value = item.reuse_scope || 'site';
@@ -143,7 +144,8 @@
   function compatible(field, question) {
     return ((question.kind === 'text' && field.type === 'text')
       || (question.kind === 'number' && field.type === 'integer')
-      || (['select', 'radio'].includes(question.kind) && ['text', 'choice'].includes(field.type))
+      || (['select', 'radio', 'combobox'].includes(question.kind)
+        && ['text', 'choice'].includes(field.type))
       || (question.kind === 'multiselect' && field.type === 'multi_choice'));
   }
 
@@ -162,7 +164,9 @@
   function reusableField(profile, site, control, positionId) {
     const siteOrigin = origin(site);
     const signature = questionSignature(control);
-    const groups = ['position', 'site', 'global'].map(scope =>
+    const scopes = control.kind === 'combobox' ? ['position', 'site']
+      : ['position', 'site', 'global'];
+    const groups = scopes.map(scope =>
       Object.entries(profile.fields).filter(([, field]) => {
         if (field.reuse_scope !== scope || field.reuse_signature !== signature) return false;
         if (field.answer === null || field.answer === undefined) return false;
@@ -209,7 +213,7 @@
   }
 
   function resolve(profile, questionId, question, positionId) {
-    const result = {question_id: questionId, label: question.label,
+    const result = {question_id: questionId, label: question.label, kind: question.kind,
       field_key: question.field_key, status: 'unknown', answer: null};
     if (!question.field_key) return result;
     if (question.required_position_id && question.required_position_id !== positionId) {
@@ -242,6 +246,11 @@
 
   async function resolvePage(payload) {
     const {profile, learned} = await loadProfile();
+    const current = absorbCaptures(profile, payload.controls.filter(control =>
+      control.value !== null && control.value !== undefined && control.value !== '')
+      .map(control => ({...control, site: origin(payload.site),
+        position_id: payload.position_id, captured_at: new Date().toISOString()})));
+    Object.keys(learned).forEach(key => { learned[key] += current[key]; });
     const results = payload.controls.map(control => {
       const [questionId, question] = observe(profile, payload.site, control,
         payload.position_id);
@@ -262,6 +271,7 @@
 
   function controlType(kind) {
     return {text: 'text', number: 'integer', select: 'choice', radio: 'choice',
+      combobox: 'choice',
       multiselect: 'multi_choice'}[kind];
   }
 
@@ -305,7 +315,7 @@
   }
 
   async function fillKnown() {
-    const {tab, payload} = await pageScan(false);
+    const {tab, payload} = await pageScan(true);
     const {results, learned} = await resolvePage(payload);
     renderReview(results);
     const outcome = await chrome.tabs.sendMessage(tab.id,
@@ -327,6 +337,7 @@
       if (!field) return;
       let scope = selected.get(item.question_id);
       if (!['global', 'site', 'position'].includes(scope)) scope = 'site';
+      if (scope === 'global' && question.kind === 'combobox') scope = 'site';
       if (scope === 'position' && !item.position_id) scope = 'site';
       field.reuse_scope = scope;
       field.reuse_signature = questionSignature(question);

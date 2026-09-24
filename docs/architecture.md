@@ -88,12 +88,18 @@ storage. It needs no local server, startup entry or background process. Safe
 answers are filled when the popup opens; review-policy answers remain behind a
 separate question-and-answer checklist that fills only selected rows. While
 installed on that page, the content script
-stores final nonempty values from trusted blur/change events, never keystrokes.
+stores values already present when opened and final nonempty values from trusted
+blur/change events, never keystrokes.
 The browser owns one answer bank; learned mappings carry explicit global, site,
 or position reuse scope. Global reuse requires an exact normalized question,
 control kind and option set and remains review-only. It never submits or
 overwrites an existing value. Sensitive identifiers, consent
 controls, checkboxes, files and unsupported custom comboboxes remain manual.
+The Micron/Eightfold adapter recognizes read-only radio inputs and listbox
+comboboxes. It captures already selected values, uses the `pid` query parameter
+for position scope, and fills a custom selector only after finding one exact
+option in its open list. Custom selector answers remain review-only and cannot
+receive global reuse scope.
 Platform adapters extend this scanner rather than introducing separate extensions.
 Position-restricted bindings withhold answers unless the caller supplies the
 matching position ID; passing no context cannot silently reuse a prior cycle.
@@ -163,6 +169,20 @@ reproducer and update its evidence below.
   recalculate; rule changes require `job-store --rescore`.
 
 ## Bugs found and fixed
+
+### Micron's completed form was neither fully scanned nor remembered, 2026-09-24 UTC
+
+The Eightfold form marks its native radios `readonly`, which the first scanner
+mistook for disabled controls. Its custom select inputs have `role=combobox`
+and a separate listbox, so the native-control scan dropped most position
+questions. When the user had already filled the form before opening the popup,
+event-only learning saw none of those final values. The shared `/careers/apply`
+path also erased the `pid` distinction between positions. The read-only live
+DOM established the control shapes; three offline Node cases were red before
+the fixes. The corrected scanner accepts these radios, captures existing form
+values at user invocation, treats the `pid` as position identity, and checks
+the open list for one exact option before filling a custom select. Its saved
+custom-select answers stay review-only and cannot be globally scoped.
 
 ### A paid listing came back every day under a new id, 2026-09-24 UTC
 

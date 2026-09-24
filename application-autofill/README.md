@@ -22,9 +22,10 @@ seed for a new browser profile; normal extension use never runs it. Answers
 recorded by the extension remain in `chrome.storage.local` for that browser
 profile.
 
-Unknown fields are never filled. After the popup has been opened on a page, the
-content script remembers a nonempty value only when a real user leaves or changes
-that field. It does not record keystrokes. New exact questions are site-scoped
+Unknown fields are never filled. Opening the popup also remembers values already
+selected on the current page. After that, the content script remembers a nonempty
+value when a real user leaves or changes the field. It does not record keystrokes.
+New exact questions are site-scoped
 and default to `review`, so a learned value is available only through the
 review checklist. The popup shows each exact question and proposed answer, and
 each checked row chooses **All sites**, **This site**, or **This position** before
@@ -34,9 +35,16 @@ explicit All sites choice and exact normalized question, kind and option text.
 A different existing answer is reported as a conflict and is never overwritten.
 Existing text, choice and radio values are also left unchanged.
 
-The first version is ATS-independent and supports native text, number, textarea,
-select, and radio controls. Checkboxes remain manual because they commonly
-express consent. Platform-specific widgets that do not expose native controls
-remain manual until an adapter can verify their option model rather than merely
-type text. Workday, Greenhouse, Lever, iCIMS, SmartRecruiters and other ATS
-adapters can extend the same scanner without creating separate extensions.
+Native text, number, textarea, select and radio controls are supported. The
+Micron/Eightfold custom listbox selector is recognized; a saved answer is filled
+only after its open list contains one exact matching option. Its answers are
+site- or position-scoped and require review. Checkboxes remain manual because
+they commonly express consent. Other platform widgets remain manual until their
+option model can be verified. Workday, Greenhouse, Lever, iCIMS, SmartRecruiters
+and other ATS adapters can extend the same scanner without separate extensions.
+
+After changing the unpacked extension files, reload its card at
+`chrome://extensions` or `edge://extensions` once. Open the Micron application
+again and click the extension while the completed form is visible to capture
+its existing answers. The popup reports the number newly remembered; review
+answers remain in the browser's private extension storage.
