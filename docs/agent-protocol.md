@@ -519,5 +519,5 @@ order, protected decisions, or fixed bugs. Update only the newest handoff sectio
 with current operating facts; never rewrite older snapshots into current advice.
 
 When two agents collide, preserve both tips, compare from their merge base, run
-the deciding tests, and record what resolved the difference. Commit authors
-distinguish the agents: Codex uses `TanoZhang`; Claude uses `TanoZhang`.
+the deciding tests, and record what resolved the difference. Commit authors do
+not tell the agents apart; the claim's `Owner` line does.

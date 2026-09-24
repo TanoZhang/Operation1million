@@ -1,53 +1,47 @@
-# Start here
+# Agent rules
 
-This file is the mandatory entry point, not the project manual. Current work,
-system reasoning, operating detail, and history live under `docs/`.
+Claude and Codex both work in this repo and follow the same rules. Detail lives in `docs/`.
 
-## Before changing code
+## Before editing
 
-1. Read **Active claims** in [docs/agent-protocol.md](docs/agent-protocol.md).
-2. Read only the newest section of [docs/handoff.md](docs/handoff.md) as current
-   state. Older sections are historical evidence, not current instructions.
-3. Read the protected decisions in
-   [docs/architecture.md](docs/architecture.md) before changing existing behavior.
-4. Claim the work before editing. Include scope, files, base commit, status, and
-   next action.
-5. Fetch before touching overlapping work. Compare the other diff and settle
-   disagreements with tests.
-6. Never revert, stash, reset, or overwrite another agent's changes to simplify
-   your patch. Use a separate worktree when necessary.
-
-Mark the claim `done` promptly. A stale claim is a false lock.
+1. Read the active claims in `docs/agent-protocol.md`.
+2. Read the newest section of `docs/handoff.md`. Older sections are history.
+3. Read the protected decisions in `docs/architecture.md` before changing existing behavior.
+4. Add a claim: owner, scope, files, base commit, status, next step. Mark it `done` when finished.
+5. Fetch before touching shared work. Settle disagreements with a test.
+6. Never revert, stash, reset or overwrite the other agent's changes. Use a separate worktree if needed.
 
 ## Invariants
 
-- The daily page-credit boundary is 04:38 `America/Los_Angeles`; the 30-day
-  billing cycle uses UTC dates. Do not unify these clocks.
-- Reserve every paid credit before its request leaves, through `RequestGuard`.
-- SQLite is derived. The decision ledger and `operational/` state are durable.
-  Application decisions never live in SQLite.
-- `first_seen` records observation, not publication.
-- Hard rejects run before keeps and scores and cannot be overturned. A word
-  with an ordinary semiconductor meaning is not a hard reject by itself.
-- Never bypass access challenges, overlap collector processes, rewrite sealed
-  logs, or bypass the 25% closure fuse. Read
-  [docs/collection-rules.md](docs/collection-rules.md) before collection work.
-- A GitHub push does not deploy. `deploy/vps/install.sh` deploys and prints the
-  installed commit.
-- Keep both repositories private. Read
-  [docs/publication-policy.md](docs/publication-policy.md) before publishing.
+- The daily credit budget resets at 04:38 America/Los_Angeles. The 30-day billing cycle counts UTC dates. Keep the two clocks separate.
+- Every paid request reserves its credit through `RequestGuard` before it is sent.
+- SQLite is derived and rebuildable. The decision ledger and `operational/` are the durable record. Application decisions never go in SQLite.
+- `first_seen` is when we first saw a posting, not when it was published.
+- Hard rejects run before keeps and scores, and nothing overrides them. A word with an ordinary semiconductor meaning is not a hard reject by itself.
+- Don't bypass access challenges, run two collectors at once, rewrite sealed logs, or bypass the 25% closure fuse. Read `docs/collection-rules.md` before collection work.
+- A push doesn't deploy. `deploy/vps/install.sh` does (or `deploy/local/deploy-vps.bat`) and prints the installed commit.
 
-## Document order
+## Public repo
+
+This repo is public. The data repo, `Operation1million-data`, stays private.
+
+- Never commit keys, `.env.local`, job records, application decisions, SQLite files, answer-bank content, or personal details.
+- History is public too. Removing a file later does not unpublish it.
+
+## Reporting
+
+- English, UTF-8. Keep provider data as received.
+- Say which commit you tested. Keep offline tests, production measurements, deployment and guesses apart.
+- For a bug fix, show the failing case first.
+
+## Where to look
 
 | Need | Read |
 | --- | --- |
-| Current ownership and coordination | `docs/agent-protocol.md` |
-| Current operating state | Newest section of `docs/handoff.md` |
-| Ownership, pipeline, invariants, fixed bugs | `docs/architecture.md` |
-| Collection or endpoint work | `docs/collection-rules.md`, then `docs/jsearch.md` for paid discovery |
-| VPS operations | `docs/vps-deployment.md` |
-| Review behavior | `docs/application-review.md` |
-
-Use English and UTF-8 for project artifacts. Preserve original provider data.
-Report the exact commit tested and distinguish offline evidence, production
-measurement, deployment, and inference.
+| Who is changing what | `docs/agent-protocol.md` |
+| Current state | newest section of `docs/handoff.md` |
+| Design, invariants, fixed bugs | `docs/architecture.md` |
+| Collection | `docs/collection-rules.md`, then `docs/jsearch.md` |
+| VPS | `docs/vps-deployment.md` |
+| Review page | `docs/application-review.md` |
+| Code style | `docs/coding-standards.md` |

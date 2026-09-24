@@ -1,101 +1,55 @@
-# Job Discovery
+# Operation1million
 
-Job Discovery finds relevant hardware engineering opportunities from configured
-company sources, ATS providers, public feeds, and compliant search fallbacks.
+A job search pipeline for early-career chip design roles in the US: RTL, design
+verification, physical design, DFT, FPGA and nearby hardware work.
 
-## Install
+Every morning it reads the career boards of 35 semiconductor companies, runs a
+capped paid search for everyone else, throws out what I can't or won't apply to,
+and leaves the rest in a review page where I mark each posting applied or skipped.
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -e .
-```
+## What it filters out
 
-Credentials stay in the ignored `.env.local` file. Copy `.env.example` and add
-values locally; never commit credentials.
+- Senior, principal, lead, manager, director and other levels past early career
+- Jobs outside the trade: software, sales, legal, fab process, optics and so on
+- More than two years of required experience
+- PhD-only postings
+- A U.S. citizenship or U.S.-person requirement
+- Postings located only outside the US
 
-## Application review
+## How it runs
 
-Run `.\.venv\Scripts\python.exe -m jobdisco.review` and open
-`http://127.0.0.1:8765` for the local review queue. Application decisions live in
-an append-only ledger outside SQLite and survive database rebuilds.
-See [Application review](docs/application-review.md) for storage and recovery.
-
-## Run
-
-Read [Collection Rules](docs/collection-rules.md) for request intervals,
-cooldowns, direct source decisions, and the daily incremental behavior. Read
-[GitHub Actions](docs/github-actions.md) before changing hosted runs.
-
-```powershell
-.\.venv\Scripts\python.exe -m jobdisco.collector
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-```
-
-The collector reads `data/db/job_discovery.sqlite` and `data/config/`. Without
-`--output`, it creates a UTC directory under `runs/`. Generated run contents
-are ignored by Git; `runs/latest.json` is the reviewed pointer.
+- **Sources:** Workday, Greenhouse, Ashby, Eightfold, SmartRecruiters, Phenom
+  and a few company-specific sites, plus JSearch for paid discovery.
+- **Schedule:** one VPS, a systemd timer at 04:38 Pacific.
+- **Storage:** an append-only daily event log, with SQLite as a rebuildable
+  index. Collected data and application decisions live in a private repo.
+- **Review:** a small local web server reached over an SSH tunnel.
 
 ## Layout
 
-- `src/jobdisco/`: installable Python package and console entry points
-- `tests/`: package tests
-- `data/config/`: schemas, migrations, provider and source configuration
-- `data/raw/`: source validation reports
-- `data/db/`: SQLite catalog
-- `runs/`: timestamped generated collection results
-- `docs/`: operating rules, usage notes, and publication policy
+| Path | What |
+| --- | --- |
+| `src/jobdisco/` | collector, filters, store, review server |
+| `data/config/` | source catalog, search plan, filter rules |
+| `tests/` | offline test suite |
+| `deploy/vps/` | installer, daily pass, systemd units |
+| `deploy/local/` | double-click scripts: open review, deploy, back up |
+| `docs/` | design notes and operating rules |
 
-Versioned SQL and migrations define the source catalog. The executable JSearch
-plan is `data/config/jsearch_queries.toml`. Private compressed event history is
-the durable job store; SQLite is a rebuildable local index.
-
-## Job store and incremental runs
-
-Each pass writes into the shared `jobs` table and checkpoints `source_state`.
-On a fresh machine, restore private history under `JOBDISCO_STORE` (default
-`data/store`) and bootstrap the derived database:
+## Run it locally
 
 ```powershell
-.\.venv\Scripts\python.exe -m jobdisco.store --bootstrap
+.\.venv\Scripts\python.exe -m pip install -e .
+$env:PYTHONPATH = "src"; .\.venv\Scripts\python.exe -m unittest discover -s tests
+.\.venv\Scripts\python.exe -m jobdisco.collector --company marvell --no-store
 ```
 
-`first_seen` is our own observation and exists for every board. `posted_at` only
-exists where the board publishes an absolute date, which is about half of them;
-Workday states only relative text such as `Posted 7 Days Ago`, kept verbatim in
-`posted_relative` and never converted. Anything that reports "new today" must
-therefore key off `first_seen`, not `posted_at`.
+Paid search stays off unless you pass `--jsearch` and set `JSEARCH_API_KEY` in
+`.env.local` (copy `.env.example`).
 
-`source_state` is empty before the first run, so the first pass downloads every
-board in full. Later passes pick the cheapest safe strategy per source:
+## More
 
-| Strategy | Chosen when | Effect |
-| --- | --- | --- |
-| `conditional` | the board returned an `ETag` | one probe; `304` ends the source |
-| `since` | the board lists strictly newest-first | stop paginating past the last complete pass |
-| `lastmod` | the sitemap carries `<lastmod>` | refetch only changed detail pages |
-| `full` | anything else | read the whole board |
-
-`full` is the default on purpose: a board that merely trends newest-first, or
-whose dates are relative, is read completely rather than guessed at. Only a
-`complete` pass advances a source's watermark. Only a complete inventory pass
-may retire a posting; a since-window scan, search, capped, paused or failed pass
-never closes a job it simply did not reach.
-
-Pass `--no-store` to write run files without touching the store.
-
-## JSearch functional discovery
-
-Read [JSearch daily discovery](docs/jsearch.md) before enabling paid collection.
-Preview the 52-query plan with `python -m jobdisco.collector
---jsearch-plan`. Run `python -m jobdisco.collector --jsearch` to collect direct
-boards first, functional searches second, and configured company fallbacks last.
-Each call asks for a single page and a query stops when the provider runs
-short, so the number of pages a day uses is discovered, not declared; a runaway
-guard of 40 pages bounds any one query. Tier A is paged to exhaustion before
-tier intern, then B, then C. Depth is set per tier so that order is a
-preference and not an exclusion: a single depth let tier A spend the whole
-budget while thirty-seven queries, every internship among them, went unasked.
-The ceiling is 320 page
-credits/day and the monthly target is 9,600. Paid search
-is off in local and manual commands without explicit flags. The private GitHub
-Actions workflow runs daily at 04:38 America/Los_Angeles and enables the fixed
-plan for scheduled runs. Finalized daily logs cannot be appended again.
+- [Architecture](docs/architecture.md): how the pieces fit, and the bug log
+- [Collection rules](docs/collection-rules.md): pacing, cooldowns, stop conditions
+- [Job store](docs/job-store.md): incremental passes and what closes a posting
+- [VPS deployment](docs/vps-deployment.md)
