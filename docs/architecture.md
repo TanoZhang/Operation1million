@@ -171,9 +171,9 @@ Bachelor's/Master's degree ... within past two years" was read as two years of
 work, because the degree word admitted the number as a degree path's years and
 the time-window check ran only on the heading and hands-on paths. At three
 years the same wording hid the posting outright. A read of real Workday
-postings (fetched 2026-09-26 at 1.2 s intervals from NXP, Intel, Marvell,
-Broadcom and others; first 175 reviewed by eye) found five more of the same
-kind. Each has a reproducer in `tests/test_experience.py`, red before:
+postings (370 fetched 2026-09-26 at 1.2 s intervals from nine Workday boards:
+NXP, Intel, Marvell, Broadcom, Cadence, Samsung, NVIDIA, Altera, Silicon Labs;
+every counted requirement read by eye) found seven more of the same kind. Each has a reproducer in `tests/test_experience.py`, red before:
 
 - `WINDOW` / `SINCE_GRADUATION`: "within the past N years", "N years of
   graduation", "N years remaining until graduation" are not experience, on
@@ -188,6 +188,18 @@ kind. Each has a reproducer in `tests/test_experience.py`, red before:
 - `OTHER_POSITIONS`: Intel's sponsorship paragraph ("skills shortage roles are
   typically STEM positions requiring ... three years") is about other roles.
 - `DURATION_OF`: "a 2-year full-time rotational experience" is the program.
+- `OPTIONAL` learns "an advantage", "advantageous", "an asset": Samsung's "5
+  years' experience ... will be an advantage" was a floor. The article is
+  required, since NVIDIA's "5+ years ..., advantage for FullChip" is not.
+- `INSTEAD_OF_DEGREE`: Altera's "Masters Degree or 5 years commercial
+  experience" was read as a master's plus five years; a master's alone meets it.
+
+On the 370: 1 posting now shown (the Altera one), 10 now hidden (Intel and
+Marvell senior roles asking 3-15 years that had passed as internships), 18 with
+only the years label corrected. Some misreads remain and were left: "intern
+and new graduate programs" run by a recruiting manager still reads as an
+internship, and a Samsung staff posting that invites "recent or upcoming
+graduate[s]" beside six years is taken as entry-level, which it may be.
 
 Direct-board rows are re-judged at queue time, so deploy is enough for them.
 Paid rows refused at intake kept no description and are not recovered. The

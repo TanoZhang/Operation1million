@@ -8,7 +8,10 @@ import re
 # level" stay out on purpose: those postings may still ask for years.
 ENTRY = re.compile(r'\b(?:intern|internship|co-?op|new\s+(?:college\s+)?grad(?:uate)?|'
                    r'(?:university|college|recent)\s+graduate)\b', re.I)
-OPTIONAL = re.compile(r'\b(?:preferred|desired|nice\s+to\s+have|a\s+plus|bonus|ideally)\b', re.I)
+# "Will be an advantage" (Samsung) is a preference; a bare "advantage for
+# FullChip" (NVIDIA) is not the marker, so the article is required.
+OPTIONAL = re.compile(r'\b(?:preferred|desired|nice\s+to\s+have|a\s+plus|bonus|ideally|'
+                      r'an?\s+advantage|advantageous|an\s+asset)\b', re.I)
 REQUIRED = re.compile(r'\b(?:required|requirements?|minimum|basic\s+qualifications|must\s+have|at\s+least)\b', re.I)
 DEGREE = re.compile(r"\b(?:BS|MS|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
 # A hyphen can carry the unit as well as a range: "3-year experience" states
@@ -75,6 +78,10 @@ SINCE_GRADUATION = re.compile(
     # Time a student still has ahead: "at least 1.5 years remaining until graduation".
     r'|^\s*(?:(?:remaining|left)\b|(?:until|before)\s+(?:your\s+)?graduat)',
     re.I)
+# The years are the other way to qualify, not the degree's years: "Masters
+# Degree or 5 years commercial experience" (Altera) asks nothing of a master's.
+# Not "degree or equivalent and 3 years", where the years are still owed.
+INSTEAD_OF_DEGREE = re.compile(r'^(?:(?!\b(?:and|with|plus)\b)[^.;]){0,60}\bor\s+(?:an?\s+)?$', re.I)
 # The length of the thing offered: "a 2-year full-time rotational experience".
 # Singular unit after an article, which a requirement does not use.
 DURATION_OF = re.compile(r'\b(?:a|an|this|our|the)\s+$', re.I)
@@ -292,6 +299,8 @@ def evaluate(title, description):
                         or hands_on):
                     continue
                 degrees = list(DEGREE.finditer(before))
+                if degrees and INSTEAD_OF_DEGREE.match(before[degrees[-1].end():]):
+                    continue
                 degree = degrees[-1].group().lower() if degrees else ''
                 candidates.append((years_value(match['low']), degree, clause.strip()))
             for match in SHORT_DEGREE.finditer(clause):

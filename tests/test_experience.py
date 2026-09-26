@@ -437,3 +437,26 @@ class BoilerplateTests(unittest.TestCase):
         found = evaluate('L&D Program Manager', text)
         self.assertFalse(found['entry_override'])
         self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_an_advantage_is_a_preference(self):
+        for text in ("At least 5 years' experience in B2B Channel will be an advantage.",
+                     '5 years of RTL experience is advantageous.',
+                     '4+ years in DFT would be an asset.'):
+            with self.subTest(text=text):
+                self.assertEqual(evaluate('Engineer', text)['hard_pass_reason'], '')
+        found = evaluate('Engineer', '5+ years of experience in verification, advantage for FullChip/SoC')
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_years_offered_instead_of_a_degree_are_not_the_degrees_years(self):
+        for text in ('Masters Degree or 5 years commercial experience in Computer Science.',
+                     'MS or 3+ years of industry experience.'):
+            with self.subTest(text=text):
+                found = evaluate('FPGA Development Tools Engineer', text)
+                self.assertIsNone(found['required_experience_years'])
+                self.assertEqual(found['hard_pass_reason'], '')
+        for text in ("Bachelor's degree or equivalent and 3 years of experience.",
+                     'MS with 3 years of experience.',
+                     "Bachelor's degree in EE or related field, 5 years of experience."):
+            with self.subTest(text=text):
+                self.assertEqual(evaluate('Engineer', text)['hard_pass_reason'],
+                                 'required_experience_over_2_years')
