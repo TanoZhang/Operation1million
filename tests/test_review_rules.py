@@ -570,6 +570,8 @@ class QueueRulesTests(unittest.TestCase):
                 ('https://www.learn4good.com/jobs/1', None, True),
                 ('https://www.linkedin.com/jobs/view/1', 'Intern Insider', True),
                 ('https://www.interninsider.me/job/1', None, True),
+                ('https://interninsider.me/internships/marvell-technology/'
+                 'digital-ic-design-intern-dfea9fd8-f37f-48a6-889d-db2cb73e18ed', None, True),
                 ('https://jobs.example.test/intern-insider-program', 'Example', True),
                 ('https://jobs.example.test/intern/1', 'Example', False),
                 ('https://www.linkedin.com/jobs/view/1', 'LinkedIn', False),
@@ -589,12 +591,13 @@ class QueueRulesTests(unittest.TestCase):
     def test_evidence_domains_reject_before_keeps_and_hide_existing_rows(self):
         rules = jsearch.load_plan()[0]['filter']
         domains = rules['exclude_publisher_domains']
-        self.assertEqual(len(domains), 24)
+        self.assertEqual(len(domains), 25)
         self.assertEqual(len(set(domains)), len(domains))
         self.assertTrue({'trabajo.org', 'bebee.com', 'experteer.com', 'jobsora.com',
                          'geebo.com', 'higher-hire.com', 'nexxt.com',
                          'adviesvanspijk.nl', 'jobleads.com',
-                         'jobrapido.com', 'learn4good.com'}.issubset(domains))
+                         'jobrapido.com', 'learn4good.com',
+                         'interninsider.me'}.issubset(domains))
         for domain in rules['exclude_publisher_domains']:
             for url in (f'https://{domain}/job/1', f'https://JOBS.{domain.upper()}.:443/job/1'):
                 with self.subTest(url=url):

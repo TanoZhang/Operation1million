@@ -291,8 +291,8 @@ exclude_publisher_patterns = [
   # 2026-09-26: by name as well as by domain, so a copy whose link is on
   # another site but whose publisher JSearch names as one of these still goes.
   '\bjobleads\b', '\bjobrapido\b', '\blearn4good\b',
-  # By name only: its domain was not confirmed, and the name catches the link
-  # (interninsider.<anything>) as well as the publisher.
+  # Also by domain (interninsider.me, from the user's link of 2026-09-26);
+  # the name catches a copy the publisher names on another site.
   '\bintern[\s-]*insider\b',
 ]
 
@@ -326,6 +326,7 @@ exclude_publisher_domains = [
   'jobleads.com',
   'jobrapido.com',
   'learn4good.com',
+  'interninsider.me',
 ]
 
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person

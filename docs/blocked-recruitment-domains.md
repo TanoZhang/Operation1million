@@ -66,13 +66,11 @@ These three are also in `filter.exclude_publisher_patterns` (`\bjobleads\b`,
 display name such as "JobLeads" to a domain: a copy whose link was on another
 site but whose publisher JSearch named "JobLeads" went through.
 
-Intern Insider was added the same day by name only
-(`\bintern[\s-]*insider\b`); its domain was not confirmed, so it is not in
-the domain list. The pattern reads the whole link, so "interninsider" in any
-host or path is caught.
+Intern Insider was added the same day: `interninsider.me` (from the user's
+link) in the domain list and `\bintern[\s-]*insider\b` in the patterns.
 
-These eleven entries and Intern Insider are authorized exclusions, not independently verified
-findings of fraud. There are 24 distinct domain entries in total. Existing
+These twelve entries are authorized exclusions, not independently verified
+findings of fraud. There are 25 distinct domain entries in total. Existing
 broader publisher text patterns remain in effect.
 
 Trabajo.org, Advies Van Spijk and Experteer retain their previously requested
@@ -95,7 +93,7 @@ enforcement announcement are not implicated as fraudulent platforms.
 
 ## Verification and limits
 
-Offline regressions cover all 24 domains, subdomains, mixed case, trailing DNS
+Offline regressions cover all 25 domains, subdomains, mixed case, trailing DNS
 dots, rejection before keeps, existing Review rows, publisher domains, URL
 userinfo, misleading suffixes, path/query mentions and malformed URLs. This
 is an evidence-backed starter list, not a complete global scam registry.
