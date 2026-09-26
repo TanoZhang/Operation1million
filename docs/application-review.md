@@ -15,7 +15,8 @@ It never submits an application, collects jobs, buys credits, or commits data.
 **To review** is every open posting first seen in the last 72 hours.
 **Backlog** is everything older that nobody has ruled on yet -- three days is a
 working rhythm, not an expiry, so a posting missed on Friday is still reachable
-on Monday.
+on Monday. Since 2026-09-26 the Backlog tab leaves early career postings out:
+an older intern / NG posting is under Early career's backlog section only.
 
 **Early career** takes the To review postings whose title names an intern, a
 new grad (or "NG") or the early career -- the server's `early_career`, from

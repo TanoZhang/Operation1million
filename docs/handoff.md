@@ -1,6 +1,16 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Backlog tab without early career - 2026-09-26 UTC (claude, not deployed)
+
+At the user's request the Backlog tab and its count leave out early career
+postings (`app.js`, `state.backlog.filter(experienced)`); an older intern / NG
+posting now appears only in Early career's backlog section, not twice. Checked
+in Chromium against a four-posting fixture index: Backlog showed 2 before
+(including "ASIC Design Intern") and 1 after; Early career 2, To review 2, no
+page errors. The To review tab's own backlog section still repeats the Backlog
+tab, as it has since 2026-09-22. Client-only; needs `deploy/vps/install.sh`.
+
 # Codex R6 and R7 fixed - 2026-09-26 UTC (claude, not deployed)
 
 Main is fb0c18a plus this. A short sentence with "preferred" no longer opens a

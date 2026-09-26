@@ -143,7 +143,7 @@ class ClientSourceContractTests(unittest.TestCase):
         body = script.split('function filtered() {')[1].split('\n}\n')[0]
         self.assertIn('const early = group => related(group) && group.early_career;', script,
                       'the early career tab lists less related postings')
-        self.assertIn("[['backlog', state.backlog.filter(related)]]", body,
+        self.assertIn("[['backlog', state.backlog.filter(experienced)]]", body,
                       'the backlog tab still lists less related postings')
         self.assertIn("[['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]]",
                       body, 'less related postings have no tab of their own')
@@ -170,6 +170,16 @@ class ClientSourceContractTests(unittest.TestCase):
                       'the early career tab cannot mark a posting applied or skipped')
         self.assertIn('data-tab="early"', (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('early_career', review.GROUP_FIELDS)
+
+    def test_the_backlog_tab_leaves_early_career_to_its_own_tab(self):
+        """Asked for on 2026-09-26: an older intern / NG posting was on the
+        Backlog tab and again under Early career's backlog section."""
+        script = self.script()
+        body = script.split('function filtered() {')[1].split('\n}\n')[0]
+        self.assertIn("[['backlog', state.backlog.filter(experienced)]]", body,
+                      'the backlog tab still lists early career postings')
+        self.assertIn("$('#backlog-count').textContent = state.backlog.filter(experienced).length;", script,
+                      'the backlog count still counts early career postings')
 
     def test_a_saved_decision_leaves_the_list_before_the_refresh(self):
         """Asked for on 2026-09-22: Skip or Mark applied should take the posting

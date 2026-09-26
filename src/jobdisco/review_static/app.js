@@ -112,6 +112,7 @@ const SECTION_NAMES = {recent: 'New in the last 72 hours', backlog: 'Backlog',
 // the menu's. Since 2026-09-25 To review is two tabs: a title naming an
 // intern, a new grad or the early career (the server's `early_career`) on
 // Early career, and everything else -- "Master's plus 2 years" -- on To review.
+// Since 2026-09-26 the Backlog tab leaves early career postings to their tab.
 const related = group => !group.less_related;
 const early = group => related(group) && group.early_career;
 const experienced = group => related(group) && !group.early_career;
@@ -124,7 +125,7 @@ function filtered() {
   } else if (tab === 'early') {
     sections = [['recent', state.pending.filter(early)], ['backlog', state.backlog.filter(early)]];
   } else if (tab === 'backlog') {
-    sections = [['backlog', state.backlog.filter(related)]];
+    sections = [['backlog', state.backlog.filter(experienced)]];
   } else if (tab === 'less') {
     sections = [['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]];
   } else {
@@ -154,7 +155,7 @@ function render() {
   $('#skipped').textContent = state.skipped.length;
   $('#pending-count').textContent = open.filter(experienced).length;
   $('#early-count').textContent = open.filter(early).length;
-  $('#backlog-count').textContent = state.backlog.filter(related).length;
+  $('#backlog-count').textContent = state.backlog.filter(experienced).length;
   $('#less-count').textContent = state.pending.length + state.backlog.length - open.length;
   const groups = filtered();
   if (!groups.some(group => group.id === selected)) selected = groups[0]?.id ?? null;
