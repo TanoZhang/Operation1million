@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: JSearch daily plan: query caps may total more than the daily budget (the
+       guard stops the day at 320); deeper caps for high-yield early-career
+       queries and eight trial queries.
+Files: src/jobdisco/jsearch.py, data/config/jsearch_queries.toml,
+       tests/test_jsearch.py, docs/{jsearch,collection-rules,agent-protocol}.md
+Base commit: d7be20e
+Status: review -- draft on branch claude-block-jobleads-jobrapido; the user is
+        revising the keyword list before it goes to main
+Next: Apply the user's keyword list, rerun the suite, merge and deploy.
+```
+
+```text
+Owner: claude
 Scope: Codex R6 (experience: a short preference sentence opens a Preferred
        section) and R7 (degree: an inline Required heading cannot end one).
 Files: src/jobdisco/{experience,degree}.py, tests/{test_experience,test_degree}.py,

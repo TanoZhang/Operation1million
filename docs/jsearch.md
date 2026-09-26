@@ -25,13 +25,14 @@ SQLite `search_queries` table is not executed by this collector.
 | General | 9 |
 | Total | 36 |
 
-The daily ceiling is 320. Each broad query declares a maximum depth, and those
-caps total 320: Intern 105, New Grad 90, Early Career 70, and General 55. Every
-call still asks for `num_pages=1`; a short page, empty page, repeated page,
-deadline or budget limit keeps its existing early-stop behavior. Unused credits
-from an early stop remain available to the next priority tier.
-Later queries still obey their own page caps: carry does not automatically
-increase them. A day may therefore end below 320 when results run out.
+The daily ceiling is 320. Each broad query declares a maximum depth, and since
+2026-09-26 those caps may total more than 320: most queries end on a short page
+long before their cap, and caps held to the budget left most of it unspent (110
+to 183 of 320 a day over 2026-09-19 to 26). The budget guard stops the day at
+320; on a full day the tiers are served in priority order and the later ones get
+what is left, General first to go. Every call still asks for `num_pages=1`; a
+short page, empty page, repeated page, deadline or budget limit keeps its
+existing early-stop behavior.
 
 A page is therefore the unit of both billing and loss. Four calls asking for 11
 to 18 pages once returned HTTP 504 and were charged 61 credits for nothing; the

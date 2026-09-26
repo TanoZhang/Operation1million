@@ -113,12 +113,11 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
     validate_budget(queries, config['daily_budget'])
-    pages_cap = sum(q.pages for q in queries)
-    if pages_cap > config['daily_budget']:
-        raise ValueError(
-            f'JSearch query caps total {pages_cap} pages; daily budget is '
-            f'{config["daily_budget"]}')
-    config['daily_pages_cap'] = pages_cap
+    # Caps may sum past the daily budget. Most queries stop on a short page far
+    # below theirs, so caps held to the budget left most of it unspent (110 to
+    # 183 of 320 a day, 2026-09-19 to 26); the guard stops a day at its budget,
+    # and tier order decides who is left out when a day is full.
+    config['daily_pages_cap'] = sum(q.pages for q in queries)
     rules = config.setdefault('filter', {})
     if not isinstance(rules, dict):
         raise ValueError('filter must be a table')

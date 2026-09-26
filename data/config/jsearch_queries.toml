@@ -31,8 +31,13 @@ backfill_max_pages_per_query = 200
 
 employment_types = ["FULLTIME", "INTERN"]
 
-# Priority is intern -> new_grad -> early_career -> A. Daily query caps total
-# exactly 320; short and empty pages still stop a query before its cap.
+# Priority is intern -> new_grad -> early_career -> A. Caps are generous and
+# may total more than the daily budget: short and empty pages stop most queries
+# long before their cap, and the budget guard stops the day at 320. On a full
+# day the later tiers get what is left, which is the intended priority.
+# Measured 2026-09-19 to 26 with caps totalling 320: 110 to 183 pages spent a
+# day. Queries that hit their cap on most days with 4+ new accepted postings a
+# page got the deepest caps; the 2026-09-26 additions are marked below.
 # A month-wide backfill uses separate deeper caps for the same four tiers.
 [backfill_tier_pages]
 intern = 60
@@ -376,144 +381,223 @@ role_title_terms = [
 ]
 
 [[query]]
-query = "ASIC Intern"
+query = "Silicon Intern"
 tier = "intern"
-pages = 14
+pages = 40
+
 [[query]]
 query = "Design Verification Intern"
 tier = "intern"
-pages = 13
-[[query]]
-query = "RTL Intern"
-tier = "intern"
-pages = 13
-[[query]]
-query = "Digital Design Intern"
-tier = "intern"
-pages = 12
-[[query]]
-query = "FPGA Intern"
-tier = "intern"
-pages = 12
-[[query]]
-query = "SoC Intern"
-tier = "intern"
-pages = 11
-[[query]]
-query = "Silicon Intern"
-tier = "intern"
-pages = 10
+pages = 40
+
 [[query]]
 query = "Hardware Engineering Intern"
 tier = "intern"
-pages = 9
+pages = 30
+
+[[query]]
+query = "Digital Design Intern"
+tier = "intern"
+pages = 25
+
+[[query]]
+query = "ASIC Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "RTL Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "FPGA Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "SoC Intern"
+tier = "intern"
+pages = 15
+
 [[query]]
 query = "Physical Design Intern"
 tier = "intern"
-pages = 6
+pages = 10
+
 [[query]]
 query = "DFT Intern"
 tier = "intern"
 pages = 5
 
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Electrical Engineering Intern"
+tier = "intern"
+pages = 15
+
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Computer Engineering Intern"
+tier = "intern"
+pages = 15
+
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Validation Intern"
+tier = "intern"
+pages = 15
+
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Embedded Hardware Intern"
+tier = "intern"
+pages = 15
+
 [[query]]
 query = "ASIC New Grad"
 tier = "new_grad"
-pages = 12
-[[query]]
-query = "Verification New Grad"
-tier = "new_grad"
-pages = 12
-[[query]]
-query = "RTL New Grad"
-tier = "new_grad"
-pages = 11
-[[query]]
-query = "Digital Design New Grad"
-tier = "new_grad"
-pages = 10
+pages = 40
+
 [[query]]
 query = "FPGA New Grad"
 tier = "new_grad"
-pages = 10
-[[query]]
-query = "SoC New Grad"
-tier = "new_grad"
-pages = 9
-[[query]]
-query = "Silicon New Grad"
-tier = "new_grad"
-pages = 9
+pages = 35
+
 [[query]]
 query = "Hardware New Grad"
 tier = "new_grad"
-pages = 8
+pages = 35
+
 [[query]]
 query = "Physical Design New Grad"
 tier = "new_grad"
+pages = 30
+
+[[query]]
+query = "SoC New Grad"
+tier = "new_grad"
+pages = 25
+
+[[query]]
+query = "Verification New Grad"
+tier = "new_grad"
+pages = 25
+
+[[query]]
+query = "RTL New Grad"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Silicon New Grad"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Digital Design New Grad"
+tier = "new_grad"
 pages = 5
+
 [[query]]
 query = "DFT New Grad"
 tier = "new_grad"
-pages = 4
+pages = 5
+
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Hardware New College Grad"
+tier = "new_grad"
+pages = 15
+
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Electrical Engineer New Grad"
+tier = "new_grad"
+pages = 15
+
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Validation New Grad"
+tier = "new_grad"
+pages = 15
+
+# Added 2026-09-26 on trial; judge by new accepted postings a page.
+[[query]]
+query = "Hardware University Graduate"
+tier = "new_grad"
+pages = 15
 
 [[query]]
 query = "Design Verification Entry Level"
 tier = "early_career"
-pages = 16
+pages = 25
+
 [[query]]
 query = "ASIC Entry Level"
 tier = "early_career"
 pages = 15
-[[query]]
-query = "Digital Design Entry Level"
-tier = "early_career"
-pages = 10
+
 [[query]]
 query = "FPGA Entry Level"
 tier = "early_career"
-pages = 13
+pages = 15
+
+[[query]]
+query = "Digital Design Entry Level"
+tier = "early_career"
+pages = 15
+
 [[query]]
 query = "Hardware Entry Level"
 tier = "early_career"
-pages = 9
+pages = 15
+
 [[query]]
 query = "Silicon Entry Level"
 tier = "early_career"
-pages = 7
+pages = 15
 
 [[query]]
 query = "Design Verification Engineer"
 tier = "A"
 pages = 10
+
 [[query]]
 query = "RTL Engineer"
 tier = "A"
 pages = 9
+
 [[query]]
 query = "ASIC Engineer"
 tier = "A"
 pages = 9
+
 [[query]]
 query = "Digital Design Engineer"
 tier = "A"
 pages = 8
+
 [[query]]
 query = "FPGA Engineer"
 tier = "A"
 pages = 7
+
 [[query]]
 query = "Hardware Engineer"
 tier = "A"
 pages = 6
+
 [[query]]
 query = "Silicon Engineer"
 tier = "A"
 pages = 4
+
 [[query]]
 query = "Physical Design Engineer"
 tier = "A"
 pages = 1
+
 [[query]]
 query = "DFT Engineer"
 tier = "A"
