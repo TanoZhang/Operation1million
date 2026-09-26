@@ -11,8 +11,8 @@ Scope: Codex R6 (experience: a short preference sentence opens a Preferred
 Files: src/jobdisco/{experience,degree}.py, tests/{test_experience,test_degree}.py,
        docs/{architecture,handoff,agent-protocol}.md
 Base commit: fb0c18a
-Status: done -- pushed to branch claude-block-jobleads-jobrapido, not merged
-Next: Merge to main and deploy. R5 from the same audit remains open.
+Status: done -- merged to main (4a8a03f), not deployed
+Next: Deploy with deploy/local/deploy-vps.bat. R5 from the same audit remains open.
 ```
 
 ```text
