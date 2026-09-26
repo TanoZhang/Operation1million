@@ -164,6 +164,28 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Codex R6 and R7: sentences taken for section headings, 2026-09-26 UTC
+
+From Codex's round-2 audit (`docs/review-audit-round2-2026-09-23.md` on the
+codex branch), reproduced on fb0c18a before fixing.
+
+- **R6.** "Python preferred.\n5 years of experience." read no requirement: any
+  short no-digit block with an optional word opened a Preferred section in
+  `experience.evaluate`. The degree parser had already fixed the same bug with
+  `_is_heading`; that check moved to `experience.is_heading` (degree imports
+  experience, not the reverse) and both parsers now use it. On the 370 Workday
+  postings sampled today it changed 6, each a real floor that a preference
+  sentence had hidden (e.g. a Marvell Director of Sales' "10+ years").
+- **R7.** "Preferred qualifications:\nPython\nRequired: PhD in EE" kept the
+  posting: a heading with its content on one line carries a degree, so it
+  never reached the heading path and could not end the preferred section.
+  `degree.description_only` now reads the inline heading's section first.
+
+Codex's reproducer passes R4, R6 and R7 on the fixed tree; R5 (a
+`requirements` field losing its heading in `jsearch.description_text`) still
+fails and is not addressed here. Tests: `SectionHeadingTests` and
+`test_an_inline_required_heading_ends_a_preferred_section`, red before.
+
 ### Experience gate: graduation windows, boilerplate and spans, 2026-09-26 UTC
 
 Reported by the user from an NXP new-grad posting (R-10065542): "Recent

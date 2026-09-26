@@ -460,3 +460,26 @@ class BoilerplateTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(evaluate('Engineer', text)['hard_pass_reason'],
                                  'required_experience_over_2_years')
+
+
+class SectionHeadingTests(unittest.TestCase):
+    """Codex R6, 2026-09-23: "Python preferred." is a sentence, not a Preferred
+    heading, and it suppressed the requirement on the next line."""
+
+    def test_a_short_preference_is_not_a_preferred_section(self):
+        for text in ('Python preferred.\n5 years of experience.',
+                     'Travel desired\n4 years of experience.',
+                     'Verilog a plus\n3+ years of RTL experience.'):
+            with self.subTest(text=text):
+                found = evaluate('RTL Design Engineer', text)
+                self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_real_heading_still_opens_a_section(self):
+        for text in ('Preferred qualifications:\n5 years of experience.',
+                     'Nice to have\n5 years of experience.',
+                     'Preferred\n5 years of experience.',
+                     'Bonus points:\n6 years of DFT.'):
+            with self.subTest(text=text):
+                self.assertEqual(evaluate('RTL Design Engineer', text)['hard_pass_reason'], '')
+        found = evaluate('RTL Design Engineer', 'Preferred:\nPython\nMinimum qualifications:\n3 years of RTL design.')
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')

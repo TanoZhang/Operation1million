@@ -163,6 +163,17 @@ class ReportedBugTests(unittest.TestCase):
         self.assertFalse(phd_only('Engineer', 'Preferred: PhD in EE'))
         self.assertFalse(phd_only('Engineer', 'Requirements: PhD in EE or MS with 5 years'))
 
+    def test_an_inline_required_heading_ends_a_preferred_section(self):
+        """Codex R7, 2026-09-23: the degree on the heading's own line kept it
+        from being read as a heading, so the preferred section ran on."""
+        self.assertTrue(phd_only('Engineer', 'Preferred qualifications:\nPython\nRequired: PhD in EE'))
+        self.assertTrue(phd_only('Engineer', 'Preferred qualifications:\nPython\nRequired:\nPhD in EE'))
+        # And an inline preferred heading still opens a preferred section.
+        self.assertFalse(phd_only('Engineer', 'Required:\nPython\nPreferred: PhD in EE'))
+        self.assertFalse(phd_only('Engineer', 'Preferred qualifications:\nPython\nRequired: PhD preferred'))
+        # A neutral inline heading changes nothing.
+        self.assertFalse(phd_only('Engineer', 'Preferred qualifications:\nPython\nEducation: PhD in EE'))
+
 
 class PreferenceWordingTests(unittest.TestCase):
     """A PhD that is welcome rather than demanded, found reviewing 583bfd7."""

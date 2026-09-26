@@ -18,7 +18,7 @@ doubt keeps the posting:
 import html
 import re
 
-from .experience import OPTIONAL, REQUIRED, SECTION_END
+from .experience import OPTIONAL, REQUIRED, SECTION_END, is_heading
 
 # A PhD that is welcome rather than demanded. The experience gate's OPTIONAL
 # words alone read "PhD is highly desirable", "pursuing a PhD is an
@@ -105,22 +105,6 @@ def title_only(title):
             and not PREFERENCE.search(title) and not NOT_EXCLUSIVE.search(title))
 
 
-# A heading opens a section; a short sentence does not. "Python preferred."
-# is two words and names a preference, and was read as a Preferred heading --
-# which then suppressed the "PhD required." on the line after it. A heading is
-# written as one: it ends in a colon, or it is the name of a qualification
-# section.
-_HEADING_WORDS = re.compile(
-    r'^(?:minimum|basic|preferred|desired|required|requirements?|qualifications?|'
-    r'nice[-\s]to[-\s]have|education|additional|responsibilities|about|benefits|what\s+you|'
-    r'desirable|bonus|pluses|ideal(?:ly)?|extra\s+credit)\b',
-    re.I)
-
-
-def _is_heading(block):
-    return block.rstrip().endswith(':') or bool(_HEADING_WORDS.match(block))
-
-
 def description_only(text):
     """The description states a PhD requirement and offers no other way in."""
     optional_section = required_section = False
@@ -130,6 +114,15 @@ def description_only(text):
         if block == SECTION_END:
             optional_section = required_section = False
             continue
+        # "Required: PhD in EE" is a heading and its content on one line. The
+        # heading still sets the section, or a preferred one above it ran on
+        # and made the requirement optional (Codex R7).
+        head = block.split(':', 1)[0] if ':' in block.rstrip()[:-1] else ''
+        if head and len(head.split()) <= 7 and is_heading(head + ':'):
+            if PREFERENCE.search(head):
+                optional_section, required_section = True, False
+            elif REQUIRED.search(head):
+                optional_section, required_section = False, True
         has_phd = bool(_PHD.search(block))
         has_other = _has_other_degree(block)
         following = blocks[index + 1] if index + 1 < len(blocks) else ''
@@ -141,7 +134,7 @@ def description_only(text):
         # alternative that keeps the posting.
         if has_other and not optional:
             other = True
-        if len(block.split()) <= 7 and not has_phd and not has_other and _is_heading(block):
+        if len(block.split()) <= 7 and not has_phd and not has_other and is_heading(block):
             if PREFERENCE.search(block):
                 optional_section, required_section = True, False
                 continue

@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: Codex R6 (experience: a short preference sentence opens a Preferred
+       section) and R7 (degree: an inline Required heading cannot end one).
+Files: src/jobdisco/{experience,degree}.py, tests/{test_experience,test_degree}.py,
+       docs/{architecture,handoff,agent-protocol}.md
+Base commit: fb0c18a
+Status: done -- pushed to branch claude-block-jobleads-jobrapido, not merged
+Next: Merge to main and deploy. R5 from the same audit remains open.
+```
+
+```text
+Owner: claude
 Scope: Experience gate misreads found from an NXP new-grad posting and a read
        of real Workday postings; block learn4good, and block JobLeads,
        Jobrapido and learn4good by publisher name as well as by domain.

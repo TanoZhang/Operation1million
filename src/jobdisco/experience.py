@@ -154,6 +154,21 @@ ALTERNATIVE = re.compile(
     r'\bor\b|\s/\s|\b(?:BS|MS|bachelor\w*|master\w*)\s*/\s*(?:BS|MS|bachelor\w*|master\w*)\b',
     re.I)
 
+# A heading opens a section; a short sentence does not. "Python preferred."
+# is two words and names a preference, and was read as a Preferred heading --
+# which then suppressed the requirement on the line after it (in `degree`
+# first, then Codex R6 here). A heading is written as one: it ends in a colon,
+# or it is the name of a qualification section.
+HEADING_WORDS = re.compile(
+    r'^(?:minimum|basic|preferred|desired|required|requirements?|qualifications?|'
+    r'nice[-\s]to[-\s]have|education|additional|responsibilities|about|benefits|what\s+you|'
+    r'desirable|bonus|pluses|ideal(?:ly)?|extra\s+credit)\b',
+    re.I)
+
+
+def is_heading(block):
+    return block.rstrip().endswith(':') or bool(HEADING_WORDS.match(block))
+
 
 def years_value(text):
     """2 stays an int, 2.5 stays 2.5. Rounding either way answers the gate wrongly."""
@@ -242,9 +257,9 @@ def evaluate(title, description):
                 continue
         # Headings establish scope across bullets, unlike an inline preference.
         if not re.search(r'\d', block):
-            if OPTIONAL.search(block) and len(block.split()) <= 7:
+            if OPTIONAL.search(block) and len(block.split()) <= 7 and is_heading(block):
                 optional_section, required_section = True, False
-            elif REQUIRED.search(block) and len(block.split()) <= 7:
+            elif REQUIRED.search(block) and len(block.split()) <= 7 and is_heading(block):
                 optional_section, required_section = False, True
             elif re.match(r'^(?:responsibilities|about\b|benefits\b|what you)', block, re.I):
                 optional_section = required_section = False

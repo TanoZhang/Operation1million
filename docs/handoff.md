@@ -1,6 +1,14 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Codex R6 and R7 fixed - 2026-09-26 UTC (claude, not deployed)
+
+Main is fb0c18a plus this. A short sentence with "preferred" no longer opens a
+Preferred section in the experience gate (R6), and "Required: PhD in EE" on one
+line ends a preferred section in the degree filter (R7). R5 from the same
+audit is still open. Full offline suite: 704 tests, 2 environment skips. Needs
+`deploy/vps/install.sh`; nothing from today is deployed yet.
+
 # Experience gate fixes and learn4good - 2026-09-26 UTC (claude, not deployed)
 
 On branch `claude-block-jobleads-jobrapido` (a `claude/...` name cannot be
