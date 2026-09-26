@@ -11,7 +11,8 @@ read as two years of experience -- fixed with seven related misreads found in
 370 real Workday postings; see the bug log entry of the same date. On that
 sample: 1 posting now shown, 10 senior ones now hidden, 18 relabelled. learn4good.com
 is blocked, and JobLeads, Jobrapido and learn4good are blocked by publisher
-name too, which the domain list alone missed. Full offline suite: 701 tests,
+name too, which the domain list alone missed. Intern
+Insider is blocked by name (publisher or link), not by domain. Full offline suite: 701 tests,
 2 environment skips. Needs `deploy/vps/install.sh`.
 
 # Two more blocked job sites - 2026-09-26 UTC (claude, not deployed)

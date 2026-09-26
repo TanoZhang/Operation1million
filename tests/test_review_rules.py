@@ -568,6 +568,10 @@ class QueueRulesTests(unittest.TestCase):
                 ('https://www.linkedin.com/jobs/view/1', 'Jobrapido', True),
                 ('https://www.linkedin.com/jobs/view/1', 'Learn4Good', True),
                 ('https://www.learn4good.com/jobs/1', None, True),
+                ('https://www.linkedin.com/jobs/view/1', 'Intern Insider', True),
+                ('https://www.interninsider.me/job/1', None, True),
+                ('https://jobs.example.test/intern-insider-program', 'Example', True),
+                ('https://jobs.example.test/intern/1', 'Example', False),
                 ('https://www.linkedin.com/jobs/view/1', 'LinkedIn', False),
                 # "trabajo" anywhere in the link, as asked the same day.
                 ('https://www.amazon.jobs/en/jobs/1/medico-a-del-trabajo-whs', 'Amazon', True),

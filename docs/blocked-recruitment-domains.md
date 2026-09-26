@@ -66,7 +66,12 @@ These three are also in `filter.exclude_publisher_patterns` (`\bjobleads\b`,
 display name such as "JobLeads" to a domain: a copy whose link was on another
 site but whose publisher JSearch named "JobLeads" went through.
 
-These eleven entries are authorized exclusions, not independently verified
+Intern Insider was added the same day by name only
+(`\bintern[\s-]*insider\b`); its domain was not confirmed, so it is not in
+the domain list. The pattern reads the whole link, so "interninsider" in any
+host or path is caught.
+
+These eleven entries and Intern Insider are authorized exclusions, not independently verified
 findings of fraud. There are 24 distinct domain entries in total. Existing
 broader publisher text patterns remain in effect.
 

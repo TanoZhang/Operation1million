@@ -291,6 +291,9 @@ exclude_publisher_patterns = [
   # 2026-09-26: by name as well as by domain, so a copy whose link is on
   # another site but whose publisher JSearch names as one of these still goes.
   '\bjobleads\b', '\bjobrapido\b', '\blearn4good\b',
+  # By name only: its domain was not confirmed, and the name catches the link
+  # (interninsider.<anything>) as well as the publisher.
+  '\bintern[\s-]*insider\b',
 ]
 
 # DOJ seizure announcement, 2026-06-10: fake consulting recruitment domains.
