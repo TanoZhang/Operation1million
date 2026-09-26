@@ -164,6 +164,35 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Experience gate: graduation windows, boilerplate and spans, 2026-09-26 UTC
+
+Reported by the user from an NXP new-grad posting (R-10065542): "Recent
+Bachelor's/Master's degree ... within past two years" was read as two years of
+work, because the degree word admitted the number as a degree path's years and
+the time-window check ran only on the heading and hands-on paths. At three
+years the same wording hid the posting outright. A read of real Workday
+postings (fetched 2026-09-26 at 1.2 s intervals from NXP, Intel, Marvell,
+Broadcom and others; first 175 reviewed by eye) found five more of the same
+kind. Each has a reproducer in `tests/test_experience.py`, red before:
+
+- `WINDOW` / `SINCE_GRADUATION`: "within the past N years", "N years of
+  graduation", "N years remaining until graduation" are not experience, on
+  every path. "2 years of experience within the last 5 years" now reads 2, not 5.
+- `AS_EXPERIENCE` plural: Intel's "internship experiences and or schoolwork"
+  (6 of 55 Intel postings) made the posting an internship; a Senior CPU
+  engineer's eight years skipped the gate. Four sampled postings now refuse.
+- `SPAN_START`/`SPAN_END`: Marvell's benefits line "from internship to
+  retirement" (12 of 27 Marvell postings) made each an internship.
+- `SUPERVISES` reads a comma list: "managing early career, new graduate, or
+  onboarding initiatives".
+- `OTHER_POSITIONS`: Intel's sponsorship paragraph ("skills shortage roles are
+  typically STEM positions requiring ... three years") is about other roles.
+- `DURATION_OF`: "a 2-year full-time rotational experience" is the program.
+
+Direct-board rows are re-judged at queue time, so deploy is enough for them.
+Paid rows refused at intake kept no description and are not recovered. The
+sample is not the index: no production counts were measured.
+
 ### Two more explicit user domain exclusions, 2026-09-26 UTC
 
 The user asked to block JobLeads and Jobrapido by name. Added `jobleads.com`

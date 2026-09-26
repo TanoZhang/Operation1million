@@ -335,3 +335,105 @@ class HandsOnDurationTests(unittest.TestCase):
                      '1 year of hands-on lab work is a plus.', '2 years of hands-on FPGA work.'):
             with self.subTest(text=text):
                 self.assertEqual(evaluate('FPGA Engineer', text)['hard_pass_reason'], '')
+
+
+class GraduationWindowTests(unittest.TestCase):
+    """Reported on 2026-09-26 from an NXP new-grad posting: "Recent Bachelor's/
+    Master's degree ... within past two years" was read as two years of work."""
+
+    NXP = ('Requirements/Qualification:\n-Recent Bachelor’s/Master’s degree (or '
+           'graduating soon) in Electrical Engineering, Electronics, Computer Engineering, '
+           'Computer Science, Physics, or a related discipline, within past two years\n'
+           '-Hands-on experience from lab work, design projects, internships, coursework, '
+           'or student competitions is a plus.')
+
+    def test_how_recently_one_graduated_is_not_experience(self):
+        for text in (self.NXP,
+                     "Bachelor's degree in EE received within the past 3 years.",
+                     "Requirements:\nMaster's degree completed in the last 3 years",
+                     'BS or MS in EE, graduated within 3 years of start date.',
+                     'Must have graduated with a BS within the past 36 months or 3 years.',
+                     'BS in EE, 3 years of graduation or less.',
+                     "Bachelor's degree, within 4 years of receiving it."):
+            with self.subTest(text=text[-50:]):
+                found = evaluate('Entry Level Digital Design Engineer', text)
+                self.assertIsNone(found['required_experience_years'])
+                self.assertEqual(found['hard_pass_reason'], '')
+
+    def test_a_recency_window_does_not_replace_the_floor_inside_it(self):
+        found = evaluate('Engineer', '2 years of experience within the last 5 years required.')
+        self.assertEqual(found['required_experience_years'], 2)
+        self.assertEqual(found['hard_pass_reason'], '')
+        found = evaluate('Engineer', "Bachelor's degree and 3 years of experience within the last 5 years.")
+        self.assertEqual(found['required_experience_years'], 3)
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_real_floors_beside_the_same_words_still_count(self):
+        for text, years in (('Experience in RTL design 3+ years', 3),
+                            ("Bachelor's degree with 4 years of experience after graduation.", 4),
+                            ("Bachelor's degree and 3 years of relevant experience.", 3),
+                            ('At least 3 years of experience in the past role.', 3),
+                            ('Minimum 5 years of experience since graduation.', 5)):
+            with self.subTest(text=text):
+                found = evaluate('Engineer', text)
+                self.assertEqual(found['required_experience_years'], years)
+                self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+
+class BoilerplateTests(unittest.TestCase):
+    """Found reading real Intel and NXP postings on 2026-09-26."""
+
+    def test_internship_experiences_in_the_plural_is_not_an_internship_opening(self):
+        text = ('Requirements listed would be obtained through a combination of industry '
+                'relevant job experience, internship experiences and or schoolwork/classes/'
+                'research.\nMinimum qualifications:\nBachelor\'s degree with 8+ years of '
+                'work experience.')
+        found = evaluate('Senior CPU Front End Methodology Engineer', text)
+        self.assertFalse(found['entry_override'])
+        self.assertTrue(found['internship_experience'])
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_sponsorship_paragraph_describes_other_positions(self):
+        text = ('Intel sponsors individuals for employment-based visas for positions where we '
+                'experience a shortage of U.S. workers. These skills shortage roles are '
+                "typically STEM positions requiring a Master's or PhD degree, or a Bachelor's "
+                'degree with at least three years of post-degree related job experience. This '
+                "position does not qualify for Intel sponsorship because it is either a non-STEM "
+                "position, or a STEM position that only requires a Bachelor's degree and less "
+                "than three years' experience.")
+        found = evaluate('Graduate Talent', text)
+        self.assertIsNone(found['required_experience_years'])
+        self.assertEqual(found['hard_pass_reason'], '')
+
+    def test_time_left_before_graduating_is_not_experience(self):
+        for text in ('At least 3 years remaining until graduation.',
+                     'Requirements: 3 years left in your degree program.',
+                     'Must have at least 3 years before graduation.'):
+            with self.subTest(text=text):
+                self.assertIsNone(evaluate('Layout Student', text)['required_experience_years'])
+
+    def test_the_length_of_the_program_is_not_experience(self):
+        for text in ("Join the Rotation Program, a 3-year full-time rotational experience.",
+                     'Required: this 3 year appointment includes lab work.'):
+            with self.subTest(text=text):
+                found = evaluate('Rotation Program Engineer', text)
+                self.assertIsNone(found['required_experience_years'])
+                self.assertEqual(found['hard_pass_reason'], '')
+        found = evaluate('Engineer', 'Requirements: a minimum of 3 years of experience.')
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+    def test_a_span_from_internship_to_retirement_is_not_an_internship(self):
+        text = ('Marvell is committed to providing exceptional, comprehensive benefits that '
+                'support our employees at every stage - from internship to retirement and '
+                "through life's most important moments.\n10+ years of sales experience.")
+        found = evaluate('Senior Director - Business Development', text)
+        self.assertFalse(found['entry_override'])
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+        self.assertTrue(evaluate('Engineer', 'This internship runs from June to August.')['entry_override'])
+
+    def test_managing_a_list_of_programs_is_supervising(self):
+        text = ('Preferred Qualifications\nExperience managing early career, new graduate, or '
+                'onboarding initiatives.\nMinimum of 7 years of experience as a training professional.')
+        found = evaluate('L&D Program Manager', text)
+        self.assertFalse(found['entry_override'])
+        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')

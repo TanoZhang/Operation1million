@@ -59,6 +59,30 @@ HANDS_ON_MAX_YEARS = 15
 # two tape-outs within three years" is a deadline the job sets, not experience
 # it asks for. `over` is deliberately absent: "over 5 years" is a floor.
 ELAPSED = re.compile(r'\b(?:in|within|during|after|next|past|last)\s+(?:\w+\s+){0,2}$', re.I)
+# A window of time, not an amount of work, on every path that admits a number.
+# "Bachelor's degree ... within past 2 years" (NXP, 2026-09-26) is how recently
+# the applicant graduated; the degree word beside it admitted the number as a
+# degree path's years, and at three years it hid the new-grad posting. Narrower
+# than ELAPSED, which would also drop "Experience in RTL design 3+ years".
+WINDOW = re.compile(
+    r'\b(?:(?:within|in|during|over)\s+(?:the\s+)?(?:past|last|previous|preceding)'
+    r'|within(?:\s+the)?|(?:the\s+)?(?:past|last|previous))\s+'
+    r'(?:\d{1,2}\s+months?\s+or\s+)?$', re.I)
+SINCE_GRADUATION = re.compile(
+    r'^\s*(?:of|since|after|from|following)\s+'
+    r'(?:(?:your|the|their|a|an|degree|university|college|school)\s+)*'
+    r'(?:graduat|complet|receiv|earn|obtain|conferr|start\s+date|hire\s+date|date\s+of\s+hire)'
+    # Time a student still has ahead: "at least 1.5 years remaining until graduation".
+    r'|^\s*(?:(?:remaining|left)\b|(?:until|before)\s+(?:your\s+)?graduat)',
+    re.I)
+# The length of the thing offered: "a 2-year full-time rotational experience".
+# Singular unit after an article, which a requirement does not use.
+DURATION_OF = re.compile(r'\b(?:a|an|this|our|the)\s+$', re.I)
+# A sentence about other positions. Intel's sponsorship paragraph says "skills
+# shortage roles are typically STEM positions requiring ... a Bachelor's degree
+# with at least three years of post-degree related job experience".
+OTHER_POSITIONS = re.compile(
+    r'\bskills?\s+shortage\b|\btypically\s+(?:\w+\s+){0,3}(?:positions|roles)\s+requir', re.I)
 # Where a structured field ended. `jsearch.description_text` joins a payload's
 # fields into one text and emits a field's key as a heading when the key names
 # a qualification; without an end mark that heading's scope ran on into the
@@ -73,7 +97,12 @@ NON_WORK = re.compile(r'^\s*[- ]?\s*(?:roadmap|degree|program(?:me)?|course|plan
 SUPERVISES = re.compile(
     r'\b(?:mentor|supervis|manage|managing|lead|leading|coach|guid|train|'
     r'onboard|oversee|overseeing|support|collaborat|work)\w*\s+'
-    r'(?:\w+\s+){0,3}$', re.I)
+    r'(?:[\w,/-]+\s+){0,3}$', re.I)
+# One end of a span, not the opening. Marvell's benefits line, "at every stage
+# - from internship to retirement", is on half its postings and made each one
+# an internship, a Senior Director's included.
+SPAN_START = re.compile(r'\bfrom\s+$', re.I)
+SPAN_END = re.compile(r'^\s+(?:to|through|until)\b', re.I)
 # An upper bound or a denial is not a minimum. "Fewer than three years" and
 # "no more than 5 years" describe who may apply, not what they must already
 # have, and reading the number as a floor rejected the postings that said it.
@@ -105,7 +134,10 @@ DENIES = re.compile(
 PRIOR = re.compile(
     r'\b(?:prior|previous|past|completed|former|earlier|relevant|'
     r'at\s+least\s+one)\s+(?:\w+\s+){0,2}$', re.I)
-AS_EXPERIENCE = re.compile(r'^\s*(?:or\s+co-?op\s+)?experience\b', re.I)
+# Plural too: Intel's "obtained through ... job experience, internship
+# experiences and or schoolwork" was read as an internship opening, which let
+# a Senior CPU engineer's eight years skip the gate.
+AS_EXPERIENCE = re.compile(r'^\s*(?:or\s+co-?op\s+)?experiences?\b', re.I)
 # `or` always separates alternatives; `/` only does where it stands between the
 # two degree paths -- spaced, as in "BS+4 / MS+2", or joining the degrees
 # themselves. A slash inside a term of the trade, RTL/FPGA or analog/mixed-signal,
@@ -156,6 +188,7 @@ def entry_level(title, text):
         sentence = fragment(text, match)
         if (not SUPERVISES.search(sentence) and not DENIES.search(sentence)
                 and not PRIOR.search(sentence)
+                and not (SPAN_START.search(sentence) and SPAN_END.match(text[match.end():]))
                 and not AS_EXPERIENCE.match(text[match.end():])):
             return True
     return False
@@ -209,6 +242,8 @@ def evaluate(title, description):
             elif re.match(r'^(?:responsibilities|about\b|benefits\b|what you)', block, re.I):
                 optional_section = required_section = False
             continue
+        if OTHER_POSITIONS.search(block):
+            continue
         if REQUIRED.match(block):
             optional_section = False
         # Separate a mandatory clause from an optional one in the same sentence.
@@ -242,7 +277,9 @@ def evaluate(title, description):
             matches = list(YEARS.finditer(clause))
             for match in matches:
                 before, after = clause[:match.start()], clause[match.end():]
-                if years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or NOT_REQUIRED.search(after) or (
+                duration = (DURATION_OF.search(before)
+                            and not re.search(r's$', match.group(), re.I))
+                if years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
                         NOT_A_MINIMUM.search(before)
                         and not STILL_A_MINIMUM.search(before)):
                     continue

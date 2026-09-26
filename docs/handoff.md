@@ -1,6 +1,18 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Experience gate fixes and learn4good - 2026-09-26 UTC (claude, not deployed)
+
+On branch `claude-block-jobleads-jobrapido` (a `claude/...` name cannot be
+pushed while the standing `claude` branch exists). NXP was already a direct
+source (`workday:nxp:careers`, enabled, verified); the user's posting passes
+every rule and lands in Early career. Its "degree within past two years" was
+read as two years of experience -- fixed with five related misreads found in
+real Workday postings; see the bug log entry of the same date. learn4good.com
+is blocked, and JobLeads, Jobrapido and learn4good are blocked by publisher
+name too, which the domain list alone missed. Full offline suite: 699 tests,
+2 environment skips. Needs `deploy/vps/install.sh`.
+
 # Two more blocked job sites - 2026-09-26 UTC (claude, not deployed)
 
 At the user's request, JobLeads and Jobrapido join the existing preference

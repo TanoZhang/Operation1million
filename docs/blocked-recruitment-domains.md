@@ -54,14 +54,20 @@ matching as the enforcement-backed group:
 - nexxt.com
 - adviesvanspijk.nl
 
-On 2026-09-26 the user asked to block two more by name, JobLeads and
-Jobrapido:
+On 2026-09-26 the user asked to block three more by name, JobLeads,
+Jobrapido and learn4good:
 
 - jobleads.com
 - jobrapido.com
+- learn4good.com
 
-These ten entries are authorized exclusions, not independently verified
-findings of fraud. There are 23 distinct domain entries in total. Existing
+These three are also in `filter.exclude_publisher_patterns` (`\bjobleads\b`,
+`\bjobrapido\b`, `\blearn4good\b`), because the domain list does not map a
+display name such as "JobLeads" to a domain: a copy whose link was on another
+site but whose publisher JSearch named "JobLeads" went through.
+
+These eleven entries are authorized exclusions, not independently verified
+findings of fraud. There are 24 distinct domain entries in total. Existing
 broader publisher text patterns remain in effect.
 
 Trabajo.org, Advies Van Spijk and Experteer retain their previously requested
@@ -84,7 +90,7 @@ enforcement announcement are not implicated as fraudulent platforms.
 
 ## Verification and limits
 
-Offline regressions cover all 23 domains, subdomains, mixed case, trailing DNS
+Offline regressions cover all 24 domains, subdomains, mixed case, trailing DNS
 dots, rejection before keeps, existing Review rows, publisher domains, URL
 userinfo, misleading suffixes, path/query mentions and malformed URLs. This
 is an evidence-backed starter list, not a complete global scam registry.

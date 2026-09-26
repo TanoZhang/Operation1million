@@ -6,6 +6,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: Experience gate misreads found from an NXP new-grad posting and a read
+       of real Workday postings; block learn4good, and block JobLeads,
+       Jobrapido and learn4good by publisher name as well as by domain.
+Files: src/jobdisco/experience.py, data/config/jsearch_queries.toml,
+       tests/{test_experience,test_review_rules}.py,
+       docs/{blocked-recruitment-domains,architecture,handoff,agent-protocol}.md
+Base commit: c10f6c2193c568ee39d2a4554641ba96d008f5f3
+Status: done -- pushed to branch claude-block-jobleads-jobrapido, not merged
+Next: Review and merge to main, then deploy/vps/install.sh. Direct-board
+      rows are re-judged at queue time; paid rows refused at intake kept no
+      description and are not recovered by this.
+```
+
+```text
+Owner: claude
 Scope: Block two more publisher domains at the user's request: JobLeads
        (jobleads.com) and Jobrapido (jobrapido.com).
 Files: data/config/jsearch_queries.toml, tests/test_review_rules.py,

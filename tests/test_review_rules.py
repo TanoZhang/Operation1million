@@ -563,6 +563,11 @@ class QueueRulesTests(unittest.TestCase):
                 ('https://www.linkedin.com/jobs/view/1', 'Experteer', True),
                 ('https://www.adviesvanspijk.nl/vacature/1', None, True),
                 ('https://www.linkedin.com/jobs/view/1', 'Advies Van Spijk', True),
+                # 2026-09-26: named by the publisher alone, the link elsewhere.
+                ('https://www.linkedin.com/jobs/view/1', 'JobLeads', True),
+                ('https://www.linkedin.com/jobs/view/1', 'Jobrapido', True),
+                ('https://www.linkedin.com/jobs/view/1', 'Learn4Good', True),
+                ('https://www.learn4good.com/jobs/1', None, True),
                 ('https://www.linkedin.com/jobs/view/1', 'LinkedIn', False),
                 # "trabajo" anywhere in the link, as asked the same day.
                 ('https://www.amazon.jobs/en/jobs/1/medico-a-del-trabajo-whs', 'Amazon', True),
@@ -580,12 +585,12 @@ class QueueRulesTests(unittest.TestCase):
     def test_evidence_domains_reject_before_keeps_and_hide_existing_rows(self):
         rules = jsearch.load_plan()[0]['filter']
         domains = rules['exclude_publisher_domains']
-        self.assertEqual(len(domains), 23)
+        self.assertEqual(len(domains), 24)
         self.assertEqual(len(set(domains)), len(domains))
         self.assertTrue({'trabajo.org', 'bebee.com', 'experteer.com', 'jobsora.com',
                          'geebo.com', 'higher-hire.com', 'nexxt.com',
                          'adviesvanspijk.nl', 'jobleads.com',
-                         'jobrapido.com'}.issubset(domains))
+                         'jobrapido.com', 'learn4good.com'}.issubset(domains))
         for domain in rules['exclude_publisher_domains']:
             for url in (f'https://{domain}/job/1', f'https://JOBS.{domain.upper()}.:443/job/1'):
                 with self.subTest(url=url):
