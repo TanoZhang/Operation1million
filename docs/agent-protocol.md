@@ -11,8 +11,8 @@ Scope: Block two more publisher domains at the user's request: JobLeads
 Files: data/config/jsearch_queries.toml, tests/test_review_rules.py,
        docs/{blocked-recruitment-domains,architecture,handoff,agent-protocol}.md
 Base commit: c10f6c2193c568ee39d2a4554641ba96d008f5f3
-Status: done -- committed on branch claude/brave-lovelace-9qjkbz, not pushed
-Next: Push to the branch. Full offline suite 690 tests, 2 environment skips
+Status: done -- pushed to branch claude-block-jobleads-jobrapido, not merged
+Next: Review and merge to main. Full offline suite 690 tests, 2 environment skips
       (data/db/job_discovery.sqlite absent). Not deployed.
 ```
 
