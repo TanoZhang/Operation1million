@@ -13,8 +13,8 @@ Files: src/jobdisco/experience.py, data/config/jsearch_queries.toml,
        tests/{test_experience,test_review_rules}.py,
        docs/{blocked-recruitment-domains,architecture,handoff,agent-protocol}.md
 Base commit: c10f6c2193c568ee39d2a4554641ba96d008f5f3
-Status: done -- pushed to branch claude-block-jobleads-jobrapido, not merged
-Next: Review and merge to main, then deploy/vps/install.sh. Direct-board
+Status: done -- main at b06f0e6, not deployed (no VPS key in this session)
+Next: Run deploy/local/deploy-vps.bat or deploy/vps/install.sh. Direct-board
       rows are re-judged at queue time; paid rows refused at intake kept no
       description and are not recovered by this.
 ```
@@ -26,8 +26,8 @@ Scope: Block two more publisher domains at the user's request: JobLeads
 Files: data/config/jsearch_queries.toml, tests/test_review_rules.py,
        docs/{blocked-recruitment-domains,architecture,handoff,agent-protocol}.md
 Base commit: c10f6c2193c568ee39d2a4554641ba96d008f5f3
-Status: done -- pushed to branch claude-block-jobleads-jobrapido, not merged
-Next: Review and merge to main. Full offline suite 690 tests, 2 environment skips
+Status: done -- merged to main (b06f0e6), not deployed
+Next: Deploy with the claim above. Full offline suite 690 tests, 2 environment skips
       (data/db/job_discovery.sqlite absent). Not deployed.
 ```
 
