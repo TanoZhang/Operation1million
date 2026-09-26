@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: Block two more publisher domains at the user's request: JobLeads
+       (jobleads.com) and Jobrapido (jobrapido.com).
+Files: data/config/jsearch_queries.toml, tests/test_review_rules.py,
+       docs/{blocked-recruitment-domains,architecture,handoff,agent-protocol}.md
+Base commit: c10f6c2193c568ee39d2a4554641ba96d008f5f3
+Status: done -- committed on branch claude/brave-lovelace-9qjkbz, not pushed
+Next: Push to the branch. Full offline suite 690 tests, 2 environment skips
+      (data/db/job_discovery.sqlite absent). Not deployed.
+```
+
+```text
+Owner: claude
 Scope: Review page: To review splits into Early career (intern / NG / early
        career titles) and To review (the rest).
 Files: src/jobdisco/{ranking,applications,review}.py,

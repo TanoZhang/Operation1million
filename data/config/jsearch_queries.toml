@@ -316,6 +316,9 @@ exclude_publisher_domains = [
   'higher-hire.com',
   'nexxt.com',
   'adviesvanspijk.nl',
+  # Explicit user exclusions, 2026-09-26.
+  'jobleads.com',
+  'jobrapido.com',
 ]
 
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person

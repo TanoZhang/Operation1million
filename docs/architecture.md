@@ -164,6 +164,20 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Two more explicit user domain exclusions, 2026-09-26 UTC
+
+The user asked to block JobLeads and Jobrapido by name. Added `jobleads.com`
+and `jobrapido.com` to `exclude_publisher_domains` alongside the existing
+preference exclusions (trabajo.org, bebee.com, experteer.com, jobsora.com,
+geebo.com, higher-hire.com, nexxt.com, adviesvanspijk.nl); same exact
+host/subdomain matching, same hard pass before keeps/scores, same hiding of
+already-indexed rows at Review read time. Reason is user preference, not a
+new fraud finding. `docs/blocked-recruitment-domains.md` updated to 23 total
+domain entries. Offline suite covers both new domains via the existing
+parametrized domain test. No live index was available in this session
+(`data/db/job_discovery.sqlite` is missing) to measure prior hit counts, and
+no deployment was performed.
+
 ### A paid listing came back every day under a new id, 2026-09-24 UTC
 
 Reported by the user with a screenshot: one Qualcomm internship, applied to on

@@ -1,6 +1,26 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Two more blocked job sites - 2026-09-26 UTC (claude, not deployed)
+
+At the user's request, JobLeads and Jobrapido join the existing preference
+exclusions. Added `jobleads.com` and `jobrapido.com` to
+`filter.exclude_publisher_domains` in `data/config/jsearch_queries.toml`
+(now 23 domains total), matched the same way as the other eight preference
+entries: exact host/subdomain on the posting URL or a domain-form publisher
+name, hard rejected before keeps/scores, and hiding already-indexed rows at
+Review read time. `docs/blocked-recruitment-domains.md` and the bug log in
+`docs/architecture.md` record the count and the entries. Reason is user
+preference, not a fraud finding.
+
+`data/db/job_discovery.sqlite` is not present in this session, so no live
+hit count for either domain could be measured before or after the change.
+Full offline suite: 690 tests, 2 environment skips (bs4/beautifulsoup4 was
+missing from this container's Python and was installed to run the suite at
+all; `tests/test_review_rules.py` covers both new domains through the
+existing parametrized domain test, 52/52 focused tests pass). Not deployed;
+needs `deploy/vps/install.sh`.
+
 # Early career tab - 2026-09-25 UTC (claude, not deployed)
 
 At the user's request, To review is two tabs. **Early career** holds open,
