@@ -496,6 +496,7 @@ def queue(db_path=DB, path=None, now=None):
     def label(group):
         """Give a group its band and its evidence mark, in place."""
         group['bucket'] = ranking.bucket(group.get('title'))
+        group['early_career'] = ranking.early_career(group.get('title'))
         group['flagged'] = jsearch.needs_evidence(group.get('title'), rules)
         return group
 
@@ -523,6 +524,7 @@ def queue(db_path=DB, path=None, now=None):
     # "Strategic Client Leader") and none of its high scorers.
     for group in result['pending'] + result['backlog']:
         group['less_related'] = group['bucket'] == 4 and group['confidence'] < minimum
+        group['early_career'] = ranking.early_career(group.get('title'))
     for key, event in group_states.items():
         if event['status'] != 'pending':
             group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))

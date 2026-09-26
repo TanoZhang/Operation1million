@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: Review page: To review splits into Early career (intern / NG / early
+       career titles) and To review (the rest).
+Files: src/jobdisco/{ranking,applications,review}.py,
+       src/jobdisco/review_static/{app.js,index.html},
+       tests/test_review_{rules,payload}.py,
+       docs/{application-review,architecture,handoff,agent-protocol}.md
+Base commit: 82e8a81
+Status: done -- committed on branch claude-early-career-tab, not pushed
+Next: Push to main, then deploy with deploy/vps/install.sh.
+```
+
+```text
+Owner: claude
 Scope: Review page: less related postings get their own tab; Remaining and
        the To review and Backlog tabs exclude them.
 Files: src/jobdisco/review_static/{app.js,index.html}, tests/test_review_payload.py,

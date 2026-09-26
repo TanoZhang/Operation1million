@@ -513,6 +513,12 @@ Both asked for by the user.
   moved to their own **Low relevance** tab. To review and Backlog no longer
   list them and Remaining no longer counts them. The server-side rule is
   unchanged. Contract: `test_less_related_has_its_own_tab_and_no_part_in_remaining`.
+- **2026-09-25 UTC, at the user's request:** To review split in two. A title
+  naming an intern, a new grad, "NG" or the early career goes to **Early
+  career**; everything else ("Master's + 2 years") stays on **To review**. The
+  title decides, not the description. Remaining counts both. Contracts:
+  `test_early_career_is_marked_by_the_words_in_the_title`,
+  `test_early_career_and_the_rest_are_two_review_tabs`.
 - **"8+ years of hands-on FPGA designs" was read as no requirement.** A
   duration counted only beside "experience", "professional", "industry", a
   required marker or a degree. `HANDS_ON` now admits the work named right after

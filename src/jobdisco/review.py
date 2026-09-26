@@ -30,7 +30,8 @@ from .paths import DB
 # still written against the full row. Adding a field to the page means adding
 # it here; leaving it out shows as undefined rather than as stale data.
 GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
-                'bucket', 'flagged', 'internship_experience', 'less_related')
+                'bucket', 'flagged', 'internship_experience', 'less_related',
+                'early_career')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
               'publisher', 'employer_site')
 

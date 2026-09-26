@@ -82,12 +82,21 @@ RELATED = re.compile(r"""\b(?:
 
 # Openings an application without a degree in hand can actually reach.
 EARLY_CAREER = re.compile(r"""\b(?:
-      interns? | internship | co[-\s]?ops?
+      interns? | internships? | co[-\s]?ops?
     | (?: new | recent | university | college ) \s+ (?:college \s+)?
       grad(?:uate)?s?
-    | graduate \s+ (?: engineer | program | programme | rotation | scheme )
+    # "NVIDIA 2027 Internships: ...", "SoC & DFT Engineer - Graduate Training
+    # Program", "Graduate Talent (CPU-SoC Silicon Design)" and "Electrical
+    # Engineering Graduate" were all read as experienced openings until
+    # 2026-09-25, when early career got a review tab of its own.
+    | graduate \s+ (?: training \s+ )?
+      (?: engineer | program | programme | rotation | scheme | talent )
+    | engineering \s+ graduates?
     | entry[-\s]? level | early[-\s]? career | campus | student
     | \d{4} \s+ grad(?:uate)?s?
+    # "NG" is how a board abbreviates new grad: "Physical Design Engineer (NG)".
+    # Only in capitals and not hyphenated, so "NG-RAN" stays a radio network.
+    | (?-i: (?<![\w-]) NG (?![\w-]) )
 )\b""", re.I | re.X)
 
 
@@ -122,6 +131,16 @@ def bucket(title):
     if RELATED.search(title):
         return 1 if early else 3
     return 4
+
+
+def early_career(title):
+    """Whether the title itself names an early-career opening.
+
+    The review page lists these apart from everything else it has to review,
+    asked for on 2026-09-25. "Master's in EE plus 2 years" is not one: it names
+    a floor of experience, and stays with the rest.
+    """
+    return bool(EARLY_CAREER.search(title or ''))
 
 
 def summarize(groups):

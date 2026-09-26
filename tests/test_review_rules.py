@@ -516,6 +516,22 @@ class QueueRulesTests(unittest.TestCase):
                     db.execute('UPDATE jobs SET title=?, relevance=?', (title, relevance))
                 self.assertIs(self.queue()['pending'][0]['less_related'], less)
 
+    def test_early_career_is_marked_by_the_words_in_the_title(self):
+        """Asked for on 2026-09-25: intern, NG and early career postings are
+        reviewed apart from the rest; "Master's plus 2 years" stays with the rest."""
+        for title, early in (('RTL Design Intern', True), ('ASIC Engineer, New Grad', True),
+                             ('Early Career Hardware Engineer', True),
+                             ('Physical Design Engineer (NG)', True),
+                             ('NVIDIA 2027 Internships: Hardware ASIC Design', True),
+                             ('SoC & DFT Engineer - Graduate Training Program', True),
+                             ('Electrical Engineering Graduate', True),
+                             ('Design Verification Engineer', False),
+                             ('NG-RAN Firmware Engineer', False)):
+            with self.subTest(title=title):
+                with closing(sqlite3.connect(self.db)) as db, db:
+                    db.execute('UPDATE jobs SET title=?, relevance=90', (title,))
+                self.assertIs(self.queue()['pending'][0]['early_career'], early)
+
     def test_a_third_party_listing_says_who_published_it(self):
         """Every open JSearch posting measured on 2026-09-22 linked to a
         third-party site, with no direct option to prefer."""

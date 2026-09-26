@@ -17,6 +17,12 @@ It never submits an application, collects jobs, buys credits, or commits data.
 working rhythm, not an expiry, so a posting missed on Friday is still reachable
 on Monday.
 
+**Early career** takes the To review postings whose title names an intern, a
+new grad (or "NG") or the early career -- the server's `early_career`, from
+`ranking.EARLY_CAREER`. Everything else, such as "Master's in EE plus 2 years
+of experience", stays on To review. Both tabs run new postings first, then the
+backlog, and Remaining counts both.
+
 **Low relevance** holds what is barely related, new or old: a title in the last
 band *and* a Fit under `min_confidence` (the server's `less_related`). Those
 postings appear on that tab only, never under To review or Backlog, and

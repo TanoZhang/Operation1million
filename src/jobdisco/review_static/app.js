@@ -109,14 +109,20 @@ const SECTION_NAMES = {recent: 'New in the last 72 hours', backlog: 'Backlog',
 // backlog. Since 2026-09-24 what is barely related, new or old, is on a tab of
 // its own and nowhere else, and Remaining does not count it. The server says
 // which groups those are (`less_related`); the order inside each section is
-// the menu's.
+// the menu's. Since 2026-09-25 To review is two tabs: a title naming an
+// intern, a new grad or the early career (the server's `early_career`) on
+// Early career, and everything else -- "Master's plus 2 years" -- on To review.
 const related = group => !group.less_related;
+const early = group => related(group) && group.early_career;
+const experienced = group => related(group) && !group.early_career;
 function filtered() {
   const text = $('#search').value.trim().toLowerCase();
   const match = group => `${group.company} ${group.title}`.toLowerCase().includes(text);
   let sections;
   if (tab === 'pending') {
-    sections = [['recent', state.pending.filter(related)], ['backlog', state.backlog.filter(related)]];
+    sections = [['recent', state.pending.filter(experienced)], ['backlog', state.backlog.filter(experienced)]];
+  } else if (tab === 'early') {
+    sections = [['recent', state.pending.filter(early)], ['backlog', state.backlog.filter(early)]];
   } else if (tab === 'backlog') {
     sections = [['backlog', state.backlog.filter(related)]];
   } else if (tab === 'less') {
@@ -146,7 +152,8 @@ function render() {
   $('#remaining').textContent = open.length;
   $('#applied').textContent = state.applied.length;
   $('#skipped').textContent = state.skipped.length;
-  $('#pending-count').textContent = open.length;
+  $('#pending-count').textContent = open.filter(experienced).length;
+  $('#early-count').textContent = open.filter(early).length;
   $('#backlog-count').textContent = state.backlog.filter(related).length;
   $('#less-count').textContent = state.pending.length + state.backlog.length - open.length;
   const groups = filtered();
@@ -190,13 +197,13 @@ function render() {
 async function renderDetail(group) {
   const version = ++detailVersion;
   if (!group) {
-    $('#detail').innerHTML = tab === 'pending' && ![...state.pending, ...state.backlog].some(related)
+    $('#detail').innerHTML = ['pending', 'early'].includes(tab) && ![...state.pending, ...state.backlog].some(tab === 'early' ? early : experienced)
       ? '<div class="empty"><span class="done">&#10003;</span><h2>All done</h2><p>No unreviewed positions left.</p></div>'
       : '<div class="empty">No position selected</div>';
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${bandChip(group)}${flagChip(group)}${internChip(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${['pending', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${bandChip(group)}${flagChip(group)}${internChip(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';

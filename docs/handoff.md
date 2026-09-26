@@ -1,6 +1,19 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Early career tab - 2026-09-25 UTC (claude, not deployed)
+
+At the user's request, To review is two tabs. **Early career** holds open,
+related postings whose title names an intern, a new grad (including "NG") or
+the early career (`ranking.early_career`, the queue's new `early_career` field);
+**To review** holds the rest, such as "Master's in EE + 2 years". Both run new,
+then backlog. Remaining counts both; Backlog and Low relevance are unchanged.
+`EARLY_CAREER` also learned "Internships", "Graduate Training Program",
+"Graduate Talent" and "Engineering Graduate", which moves those titles into the
+early-career bands. Checked in the browser against the local index from
+2026-09-16: 197 early career + 1,740 to review = 1,937 Remaining. Full offline
+suite: 690 tests, 10 environment skips. Needs `deploy/vps/install.sh`.
+
 # Low relevance tab - 2026-09-24 UTC (claude, not deployed)
 
 At the user's request, less related postings (`less_related`: last band and Fit

@@ -141,8 +141,8 @@ class ClientSourceContractTests(unittest.TestCase):
         barely related; it gets a tab of its own, and Remaining stops counting it."""
         script = self.script()
         body = script.split('function filtered() {')[1].split('\n}\n')[0]
-        self.assertIn("[['recent', state.pending.filter(related)], ['backlog', state.backlog.filter(related)]]",
-                      body, 'the review tab no longer runs new, then backlog, and nothing else')
+        self.assertIn('const early = group => related(group) && group.early_career;', script,
+                      'the early career tab lists less related postings')
         self.assertIn("[['backlog', state.backlog.filter(related)]]", body,
                       'the backlog tab still lists less related postings')
         self.assertIn("[['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]]",
@@ -153,6 +153,23 @@ class ClientSourceContractTests(unittest.TestCase):
         self.assertIn('const open = [...state.pending, ...state.backlog].filter(related);', script)
         self.assertIn('data-tab="less"', (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('less_related', review.GROUP_FIELDS)
+
+    def test_early_career_and_the_rest_are_two_review_tabs(self):
+        """Asked for on 2026-09-25: an intern, NG or early career title is
+        reviewed on its own tab; "Master's plus 2 years" stays on To review."""
+        script = self.script()
+        body = script.split('function filtered() {')[1].split('\n}\n')[0]
+        self.assertIn("[['recent', state.pending.filter(experienced)], ['backlog', state.backlog.filter(experienced)]]",
+                      body, 'To review still lists early career postings')
+        self.assertIn("[['recent', state.pending.filter(early)], ['backlog', state.backlog.filter(early)]]",
+                      body, 'early career postings have no tab of their own')
+        self.assertIn('const experienced = group => related(group) && !group.early_career;', script)
+        self.assertIn("$('#remaining').textContent = open.length;", script,
+                      'Remaining stops counting one of the two review tabs')
+        self.assertIn("['pending', 'early', 'backlog', 'less'].includes(tab)", script,
+                      'the early career tab cannot mark a posting applied or skipped')
+        self.assertIn('data-tab="early"', (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8'))
+        self.assertIn('early_career', review.GROUP_FIELDS)
 
     def test_a_saved_decision_leaves_the_list_before_the_refresh(self):
         """Asked for on 2026-09-22: Skip or Mark applied should take the posting
