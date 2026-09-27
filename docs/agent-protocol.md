@@ -5,6 +5,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner:   claude
+Scope:   Second bug hunt at the user's request: twenty defects found, each
+         with a reproducer red before its fix (heading detection, R5,
+         filters, location, ranking, store, review).
+Files:   src/jobdisco/*, tests/*, docs/{agent-protocol,architecture,handoff}.md
+Base commit: d7be20e
+Status:  in progress
+Next:    Fix, run the full suite, push to main.
+```
+
+```text
 Owner: claude
 Scope: Codex R6 (experience: a short preference sentence opens a Preferred
        section) and R7 (degree: an inline Required heading cannot end one).
