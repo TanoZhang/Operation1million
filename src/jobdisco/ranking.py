@@ -182,9 +182,16 @@ ISO_SECONDS = re.compile(r'^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})')
 TEXT_DATES = ('%B %d, %Y', '%b %d, %Y', '%m/%d/%Y', '%d %B %Y')
 
 
+def month_text(text):
+    """A month the way `strptime` reads it: "Sept 7, 2026" and "Sep. 7, 2026"
+    become "Sep 7, 2026". Both were read as no date at all (2026-09-27)."""
+    text = re.sub(r'\bSept\b', 'Sep', text, flags=re.I)
+    return re.sub(r'\b([A-Za-z]{3,4})\.(?=\s)', r'\1', text)
+
+
 def posted_day(value):
     """The calendar day a stamp names, or None if it names nothing usable."""
-    text = ' '.join(str(value or '').split())
+    text = month_text(' '.join(str(value or '').split()))
     if not text:
         return None
     found = ISO_DAY.match(text)
@@ -205,9 +212,13 @@ def posted_day(value):
 # Days Ago". Its postings were all shown as having no date and ranked on the
 # day we first saw them, though the board had said how old each was. "30+
 # Days Ago" is only a lower bound, and is left unread.
+# Hours and minutes are today, "a day" is one, and a week is seven days: the
+# same ages `job_text.POSTED_SUFFIX` strips from titles, which this read as no
+# date at all (2026-09-27). Months stay unread; their length is a guess.
 RELATIVE_DAY = re.compile(
-    r'^\s*posted\s+(?:(?P<today>today|just\s+now)|(?P<yesterday>yesterday)|'
-    r'(?P<days>\d{1,2})\s+days?\s+ago)\s*$', re.I)
+    r'^\s*posted\s+(?:(?P<today>today|just\s+now|(?:an?|one|\d{1,2})\s+(?:minute|hour)s?\s+ago)'
+    r'|(?P<yesterday>yesterday|(?:a|one)\s+day\s+ago)|'
+    r'(?P<days>\d{1,2})\s+days?\s+ago|(?P<weeks>\d{1,2}|a|one)\s+weeks?\s+ago)\s*$', re.I)
 
 
 def relative_day(text, as_of):
@@ -220,7 +231,10 @@ def relative_day(text, as_of):
     seen = posted_day(as_of)
     if not found or seen is None:
         return None
-    back = 0 if found['today'] else 1 if found['yesterday'] else int(found['days'])
+    if found['weeks']:
+        back = 7 * (int(found['weeks']) if found['weeks'].isdigit() else 1)
+    else:
+        back = 0 if found['today'] else 1 if found['yesterday'] else int(found['days'])
     return date.fromordinal(seen.toordinal() - back).isoformat()
 
 

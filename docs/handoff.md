@@ -1,6 +1,14 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Twenty more filter bugs - 2026-09-27 UTC (claude, not deployed)
+
+Main is 9dfc8b4 plus this: title rules, citizenship, dates, title cleaning,
+experience and the PhD filter; see "Twenty more again" in the bug log. Changes
+`data/config/jsearch_queries.toml` (senior, energy and three citizenship
+patterns). Full offline suite: 745 tests, 10 environment skips. After
+`deploy/vps/install.sh`, run `job-store --rescore` for the two title rules.
+
 # Twenty filter bugs - 2026-09-27 UTC (claude, not deployed)
 
 Main is d7be20e plus this. Twenty defects in headings (including Codex R5 and

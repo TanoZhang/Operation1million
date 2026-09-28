@@ -80,6 +80,11 @@ _RULED_OUT = re.compile(
     r"(?:\bnot|n't|\bnever)\s+(?:be\s+)?(?:eligible|accepted|considered)\b|\bineligible\b", re.I)
 
 
+_WELCOMES = re.compile(
+    r'\b(?:(?:also|are|is)\s+(?:\w+\s+)?(?:welcomed?|encouraged|considered|accepted|eligible)'
+    r'|welcome\s+to\s+apply|encouraged\s+to\s+apply)\b', re.I)
+
+
 def _has_other_degree(text: str) -> bool:
     """Recognize a second degree or an explicit experience alternative."""
     return bool(_OTHER_WORDS.search(text) or _OTHER_SHORT.search(text))
@@ -139,7 +144,10 @@ def description_only(text):
         # a heading. "Or Master's degree required." is four words and matches
         # REQUIRED, and was read as a heading and skipped -- losing the very
         # alternative that keeps the posting.
-        if has_other and not optional:
+        # A master's that is welcome is another way in, not a preference about
+        # the PhD: "MS students with strong research also welcome" was read as
+        # optional and the posting removed as PhD-only (2026-09-27).
+        if has_other and (not optional or _WELCOMES.search(block)):
             other = True
         if len(block.split()) <= 7 and not has_phd and not has_other and is_heading(block):
             if PREFERENCE.search(block):

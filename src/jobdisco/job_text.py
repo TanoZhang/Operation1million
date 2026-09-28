@@ -76,11 +76,14 @@ def _with_qualifications(description, raw):
         [readable_text(description)] + sections if text) + '</div>'
 
 
+# A dash may be an en or em dash (2026-09-27), and a month abbreviated with a
+# point, "Sep. 7, 2026".
+SEPARATOR = r'\s+(?:[|\-–—]\s*)?'
 POSTED_SUFFIX = re.compile(
-    r'\s+(?:[|\-]\s*)?Posted\s+(?:today|yesterday|just now|'
+    SEPARATOR + r'Posted\s+(?:today|yesterday|just now|'
     # "30+ Days Ago" is how Workday says a month or more.
     r'(?:a|an|one|\d+\+?)\s+(?:minute|hour|day|week|month)s?\s+ago|'
-    r'(?:on\s+)?\d{4}-\d{2}-\d{2}|(?:on\s+)?[A-Za-z]+\s+\d{1,2},?\s+\d{4})\s*$', re.I)
+    r'(?:on\s+)?\d{4}-\d{2}-\d{2}|(?:on\s+)?[A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})\s*$', re.I)
 
 
 def clean_title(title, location=''):
@@ -92,6 +95,10 @@ def clean_title(title, location=''):
         prefix = ', '.join(parts[:-1])
         for country in ('US', 'USA', 'United States', 'United States of America'):
             candidates.add(', '.join(filter(None, [prefix, country])))
+        # And the place without the country: JSearch reads "Austin, TX, US"
+        # where the title says "- Austin, TX" (2026-09-27).
+        if prefix:
+            candidates.add(prefix)
 
     def once(title):
         title = POSTED_SUFFIX.sub('', title).strip()
@@ -99,7 +106,7 @@ def clean_title(title, location=''):
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back
             # as "Engineer," (2026-09-27).
-            match = re.search(r'(?:\s*,\s*|\s+(?:[|\-]\s*)?)' + re.escape(candidate) + r'$', title, re.I)
+            match = re.search(r'(?:\s*,\s*|' + SEPARATOR + ')' + re.escape(candidate) + r'$', title, re.I)
             if match:
                 return title[:match.start()].strip()
         return title

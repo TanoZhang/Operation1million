@@ -121,8 +121,9 @@ exclude_title_patterns = [
   '\bsales\b', '\bmarketing\b', '\btechnician\b',
   # Levels above what an early-career application reaches
   # Not the SR of SR-IOV, a PCIe virtualisation feature firmware and driver
-  # postings name in the title.
-  '\bsenior\b', '\bsr\b(?![-\s]?iov\b)\.?',
+  # postings name in the title. Not "(Up to Senior Level)", which hires below
+  # it, as with principal below (2026-09-27).
+  '(?<!\bup\sto\s)\bsenior\b', '\bsr\b(?![-\s]?iov\b)\.?',
   # Principal and lead at the user's request, 2026-09-22 -- but not a posting
   # hiring across levels: "SoC RTL Design Engineer (Up to Principal Level)"
   # and "... Lead & IC Engineers" are open to the levels below, and were the
@@ -157,7 +158,8 @@ exclude_title_patterns = [
   # 2026-09-23: legal, assistants and the energy sector. Not "energy-efficient"
   # or Bluetooth "Low Energy", which describe a chip.
   '\b(?:counsel|attorney|paralegal|litigation|legal)\b', '\bassistants?\b',
-  '(?<!\blow\s)\benergy\b(?![-\s]?efficien)',
+  # "Low-Energy" with a hyphen too (2026-09-27).
+  '(?<!\blow\s)(?<!\blow-)\benergy\b(?![-\s]?efficien)',
   '\b(?:mechanical|thermal|structural|civil|construction|manufacturing|industrial)\s+engineer\b',
 ]
 
@@ -341,11 +343,15 @@ exclude_publisher_domains = [
 # "citizenship status".
 us_person_required_patterns = [
   '\b(?:must|shall|will\s+need\s+to|required\s+to|need\s+to)\s+(?:be|hold|have|possess|maintain)\s+(?:an?\s+)?(?:\((?:i|1|a)\)\s*)?(?:active\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens?|citizenship|persons?)\b',
-  '(?<!\bno\s)\b(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)\s+(?:is\s+)?(?:required|mandatory|a\s+requirement|a\s+must)\b',
+  # "U.S. citizenship or permanent residency is required" too (2026-09-27).
+  '(?<!\bno\s)\b(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)(?:\s+or\s+(?:lawful\s+)?permanent\s+residen(?:cy|ce|t\s+status))?\s+(?:is\s+)?(?:required|mandatory|a\s+requirement|a\s+must)\b',
   '\brequires?\s+(?:(?:active|current)\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)\b',
   '\brequires?\s+that\s+(?:the\s+)?(?:candidate|applicant|individual|person)s?(?:\s+selected)?\s+(?:be|is|are)\s+(?:an?\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizen|person)',
   '\b(?:only|open\s+(?:only\s+)?to|restricted\s+to\s+(?:\w+\s+){0,3}who\s+are)\s+(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens|persons)\b',
-  '\b(?:U\.?\s?S\.?|United\s+States)\s+citizens?\s+only\b',
+  # "US Citizens or Green Card holders only" too (2026-09-27).
+  '\b(?:U\.?\s?S\.?|United\s+States)\s+citizens?(?:\s+or\s+(?:green\s+card\s+holders?|(?:lawful\s+)?permanent\s+residents?))?\s+only\b',
+  # A form's label: "Required: U.S. Citizenship", "Requirement: US Citizen".
+  '\brequire(?:d|ments?)\s*:\s*(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens?(?:hip)?|persons?)\b',
   '\b(?:must|required\s+to)\s+(?:be|qualify\s+as)\s+(?:an?\s+)?["“]?(?:U\.?\s?S\.?|United\s+States)\s+person',
   # The citizen rather than the citizenship, as a form's value or a bare line:
   # "Citizenship: US Citizen Required", "US Citizen or Green Card required".

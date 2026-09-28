@@ -32,6 +32,7 @@ from .jsearch_access import RequestGuard, load_credentials
 from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, html_challenge, STATE as SOURCE_STATE
 from . import store
 from . import jsearch
+from . import ranking
 
 FIELDS = ['company_key', 'company_name', 'provider_key', 'title', 'location', 'url', 'source_job_id', 'posted_at', 'raw']
 JSON_PROVIDERS = {'workday', 'greenhouse', 'ashby', 'oracle_cloud', 'smartrecruiters', 'phenom', 'amazon_jobs', 'eightfold', 'amd_careers'}
@@ -95,7 +96,7 @@ def location_text(value):
     return str(value or '')
 
 
-POSTED_FORMATS = ['%b %d, %Y', '%B %d, %Y', '%m/%d/%Y', '%Y-%m-%d', '%d %b %Y']
+POSTED_FORMATS = ['%b %d, %Y', '%B %d, %Y', '%m/%d/%Y', '%Y-%m-%d', '%d %b %Y', '%d %B %Y']
 
 
 def posted_from_text(text):
@@ -105,7 +106,10 @@ def posted_from_text(text):
     the evening before everywhere west of Greenwich, so the review page showed
     every such posting a day earlier than the board printed it.
     """
-    cleaned = re.sub(r'(?i)^\s*(posted|date posted)\s*:?\s*', '', str(text or '')).strip()
+    # "Posted on Sep 7, 2026", "Posted: Sept 7, 2026" and "7 September 2026"
+    # were read as relative phrasing (2026-09-27).
+    cleaned = re.sub(r'(?i)^\s*(posted|date posted)(?:\s+on)?\s*:?\s*', '', str(text or '')).strip()
+    cleaned = ranking.month_text(cleaned)
     for fmt in POSTED_FORMATS:
         try:
             return datetime.strptime(cleaned, fmt).date().isoformat()

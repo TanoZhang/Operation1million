@@ -709,9 +709,18 @@ def us_person_required(text, rules):
             # position that requires a clearance" still names a condition.
             lead = re.sub(r'\bif\s+(?:hired|selected|offered\s+the\s+position)\s*(?:,|$|(?=(?:you|candidates?|applicants?)\b))',
                           '', lead, flags=re.I)
+            # "... Green Card holder, or authorized to work in the US" lists
+            # a way in anyone with work authorization has (2026-09-27).
+            rest = re.split(r'[.;!?\n•]', text[match.end():match.end() + 200])[0]
+            if WORK_AUTHORIZATION.search(rest):
+                continue
             if not HEDGED.search(lead) and not DENIED.search(lead):
                 return True
     return False
+
+
+WORK_AUTHORIZATION = re.compile(
+    r'\bor\s+(?:\w+\s+){0,3}(?:authori[sz]ed|eligible|permitted|able)\s+to\s+work\b', re.I)
 
 
 # Words that make what follows conditional rather than stated.

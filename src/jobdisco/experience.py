@@ -10,10 +10,15 @@ ENTRY = re.compile(r'\b(?:intern|internship|co-?op|new\s+(?:college\s+)?grad(?:u
                    r'(?:university|college|recent)\s+graduate)\b', re.I)
 # "Will be an advantage" (Samsung) is a preference; a bare "advantage for
 # FullChip" (NVIDIA) is not the marker, so the article is required.
-OPTIONAL = re.compile(r'\b(?:preferred|desired|nice\s+to\s+have|a\s+plus|bonus|ideally|'
-                      r'an?\s+advantage|advantageous|an\s+asset)\b', re.I)
+# "Desirable", "beneficial" and "helpful" too (2026-09-27): "3+ years of
+# experience desirable" was a requirement.
+OPTIONAL = re.compile(r'\b(?:preferred|desired|desirable|nice\s+to\s+have|a\s+plus|bonus|ideally|'
+                      r'an?\s+advantage|advantageous|an\s+asset|beneficial|helpful)\b', re.I)
 REQUIRED = re.compile(r'\b(?:required|requirements?|minimum|basic\s+qualifications|must\s+have|at\s+least)\b', re.I)
-DEGREE = re.compile(r"\b(?:BS|MS|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
+# The short forms with their field: "BSEE + 5 years or MSEE + 3 years" was no
+# degree at all, and read as asking nothing (2026-09-27).
+SHORT_FORMS = r'(?:BS|MS)(?:EE|CS|CE|c)?'
+DEGREE = re.compile(r"\b(?:" + SHORT_FORMS + r"|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
 # A hyphen can carry the unit as well as a range: "3-year experience" states
 # what "3 years experience" states. And the bound can be fractional, which this
 # gate has to be able to exceed -- reading 2.5 as 2 decides the posting the
@@ -49,7 +54,7 @@ PAREN_REPEAT = re.compile(r'\b(\d{1,2})\s*\(\s*(?:\d{1,2}|%s)\s*\)' % '|'.join(N
 LABELLED = re.compile(
     r'\byears\s+of\s+((?:\w+\s+){0,2}?experience)\s*(?:required\s*)?[:\-–—]\s*'
     r'(\d{1,2}(?:\.\d)?(?:\s*(?:-|–|to)\s*\d{1,2})?\s*\+?)(?!\s*(?:years?|yrs?)\b)', re.I)
-SHORT_DEGREE = re.compile(r'\b(?P<degree>BS|MS)\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
+SHORT_DEGREE = re.compile(r'\b(?P<degree>' + SHORT_FORMS + r')\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
 EXPERIENCE = re.compile(r'\b(?:experience|professional|industry|yoe)\b', re.I)
 # The work itself, named straight after the duration. "8+ years of hands-on
 # FPGA designs" asks for eight years as plainly as "8 years of experience" does,
@@ -93,8 +98,8 @@ INSTEAD_OF_DEGREE = re.compile(r'^(?:(?!\b(?:and|with|plus)\b)[^.;]){0,60}\bor\s
 # the first path took the second's degree and the MS path was lost
 # (2026-09-27). Never across an `or`, which starts the next path.
 DEGREE_AFTER = re.compile(
-    r"^(?:(?!\bor\b)[^.;\d])*?\b(?:with|and|plus|holding|having)\s+(?:an?\s+|the\s+)?"
-    r"(?P<degree>BS|MS|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
+    r"^(?:(?!\bor\b)[^.;\d])*?(?:\b(?:with|and|plus|holding|having)\s+|\(\s*)(?:an?\s+|the\s+)?"
+    r"(?P<degree>" + SHORT_FORMS + r"|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
 # The length of the thing offered: "a 2-year full-time rotational experience".
 # Singular unit after an article, which a requirement does not use.
 DURATION_OF = re.compile(r'\b(?:a|an|this|our|the)\s+$', re.I)
@@ -110,6 +115,19 @@ OTHER_POSITIONS = re.compile(
 # differently. A control character, because it cannot occur in prose.
 SECTION_END = '\x1e'
 NON_WORK = re.compile(r'^\s*[- ]?\s*(?:roadmap|degree|program(?:me)?|course|plan)\b', re.I)
+# An age or years of school, not of work: "at least 18 years old" read as an
+# eighteen-year requirement, "at least 3 years of college" as three (2026-09-27).
+AGE_OR_SCHOOLING = re.compile(
+    r'^\s*(?:old|of\s+age)\b'
+    r'|^\s*(?:of\s+)?(?:(?:undergraduate|graduate|university|college|full[-\s]time)\s+)?'
+    r'(?:college|university|school|study|studies|coursework|education)\b', re.I)
+# Years the job gives, not years it asks for: "you will gain 3 years of experience".
+OFFERED = re.compile(r'\b(?:gain|gaining|acquire|earn)\s+(?:\w+\s+){0,2}$', re.I)
+# A master's with no years of its own as the other way in: "3 years of
+# experience OR a Master's degree", "Bachelor's + 3 years, or Master's degree".
+# The master's path asks nothing (2026-09-27).
+MASTERS_INSTEAD = re.compile(
+    r"^(?:(?!\bor\b)[^.;\d])*\bor\s+(?:an?\s+|the\s+)?(?:MS(?:EE|CS|CE|c)?|master(?:'s|s)?)\b[^.;\d]*(?:[.;]|$)", re.I)
 # Someone the posting supervises, not the posting itself. A role senior enough
 # to mentor an intern is the opposite of an entry-level opening, and reading
 # "you will mentor our interns" as an internship let such a posting skip the
@@ -171,7 +189,7 @@ AS_EXPERIENCE = re.compile(r'^\s*(?:or\s+co-?op\s+)?experiences?\b', re.I)
 # is not an alternative, and reading it as one let the MS path's two years stand
 # in for the five the posting asked of a bachelor's.
 ALTERNATIVE = re.compile(
-    r'\bor\b|\s/\s|\b(?:BS|MS|bachelor\w*|master\w*)\s*/\s*(?:BS|MS|bachelor\w*|master\w*)\b',
+    r'\bor\b|\s/\s|\b(?:' + SHORT_FORMS + r'|bachelor\w*|master\w*)\s*/\s*(?:' + SHORT_FORMS + r'|bachelor\w*|master\w*)\b',
     re.I)
 
 # A heading opens a section; a short sentence does not. "Python preferred."
@@ -338,7 +356,7 @@ def evaluate(title, description):
                 before, after = clause[:match.start()], clause[match.end():]
                 duration = (DURATION_OF.search(before)
                             and not re.search(r's$', match.group(), re.I))
-                if years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
+                if years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or AGE_OR_SCHOOLING.match(after) or OFFERED.search(before) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
                         NOT_A_MINIMUM.search(before)
                         and not STILL_A_MINIMUM.search(before)):
                     continue
@@ -358,6 +376,11 @@ def evaluate(title, description):
                     continue
                 degree = (following['degree'] if following
                           else degrees[-1].group() if degrees else '').lower()
+                if not degree.startswith(('ms', 'master')) and MASTERS_INSTEAD.match(after):
+                    # The years are the path without a master's, and the
+                    # master's path asks none.
+                    degree = degree or 'bs'
+                    candidates.append((0, 'ms', clause.strip()))
                 candidates.append((years_value(match['low']), degree, clause.strip()))
             for match in SHORT_DEGREE.finditer(clause):
                 if any(m.start() <= match.end() and m.end() >= match.start() for m in matches):

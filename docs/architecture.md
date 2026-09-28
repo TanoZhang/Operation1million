@@ -164,6 +164,56 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Twenty more again, 2026-09-27 UTC
+
+The second request of the day. Each has a test in `tests/test_third_bug_hunt.py`,
+red on `9dfc8b4` and green after (checked in a clean worktree of that commit).
+Offline suite 745 tests, 10 environment skips. No production index here, so
+verdict changes over live postings are not measured. Title rule changes leave
+stored scores alone: run `job-store --rescore` after deploying.
+
+Title rules (`data/config/jsearch_queries.toml`):
+21. "Low-Energy Bluetooth SoC Engineer" was excluded as the energy sector; only
+    "Low Energy" with a space was spared.
+22. "(Up to Senior Level)" was excluded, though "(Up to Principal Level)" was not.
+
+Citizenship (a hard pass, so misses keep postings the applicant cannot take):
+23. "U.S. citizenship or permanent residency is required" was missed.
+24. "US Citizens or Green Card holders only" was missed.
+25. "Required: U.S. Citizenship" was missed.
+26. "Must be a US Citizen, Green Card holder, or authorized to work in the US"
+    was a hard pass, though work authorization is its own way in.
+
+Dates:
+27. `relative_day` read days only; "2 hours ago", "a day ago" and "2 weeks ago"
+    left a posting undated. Months stay unread.
+28. `posted_day` did not read "Sept 7, 2026" or "Sep. 7, 2026".
+29. `posted_from_text` did not read "Posted on ...", "Posted: Sept ..." or
+    "7 September 2026".
+
+Titles (`clean_title`):
+30. An en or em dash before the location was left on the title.
+31. "Posted Sep. 7, 2026" was left on the title.
+32. "RTL Engineer - Austin, TX" kept its place when the location was
+    "Austin, TX, US": only the form with the country was removable.
+
+Experience:
+33. "desirable", "beneficial" and "helpful" did not mark years optional.
+34. "You will gain 3 years of experience" was a requirement.
+35. "3 years of experience OR a Master's degree" and "Bachelor's + 3 years, or
+    Master's degree" asked three years of a master's.
+36. "Must be at least 18 years old" was an eighteen-year requirement.
+37. "At least 3 years of college" was a three-year requirement.
+39. "Minimum 4 years (BS) or 2 years (MS)" lost the MS path.
+40. "BSEE + 5 years or MSEE + 3 years" named no degree and read as nothing;
+    BSc/MSc and BSEE/MSEE are now the short forms they are. Paths joined only
+    by a comma still stay unjoined (`test_a_slash_inside_a_term_of_the_trade...`
+    holds that, and a first draft of this round that joined them was dropped).
+
+Degree:
+38. "Currently pursuing a PhD. MS students with strong research also welcome."
+    was removed as PhD-only: "welcome" made the master's a mere preference.
+
 ### Twenty more from probing the rules, 2026-09-27 UTC
 
 Found by feeding the rules the wordings boards use. Each has a test in
