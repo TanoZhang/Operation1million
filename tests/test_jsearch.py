@@ -375,6 +375,9 @@ class DiscoveryTests(unittest.TestCase):
         self.session.get.return_value = self.response([job(str(i)) for i in range(20)])
         rows, stats = self.collect([jsearch.Query('RTL Design Engineer', 40, 'A')])
         params = parse_qs(urlsplit(self.session.get.call_args_list[0].args[0]).query)
+        # Blocked publishers are not requested (2026-09-27).
+        self.assertEqual(params.pop('exclude_job_publishers'),
+                         [','.join(self.settings['exclude_job_publishers'])])
         self.assertEqual(params, {'query': ['RTL Design Engineer'], 'num_pages': ['1'],
                                  'country': ['us'], 'date_posted': ['3days'],
                                  'employment_types': ['FULLTIME,INTERN']})

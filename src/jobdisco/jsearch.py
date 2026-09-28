@@ -99,6 +99,10 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     config.setdefault('employment_types', ['FULLTIME', 'INTERN'])
     if config['country'] != 'us' or not config['employment_types'] or not set(config['employment_types']) <= {'FULLTIME', 'INTERN'}:
         raise ValueError('Functional discovery requires US full-time/intern settings')
+    publishers = config.setdefault('exclude_job_publishers', [])
+    if not isinstance(publishers, list) or any(
+            not isinstance(name, str) or not name.strip() or ',' in name for name in publishers):
+        raise ValueError('exclude_job_publishers must be an array of publisher names without commas')
     config['max_pages_per_query_daily'] = config['max_pages_per_query']
     queries = []
     for row in config.get('query', []):
@@ -128,6 +132,15 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
                 r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}', domain)
             for domain in domains):
         raise ValueError('filter.exclude_publisher_domains must be an array of lowercase DNS domains')
+    walled = rules.get('account_walled_domains', [])
+    if not isinstance(walled, list) or any(
+            not isinstance(domain, str) or not re.fullmatch(
+                r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}', domain)
+            for domain in walled):
+        raise ValueError('filter.account_walled_domains must be an array of lowercase DNS domains')
+    names = rules.get('account_walled_publishers', [])
+    if not isinstance(names, list) or any(not isinstance(name, str) or not name.strip() for name in names):
+        raise ValueError('filter.account_walled_publishers must be an array of names')
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
                   'function_title_patterns', 'hardware_title_terms', 'role_title_terms',
                   'us_person_required_patterns', 'exclude_publisher_patterns',
@@ -269,6 +282,9 @@ class Client:
         params = {'query': query.query, 'num_pages': query.pages,
                   'country': self.settings['country'], 'date_posted': self.settings['date_posted'],
                   'employment_types': ','.join(self.settings['employment_types'])}
+        # Blocked publishers are not requested at all (2026-09-27).
+        if self.settings.get('exclude_job_publishers'):
+            params['exclude_job_publishers'] = ','.join(self.settings['exclude_job_publishers'])
         if first_page > 1:
             params['page'] = first_page
         url = urlunsplit(endpoint._replace(query=urlencode(params), fragment=''))
@@ -311,7 +327,54 @@ def public_link(value):
     return value if parts.scheme in {'http', 'https'} and parts.netloc else None
 
 
-def normalize_job(item, query, companies):
+def link_host(value):
+    """The lower-case host of a link or of a domain-form publisher name, or ''."""
+    if not isinstance(value, str) or not value.strip():
+        return ''
+    value = value.strip()
+    try:
+        host = urlsplit(value if '://' in value or value.startswith('//') else '//' + value).hostname
+    except ValueError:
+        return ''
+    return (host or '').lower().rstrip('.')
+
+
+def _on(host, domains):
+    return bool(host) and any(host == domain or host.endswith('.' + domain) for domain in domains)
+
+
+def closed_link(value, rules):
+    """A link on a blocked site or on one that wants an account first."""
+    host = link_host(value)
+    return _on(host, rules.get('exclude_publisher_domains', ())) or _on(
+        host, rules.get('account_walled_domains', ()))
+
+
+def _plain_name(value):
+    return re.sub(r'[\s.]+', '', str(value or '').casefold().strip().removesuffix('.com'))
+
+
+def walled_publisher(name, rules):
+    """Whether JSearch's publisher name is one of the account-walled sites."""
+    return bool(name) and _plain_name(name) in {
+        _plain_name(entry) for entry in rules.get('account_walled_publishers', ())}
+
+
+def open_apply_option(raw, rules):
+    """An apply link on a site that is neither blocked nor walled, or None."""
+    options = raw.get('apply_options') if isinstance(raw, dict) else None
+    for option in options if isinstance(options, list) else ():
+        if not isinstance(option, dict):
+            continue
+        link = public_link(option.get('apply_link'))
+        if (link and not closed_link(link, rules)
+                and not walled_publisher(option.get('publisher'), rules)
+                and not _on(link_host(link), ('google.com',))):
+            return link
+    return None
+
+
+def normalize_job(item, query, companies, rules=None):
     # Use the existing normalized record shape; importing locally avoids a
     # collector/module cycle. Unknown employers never change the source catalog.
     from .collector import normalize, employer_normalize
@@ -334,6 +397,11 @@ def normalize_job(item, query, companies):
     candidates = [item.get('job_apply_link'), item.get('job_google_link'),
                   *(r.get('apply_link') for r in options if isinstance(r, dict))]
     link = next((found for found in map(public_link, candidates) if found), None)
+    # An apply link behind an account wall or on a blocked site is not the
+    # posting's link when an open one is offered (2026-09-27): "Apply on Dice"
+    # beside "Apply on the company's site" takes the company's.
+    if rules and link and closed_link(link, rules):
+        link = open_apply_option(item, rules) or link
     posted = item.get('job_posted_at_datetime_utc')
     if posted is not None and not isinstance(posted, (str, int, float)):
         # An optional field the provider sent in a shape nothing can store.
@@ -508,10 +576,25 @@ def publisher_excluded(url, raw, rules):
                for domain in rules.get('exclude_publisher_domains', [])):
             return True
     combined = any_of(rules.get('exclude_publisher_patterns', []))
-    if not combined:
-        return False
-    return bool(combined.search(url or '')
-                or (isinstance(publisher, str) and combined.search(publisher)))
+    if combined and (combined.search(url or '')
+                     or (isinstance(publisher, str) and combined.search(publisher))):
+        return True
+    return account_walled(url, raw, rules)
+
+
+def account_walled(url, raw, rules):
+    """Whether reaching the posting needs an account or a membership.
+
+    Asked for on 2026-09-27: a third-party listing that cannot reach the real
+    posting in one click without signing up is blocked. Its link is on a
+    walled site, or JSearch names a walled publisher and the link is only its
+    Google Jobs page. An open apply option elsewhere keeps the posting.
+    """
+    host = link_host(url)
+    publisher = raw.get('job_publisher') if isinstance(raw, dict) else None
+    walled = _on(host, rules.get('account_walled_domains', ())) or (
+        walled_publisher(publisher, rules) and (not host or _on(host, ('google.com',))))
+    return walled and open_apply_option(raw, rules) is None
 
 
 def employer_excluded(row, rules):
@@ -853,6 +936,11 @@ def search_space(settings):
     """
     shape = '|'.join((settings.get('country', ''), settings.get('date_posted', ''),
                       ','.join(sorted(settings.get('employment_types', ())))))
+    # Excluding publishers changes the result set, so a cursor from before the
+    # change points at a page of another search. Only added to the shape when
+    # set, so a plan without it keeps its cursors.
+    if settings.get('exclude_job_publishers'):
+        shape += '|' + ','.join(sorted(name.casefold() for name in settings['exclude_job_publishers']))
     return hashlib.sha256(shape.encode()).hexdigest()[:8]
 
 
@@ -946,7 +1034,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
         stats['jsearch_jobs_raw'] += len(items)
         for item in items:
             try:
-                row = normalize_job(item, query, companies)
+                row = normalize_job(item, query, companies, rules)
             except (ValueError, TypeError, KeyError):
                 detail['malformed'] += 1
                 continue

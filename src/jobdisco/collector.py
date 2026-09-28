@@ -739,7 +739,10 @@ def fallback(source, aliases, args, budget, search):
     guard = getattr(args, 'jsearch_guard', None) or RequestGuard()
     names = [n for n in dict.fromkeys(list(aliases) + [source.company_name]) if n]
     names = names[:args.fallback_queries]
-    settings = {'country': 'us', 'date_posted': 'today', 'employment_types': ['FULLTIME', 'INTERN']}
+    plan = jsearch.load_plan()[0]
+    # The same blocked publishers as the daily plan, never requested (2026-09-27).
+    settings = {'country': 'us', 'date_posted': 'today', 'employment_types': ['FULLTIME', 'INTERN'],
+                'exclude_job_publishers': plan.get('exclude_job_publishers', [])}
     client = jsearch.Client(search, settings, guard, args.jsearch_timeout)
     try:
         for text in names:
@@ -753,7 +756,8 @@ def fallback(source, aliases, args, budget, search):
                         rejected += 1
                         continue
                     try:
-                        row = jsearch.normalize_job(item, query, {employer_normalize(source.company_name): source.company_key})
+                        row = jsearch.normalize_job(item, query, {employer_normalize(source.company_name): source.company_key},
+                                                    plan['filter'])
                     except (ValueError, TypeError):
                         continue
                     identity = row['source_job_id'] or row['url']

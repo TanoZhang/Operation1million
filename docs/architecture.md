@@ -159,6 +159,9 @@ reproducer and update its evidence below.
   them to overlapping UTC dates counts one residual in two Pacific windows.
 - **Log-stamp dates are computed, never literal.** A past literal date seals and
   can stop the production pass through its preflight test suite.
+- **Blocked publishers are excluded twice: in the request and in the filter.**
+  `exclude_job_publishers` saves credits; the filter is the guarantee, because
+  JSearch's name matching is unmeasured. Do not drop either.
 - **Scores cache unchanged content, not unchanged rules.** Content changes
   recalculate; rule changes require `job-store --rescore`.
 

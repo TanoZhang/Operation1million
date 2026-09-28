@@ -98,3 +98,35 @@ dots, rejection before keeps, existing Review rows, publisher domains, URL
 userinfo, misleading suffixes, path/query mentions and malformed URLs. This
 is an evidence-backed starter list, not a complete global scam registry.
 No paid collection, live prevalence measurement or deployment was performed.
+
+## Account-walled third-party sites, 2026-09-27
+
+The user asked to separate third-party listings and block the ones that cannot
+reach the real posting within one click without creating an account or buying
+a membership. `filter.account_walled_domains` and
+`filter.account_walled_publishers` in `data/config/jsearch_queries.toml` hold
+them. Checked on 2026-09-27:
+
+| Site | Domain | Evidence |
+| --- | --- | --- |
+| Dice | dice.com | Fetched a search page: "Apply Now" links to `/dashboard/login`. |
+| Wellfound (AngelList) | wellfound.com, angel.co | Fetched `/jobs`: applying needs a profile ("Create your profile"). |
+| Handshake | joinhandshake.com | MIT's Handshake guide: log in with a school email to use it. |
+| Ladders | theladders.com | Published subscription model and sign-in to view listings; our fetch got HTTP 403, so not seen directly. |
+
+JobLeads and Experteer, both membership sites, were already blocked above.
+Not blocked: LinkedIn (public listing pages), Lensa (free to browse and apply
+per its FAQ and reviews), ZipRecruiter (HTTP 403 to our fetch, so unverified),
+Indeed, Glassdoor and the employers' own sites.
+
+Unlike the other blocks, a walled listing is kept when JSearch also offers an
+apply link on an open site; `normalize_job` takes that link instead of the
+walled one. Rows already stored keep their stored link and are hidden at
+Review read time only when no open option exists in their payload.
+
+**Not requested at all.** `exclude_job_publishers` (top level of the same file)
+is sent as search-v2's `exclude_job_publishers` on every paid request, naming
+every blocked site. JSearch's matching of those names (exact, case, substring)
+is not documented and was not measured -- no paid request was made -- so the
+local filter still checks every result. Changing the list changes
+`search_space`, so resumable backfill cursors restart at page one once.

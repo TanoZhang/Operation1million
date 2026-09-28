@@ -1,6 +1,16 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Account-walled job sites blocked, and not requested - 2026-09-27 UTC (claude, not deployed)
+
+At the user's request: Dice, Wellfound, Handshake and Ladders (account or
+membership before the posting) are blocked unless an open apply link exists,
+which is then used; and every blocked publisher is sent to JSearch as
+`exclude_job_publishers`. Evidence and limits in
+`docs/blocked-recruitment-domains.md`. Not measured against a live request.
+Backfill cursors restart once because the search changed. Suite green; see
+the commit. Needs `deploy/vps/install.sh`.
+
 # A third twenty and the degree-path decision - 2026-09-27 UTC (claude, not deployed)
 
 Main is 411c6ab plus this; see the bug log entry of the same name. The user

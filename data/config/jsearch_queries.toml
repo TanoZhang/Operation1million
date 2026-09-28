@@ -31,6 +31,19 @@ backfill_max_pages_per_query = 200
 
 employment_types = ["FULLTIME", "INTERN"]
 
+# Publishers JSearch is asked not to return at all (search-v2's
+# exclude_job_publishers, comma-separated names), so their listings cost no
+# part of a page. Asked for by the user on 2026-09-27: every site blocked in
+# [filter] below, by the name JSearch reports it under. The filter still
+# checks each result, because how JSearch matches these names is not
+# documented and has not been measured. Changing this list changes the search,
+# so resumable backfill cursors start again at page one.
+exclude_job_publishers = [
+  "JobLeads", "Jobrapido", "Learn4Good", "Intern Insider", "Experteer",
+  "Trabajo.org", "BeBee", "Jobsora", "Geebo", "Higher-Hire", "Nexxt",
+  "Dice", "Wellfound", "Handshake", "Ladders",
+]
+
 # Priority is intern -> new_grad -> early_career -> A. Daily query caps total
 # exactly 320; short and empty pages still stop a query before its cap.
 # A month-wide backfill uses separate deeper caps for the same four tiers.
@@ -329,6 +342,26 @@ exclude_publisher_domains = [
   'jobrapido.com',
   'learn4good.com',
   'interninsider.me',
+]
+
+# Third-party sites where the posting or its application sits behind an
+# account or a membership, so the real posting is not one click away. Asked
+# for by the user on 2026-09-27; each checked that day (evidence in
+# docs/blocked-recruitment-domains.md). Unlike the blocks above, a listing is
+# kept when JSearch also offers an apply link on an open site, usually the
+# employer's own, and that link is used instead. Lensa, ZipRecruiter and
+# LinkedIn are not here: free to open, or not verifiable as walled.
+account_walled_domains = [
+  'dice.com',
+  'wellfound.com',
+  'angel.co',
+  'joinhandshake.com',
+  'theladders.com',
+]
+# The publisher names JSearch reports for the same sites, compared whole and
+# without case, spaces or ".com": "Dice", "Wellfound", "Handshake", "Ladders".
+account_walled_publishers = [
+  'Dice', 'Wellfound', 'AngelList', 'Handshake', 'Ladders', 'TheLadders',
 ]
 
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person
