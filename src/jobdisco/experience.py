@@ -165,7 +165,14 @@ OFFERED = re.compile(r'\b(?:gain|gaining|acquire|earn)\s+(?:\w+\s+){0,2}$', re.I
 # experience OR a Master's degree", "Bachelor's + 3 years, or Master's degree".
 # The master's path asks nothing (2026-09-27).
 MASTERS_INSTEAD = re.compile(
-    r"^(?:(?!\bor\b)[^.;\d])*\bor\s+(?:an?\s+|the\s+)?(?:MS(?:EE|CS|CE|c)?|master(?:'s|s)?)\b[^.;\d]*(?:[.;]|$)", re.I)
+    r"^(?:(?!\bor\b)[^.;\d])*\bor\s+(?:an?\s+|the\s+)?(?:MS(?:EE|CS|CE|c)?|master(?:'s|s)?|"
+    # "3+ years of experience, or Bachelor's degree in engineering" (2026-09-27).
+    r"BS(?:EE|CS|CE|c)?|bachelor(?:'s|s)?)\b[^.;\d]*(?:[.;]|$)", re.I)
+# The master's named first, with no years of its own, then "or" a bachelor's
+# with years: "Master's degree in a quantitative field, or Bachelor's degree
+# and 5+ years" asks nothing of a master's (2026-09-27).
+MASTERS_FIRST = re.compile(
+    r"\b(?:MS(?:EE|CS|CE|c)?|master(?:'s|s)?)\b(?:(?!\d)[^.;])*?\bor\s+(?:an?\s+)?(?:BS|bachelor)", re.I)
 # Someone the posting supervises, not the posting itself. A role senior enough
 # to mentor an intern is the opposite of an entry-level opening, and reading
 # "you will mentor our interns" as an internship let such a posting skip the
@@ -359,6 +366,9 @@ TERM = re.compile(
     r'\b(?:duration|length|term|commitment|commit\s+to)\s*:?\s*(?:of\s+)?$'
     # A frequency: "... and every 2 years thereafter" (live index, 2026-09-27).
     r'|\bevery\s+$'
+    # The path for someone with no degree: "In lieu of a degree, minimum of 8
+    # years" is an alternative, not a floor for a graduate (2026-09-27).
+    r"|\b(?:in\s+lieu\s+of|without)\s+(?:an?\s+|the\s+)?(?:[\w'-]+\s+){0,2}?degree\b[^.;]*$"
     r"|\b(?:degree|bachelor\S*|master\S*|BS|MS)\s*\(\s*$", re.I)
 # A preference in brackets with a subject of its own is an aside: "5+ years
 # (8+ preferred)" and "(SystemVerilog preferred)" made the five years optional
@@ -438,6 +448,13 @@ def evaluate(title, description):
     # "5 yrs. of experience": the point ended the sentence (2026-09-27).
     text = re.sub(r'\b(yrs?|exp)\.(?=\s)', r'\1', text, flags=re.I)
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)
+    # The degrees under other names, read as BS and MS (live index, 2026-09-27):
+    # B.Tech / M.Tech, B.E. / M.E. and BE / ME in capitals only -- "be" and "me"
+    # are words -- and a graduate degree, which is a master's or more.
+    text = re.sub(r'\b([BM])\.?\s?Tech\b\.?', r'\1S', text, flags=re.I)
+    text = re.sub(r'\b([BM])\.E\.?(?=[\s,/;)]|$)', r'\1S', text)
+    text = re.sub(r'(?<![\w.])([BM])E(?=[\s,/;)]|$)', r'\1S', text)
+    text = re.sub(r'\b(?:post-?\s?graduate|graduate|advanced)\s+degree\b', "Master's degree", text, flags=re.I)
     text = re.sub(r'<[^>]*>', '\n', text)
     text = SPELLED.sub(lambda found: str(NUMBER_WORDS[found.group(1).lower()]), text)
     text = PAREN_REPEAT.sub(r'\1', text)
@@ -556,6 +573,8 @@ def evaluate(title, description):
                     continue
                 degree = (following['degree'] if following
                           else degrees[-1].group() if degrees else '').lower()
+                if degree.startswith(('bs', 'bachelor')) and MASTERS_FIRST.search(before):
+                    candidates.append((0, 'ms', clause.strip()))
                 if not degree.startswith(('ms', 'master')) and MASTERS_INSTEAD.match(after):
                     # The years are the path without a master's, and the
                     # master's path asks none.

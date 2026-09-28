@@ -191,6 +191,11 @@ should go was shown; **display** = wrong text, date or grouping.
 | 162 | experience | "background check ... every 2 years thereafter" read as experience | removed | `TERM` |
 | 163 | citizenship | "This position requires that the candidate ... be a US Citizen" waved through -- regression from #96 (Amazon TS/SCI roles) | kept | plural "positions" only |
 | 164 | citizenship, experience | a Preferred section ran past the next heading: hid Blue Origin's U.S. person clause (regression from #152) and AMD's "ACADEMIC CREDENTIALS: ... 8+ years" | kept | any heading ends it; sub-headings do not |
+| 165 | experience | "Graduate Degree and a minimum of 2 years" not a master's path | removed | "graduate degree" read as a master's |
+| 166 | experience | "In lieu of a degree, minimum of 8 years" counted against a graduate | removed | `TERM` |
+| 167 | experience | "Master's degree ..., or Bachelor's degree and 5+ years" read as 5 | removed | `MASTERS_FIRST` |
+| 168 | experience | "BE/B.Tech ... 3+ years or M.Tech with 1+ years" lost the M.Tech path | removed | B.Tech/M.Tech/B.E./M.E. read as BS/MS |
+| 169 | experience | "3+ years ... experience, or Bachelor's degree" read as 3 | removed | `MASTERS_INSTEAD` takes a bachelor's |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -206,6 +211,9 @@ should go was shown; **display** = wrong text, date or grouping.
   group. Changing the key would re-key stored rows; left as a known gap.
 - "Tbilisi, Georgia" reads as the U.S. state: the country and the state share
   the name, and a doubt keeps the posting.
+- Boeing's multi-level postings ("Associate, Level 2: 2+ years ... Experienced,
+  Level 3: 5+ years") are read at the higher level; Boeing is an excluded
+  employer, so it changes nothing for this search.
 - Other defense contractors (Booz Allen, ManTech, Kratos, Mercury, SNC,
   Huntington Ingalls) are not on the user's employer list; suggested, not added.
 
@@ -234,3 +242,8 @@ Shown that were hidden (54): 35 Amazon postings hidden by "18 years of age or
 older" (#36), master's paths restored (KLA, Draper, Samsung, Microsoft
 Quantum), Qualcomm low-power design titles (#82), GE's FPGA Designer (#161).
 Reading these found #161-164, three of them regressions from earlier fixes.
+
+#165-169 came from reading a random sample of the 446 trade postings the
+gate rejects on the live index. Measured on the queue they change one listing:
+the postings they are about are mostly hidden for other reasons (an excluded
+employer, a location abroad). Correct, but small on today's index.

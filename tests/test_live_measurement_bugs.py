@@ -62,5 +62,36 @@ class LiveMeasurementTests(unittest.TestCase):
                                '- 5+ years of RTL design experience'), 5)
 
 
+class LiveRejectionSampleTests(unittest.TestCase):
+    """From reading a random sample of the 446 trade postings the experience
+    gate rejects on the live index. Red on a8a42af."""
+
+    def test_165_a_graduate_degree_is_the_masters_path(self):
+        self.assertEqual(years("Bachelor's Degree and minimum 4 years of prior relevant experience.\n"
+                               'Graduate Degree and a minimum of 2 years of prior related experience.'), 2)
+
+    def test_166_in_lieu_of_a_degree(self):
+        self.assertEqual(years("Bachelor's Degree and minimum 4 years of prior relevant experience.\n"
+                               'Graduate Degree and a minimum of 2 years of prior related experience.\n'
+                               'In lieu of a degree, minimum of 8 years of prior related experience.'), 2)
+        self.assertIsNone(years('In lieu of a degree, minimum of 8 years of prior related experience.'))
+
+    def test_167_the_masters_named_first_with_no_years(self):
+        self.assertEqual(years("Master's degree in a quantitative field, or Bachelor's degree and 5+ "
+                               'years of a quantitative field such as statistics'), 0)
+
+    def test_168_btech_mtech_be_me(self):
+        self.assertEqual(years('BE/B.Tech with 3+ years’ of experience or M.Tech with 1+ years of '
+                               'experience in Infrastructure development with SOCs or IPs verification'), 1)
+        self.assertEqual(years('B.E. with 4 years of experience or M.E. with 2 years of experience'), 2)
+        # "be" and "me" in a sentence are words, not degrees.
+        self.assertEqual(years('You will be expected to have 5+ years of experience'), 5)
+
+    def test_169_years_or_a_bachelors(self):
+        self.assertEqual(years('3+ years of quality assurance engineering experience, or '
+                               "Bachelor's degree in engineering, statistics or computer science"), 0)
+        self.assertEqual(years('3+ years of experience or a PhD'), 3)
+
+
 if __name__ == '__main__':
     unittest.main()
