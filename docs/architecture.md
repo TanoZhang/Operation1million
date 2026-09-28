@@ -164,6 +164,30 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### A third twenty, and the user's degree-path decision, 2026-09-27 UTC
+
+Each has a test in `tests/test_fourth_bug_hunt.py`, red on `411c6ab`. Suite
+767 tests, 10 environment skips. No production index here.
+
+**Decision (user, 2026-09-27):** BS and MS paths listed apart -- by a comma,
+semicolon, bullet or sentence -- are alternatives, so a master's path the
+applicant meets is not hidden behind a bachelor's. A requirement stated beside
+the paths still stands. This reverses the comma rule of
+`test_a_slash_inside_a_term_of_the_trade_is_not_a_degree_alternative`, which
+now keeps only its slash assertion.
+
+Experience: 41 months ("36 months of experience"); 42 a unit left out ("or 1+
+with Master's"); 43 "Exp: 3+ yrs"; 52 a Staff/Senior title made entry level by
+internship boilerplate; 53 "Must-Haves"/"Nice-to-Haves" headings; 54 "Pluses"
+and "a big plus"; 55 Qualcomm's ". OR Master's ..." split at the full stop.
+Citizenship: 44 an active clearance required; 56 "citizen of the United
+States"; 57 "USA"/"American citizenship", "US-citizen"; 58 "not open to
+non-U.S. citizens". Degree: 45 "Currently a PhD student", "for PhD students".
+Titles: 46 "Graduate RTL Engineer", "(Grad)", "Class of 2027"; 47 apprentices.
+Location: 48 "Austin, TX & Toronto, ON". Title cleaning: 49 "in Austin, TX";
+50 "(Austin, TX)"; 51 "Posted on 09/07/2026"; 60 "Reposted"/"Posted:". Dates:
+59 "Posted: 3 days ago", "Reposted ...", bare "3 days ago".
+
 ### Twenty more again, 2026-09-27 UTC
 
 The second request of the day. Each has a test in `tests/test_third_bug_hunt.py`,

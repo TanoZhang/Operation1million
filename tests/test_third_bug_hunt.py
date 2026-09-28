@@ -117,8 +117,9 @@ class ExperienceTests(unittest.TestCase):
         self.assertEqual(years('BSEE + 5 years or MSEE + 3 years'), 3)
         self.assertEqual(years('MSEE with 3 years of experience or BSEE with 5 years'), 3)
         self.assertEqual(years('BSc with 5 years of experience or MSc with 3 years of experience'), 3)
-        # Paths joined only by a comma stay unjoined, as test_experience holds.
-        self.assertEqual(years('BSEE with 5 years of experience, MSEE with 2 years'), 5)
+        # Paths joined only by a comma are alternatives too, since the user's
+        # decision later the same day (test_fourth_bug_hunt.DecisionTests).
+        self.assertEqual(years('BSEE with 5 years of experience, MSEE with 2 years'), 2)
 
 
 class DegreeTests(unittest.TestCase):

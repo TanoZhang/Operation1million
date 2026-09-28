@@ -92,6 +92,10 @@ EARLY_CAREER = re.compile(r"""\b(?:
     | graduate \s+ (?: training \s+ )?
       (?: engineer | program | programme | rotation | scheme | talent )
     | engineering \s+ graduates?
+    # "Graduate RTL Engineer", "RTL Design Engineer (Grad)", "Class of 2027"
+    # and apprentices, found 2026-09-27.
+    | ^ \s* graduate \b | (?<=\() \s* grad(?:uate)? (?=\s*\)) | class \s+ of \s+ \d{4}
+    | apprentice(?:ship)?s?
     | entry[-\s]? level | early[-\s]? career | campus | student
     | \d{4} \s+ grad(?:uate)?s?
     # "NG" is how a board abbreviates new grad: "Physical Design Engineer (NG)".
@@ -215,8 +219,9 @@ def posted_day(value):
 # Hours and minutes are today, "a day" is one, and a week is seven days: the
 # same ages `job_text.POSTED_SUFFIX` strips from titles, which this read as no
 # date at all (2026-09-27). Months stay unread; their length is a guess.
+# "Posted: 3 days ago", "Reposted 3 days ago" and a bare "3 days ago" too.
 RELATIVE_DAY = re.compile(
-    r'^\s*posted\s+(?:(?P<today>today|just\s+now|(?:an?|one|\d{1,2})\s+(?:minute|hour)s?\s+ago)'
+    r'^\s*(?:(?:re)?posted\s*:?\s+)?(?:(?P<today>today|just\s+now|(?:an?|one|\d{1,2})\s+(?:minute|hour)s?\s+ago)'
     r'|(?P<yesterday>yesterday|(?:a|one)\s+day\s+ago)|'
     r'(?P<days>\d{1,2})\s+days?\s+ago|(?P<weeks>\d{1,2}|a|one)\s+weeks?\s+ago)\s*$', re.I)
 

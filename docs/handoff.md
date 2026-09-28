@@ -1,6 +1,12 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# A third twenty and the degree-path decision - 2026-09-27 UTC (claude, not deployed)
+
+Main is 411c6ab plus this; see the bug log entry of the same name. The user
+decided BS/MS paths listed apart are alternatives. Suite 767 tests, 10
+environment skips. Needs `deploy/vps/install.sh` and `job-store --rescore`.
+
 # Twenty more filter bugs - 2026-09-27 UTC (claude, not deployed)
 
 Main is 9dfc8b4 plus this: title rules, citizenship, dates, title cleaning,

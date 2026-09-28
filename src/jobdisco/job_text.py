@@ -80,10 +80,12 @@ def _with_qualifications(description, raw):
 # point, "Sep. 7, 2026".
 SEPARATOR = r'\s+(?:[|\-–—]\s*)?'
 POSTED_SUFFIX = re.compile(
-    SEPARATOR + r'Posted\s+(?:today|yesterday|just now|'
+    # "Reposted", "Posted:" and "Posted on 09/07/2026" too (2026-09-27).
+    SEPARATOR + r'(?:Re)?posted\s*:?\s+(?:today|yesterday|just now|'
     # "30+ Days Ago" is how Workday says a month or more.
     r'(?:a|an|one|\d+\+?)\s+(?:minute|hour|day|week|month)s?\s+ago|'
-    r'(?:on\s+)?\d{4}-\d{2}-\d{2}|(?:on\s+)?[A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})\s*$', re.I)
+    r'(?:on\s+)?\d{4}-\d{2}-\d{2}|(?:on\s+)?\d{1,2}/\d{1,2}/\d{4}|'
+    r'(?:on\s+)?[A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})\s*$', re.I)
 
 
 def clean_title(title, location=''):
@@ -106,7 +108,12 @@ def clean_title(title, location=''):
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back
             # as "Engineer," (2026-09-27).
-            match = re.search(r'(?:\s*,\s*|' + SEPARATOR + ')' + re.escape(candidate) + r'$', title, re.I)
+            # And "in Austin, TX" and "(Austin, TX)", which left "RTL
+            # Engineer in" and the bracketed place behind (2026-09-27).
+            match = re.search(r'(?:\s*,\s*|\s+(?:in|at)\s+|' + SEPARATOR + ')' + re.escape(candidate) + r'$', title, re.I)
+            if match:
+                return title[:match.start()].strip()
+            match = re.search(r'\s*\(\s*' + re.escape(candidate) + r'\s*\)$', title, re.I)
             if match:
                 return title[:match.start()].strip()
         return title

@@ -220,7 +220,12 @@ def country(location):
     text = re.sub(r'^\s*locations?\s+', '', str(location or ''), flags=re.I).strip()
     if not text:
         return None
-    found = [_place(part) for part in re.split(r'\s*[;|\u2022]\s*|\s+/\s+', text) if part.strip()]
+    # "Austin, TX & Toronto, ON" as well (2026-09-27), but only between places
+    # that each have their own comma: "Toronto and Ottawa, Canada" is one.
+    parts = re.split(r'\s*[;|\u2022]\s*|\s+/\s+', text)
+    parts = [piece for part in parts
+             for piece in (re.split(r'\s+(?:&|and)\s+(?=[^,]+,)', part) if part.count(',') >= 2 else [part])]
+    found = [_place(part) for part in parts if part.strip()]
     if 'us' in found:
         return 'us'
     return 'foreign' if 'foreign' in found else None

@@ -12,9 +12,12 @@ ENTRY = re.compile(r'\b(?:intern|internship|co-?op|new\s+(?:college\s+)?grad(?:u
 # FullChip" (NVIDIA) is not the marker, so the article is required.
 # "Desirable", "beneficial" and "helpful" too (2026-09-27): "3+ years of
 # experience desirable" was a requirement.
-OPTIONAL = re.compile(r'\b(?:preferred|desired|desirable|nice\s+to\s+have|a\s+plus|bonus|ideally|'
+# "Nice-to-Haves", "Must-Haves" and "Pluses" as a heading, "a big plus" in a
+# line (2026-09-27): hyphenated, plural or qualified, each was read as nothing.
+OPTIONAL = re.compile(r'\b(?:preferred|desired|desirable|nice[-\s]+to[-\s]+haves?|a\s+plus|pluses|'
+                      r'(?:big|huge|great|strong|definite|major)\s+plus|bonus|ideally|'
                       r'an?\s+advantage|advantageous|an\s+asset|beneficial|helpful)\b', re.I)
-REQUIRED = re.compile(r'\b(?:required|requirements?|minimum|basic\s+qualifications|must\s+have|at\s+least)\b', re.I)
+REQUIRED = re.compile(r'\b(?:required|requirements?|minimum|basic\s+qualifications|must[-\s]+haves?|at\s+least)\b', re.I)
 # The short forms with their field: "BSEE + 5 years or MSEE + 3 years" was no
 # degree at all, and read as asking nothing (2026-09-27).
 SHORT_FORMS = r'(?:BS|MS)(?:EE|CS|CE|c)?'
@@ -55,7 +58,8 @@ LABELLED = re.compile(
     r'\byears\s+of\s+((?:\w+\s+){0,2}?experience)\s*(?:required\s*)?[:\-–—]\s*'
     r'(\d{1,2}(?:\.\d)?(?:\s*(?:-|–|to)\s*\d{1,2})?\s*\+?)(?!\s*(?:years?|yrs?)\b)', re.I)
 SHORT_DEGREE = re.compile(r'\b(?P<degree>' + SHORT_FORMS + r')\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
-EXPERIENCE = re.compile(r'\b(?:experience|professional|industry|yoe)\b', re.I)
+# "Exp: 3+ yrs" is as terse as "3+ YOE" (2026-09-27).
+EXPERIENCE = re.compile(r'\b(?:experience|professional|industry|yoe|exp)\b', re.I)
 # The work itself, named straight after the duration. "8+ years of hands-on
 # FPGA designs" asks for eight years as plainly as "8 years of experience" does,
 # and was read as asking nothing because none of the words above is in it --
@@ -93,6 +97,26 @@ SINCE_GRADUATION = re.compile(
 # Degree or 5 years commercial experience" (Altera) asks nothing of a master's.
 # Not "degree or equivalent and 3 years", where the years are still owed.
 INSTEAD_OF_DEGREE = re.compile(r'^(?:(?!\b(?:and|with|plus)\b)[^.;]){0,60}\bor\s+(?:an?\s+)?$', re.I)
+# Months of experience, as years: "36 months of experience" read as nothing
+# (2026-09-27). Only where experience follows, so "within the past 6 months"
+# stays a window.
+MONTHS = re.compile(
+    r'(?<![\w.])(\d{1,3})(?:\s*(?:-|–|—|to)\s*(\d{1,3}))?(\s*\+)?\s+months?\b'
+    r'(?=\s+(?:of\s+)?(?:[\w-]+\s+){0,3}?(?:experience|exp)\b)', re.I)
+
+
+def _as_years(found):
+    def count(months):
+        return f'{round(int(months) / 12, 1):g}'
+    span = count(found[1]) + ('-' + count(found[2]) if found[2] else '')
+    return span + (found[3] or '') + ' years'
+
+
+# The unit left out of the second path: "3+ years of experience (or 1+ with
+# Master's)" (2026-09-27).
+UNITLESS = re.compile(
+    r"(?<![\w.])(\d{1,2}(?:\.\d)?\s*\+?)(?=\s+(?:with|for)\s+(?:an?\s+|the\s+)?"
+    r"(?:MS|BS|master|bachelor|PhD|doctora))", re.I)
 # The degree named after the years it goes with: "4+ years of experience with
 # a BS, or 2+ years with an MS". Only the degree before the years was read, so
 # the first path took the second's degree and the MS path was lost
@@ -204,7 +228,7 @@ ALTERNATIVE = re.compile(
 # Requirements" written as an HTML heading with no colon.
 HEADING_VOCABULARY = frozenset('''
     minimum basic preferred desired desirable required requirement requirements
-    qualification qualifications nice to have must education additional bonus
+    qualification qualifications nice to have haves must education additional bonus
     points pluses plus a ideal ideally extra credit skills skill experience
     and & / job key core technical knowledge abilities competencies other
     what you need bring your who are we're looking for candidate profile
@@ -247,6 +271,10 @@ def internship_experience(text):
     return False
 
 
+SENIOR_TITLE = re.compile(
+    r'\b(?:staff|senior|sr\.?|principal|lead|manager|director|head\s+of|fellow|distinguished)\b', re.I)
+
+
 def entry_level(title, text):
     """Whether the posting is an entry-level opening, not one that mentions one.
 
@@ -258,6 +286,10 @@ def entry_level(title, text):
     """
     if ENTRY.search(title or ''):
         return True
+    if SENIOR_TITLE.search(title or ''):
+        # A staff or senior opening is not an internship whatever its
+        # careers-site boilerplate says about internships (2026-09-27).
+        return False
     for match in ENTRY.finditer(text or ''):
         sentence = fragment(text, match)
         if (not SUPERVISES.search(sentence) and not DENIES.search(sentence)
@@ -281,6 +313,8 @@ def evaluate(title, description):
     text = SPELLED.sub(lambda found: str(NUMBER_WORDS[found.group(1).lower()]), text)
     text = PAREN_REPEAT.sub(r'\1', text)
     text = LABELLED.sub(r'\2 years of \1', text)
+    text = MONTHS.sub(_as_years, text)
+    text = UNITLESS.sub(r'\1 years', text)
     debug = dict(entry_override=entry_level(title, text),
                  internship_experience=internship_experience(text),
                  required_experience_years=None, effective_experience_years=None,
@@ -293,12 +327,16 @@ def evaluate(title, description):
     # About, Benefits or "What you" heading ends both.
     optional_section = required_section = False
     values, effective = [], []
+    paths = {'bs': [], 'ms': []}
     # Keep explicit alternatives together even when formatted as separate bullets.
     text = re.sub(r'\s*\n\s*(?=(?:or\b|/))', ' ', text, flags=re.I)
     text = re.sub(r'(\bor|/)\s*\n\s*', r'\1 ', text, flags=re.I)
     # And across a semicolon: "Bachelor's and 3+ years; or Master's and 1+
     # years" was two blocks, and the master's path was no alternative at all.
     text = re.sub(r';\s*(?=or\b)', ', ', text, flags=re.I)
+    # And across a full stop: Qualcomm's "... 3+ years of experience. OR
+    # Master's degree and 2+ years ..." split the two paths (2026-09-27).
+    text = re.sub(r'\.\s+(?=or\b)', ', ', text, flags=re.I)
     for block in re.split(r'[\n;]|(?<=[.!?])\s+', text):
         block = block.strip(' \t-*•')
         if not block:
@@ -365,7 +403,8 @@ def evaluate(title, description):
                 hands_on = (HANDS_ON.match(after) and not ELAPSED.search(before)
                             and years_value(match['low']) <= HANDS_ON_MAX_YEARS)
                 if not (EXPERIENCE.search(clause) or REQUIRED.search(clause)
-                        or DEGREE.search(before) or standalone or under_heading
+                        or DEGREE.search(before) or DEGREE_AFTER.match(after)
+                        or standalone or under_heading
                         or hands_on):
                     continue
                 degrees = list(DEGREE.finditer(before))
@@ -394,8 +433,26 @@ def evaluate(title, description):
         explicit_alternative = bool(ALTERNATIVE.search(block))
         values.extend(bounds)
         independent = [c[0] for c in candidates if not c[1]]
-        effective.append(max(ms + independent) if bs and ms and explicit_alternative else max(bounds))
+        if bs and ms and (explicit_alternative or not independent):
+            # Two degree paths: alternatives, whether joined by "or" or only by
+            # a comma. The user's decision of 2026-09-27; a master's path the
+            # applicant can meet is not hidden behind a bachelor's.
+            effective.append(max(ms + independent))
+        elif ms and not bs and independent and explicit_alternative:
+            # "3+ years, or 1+ with a master's": the untagged years are the
+            # path without one.
+            effective.append(max(ms))
+        elif not independent and not (bs and ms) and (bs or ms):
+            # One degree's path. Its other may be in the next bullet, sentence
+            # or clause: "BS with 4+ years; MS with 2+ years" (user decision).
+            paths['ms' if ms else 'bs'].append(max(bounds))
+        else:
+            effective.append(max(bounds))
         debug['matched_text'].extend(dict.fromkeys(c[2] for c in candidates))
+    if paths['bs'] and paths['ms']:
+        effective.append(max(paths['ms']))
+    else:
+        effective.extend(paths['bs'] + paths['ms'])
     debug['required_experience_years'] = max(values, default=None)
     debug['effective_experience_years'] = max(effective, default=None)
     if not debug['entry_override'] and debug['effective_experience_years'] is not None and debug['effective_experience_years'] > 2:

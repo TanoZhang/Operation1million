@@ -60,6 +60,10 @@ STATED = re.compile(
     r'|' + PHD + r'\s+(?:degree\s+)?(?:is\s+)?(?:required|mandatory|needed)'
     r'|(?:must|shall|will)\s+(?:have|hold|possess|be\s+(?:pursuing|enrolled\s+in))\s+(?:a\s+|an\s+)?' + PHD +
     r'|' + PHD + r'\s+(?:students?|candidates?)\s+only'
+    # Who the applicant is, or whom the opening is for: "Currently a PhD
+    # student", "This internship is for PhD students" (2026-09-27).
+    r"|\b(?:currently|you\s+are|you're)\s+(?:an?\s+)?" + PHD + r'\s+(?:student|candidate)'
+    r'|\bfor\s+' + PHD + r'\s+students\b(?!\s+(?:and|or)\b)'
     # The field between the degree and the word: "PhD in EE required." and
     # "Ph.D. in Electrical Engineering required" state it as plainly as "PhD
     # required" and were read as stating nothing. Never across a "not".

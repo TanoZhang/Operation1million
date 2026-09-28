@@ -352,6 +352,19 @@ us_person_required_patterns = [
   '\b(?:U\.?\s?S\.?|United\s+States)\s+citizens?(?:\s+or\s+(?:green\s+card\s+holders?|(?:lawful\s+)?permanent\s+residents?))?\s+only\b',
   # A form's label: "Required: U.S. Citizenship", "Requirement: US Citizen".
   '\brequire(?:d|ments?)\s*:\s*(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens?(?:hip)?|persons?)\b',
+  # Found 2026-09-27. An active clearance is held only by U.S. citizens: "Active
+  # TS/SCI clearance required". Not "ability to obtain" one, which is a hope.
+  '\b(?:must|shall|required\s+to|need\s+to)\s+(?:have|hold|possess|maintain)\s+(?:an?\s+)?(?:active|current)\s+(?:[\w/-]+\s+){0,3}clearance\b',
+  '\b(?:active|current)\s+(?:[\w/-]+\s+){0,3}clearance\s+(?:is\s+)?(?:required|mandatory)\b',
+  # "Must be a citizen of the United States".
+  '\b(?:must|required\s+to)\s+be\s+(?:an?\s+)?citizens?\s+of\s+the\s+United\s+States\b',
+  # "USA citizenship required", "American citizenship required", "a US-citizen".
+  '\b(?:USA|U\.S\.A\.?|American)\s+citizenship\s+(?:is\s+)?(?:required|mandatory)\b',
+  '\b(?:must|required\s+to)\s+be\s+(?:an?\s+)?U\.?S\.?-citizens?\b',
+  # Ruling non-citizens out: "not open to non-U.S. citizens", "Non-US citizens
+  # need not apply".
+  '\bnot\s+open\s+to\s+non-?\s?(?:U\.?\s?S\.?|United\s+States)\s+citizens\b',
+  '\bnon-?\s?(?:U\.?\s?S\.?|United\s+States)\s+citizens\s+(?:need\s+not|may\s+not|cannot|are\s+not\s+eligible\s+to)\s+apply\b',
   '\b(?:must|required\s+to)\s+(?:be|qualify\s+as)\s+(?:an?\s+)?["“]?(?:U\.?\s?S\.?|United\s+States)\s+person',
   # The citizen rather than the citizenship, as a form's value or a bare line:
   # "Citizenship: US Citizen Required", "US Citizen or Green Card required".

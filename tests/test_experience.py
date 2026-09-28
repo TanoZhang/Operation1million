@@ -266,11 +266,16 @@ class StatedAndDeniedTests(unittest.TestCase):
         self.assertEqual(found['hard_pass_reason'], '')
 
     def test_a_slash_inside_a_term_of_the_trade_is_not_a_degree_alternative(self):
-        """RTL/FPGA is one skill named two ways, not a bachelor's or a master's."""
+        """RTL/FPGA is one skill named two ways, not a bachelor's or a master's.
+
+        Until 2026-09-27 this also held that the two paths below, joined only by
+        a comma, were not alternatives and read five years. The user decided
+        that day that paths listed apart are alternatives (see
+        `test_fourth_bug_hunt.DecisionTests`); the slash still is no "or"."""
+        self.assertIsNone(experience.ALTERNATIVE.search('RTL/FPGA verification'))
         found = self.found('Requirements: BS with 5 years of RTL/FPGA verification '
                            'experience, MS with 2 years')
-        self.assertEqual(found['effective_experience_years'], 5)
-        self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+        self.assertEqual(found['effective_experience_years'], 2)
 
     def test_a_slash_that_does_separate_the_two_paths_still_does(self):
         for body in ('BS+4 / MS+2', 'BS/MS with 2 years of experience'):
