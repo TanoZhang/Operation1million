@@ -197,6 +197,9 @@ should go was shown; **display** = wrong text, date or grouping.
 | 168 | experience | "BE/B.Tech ... 3+ years or M.Tech with 1+ years" lost the M.Tech path | removed | B.Tech/M.Tech/B.E./M.E. read as BS/MS |
 | 169 | experience | "3+ years ... experience, or Bachelor's degree" read as 3 | removed | `MASTERS_INSTEAD` takes a bachelor's |
 | 170 | location | Amazon's "NG, Lagos", "BH, Manama", "JO, Amman" unplaced (ISO codes missing) | kept | every ISO code that is not a state code |
+| 171 | experience | "7+ years in Mixed-Signal SOC products" (no "experience" word) not read | kept | a bullet leading with the years |
+| 172 | experience | a "(Preferred)" line opened a Preferred section -- regression from #1 (Quanta) | kept | brackets are never a heading |
+| 173 | experience, degree, citizenship | mojibake no-break space ("inÂ Mixed") hid a requirement | kept | `repair_mojibake` |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -253,3 +256,8 @@ Also checked on the live index, no defect: all 256 titles on the Early career
 tab name an early-career opening; of 1,360 queued listings with no placeable
 location, the payload places none abroad except the three #170 fixes
 (most are blank or "N Locations" with no list behind them).
+
+#171-173 came from the other side: queued trade postings that name 3+ years
+the gate did not read (46 on the live index). Measured, they hide 5 postings,
+each a stated requirement (IC Resources 10+ years in RTL, Renesas 7+, MATX 7+,
+Neurophos 5+, Quanta 5+); nothing newly shown or wrongly hidden.

@@ -18,7 +18,7 @@ doubt keeps the posting:
 import html
 import re
 
-from .experience import OPTIONAL, REQUIRED, SECTION_END, is_heading
+from .experience import OPTIONAL, REQUIRED, SECTION_END, is_heading, repair_mojibake
 
 # A PhD that is welcome rather than demanded. The experience gate's OPTIONAL
 # words alone read "PhD is highly desirable", "pursuing a PhD is an
@@ -118,7 +118,7 @@ def _has_other_degree(text: str) -> bool:
 
 def _description_blocks(text):
     """Yield prose blocks and field-end markers without losing section scope."""
-    text = html.unescape(text or '')
+    text = repair_mojibake(html.unescape(text or ''))
     # A curly apostrophe is still one: "Master’s degree" was no other
     # degree, and a posting open to master's was removed (2026-09-27).
     text = text.replace('’', "'").replace('‘', "'")

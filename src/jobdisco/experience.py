@@ -86,6 +86,7 @@ HANDS_ON = re.compile(
     r'verifying|validating|testing|implementing|architecting|using|delivering|'
     r'shipping|performing|creating|doing)\b)', re.I)
 HANDS_ON_MAX_YEARS = 15
+LEADING_SUBJECT = re.compile(r'^\s+(?:in|of|with|working|doing|across|on|as)\b', re.I)
 # A duration that has to pass, not one that has to have passed. Under a
 # required heading a bare number of years is read as a requirement, and "ship
 # two tape-outs within three years" is a deadline the job sets, not experience
@@ -297,12 +298,31 @@ def title_case_line(block, minimum_words=1):
 
 def is_heading(block):
     block = block.strip()
+    # A bracketed marker annotates the line above it: Quanta's "(Preferred)"
+    # opened a Preferred section and hid "5+ years of professional" (live
+    # index, 2026-09-27).
+    if block.startswith('('):
+        return False
     if block.endswith(':') or SECTION_CLOSERS.match(block):
         return True
     words = re.findall(r"[\w'&/]+", block.lower())
     if words and all(word in HEADING_VOCABULARY for word in words):
         return True
     return bool(HEADING_START.match(block)) and title_case_line(block)
+
+
+# UTF-8 read as Windows-1252, as some boards serve it: "7+ years inÂ\xa0Mixed-
+# Signal" glued "in" to the next word and the requirement was not read (live
+# index, 2026-09-27). Only the sequences that are never meant.
+MOJIBAKE = (('Â ', ' '), ('Â ', ' '), ('â€™', "'"), ('â€˜', "'"),
+            ('â€œ', '"'), ('â€\x9d', '"'), ('â€“', '–'),
+            ('â€”', '—'))
+
+
+def repair_mojibake(text):
+    for broken, meant in MOJIBAKE:
+        text = text.replace(broken, meant)
+    return text
 
 
 def years_value(text):
@@ -444,7 +464,7 @@ def evaluate(title, description):
     explicit BS/MS alternative selects the stated MS path, never a degree bonus.
     """
     # Compatibility forms too: a full-width "５＋ years" (2026-09-27).
-    text = unicodedata.normalize('NFKC', html.unescape(description or ''))
+    text = unicodedata.normalize('NFKC', repair_mojibake(html.unescape(description or '')))
     # "5 yrs. of experience": the point ended the sentence (2026-09-27).
     text = re.sub(r'\b(yrs?|exp)\.(?=\s)', r'\1', text, flags=re.I)
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)
@@ -557,12 +577,17 @@ def evaluate(title, description):
                         and not TURNED_AWAY.match(after)) or UPPER_AFTER.match(after):
                     continue
                 standalone = YEARS.fullmatch(clause.strip())
+                # A bullet that leads with the years names what it asks for:
+                # "7+ years in Mixed-Signal SOC products", "Who You Are: 7+
+                # years in systems diagnostics" (live index, 2026-09-27).
+                leading = (not clause[:match.start()].strip(' \t-*•·')
+                           and LEADING_SUBJECT.match(after))
                 under_heading = required_section and not ELAPSED.search(before)
                 hands_on = (HANDS_ON.match(after) and not ELAPSED.search(before)
                             and years_value(match['low']) <= HANDS_ON_MAX_YEARS)
                 if not (EXPERIENCE.search(clause) or REQUIRED.search(clause)
                         or DEGREE.search(before) or DEGREE_AFTER.match(after)
-                        or standalone or under_heading
+                        or standalone or under_heading or leading
                         or hands_on):
                     continue
                 degrees = list(DEGREE.finditer(before))

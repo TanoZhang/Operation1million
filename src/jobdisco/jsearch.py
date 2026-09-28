@@ -22,7 +22,7 @@ from .collection_policy import retry_after_seconds
 from .jsearch_access import AccountPaused, QuotaExhausted
 from .job_text import clean_title
 from .experience import (SECTION_END, OPTIONAL, REQUIRED, NEUTRAL_HEADING, is_heading,
-                         title_case_line)
+                         title_case_line, repair_mojibake)
 
 
 @dataclass(frozen=True)
@@ -780,7 +780,7 @@ def us_person_required(text, rules):
     """
     # An entity or a no-break space is a space: "U.S.&nbsp;citizenship is
     # required" was missed, where the other gates unescape (2026-09-27).
-    text = unicodedata.normalize('NFKC', html.unescape(text or ''))
+    text = unicodedata.normalize('NFKC', repair_mojibake(html.unescape(text or '')))
     # Sentences are split at full stops, and "U.S." is full of them: the lead
     # of "If the role requires U.S. citizenship, candidates must be U.S.
     # citizens" was " citizenship, candidates ", its condition lost

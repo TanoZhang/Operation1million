@@ -93,6 +93,37 @@ class LiveRejectionSampleTests(unittest.TestCase):
         self.assertEqual(years('3+ years of experience or a PhD'), 3)
 
 
+class LiveMissTests(unittest.TestCase):
+    """From reading queued trade postings that name 3+ years the gate did not
+    read as a requirement. Red on 81e0e88."""
+
+    def test_171_a_bullet_that_leads_with_the_years(self):
+        for text in ('Qualifications\n\nMSEE or equivalent\n\n7+ years in Mixed-Signal SOC products, '
+                     'with proven tapeout-to-production experience',
+                     'Who You Are\n\n7+ years in systems diagnostics, hardware validation, or manufacturing test',
+                     '• 5+ years in calibration algorithm development, system bring-up, or verification'):
+            with self.subTest(text=text[:40]):
+                self.assertGreaterEqual(years(text) or 0, 5)
+        # Not a duration that is not asked for.
+        self.assertIsNone(years('Our hardware will make intelligence available 3-5 years sooner'))
+        self.assertIsNone(years('Our platform has been flying for over 10 years'))
+
+    def test_172_a_bracketed_preference_is_not_a_heading(self):
+        """Quanta: a "(Preferred)" line opened a Preferred section with #1 and
+        hid the "5+ years of professional" requirement below it."""
+        self.assertFalse(is_heading('(Preferred)'))
+        self.assertEqual(years('Required Skills/Abilities\n• Python for test automation.\n(Preferred)\n'
+                               '• Strong debugging skills\n\nEducation and Experience\n'
+                               '• 5+ years of professional'), 5)
+
+    def test_173_mojibake_no_break_spaces(self):
+        """"7+ years inÂ\xa0Mixed-Signal SOCÂ\xa0products": a no-break space
+        decoded as Windows-1252 glued "in" to the next word."""
+        self.assertGreaterEqual(years('Qualifications\n7+ years inÂ Mixed-Signal SOCÂ products, '
+                                      'withÂ proven tapeout-to-production experience') or 0, 7)
+        self.assertTrue(jsearch.us_person_required('Must be a U.S.Â citizen', RULES))
+
+
 class LiveLocationTests(unittest.TestCase):
     def test_170_amazons_leading_country_codes(self):
         """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing
