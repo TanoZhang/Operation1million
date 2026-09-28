@@ -124,6 +124,33 @@ class LiveMissTests(unittest.TestCase):
         self.assertTrue(jsearch.us_person_required('Must be a U.S.Â citizen', RULES))
 
 
+class LiveCitizenshipTests(unittest.TestCase):
+    """From reading the citizenship and export-control sentences left in the
+    live queue. Red on cc9f578."""
+
+    def test_174_require_the_candidate_to_be(self):
+        self.assertTrue(jsearch.us_person_required(
+            'To note: this is an on-site role in Erie and does require the candidate to be a US Persons '
+            '(US Citizen or Permanent Resident).', RULES))
+
+    def test_175_a_policy_to_only_hire_them(self):
+        self.assertTrue(jsearch.us_person_required(
+            'Because our employees are provided access to export-controlled items, our policy is to only '
+            'hire "U.S. persons" who are permitted to have access to our technology without an export license.',
+            RULES))
+
+    def test_176_either_a_citizen_or(self):
+        self.assertTrue(jsearch.us_person_required(
+            'Due to applicable export control laws and regulations, candidates must be either a U.S. citizen '
+            'or national, U.S. permanent resident (i.e., current Green Card holder), or lawfully admitted into '
+            'the U.S. as a refugee or granted asylum.', RULES))
+        # The same sentence with a licence route stays open.
+        self.assertFalse(jsearch.us_person_required(
+            'Due to applicable export control laws and regulations, candidates must be either a U.S. citizen '
+            'or national, U.S. permanent resident (i.e., current Green Card holder), or lawfully admitted into '
+            'the U.S. as a refugee or granted asylum, or be able to obtain a US export license.', RULES))
+
+
 class LiveLocationTests(unittest.TestCase):
     def test_170_amazons_leading_country_codes(self):
         """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing

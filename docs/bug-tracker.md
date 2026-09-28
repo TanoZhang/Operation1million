@@ -200,6 +200,9 @@ should go was shown; **display** = wrong text, date or grouping.
 | 171 | experience | "7+ years in Mixed-Signal SOC products" (no "experience" word) not read | kept | a bullet leading with the years |
 | 172 | experience | a "(Preferred)" line opened a Preferred section -- regression from #1 (Quanta) | kept | brackets are never a heading |
 | 173 | experience, degree, citizenship | mojibake no-break space ("inÂ Mixed") hid a requirement | kept | `repair_mojibake` |
+| 174 | citizenship | "does require the candidate to be a US Persons" missed | kept | pattern |
+| 175 | citizenship | "our policy is to only hire "U.S. persons"" missed | kept | pattern |
+| 176 | citizenship | "candidates must be either a U.S. citizen or ..." missed; "or be able to obtain a US export license" not read as the licence route | kept | pattern, `LICENCE_INSTEAD` |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -261,3 +264,9 @@ location, the payload places none abroad except the three #170 fixes
 the gate did not read (46 on the live index). Measured, they hide 5 postings,
 each a stated requirement (IC Resources 10+ years in RTL, Renesas 7+, MATX 7+,
 Neurophos 5+, Quanta 5+); nothing newly shown or wrongly hidden.
+
+#174-176 came from reading every citizenship and export-control sentence
+left in the live queue (58 distinct). Measured: two postings hidden (Van
+Kaizen's Erie role, Varda's Mission Assurance Engineer), both stating the
+requirement. Deliberately left: "ability to obtain" a clearance, a licence
+route, and Microsoft's "If the role requires ..." boilerplate.

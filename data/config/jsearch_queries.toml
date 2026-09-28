@@ -418,6 +418,12 @@ us_person_required_patterns = [
   # Form labels (2026-09-27): "Citizenship: U.S. Citizen", "Clearance
   # Required: TS/SCI", "Security Clearance: Active Secret".
   '\bcitizenship\s*:\s*(?:U\.?\s?S\.?|United\s+States)\s+citizen\b',
+  # Read on the live queue, 2026-09-27: "does require the candidate to be a US
+  # Persons", "our policy is to only hire "U.S. persons"", "candidates must be
+  # either a U.S. citizen or ...".
+  '\brequires?\s+(?:the\s+)?(?:candidate|applicant|individual|person)s?(?:\s+selected)?\s+to\s+be\s+(?:an?\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens?|persons?)\b',
+  '\bonly\s+(?:hire|employ|consider|accept)\s+["“]?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens|persons)\b',
+  '\b(?:must|required\s+to)\s+be\s+either\s+(?:an?\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens?|persons?)\b',
   # "U.S. Person required", "US Persons Only" (2026-09-27).
   '(?<!\bno\s)\b(?:U\.?\s?S\.?|United\s+States)\s+persons?\s+(?:is\s+|are\s+)?(?:required|only)\b',
   '\bclearance\s+required\s*:\s*(?:TS\s*/\s*SCI|TS|top\s+secret|secret|Q|L)\b',

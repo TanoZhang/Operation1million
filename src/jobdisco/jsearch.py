@@ -856,7 +856,8 @@ def required_citizenship_bullet(text):
 TRAILING_CONDITION = re.compile(
     r'^\s*,?\s*(?:if|where|when|whenever|depending|as\s+(?:needed|applicable|required))\b', re.I)
 LICENCE_INSTEAD = re.compile(
-    r'\b(?:unless|or)\s+(?:\w+\s+){0,3}?(?:an?\s+)?(?:export\s+)?licen[cs]e\b', re.I)
+    # "..., or be able to obtain a US export license" (live queue, 2026-09-27).
+    r'\b(?:unless|or)\s+(?:\w+\s+){0,5}?(?:an?\s+)?(?:U\.?\s?S\.?\s+)?(?:export\s+)?licen[cs]e\b', re.I)
 PREFERENCE_LABEL = re.compile(r'^\s*[-*•]?\s*(?:preferred|desired|nice[-\s]to[-\s]have|bonus)\b[^:\n]{0,30}:', re.I)
 
 
