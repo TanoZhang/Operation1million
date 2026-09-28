@@ -5,6 +5,8 @@ from html import escape, unescape
 
 from bs4 import BeautifulSoup
 
+from .location import US_STATES
+
 
 # Shared by storage and Review; angle-bracket types such as vector<T> alone
 # are not HTML and must remain visible.
@@ -108,6 +110,16 @@ def clean_title(title, location=''):
         # where the title says "- Austin, TX" (2026-09-27).
         if prefix:
             candidates.add(prefix)
+    # The state written the other way: "San Jose, California" in the title
+    # and "San Jose, CA" in the location, or the reverse (2026-09-27).
+    for candidate in list(candidates):
+        pieces = [piece.strip() for piece in candidate.split(',')]
+        for index, piece in enumerate(pieces):
+            other = US_STATES.get(piece.casefold()) or next(
+                (name.title() for name, code in US_STATES.items() if code == piece.casefold()), None)
+            if other and index:
+                candidates.add(', '.join(pieces[:index] + [other.upper() if len(other) == 2 else other]
+                                         + pieces[index + 1:]))
 
     def once(title):
         title = POSTED_SUFFIX.sub('', title).strip()

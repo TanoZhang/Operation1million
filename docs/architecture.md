@@ -167,6 +167,15 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### A fifth twenty, 2026-09-27 UTC
+
+Tests in `tests/test_sixth_bug_hunt.py`, red on `9451fbe`; rows #81-100 of
+`docs/bug-tracker.md`. Suite 819, 10 environment skips. Most costly: company
+boilerplate about other roles ("Some positions require U.S. citizenship") was a
+hard pass, and every citizenship match lost its condition because "U.S." split
+the sentence; ranges ("3~5", "3 through 5", "2 or 3") read their upper end; a
+posting first seen after the review server's clock was in no tab.
+
 ### A fourth twenty, 2026-09-27 UTC
 
 Tests in `tests/test_fifth_bug_hunt.py`, red on `1bd0645`; rows #61-80 of

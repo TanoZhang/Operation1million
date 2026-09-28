@@ -128,6 +128,10 @@ exclude_title_patterns = [
   # let through while "Manager" and "Senior" were not.
   '\bmgrs?\b', '\bsnr\b',
   '\bchief\b', '\bC[TEIF]O\b',
+  # A recruiter is not the trade however silicon the title (2026-09-27), and
+  # nor is a security operations centre.
+  '\brecruiters?\b', '\btalent\s+acquisition\b',
+  '\bsecurity\s+operations\b', '\bSOC\s+analysts?\b', '\bcyber\s*security\s+SOC\b',
   # "Head, Silicon Engineering", "Team Leader", "Supervisor" (2026-09-27).
   # Not "Head-Mounted Display" or a disk drive's "Head Design".
   '(?<![-\w])head\b(?=\s*(?:,|$|of\b|\s[-–|]))', '\bleaders?\b', '\bsupervisors?\b',
@@ -241,7 +245,12 @@ keep_title_patterns = [
   '\b(?:design|hardware|functional|low[-\s]+power)\s+verification\b',
   '\bpre[-\s]?silicon\s+verification\b', '\bformal\s+verification\b',
   '\brtl\b', '\bfpga\b', '\b(?:digital|logic)\s+(?:ic\s+)?design\b',
-  '\bdft\b', '\basic\b', '\bvlsi\b', '\bsoc\b', '\bphysical\s+design\b',
+  # Not a security operations centre (2026-09-27): "SOC Analyst".
+  '\bdft\b', '\basic\b', '\bvlsi\b', '(?<!\bsecurity\s)(?<!\bcybersecurity\s)\bsoc\b(?!\s*(?:analyst|\d|operations?))',
+  '\bphysical\s+design\b',
+  # Mixed-signal verification is the trade, as rejection_reason's docstring
+  # says; only "design verification" was named (2026-09-27).
+  '\b(?:ams|mixed[-\s]signal)\s+(?:design\s+)?verification\b',
 ]
 
 # Applied after explicit title keeps and before relevance scoring.
@@ -411,6 +420,8 @@ us_person_required_patterns = [
 ]
 # What the work is on. Enough, with a role below, to keep a function title.
 hardware_title_terms = [
+  # "Low Power Design Engineer" (2026-09-27).
+  '\blow[-\s]power\b',
   '\bchips?\b', '\bIC\b', '\b3D-?IC\b', '\bsilicon\b', '\bsemiconductors?\b',
   '\bCPU\b', '\bGPU\b', '\bNPU\b', '\bTPU\b', '\bprocessors?\b', '\baccelerators?\b',
   '\bSRAM\b', '\bDRAM\b', '\bNAND\b', '\bHBM\b', '\bmemory\b', '\bcircuits?\b',

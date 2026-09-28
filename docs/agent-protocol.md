@@ -12,7 +12,7 @@ Scope:   Third bug hunt at the user's request: twenty more defects, each with a
 Files:   src/jobdisco/*, data/config/jsearch_queries.toml, tests/*,
          docs/{agent-protocol,architecture,handoff}.md
 Base commit: c0d6e3b
-Status:  in progress -- #1-80 fixed and pushed (docs/bug-tracker.md); the user
+Status:  in progress -- #1-100 fixed and pushed (docs/bug-tracker.md); the user
          asked for 100 after #60, so continuing to #160
 Next:    Keep docs/bug-tracker.md current with every batch.
 ```

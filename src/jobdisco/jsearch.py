@@ -1,6 +1,8 @@
 """Fixed JSearch discovery plans, transport, and post-normalization filtering."""
 from dataclasses import dataclass, replace
 import hashlib
+import html
+import unicodedata
 import math
 from datetime import date
 import os
@@ -775,7 +777,14 @@ def us_person_required(text, rules):
     posting has superseded cannot impose a requirement the company never
     stated. What the patterns deliberately leave alone is in the config.
     """
-    text = text or ''
+    # An entity or a no-break space is a space: "U.S.&nbsp;citizenship is
+    # required" was missed, where the other gates unescape (2026-09-27).
+    text = unicodedata.normalize('NFKC', html.unescape(text or ''))
+    # Sentences are split at full stops, and "U.S." is full of them: the lead
+    # of "If the role requires U.S. citizenship, candidates must be U.S.
+    # citizens" was " citizenship, candidates ", its condition lost
+    # (2026-09-27). The same text with those points blanked, same offsets.
+    plain = ABBREVIATION.sub(lambda found: found.group().replace('.', ' '), text)
     for pattern in rules.get('us_person_required_patterns', []):
         for match in re.finditer(pattern, text, re.I):
             # The sentence the match stands in, up to it. A requirement stated
@@ -784,7 +793,7 @@ def us_person_required(text, rules):
             # "If the role requires US citizenship, as indicated in the job
             # description" were both passing postings that ask for neither --
             # found reading every removal in the live queue, 2026-09-22.
-            lead = re.split(r'[.;:!?\n\u2022]', text[max(0, match.start() - 200):match.start()])[-1]
+            lead = re.split(r'[.;:!?\n\u2022]', plain[max(0, match.start() - 200):match.start()])[-1]
             # An adversative starts a new clause: permission to work remotely
             # does not soften the citizenship requirement after "but".
             lead = re.split(r'\bbut\b|\bhowever\b', lead, flags=re.I)[-1]
@@ -794,16 +803,33 @@ def us_person_required(text, rules):
                           '', lead, flags=re.I)
             # "... Green Card holder, or authorized to work in the US" lists
             # a way in anyone with work authorization has (2026-09-27).
-            rest = re.split(r'[.;!?\n•]', text[match.end():match.end() + 200])[0]
+            rest = re.split(r'[.;!?\n•]', plain[match.end():match.end() + 200])[0]
             if WORK_AUTHORIZATION.search(rest):
+                continue
+            # About some other positions, not this one: "Some positions
+            # require U.S. citizenship", "For positions requiring access to
+            # classified information, ...", "... is required for positions
+            # supporting government contracts" (2026-09-27).
+            if OTHER_POSITIONS.search(lead) or OTHER_SCOPE.match(rest):
                 continue
             if not HEDGED.search(lead) and not DENIED.search(lead):
                 return True
     return False
 
 
+ABBREVIATION = re.compile(r'\b(?:U\.\s?S\.(?:\s?A\.)?|e\.g\.|i\.e\.|etc\.)', re.I)
 WORK_AUTHORIZATION = re.compile(
-    r'\bor\s+(?:\w+\s+){0,3}(?:authori[sz]ed|eligible|permitted|able)\s+to\s+work\b', re.I)
+    r'\bor\s+(?:\w+\s+){0,3}(?:authori[sz]ed|eligible|permitted|able)\s+to\s+work\b'
+    # "... or hold a valid work visa", "... or H-1B holder" (2026-09-27).
+    r'|\bor\s+(?:\w+\s+){0,3}(?:work\s+(?:visa|authori[sz]ation|permit)|H-?1B|OPT|EAD)\b', re.I)
+OTHER_POSITIONS = re.compile(
+    r'\b(?:some|certain|many|most|several|select|other)\s+(?:of\s+(?:our|the)\s+)?'
+    r'(?:positions|roles|jobs|programs|projects|cases|opportunities)\b'
+    r'|\b(?:positions?|roles?|jobs?)\s+(?:that\s+|which\s+)?requir'
+    r'|\b(?:positions|roles|jobs)\s+(?:that|which)\s*$', re.I)
+OTHER_SCOPE = re.compile(
+    r'^\s*(?:only\s+)?(?:for|on)\s+(?:positions|roles|those|certain|some|defense|government|'
+    r'programs|projects|work\s+on)\b', re.I)
 
 
 # Words that make what follows conditional rather than stated.

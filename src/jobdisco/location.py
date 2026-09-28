@@ -12,6 +12,7 @@ California, United States of America", Apple's "Location Cupertino", a bare
 U.S. city is kept.
 """
 import re
+import unicodedata
 
 US_STATES = {
     'alabama': 'al', 'alaska': 'ak', 'arizona': 'az', 'arkansas': 'ar', 'california': 'ca',
@@ -94,6 +95,10 @@ FOREIGN_CITIES = (
     'brno', 'kanata', 'petah-tikva', 'burnaby', 'galway', 'madhapur', 'valbonne',
     'sophia-antipolis', 'lapu-lapu', 'cebu', 'alajuela', 'heredia', 'bayan lepas',
     'chachoengsao', 'jubei', 'turkiye',
+    # Semiconductor sites found unplaced on 2026-09-27, and the unaccented
+    # forms of the accented names above (places are read without accents).
+    'pyeongtaek', 'giheung', 'hwaseong-si', 'taoyuan', 'wuxi', 'xiamen', 'cyberjaya',
+    'rousset', 'crolles', 'munchen', 'nurnberg', 'zurich',
 )
 # ISO 3166 codes that lead "IN, KA, Bengaluru"-style strings.
 FOREIGN_CODES = {
@@ -223,6 +228,10 @@ def country(location):
     now read on its own, and one U.S. place keeps the posting.
     """
     text = re.sub(r'^\s*locations?\s+', '', str(location or ''), flags=re.I).strip()
+    # Without accents: "Gdańsk", "Timișoara" and "Iași" did not match the
+    # names listed without them (2026-09-27).
+    text = ''.join(char for char in unicodedata.normalize('NFKD', text)
+                   if not unicodedata.combining(char))
     if not text:
         return None
     # "Austin, TX & Toronto, ON" as well (2026-09-27), but only between places

@@ -15,7 +15,8 @@ title-rule changes also need `job-store --rescore`.
 | 1 (#1-20) | `tests/test_second_bug_hunt.py` | d7be20e | 9dfc8b4 |
 | 2 (#21-40) | `tests/test_third_bug_hunt.py` | 9dfc8b4 | c0d6e3b |
 | 3 (#41-60) | `tests/test_fourth_bug_hunt.py` | 411c6ab | 40dd87b |
-| 4 (#61-80) | `tests/test_fifth_bug_hunt.py` | 1bd0645 | see git log |
+| 4 (#61-80) | `tests/test_fifth_bug_hunt.py` | 1bd0645 | 9451fbe |
+| 5 (#81-100) | `tests/test_sixth_bug_hunt.py` | 9451fbe | see git log |
 
 Direction: **removed** = a posting was wrongly hidden; **kept** = a posting that
 should go was shown; **display** = wrong text, date or grouping.
@@ -102,6 +103,26 @@ should go was shown; **display** = wrong text, date or grouping.
 | 78 | job_text | "Austin,TX" without a space left on title | display | flexible comma |
 | 79 | job_text | "Job ID 12345", "(Req #12345)" left on title; copies grouped apart | display | `REQUISITION_SUFFIX` |
 | 80 | degree | curly "Master’s degree" no alternative; posting removed | removed | apostrophe normalized |
+| 81 | queue | first_seen ahead of the server clock: posting in neither tab | removed | no upper bound on the recent window |
+| 82 | title rules | "Low Power Design Engineer" soft-blocked by "power" | removed | `low power` hardware term |
+| 83 | title rules | "Analog Mixed Signal Verification Engineer" blocked | removed | AMS/mixed-signal verification keep |
+| 84 | title rules | "Technical Recruiter - Silicon" kept by "silicon" | kept | recruiter, talent acquisition excluded |
+| 85 | title rules, ranking | "SOC Analyst", "Cybersecurity SOC Engineer" kept as system-on-chip | kept | security operations excluded |
+| 86 | experience | full-width "５＋ years" read as nothing | kept | NFKC |
+| 87 | citizenship | "U.S.&nbsp;citizenship is required" missed | kept | unescape + NFKC |
+| 88 | location | "Gdańsk", "Timișoara", "Iași" unplaced | kept | accents stripped |
+| 89 | location | Pyeongtaek, Giheung, Taoyuan, Wuxi, Xiamen, Cyberjaya, Rousset unplaced | kept | cities |
+| 90 | experience | "3~5 years" read as 5 | removed | `RANGE` |
+| 91 | experience | "3 through 5 years" read as 5 | removed | `RANGE` |
+| 92 | experience | "three-to-five years" read as 5 | removed | `RANGE` in `SPELLED` |
+| 93 | experience | "2 or 3 years", "2/3 years" read as 3 | removed | `RANGE` |
+| 94 | experience | "Years experience: 3+", "Experience (years): 3" read as nothing | kept | `LABELLED_SHORT` |
+| 95 | citizenship | "Some/Certain/Most positions require U.S. citizenship" a hard pass | removed | `OTHER_POSITIONS` |
+| 96 | citizenship | "For positions requiring ..." a hard pass; "U.S." dots cut the lead of every match | removed | `OTHER_POSITIONS`, `ABBREVIATION` mask |
+| 97 | citizenship | "... is required for positions supporting government contracts" a hard pass | removed | `OTHER_SCOPE` |
+| 98 | ranking | "Campus Network Engineer" early career | display | campus as the opening only |
+| 99 | job_text | "- San Jose, California" kept when the location says "CA" | display | state name/code variants |
+| 100 | citizenship | "... or hold a valid work visa", "or H-1B holder" a hard pass | removed | `WORK_AUTHORIZATION` |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -112,6 +133,9 @@ should go was shown; **display** = wrong text, date or grouping.
   read as the state, which keeps the posting -- deliberate.
 - A company's "About us" naming BS/MS/PhD graduates keeps a PhD posting --
   deliberate (`degree` docstring).
+- Discovered employers are keyed by `employer_name.casefold()`, so "Acme Inc."
+  and "Acme, Inc." are two keys and a paid listing's copies under both do not
+  group. Changing the key would re-key stored rows; left as a known gap.
 - Other defense contractors (Booz Allen, ManTech, Kratos, Mercury, SNC,
   Huntington Ingalls) are not on the user's employer list; suggested, not added.
 

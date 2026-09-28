@@ -450,10 +450,12 @@ def queue(db_path=DB, path=None, now=None):
                 group['jobs'].append(job)
 
         collect_into(groups, db.execute(
+            # No upper bound: a pass on a machine whose clock runs ahead stamps
+            # first_seen in this server's future, and such a posting was in
+            # neither this window nor the backlog (2026-09-27).
             select + ''' WHERE j.closed_at IS NULL AND julianday(j.first_seen) >= julianday(?)
-                         AND julianday(j.first_seen) <= julianday(?)
                          ORDER BY confidence DESC, j.first_seen DESC, j.url''',
-            (since, now.isoformat())))
+            (since,)))
         # Anything still open and still undecided, from before the recent window.
         # A three-day queue is a working rhythm, not an expiry: a posting nobody
         # got to on Friday was silently gone by Monday, with no view that could

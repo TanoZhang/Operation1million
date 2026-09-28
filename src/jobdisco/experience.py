@@ -1,6 +1,7 @@
 """Conservative, deterministic required-experience gate; no inferred equivalency."""
 import html
 import re
+import unicodedata
 
 # A co-op is an internship under another name, and a recent or college graduate
 # a new one; "Hardware Co-op" asking three years of Python was refused while
@@ -33,7 +34,10 @@ DEGREE = re.compile(r"\b(?:" + SHORT_FORMS + r"|bachelor(?:'s|s)?|master(?:'s|s)
 # posting abbreviates the unit; both used to read as stating nothing.
 # "Seven plus years" is "7+ years" (2026-09-27); it read as stating nothing.
 # "YOE" is how a terse posting writes "years of experience".
-NUMBER = (r'(?P<low>\d{1,2}(?:\.\d)?)(?:\s*(?:-|–|—|to)\s*\d{1,2})?(?:\s*\+|\s*-?\s*plus\b)?'
+# Between the two ends of a range: "3~5", "3 through 5", "3-to-5", and "2 or
+# 3" / "2/3", whose floor is the first (2026-09-27; each read the upper end).
+RANGE = r'(?:\s*(?:-|–|—|~|/)\s*|[\s-]+(?:to|through|thru|or)[\s-]+)'
+NUMBER = (r'(?P<low>\d{1,2}(?:\.\d)?)(?:' + RANGE + r'\d{1,2})?(?:\s*\+|\s*-?\s*plus\b)?'
           r'(?:\s+or\s+(?:more|greater))?')
 YEARS = re.compile(r'(?<![\w.])' + NUMBER + r'\s*(?:[-–—]\s*)?(?:years?|yrs?|yoe)\b', re.I)
 # Nobody asks for more than this. A bigger number is the company describing
@@ -48,10 +52,10 @@ NUMBER_WORDS = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 
                 'fifteen': 15, 'twenty': 20}
 # "Five to seven years" is a range from five. Only "seven" stood beside the
 # unit, so only it was rewritten and the floor read as seven (2026-09-27).
-SPELLED = re.compile(r'\b(%(words)s)\b(?=\s*(?:\(\s*\d{1,2}\s*\)\s*)?'
-                     r'(?:\s*(?:-|–|—|to)\s*(?:\d{1,2}|%(words)s)\b\s*(?:\(\s*\d{1,2}\s*\)\s*)?)?'
-                     r'(?:\+|\s*-?\s*plus\b)?'
-                     r'(?:\s+or\s+more)?\s*(?:[-–—]\s*)?(?:years?|yrs?)\b)'
+SPELLED = re.compile((r'\b(%(words)s)\b(?=\s*(?:\(\s*\d{1,2}\s*\)\s*)?'
+                      r'(?:' + RANGE + r'(?:\d{1,2}|%(words)s)\b\s*(?:\(\s*\d{1,2}\s*\)\s*)?)?'
+                      r'(?:\+|\s*-?\s*plus\b)?'
+                      r'(?:\s+or\s+more)?\s*(?:[-–—]\s*)?(?:years?|yrs?)\b)')
                      % {'words': '|'.join(NUMBER_WORDS)}, re.I)
 # "3 (three) years" and "three (3) years" once the word is a digit: one number.
 PAREN_REPEAT = re.compile(r'\b(\d{1,2})\s*\(\s*(?:\d{1,2}|%s)\s*\)' % '|'.join(NUMBER_WORDS), re.I)
@@ -59,6 +63,12 @@ PAREN_REPEAT = re.compile(r'\b(\d{1,2})\s*\(\s*(?:\d{1,2}|%s)\s*\)' % '|'.join(N
 # experience" written the other way round.
 LABELLED = re.compile(
     r'\byears\s+of\s+((?:\w+\s+){0,2}?experience)\s*(?:required\s*)?[:\-–—]\s*'
+    r'(\d{1,2}(?:\.\d)?(?:\s*(?:-|–|to)\s*\d{1,2})?\s*\+?)(?!\s*(?:years?|yrs?)\b)', re.I)
+# More forms of the label: "Years experience: 3+", "Yrs of experience: 3",
+# "Experience (years): 3", "# of years experience: 3" (2026-09-27).
+LABELLED_SHORT = re.compile(
+    r'(?:#\s*of\s+)?\b(?:(?:years?|yrs?)(?:\s+of)?\s+(?:experience|exp)|experience\s*\(\s*(?:years?|yrs?)\s*\))'
+    r'\s*(?:required\s*)?[:\-–—]\s*'
     r'(\d{1,2}(?:\.\d)?(?:\s*(?:-|–|to)\s*\d{1,2})?\s*\+?)(?!\s*(?:years?|yrs?)\b)', re.I)
 SHORT_DEGREE = re.compile(r'\b(?P<degree>' + SHORT_FORMS + r')\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
 # "Exp: 3+ yrs" is as terse as "3+ YOE" (2026-09-27).
@@ -319,7 +329,8 @@ def evaluate(title, description):
     Separate mandatory requirements use the maximum lower bound. Only an
     explicit BS/MS alternative selects the stated MS path, never a degree bonus.
     """
-    text = html.unescape(description or '')
+    # Compatibility forms too: a full-width "５＋ years" (2026-09-27).
+    text = unicodedata.normalize('NFKC', html.unescape(description or ''))
     # "5 yrs. of experience": the point ended the sentence (2026-09-27).
     text = re.sub(r'\b(yrs?|exp)\.(?=\s)', r'\1', text, flags=re.I)
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)
@@ -327,6 +338,7 @@ def evaluate(title, description):
     text = SPELLED.sub(lambda found: str(NUMBER_WORDS[found.group(1).lower()]), text)
     text = PAREN_REPEAT.sub(r'\1', text)
     text = LABELLED.sub(r'\2 years of \1', text)
+    text = LABELLED_SHORT.sub(r'\1 years of experience', text)
     text = MONTHS.sub(_as_years, text)
     text = UNITLESS.sub(r'\1 years', text)
     debug = dict(entry_override=entry_level(title, text),

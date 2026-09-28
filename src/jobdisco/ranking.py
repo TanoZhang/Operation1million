@@ -31,7 +31,7 @@ import re
 # bucket below, because an industry that is not this one prints them too.
 CORE = re.compile(r"""\b(?:
       rtl | asic | fpga | vlsi | dft | atpg | dv
-    | soc(?!\s*(?:analyst|operations?|compliance|audit|\d))
+    | (?<!security\s)(?<!cybersecurity\s) soc(?!\s*(?:analyst|operations?|compliance|audit|\d))
     | (?: design | functional | formal | hardware | rtl | soc | asic | ip | block
         | chip | cpu | gpu | npu | digital | low[-\s]?power
         | pre-?\s?silicon | post-?\s?silicon ) \s+ verification
@@ -96,7 +96,11 @@ EARLY_CAREER = re.compile(r"""\b(?:
     # and apprentices, found 2026-09-27.
     | ^ \s* graduate \b | (?<=\() \s* grad(?:uate)? (?=\s*\)) | class \s+ of \s+ \d{4}
     | apprentice(?:ship)?s?
-    | entry[-\s]? level | early[-\s]? career | campus | student
+    # "Campus" as the opening, not the place: "Campus Network Engineer"
+    # (2026-09-27).
+    | entry[-\s]? level | early[-\s]? career | student
+    | campus \s+ (?:hire|hiring|graduate|recruit\w*|program\w*|intern\w*)
+    | (?<=\() \s* campus (?=\s*\))
     | \d{4} \s+ grad(?:uate)?s?
     # "NG" is how a board abbreviates new grad: "Physical Design Engineer (NG)".
     # Only in capitals and not hyphenated, so "NG-RAN" stays a radio network.
@@ -136,6 +140,9 @@ SUMMARY = (('intern_ng', (0, 1)), ('core_vlsi', (2,)),
            ('related_hardware', (3,)), ('low_relevance', (4,)))
 
 
+SECURITY_OPERATIONS = re.compile(r'\bsecurity\s+operations\b|\bSOC\s+analysts?\b|\bcyber\s*security\b', re.I)
+
+
 def bucket(title):
     """Which band of the queue a title belongs in, 0 (first) to 4 (last).
 
@@ -147,7 +154,9 @@ def bucket(title):
     """
     title = title or ''
     early = _early(title)
-    if CORE.search(title):
+    # A security operations centre's SOC is not a system on chip, however the
+    # title spells it: "Security Operations Center (SOC) Engineer" (2026-09-27).
+    if CORE.search(title) and not SECURITY_OPERATIONS.search(title):
         return 0 if early else 2
     if RELATED.search(title):
         return 1 if early else 3
