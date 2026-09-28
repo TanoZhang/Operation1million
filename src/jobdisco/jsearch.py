@@ -21,7 +21,8 @@ from .paths import CONFIG
 from .collection_policy import retry_after_seconds
 from .jsearch_access import AccountPaused, QuotaExhausted
 from .job_text import clean_title
-from .experience import SECTION_END, OPTIONAL, REQUIRED, is_heading
+from .experience import (SECTION_END, OPTIONAL, REQUIRED, NEUTRAL_HEADING, is_heading,
+                         title_case_line)
 
 
 @dataclass(frozen=True)
@@ -868,7 +869,14 @@ def preferred_spans(text):
         stripped = line.replace(SECTION_END, '').strip(' \t\r\n-*')
         if SECTION_END in line:
             optional = False
-        if stripped and is_heading(stripped) and len(stripped.split()) <= 7:
+        bulleted = line.lstrip()[:1] in ('-', '*', '•')
+        # Any heading ends a preferred section, a known one or not: Blue
+        # Origin's "Export Control Regulations" after its preferred list was
+        # read as more of it, and hid its U.S. person requirement (live
+        # index, 2026-09-27). Its own sub-headings do not.
+        heading = stripped and not bulleted and (
+            (is_heading(stripped) and len(stripped.split()) <= 7) or title_case_line(stripped, 2))
+        if heading and not NEUTRAL_HEADING.match(stripped):
             optional = bool(OPTIONAL.search(stripped))
         elif optional or PREFERENCE_LABEL.match(line):
             spans.append((offset, offset + len(line)))
@@ -884,7 +892,9 @@ WORK_AUTHORIZATION = re.compile(
 OTHER_POSITIONS = re.compile(
     r'\b(?:some|certain|many|most|several|select|other)\s+(?:of\s+(?:our|the)\s+)?'
     r'(?:positions|roles|jobs|programs|projects|cases|opportunities)\b'
-    r'|\b(?:positions?|roles?|jobs?)\s+(?:that\s+|which\s+)?requir'
+    # Plural only: "This position requires that the candidate ... be a US
+    # Citizen" is this posting's own requirement (live index, 2026-09-27).
+    r'|\b(?:positions|roles|jobs)\s+(?:that\s+|which\s+)?requir'
     r'|\b(?:positions|roles|jobs)\s+(?:that|which)\s*$', re.I)
 OTHER_SCOPE = re.compile(
     r'^\s*(?:only\s+)?(?:for|on)\s+(?:positions|roles|those|certain|some|defense|government|'

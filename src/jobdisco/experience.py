@@ -260,7 +260,32 @@ HEADING_VOCABULARY = frozenset('''
 '''.split())
 # The headings that end a section may name the company or the role, so their
 # first word is enough: "About Acme", "Benefits at Acme".
+NEUTRAL_HEADING = re.compile(r'^(?:education|degrees?|qualifications?|skills|experience|'
+                             r'knowledge|technical\s+skills)\b', re.I)
 SECTION_CLOSERS = re.compile(r'^(?:responsibilities|about\b|benefits\b|what\s+you)', re.I)
+
+
+# A heading written in title case need not use only those words: Microsoft's
+# "Additional Or Preferred Qualifications" and GE's "Desired Characteristics"
+# stopped being headings under the word list alone, and their preferred years
+# became requirements (found on the live index, 2026-09-27). It must still
+# start like a heading and read like one -- short, capitalised, no full stop.
+HEADING_START = re.compile(
+    r'^(?:minimum|basic|preferred|desired|desirable|required|requirements?|qualifications?|nice|'
+    r'education|additional|bonus|pluses|ideal(?:ly)?|extra|key|core|must|what|who|your|technical|'
+    r'skills?|experience|other)\b', re.I)
+CONNECTORS = {'or', 'and', 'of', 'the', 'to', 'a', 'an', 'for', 'in', 'with', '&', '/', 'we', 'you'}
+
+
+def title_case_line(block, minimum_words=1):
+    # Short, capitalised, and not a sentence: no full stop, question or comma at the end.
+    block = block.strip().rstrip(':').strip()
+    # "Preferred: Python" is a heading with its content, a line, not a section.
+    if not block or block[-1] in '.!?,;' or ':' in block:
+        return False
+    words = re.findall(r"[A-Za-z][\w'’-]*|&|/", block)
+    return (minimum_words <= len(words) <= 6
+            and all(word[0].isupper() or word.lower() in CONNECTORS for word in words))
 
 
 def is_heading(block):
@@ -268,7 +293,9 @@ def is_heading(block):
     if block.endswith(':') or SECTION_CLOSERS.match(block):
         return True
     words = re.findall(r"[\w'&/]+", block.lower())
-    return bool(words) and all(word in HEADING_VOCABULARY for word in words)
+    if words and all(word in HEADING_VOCABULARY for word in words):
+        return True
+    return bool(HEADING_START.match(block)) and title_case_line(block)
 
 
 def years_value(text):
@@ -330,6 +357,8 @@ AS_ROLE = re.compile(r'\bas\s+(?:an?\s+|the\s+)?$', re.I)
 # own length, "Bachelor's degree (4-year)" (2026-09-27).
 TERM = re.compile(
     r'\b(?:duration|length|term|commitment|commit\s+to)\s*:?\s*(?:of\s+)?$'
+    # A frequency: "... and every 2 years thereafter" (live index, 2026-09-27).
+    r'|\bevery\s+$'
     r"|\b(?:degree|bachelor\S*|master\S*|BS|MS)\s*\(\s*$", re.I)
 # A preference in brackets with a subject of its own is an aside: "5+ years
 # (8+ preferred)" and "(SystemVerilog preferred)" made the five years optional
@@ -457,6 +486,12 @@ def evaluate(title, description):
                 optional_section, required_section = False, True
             elif SECTION_CLOSERS.match(block):
                 optional_section = required_section = False
+            elif (optional_section and is_heading(block) and len(block.split()) <= 7
+                  and not NEUTRAL_HEADING.match(block)):
+                # Another heading ends a preferred section: "Key
+                # Qualifications:" after "Preferred Qualifications:" (2026-09-27).
+                # A sub-heading of it -- Education, Skills -- does not.
+                optional_section = False
             continue
         if OTHER_POSITIONS.search(block):
             continue

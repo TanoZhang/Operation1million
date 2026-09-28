@@ -5,9 +5,9 @@ One row per defect found and fixed in the bug hunt the user asked for on
 fix. The user asked for 100 more after #60; #61-160 are those hundred, all fixed. Details and
 reasoning per batch are in `docs/architecture.md` ("Bugs found and fixed").
 
-No production index was available in this session: every case below is a
-wording fed to the rules offline, and how many live postings each changes is
-not measured. Nothing here is deployed until `deploy/vps/install.sh` runs;
+#1-160 were found by feeding wordings to the rules offline. From #161 the
+index is bootstrapped from the data repository and every change is measured
+on the live queue (see "Measured on the live index" below). Nothing here is deployed until `deploy/vps/install.sh` runs;
 title-rule changes also need `job-store --rescore`.
 
 | Batch | Tests | Red on | Fixed in |
@@ -19,7 +19,8 @@ title-rule changes also need `job-store --rescore`.
 | 5 (#81-100) | `tests/test_sixth_bug_hunt.py` | 9451fbe | aa31b7b |
 | 6 (#101-120) | `tests/test_seventh_bug_hunt.py` | aa31b7b | e79a5fd |
 | 7 (#121-140) | `tests/test_eighth_bug_hunt.py` | e79a5fd | 90f2f4b |
-| 8 (#141-160) | `tests/test_ninth_bug_hunt.py` | 90f2f4b | see git log |
+| 8 (#141-160) | `tests/test_ninth_bug_hunt.py` | 90f2f4b | eadb123 |
+| live (#161-) | `tests/test_live_measurement_bugs.py` | 691c051 | see git log |
 
 Direction: **removed** = a posting was wrongly hidden; **kept** = a posting that
 should go was shown; **display** = wrong text, date or grouping.
@@ -186,6 +187,10 @@ should go was shown; **display** = wrong text, date or grouping.
 | 158 | citizenship | "... unless an export license is obtained" a hard pass | removed | `LICENCE_INSTEAD` |
 | 159 | review | Host "[::1]" refused | display | `local_host` |
 | 160 | job_text | "- Remote - US" kept when the location is "Remote, US" | display | dash-joined place |
+| 161 | experience | "Additional Or Preferred Qualifications", "Desired Characteristics" no longer headings -- regression from #1 (Microsoft, GE postings) | removed | title-case headings |
+| 162 | experience | "background check ... every 2 years thereafter" read as experience | removed | `TERM` |
+| 163 | citizenship | "This position requires that the candidate ... be a US Citizen" waved through -- regression from #96 (Amazon TS/SCI roles) | kept | plural "positions" only |
+| 164 | citizenship, experience | a Preferred section ran past the next heading: hid Blue Origin's U.S. person clause (regression from #152) and AMD's "ACADEMIC CREDENTIALS: ... 8+ years" | kept | any heading ends it; sub-headings do not |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -210,3 +215,22 @@ Account-walled third-party sites (Dice, Wellfound, Ladders; Handshake unblocked
 at the user's request, they have an account) are
 blocked and every blocked publisher is excluded from JSearch requests
 (1bd0645, `tests/test_account_walled.py`, `docs/blocked-recruitment-domains.md`).
+
+## Measured on the live index, 2026-09-27
+
+The review queue built at d7be20e (before the hunt) and at the fix for #164,
+against the same index (47,738 postings, 43,569 open) and a copy of the
+decision ledger: 7,217 open listings before, 7,125 after; 528 early career
+before, 570 after.
+
+Hidden that were shown (144): 116 by title rules (Cisco "Technical Leader"
+grades, security SOC analysts, TS/SCI titles, SMTS), 5 account-walled copies
+(Ladders, Dice), 3 abroad (Cyprus, Kuwait), the rest by experience or
+citizenship now read correctly -- AMD's "ACADEMIC CREDENTIALS: 8+ years",
+Amazon's TS/SCI roles, Blue Origin's export-control clause. One trade-off: NVIDIA's
+"ASIC Design Engineer - Clocks IP" is in the index only as a Ladders copy.
+
+Shown that were hidden (54): 35 Amazon postings hidden by "18 years of age or
+older" (#36), master's paths restored (KLA, Draper, Samsung, Microsoft
+Quantum), Qualcomm low-power design titles (#82), GE's FPGA Designer (#161).
+Reading these found #161-164, three of them regressions from earlier fixes.
