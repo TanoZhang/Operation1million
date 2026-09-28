@@ -11,8 +11,9 @@ Scope:   Second bug hunt at the user's request: twenty defects found, each
          filters, location, ranking, store, review).
 Files:   src/jobdisco/*, tests/*, docs/{agent-protocol,architecture,handoff}.md
 Base commit: d7be20e
-Status:  in progress
-Next:    Fix, run the full suite, push to main.
+Status:  round 1 done -- twenty fixed, pushed to main, not deployed;
+         round 2 (twenty more, at the user's request) in progress
+Next:    Round 2, then deploy with deploy/vps/install.sh.
 ```
 
 ```text

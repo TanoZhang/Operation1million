@@ -97,7 +97,9 @@ def clean_title(title, location=''):
         title = POSTED_SUFFIX.sub('', title).strip()
         for candidate in sorted(candidates, key=len, reverse=True):
             # Only a known full location suffix is removable; role words stay intact.
-            match = re.search(r'\s+(?:[|\-]\s*)?' + re.escape(candidate) + r'$', title, re.I)
+            # A comma separates it as well: "Engineer, Austin, TX" came back
+            # as "Engineer," (2026-09-27).
+            match = re.search(r'(?:\s*,\s*|\s+(?:[|\-]\s*)?)' + re.escape(candidate) + r'$', title, re.I)
             if match:
                 return title[:match.start()].strip()
         return title

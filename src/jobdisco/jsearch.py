@@ -606,6 +606,18 @@ TAGS = re.compile(r'<[^>]{0,400}>')
 WHITESPACE = re.compile(r'\s+')
 
 
+# A field whose name is a qualification heading. `requirements` was missing
+# (Codex R5): a PhD under a "requirements" field was read as bare prose.
+HEADING_KEY = re.compile(r'preferred|desired|required|requirements?|qualifications', re.I)
+
+
+def field_heading(key):
+    """A field's name written as a heading. The colon is what says so: since
+    R6 a line is a heading only when it reads as one, and "job required skills"
+    did not, so its requirement had no section (2026-09-27)."""
+    return key.replace('_', ' ') + ':'
+
+
 def description_text(row, structured=False):
     """Everything the posting says about the work, in whatever field it says it.
 
@@ -624,10 +636,9 @@ def description_text(row, structured=False):
         elif isinstance(value, dict):
             for key, item in value.items():
                 if key not in NON_PROSE_FIELDS and key not in COLLECTOR_FIELDS:
-                    heading = structured and re.search(
-                        r'preferred|desired|required|qualifications', key, re.I)
+                    heading = structured and HEADING_KEY.search(key)
                     if heading:
-                        parts.append(key.replace('_', ' '))
+                        parts.append(field_heading(key))
                     walk(item)
                     if heading:
                         parts.append(SECTION_END)
@@ -649,9 +660,9 @@ def description_text(row, structured=False):
             # B49: a qualification heading is scoped to its own field. The mark
             # after the field closes it, so "preferred qualifications" no
             # longer reaches into the job description that happens to follow.
-            heading = structured and re.search(r'preferred|desired|required|qualifications', key, re.I)
+            heading = structured and HEADING_KEY.search(key)
             if heading:
-                parts.append(key.replace('_', ' '))
+                parts.append(field_heading(key))
             walk(value)
             if heading:
                 parts.append(SECTION_END)

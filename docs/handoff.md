@@ -1,6 +1,15 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Twenty filter bugs - 2026-09-27 UTC (claude, not deployed)
+
+Main is d7be20e plus this. Twenty defects in headings (including Codex R5 and
+two R6 regressions), location, the experience gate, the PhD filter, title
+cleaning and early-career labelling; see the bug log entry of the same date.
+The checkout now has `.venv` (Python 3.10.11, `pip install -r requirements.txt`).
+Full offline suite: 725 tests, 10 environment skips. Needs
+`deploy/vps/install.sh`; nothing from 2026-09-26 or 2026-09-27 is deployed.
+
 # Backlog tab without early career - 2026-09-26 UTC (claude, not deployed)
 
 At the user's request the Backlog tab and its count leave out early career

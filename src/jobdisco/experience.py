@@ -20,9 +20,11 @@ DEGREE = re.compile(r"\b(?:BS|MS|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
 # other way, and reading it as 5 decides it wrongly in the other direction.
 # "3 or more years" is a floor like "3+ years", and "yrs" is how a terse
 # posting abbreviates the unit; both used to read as stating nothing.
-NUMBER = (r'(?P<low>\d{1,2}(?:\.\d)?)(?:\s*(?:-|–|—|to)\s*\d{1,2})?\s*\+?'
+# "Seven plus years" is "7+ years" (2026-09-27); it read as stating nothing.
+# "YOE" is how a terse posting writes "years of experience".
+NUMBER = (r'(?P<low>\d{1,2}(?:\.\d)?)(?:\s*(?:-|–|—|to)\s*\d{1,2})?(?:\s*\+|\s*-?\s*plus\b)?'
           r'(?:\s+or\s+(?:more|greater))?')
-YEARS = re.compile(r'(?<![\w.])' + NUMBER + r'\s*(?:[-–—]\s*)?(?:years?|yrs?)\b', re.I)
+YEARS = re.compile(r'(?<![\w.])' + NUMBER + r'\s*(?:[-–—]\s*)?(?:years?|yrs?|yoe)\b', re.I)
 # Nobody asks for more than this. A bigger number is the company describing
 # itself -- "with over 40 years of experience, Acme leads..." -- and was read
 # as a forty-year requirement.
@@ -33,9 +35,13 @@ MAX_REQUIRED_YEARS = 20
 NUMBER_WORDS = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7,
                 'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12,
                 'fifteen': 15, 'twenty': 20}
-SPELLED = re.compile(r'\b(%s)\b(?=\s*(?:\(\s*\d{1,2}\s*\)\s*)?(?:\+|\s*-?\s*plus\b)?'
+# "Five to seven years" is a range from five. Only "seven" stood beside the
+# unit, so only it was rewritten and the floor read as seven (2026-09-27).
+SPELLED = re.compile(r'\b(%(words)s)\b(?=\s*(?:\(\s*\d{1,2}\s*\)\s*)?'
+                     r'(?:\s*(?:-|–|—|to)\s*(?:\d{1,2}|%(words)s)\b\s*(?:\(\s*\d{1,2}\s*\)\s*)?)?'
+                     r'(?:\+|\s*-?\s*plus\b)?'
                      r'(?:\s+or\s+more)?\s*(?:[-–—]\s*)?(?:years?|yrs?)\b)'
-                     % '|'.join(NUMBER_WORDS), re.I)
+                     % {'words': '|'.join(NUMBER_WORDS)}, re.I)
 # "3 (three) years" and "three (3) years" once the word is a digit: one number.
 PAREN_REPEAT = re.compile(r'\b(\d{1,2})\s*\(\s*(?:\d{1,2}|%s)\s*\)' % '|'.join(NUMBER_WORDS), re.I)
 # A form's label ahead of its value: "Years of experience: 5+" is "5+ years of
@@ -44,7 +50,7 @@ LABELLED = re.compile(
     r'\byears\s+of\s+((?:\w+\s+){0,2}?experience)\s*(?:required\s*)?[:\-–—]\s*'
     r'(\d{1,2}(?:\.\d)?(?:\s*(?:-|–|to)\s*\d{1,2})?\s*\+?)(?!\s*(?:years?|yrs?)\b)', re.I)
 SHORT_DEGREE = re.compile(r'\b(?P<degree>BS|MS)\s*\+\s*' + NUMBER + r'(?![\w\d])', re.I)
-EXPERIENCE = re.compile(r'\b(?:experience|professional|industry)\b', re.I)
+EXPERIENCE = re.compile(r'\b(?:experience|professional|industry|yoe)\b', re.I)
 # The work itself, named straight after the duration. "8+ years of hands-on
 # FPGA designs" asks for eight years as plainly as "8 years of experience" does,
 # and was read as asking nothing because none of the words above is in it --
@@ -82,6 +88,13 @@ SINCE_GRADUATION = re.compile(
 # Degree or 5 years commercial experience" (Altera) asks nothing of a master's.
 # Not "degree or equivalent and 3 years", where the years are still owed.
 INSTEAD_OF_DEGREE = re.compile(r'^(?:(?!\b(?:and|with|plus)\b)[^.;]){0,60}\bor\s+(?:an?\s+)?$', re.I)
+# The degree named after the years it goes with: "4+ years of experience with
+# a BS, or 2+ years with an MS". Only the degree before the years was read, so
+# the first path took the second's degree and the MS path was lost
+# (2026-09-27). Never across an `or`, which starts the next path.
+DEGREE_AFTER = re.compile(
+    r"^(?:(?!\bor\b)[^.;\d])*?\b(?:with|and|plus|holding|having)\s+(?:an?\s+|the\s+)?"
+    r"(?P<degree>BS|MS|bachelor(?:'s|s)?|master(?:'s|s)?)\b", re.I)
 # The length of the thing offered: "a 2-year full-time rotational experience".
 # Singular unit after an article, which a requirement does not use.
 DURATION_OF = re.compile(r'\b(?:a|an|this|our|the)\s+$', re.I)
@@ -110,6 +123,13 @@ SUPERVISES = re.compile(
 # an internship, a Senior Director's included.
 SPAN_START = re.compile(r'\bfrom\s+$', re.I)
 SPAN_END = re.compile(r'^\s+(?:to|through|until)\b', re.I)
+# Directions to other openings. "Students: explore our internship
+# opportunities" and "Looking for an internship? Visit our university page"
+# are careers-site boilerplate on senior postings, and each made a ten-year
+# requirement an entry-level opening's (2026-09-27).
+POINTER = re.compile(
+    r'\b(?:explore|visit|check\s+out|browse|see|view|learn\s+(?:more\s+)?about|'
+    r'looking\s+for|interested\s+in|search\s+for)\s+(?:\w+\s+){0,2}$', re.I)
 # An upper bound or a denial is not a minimum. "Fewer than three years" and
 # "no more than 5 years" describe who may apply, not what they must already
 # have, and reading the number as a floor rejected the postings that said it.
@@ -159,15 +179,29 @@ ALTERNATIVE = re.compile(
 # which then suppressed the requirement on the line after it (in `degree`
 # first, then Codex R6 here). A heading is written as one: it ends in a colon,
 # or it is the name of a qualification section.
-HEADING_WORDS = re.compile(
-    r'^(?:minimum|basic|preferred|desired|required|requirements?|qualifications?|'
-    r'nice[-\s]to[-\s]have|education|additional|responsibilities|about|benefits|what\s+you|'
-    r'desirable|bonus|pluses|ideal(?:ly)?|extra\s+credit)\b',
-    re.I)
+#
+# The name, all of it, and not only its first word. Matching the first word
+# alone read "Ideally you know Python." and "Bonus if you know Perl." as
+# Preferred headings (2026-09-27), and missed "Must Have" and "Job
+# Requirements" written as an HTML heading with no colon.
+HEADING_VOCABULARY = frozenset('''
+    minimum basic preferred desired desirable required requirement requirements
+    qualification qualifications nice to have must education additional bonus
+    points pluses plus a ideal ideally extra credit skills skill experience
+    and & / job key core technical knowledge abilities competencies other
+    what you need bring your who are we're looking for candidate profile
+'''.split())
+# The headings that end a section may name the company or the role, so their
+# first word is enough: "About Acme", "Benefits at Acme".
+SECTION_CLOSERS = re.compile(r'^(?:responsibilities|about\b|benefits\b|what\s+you)', re.I)
 
 
 def is_heading(block):
-    return block.rstrip().endswith(':') or bool(HEADING_WORDS.match(block))
+    block = block.strip()
+    if block.endswith(':') or SECTION_CLOSERS.match(block):
+        return True
+    words = re.findall(r"[\w'&/]+", block.lower())
+    return bool(words) and all(word in HEADING_VOCABULARY for word in words)
 
 
 def years_value(text):
@@ -209,7 +243,7 @@ def entry_level(title, text):
     for match in ENTRY.finditer(text or ''):
         sentence = fragment(text, match)
         if (not SUPERVISES.search(sentence) and not DENIES.search(sentence)
-                and not PRIOR.search(sentence)
+                and not PRIOR.search(sentence) and not POINTER.search(sentence)
                 and not (SPAN_START.search(sentence) and SPAN_END.match(text[match.end():]))
                 and not AS_EXPERIENCE.match(text[match.end():])):
             return True
@@ -244,6 +278,9 @@ def evaluate(title, description):
     # Keep explicit alternatives together even when formatted as separate bullets.
     text = re.sub(r'\s*\n\s*(?=(?:or\b|/))', ' ', text, flags=re.I)
     text = re.sub(r'(\bor|/)\s*\n\s*', r'\1 ', text, flags=re.I)
+    # And across a semicolon: "Bachelor's and 3+ years; or Master's and 1+
+    # years" was two blocks, and the master's path was no alternative at all.
+    text = re.sub(r';\s*(?=or\b)', ', ', text, flags=re.I)
     for block in re.split(r'[\n;]|(?<=[.!?])\s+', text):
         block = block.strip(' \t-*•')
         if not block:
@@ -261,7 +298,7 @@ def evaluate(title, description):
                 optional_section, required_section = True, False
             elif REQUIRED.search(block) and len(block.split()) <= 7 and is_heading(block):
                 optional_section, required_section = False, True
-            elif re.match(r'^(?:responsibilities|about\b|benefits\b|what you)', block, re.I):
+            elif SECTION_CLOSERS.match(block):
                 optional_section = required_section = False
             continue
         if OTHER_POSITIONS.search(block):
@@ -314,9 +351,13 @@ def evaluate(title, description):
                         or hands_on):
                     continue
                 degrees = list(DEGREE.finditer(before))
-                if degrees and INSTEAD_OF_DEGREE.match(before[degrees[-1].end():]):
+                following = DEGREE_AFTER.match(after)
+                # "BS, or 2+ years with an MS" is another degree's path, not
+                # years instead of the BS.
+                if not following and degrees and INSTEAD_OF_DEGREE.match(before[degrees[-1].end():]):
                     continue
-                degree = degrees[-1].group().lower() if degrees else ''
+                degree = (following['degree'] if following
+                          else degrees[-1].group() if degrees else '').lower()
                 candidates.append((years_value(match['low']), degree, clause.strip()))
             for match in SHORT_DEGREE.finditer(clause):
                 if any(m.start() <= match.end() and m.end() >= match.start() for m in matches):

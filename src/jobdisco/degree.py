@@ -76,6 +76,10 @@ NOT_EXCLUSIVE = re.compile(
     re.I)
 
 
+_RULED_OUT = re.compile(
+    r"(?:\bnot|n't|\bnever)\s+(?:be\s+)?(?:eligible|accepted|considered)\b|\bineligible\b", re.I)
+
+
 def _has_other_degree(text: str) -> bool:
     """Recognize a second degree or an explicit experience alternative."""
     return bool(_OTHER_WORDS.search(text) or _OTHER_SHORT.search(text))
@@ -116,15 +120,18 @@ def description_only(text):
             continue
         # "Required: PhD in EE" is a heading and its content on one line. The
         # heading still sets the section, or a preferred one above it ran on
-        # and made the requirement optional (Codex R7).
+        # and made the requirement optional (Codex R7). "Preferred: Python" is
+        # one bullet's preference and makes only that bullet optional, which
+        # PREFERENCE below reads from the block; opening a section with it
+        # made every requirement after it in the list optional (2026-09-27).
         head = block.split(':', 1)[0] if ':' in block.rstrip()[:-1] else ''
-        if head and len(head.split()) <= 7 and is_heading(head + ':'):
-            if PREFERENCE.search(head):
-                optional_section, required_section = True, False
-            elif REQUIRED.search(head):
-                optional_section, required_section = False, True
+        if (head and len(head.split()) <= 7 and is_heading(head + ':')
+                and not PREFERENCE.search(head) and REQUIRED.search(head)):
+            optional_section, required_section = False, True
         has_phd = bool(_PHD.search(block))
-        has_other = _has_other_degree(block)
+        # A degree ruled out is not another way in: "Masters students are not
+        # eligible" named a master's and kept a PhD-only posting (2026-09-27).
+        has_other = _has_other_degree(block) and not _RULED_OUT.search(block)
         following = blocks[index + 1] if index + 1 < len(blocks) else ''
         optional = (optional_section or bool(PREFERENCE.search(block))
                     or bool(PREFERENCE.search(following) and _TRAILING_PREFERENCE.match(following)))

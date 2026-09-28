@@ -164,6 +164,51 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### Twenty more from probing the rules, 2026-09-27 UTC
+
+Found by feeding the rules the wordings boards use. Each has a test in
+`tests/test_second_bug_hunt.py`, red on `d7be20e` and green after. Offline
+suite 725 tests, 10 skips (8 need POSIX/flock on this Windows host, 1 needs the
+local store, 1 a POSIX user). No production index was available; verdict
+changes over live postings are not measured.
+
+Headings (sections opened or lost):
+1. `is_heading` matched a first word only, so "Ideally you know Python." and
+   "Bonus if you know Perl." opened a Preferred section and hid the "5+ years"
+   after them. A heading now ends in a colon or is made only of heading words.
+2. The same sentences hid "PhD in EE required." in the degree filter.
+3. R6 regression: "Must Have" and "Job Requirements" as colonless HTML headings
+   no longer opened a required section.
+4. "Preferred: Python" inside a Requirements list made every later bullet optional.
+5. The degree filter did the same through R7's inline head; an inline
+   preference now marks only its own line, an inline Required still opens.
+6. Codex R5: a `requirements`/`job_requirements` field emitted no heading.
+7. R6 regression: a structured key such as `job_required_skills` was emitted as
+   "job required skills", which no longer read as a heading; keys now end in ":".
+
+Location:
+8. "West Jordan, UT", "Poland, OH", "Mexico, MO", "Peru, IN" read as abroad.
+9. "Albuquerque, New Mexico 87101": the ZIP hid the state and "Mexico" won.
+10. A bare "US" ("Remote - US", "Remote (US)") was unplaced, so beside a city
+    abroad the posting read as abroad only.
+
+Experience:
+11. A degree named after its years ("4+ years with a BS, or 2+ years with an MS")
+    lost the MS path.
+12. "...3+ years; or Master's and 1+ years" was split at the semicolon.
+13. "Five to seven years" read as seven.
+14. "Seven plus years" / "5 plus years" read as nothing.
+15. "3+ YOE" read as nothing.
+19. "Students: explore our internship opportunities" in a senior posting's
+    boilerplate made it entry level and skipped a ten-year requirement.
+
+Degree, titles, ranking:
+16. "Masters students are not eligible. PhD required." kept the posting: the
+    ruled-out degree counted as another way in.
+17. `clean_title` left "Engineer," when the location followed a comma.
+18. "NCG" (new college grad) was not early career.
+20. "Senior Manager, Campus Recruiting" and similar were early-career openings.
+
 ### Codex R6 and R7: sentences taken for section headings, 2026-09-26 UTC
 
 From Codex's round-2 audit (`docs/review-audit-round2-2026-09-23.md` on the

@@ -135,7 +135,13 @@ def _words(options):
         re.escape(option) for option in sorted(options, key=len, reverse=True)), re.I)
 
 
-_US_WORDS = re.compile(r'\b(?:united\s+states(?:\s+of\s+america)?|usa|u\.s\.a?\.?)(?![\w])', re.I)
+# "US" in capitals, anywhere: "Remote - US" and "Remote (US)" were unplaced, and
+# beside a place abroad the posting read as abroad only (2026-09-27). Lower
+# case is the pronoun.
+_US_WORDS = re.compile(r'\b(?:united\s+states(?:\s+of\s+america)?|usa|u\.s\.a?\.?|(?-i:US))(?![\w])', re.I)
+# "Albuquerque, New Mexico 87101": a ZIP code after the state, which made the
+# part no state name and left "Mexico" to be read as the country.
+_ZIP = re.compile(r'\s+\d{5}(?:-\d{4})?$')
 _US_CITIES = _words(US_CITIES)
 _FOREIGN_COUNTRIES = _words(FOREIGN_COUNTRIES)
 _FOREIGN_CITIES = _words(FOREIGN_CITIES)
@@ -157,13 +163,19 @@ def _place(text):
     A country written out beats a city name: "Burlington, Canada" is the
     Canadian one, however many Burlingtons the U.S. has.
     """
-    parts = [part.strip() for part in text.split(',') if part.strip()]
+    parts = [_ZIP.sub('', part.strip()) for part in text.split(',') if part.strip()]
     codes = [part.lower() for part in parts if re.fullmatch(r'[A-Za-z]{2}', part)]
     state_codes = [code for code in codes if code in US_STATES.values()]
     if (_US_WORDS.search(text) or re.match(r'^\s*US\b', text) or 'us' in codes
             or any(part.lower() in US_STATES for part in parts)):
         return 'us'
-    if _FOREIGN_COUNTRIES.search(text):
+    countries = list(_FOREIGN_COUNTRIES.finditer(text))
+    # A country's name inside the town, with a state after it, is the town:
+    # "West Jordan, UT", "Poland, OH", "Mexico, MO", "Peru, IN" (2026-09-27).
+    # Written after the city it is the country: "Perth, WA, Australia".
+    town = len(parts) > 1 and state_codes and all(
+        found.end() <= text.index(',') for found in countries)
+    if countries and not town:
         return 'foreign'
     # A state code that is not also a country code settles it: "Paris, TX" and
     # "London, KY" are in the U.S. whatever the city is called.

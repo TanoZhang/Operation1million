@@ -96,8 +96,25 @@ EARLY_CAREER = re.compile(r"""\b(?:
     | \d{4} \s+ grad(?:uate)?s?
     # "NG" is how a board abbreviates new grad: "Physical Design Engineer (NG)".
     # Only in capitals and not hyphenated, so "NG-RAN" stays a radio network.
-    | (?-i: (?<![\w-]) NG (?![\w-]) )
+    # "NCG", new college grad, the same way (2026-09-27).
+    | (?-i: (?<![\w-]) N C? G (?![\w-]) )
 )\b""", re.I | re.X)
+
+# A senior title names a recruiting or programme role when it also says
+# "campus", "student" or "early career": "Senior Manager, Campus Recruiting"
+# is not an opening for a student, and was on the Early career tab
+# (2026-09-27). An intern, co-op or graduate named outright still is one.
+SENIOR = re.compile(r'\b(?:senior|sr\.?|staff|principal|director|head\s+of|vp|manager)\b', re.I)
+OPENING = re.compile(r"""\b(?:
+      interns? | internships? | co[-\s]?ops? | grad(?:uate)?s?
+    | (?-i: (?<![\w-]) N C? G (?![\w-]) )
+)\b""", re.I | re.X)
+
+
+def _early(title):
+    if not EARLY_CAREER.search(title):
+        return False
+    return not SENIOR.search(title) or bool(OPENING.search(title))
 
 
 # Index into these by bucket number, which is also the order they are read in:
@@ -125,7 +142,7 @@ def bucket(title):
     ordering the bands exist to produce.
     """
     title = title or ''
-    early = bool(EARLY_CAREER.search(title))
+    early = _early(title)
     if CORE.search(title):
         return 0 if early else 2
     if RELATED.search(title):
@@ -140,7 +157,7 @@ def early_career(title):
     asked for on 2026-09-25. "Master's in EE plus 2 years" is not one: it names
     a floor of experience, and stays with the rest.
     """
-    return bool(EARLY_CAREER.search(title or ''))
+    return _early(title or '')
 
 
 def summarize(groups):
