@@ -191,6 +191,16 @@ exclude_title_patterns = [
   # 2026-09-23: legal, assistants and the energy sector. Not "energy-efficient"
   # or Bluetooth "Low Energy", which describe a chip.
   '\b(?:counsel|attorney|paralegal|litigation|legal)\b', '\bassistants?\b',
+  # More functions with no engineering in them, found on the live queue's
+  # related tabs on 2026-09-27, where a word like "verification", "silicon" or
+  # "HBM" had placed them: finance, accounting, procurement, brand,
+  # credentialing, licensing, communications, logistics and business roles;
+  # graphic and web design; building facilities.
+  '\bfinanc(?:e|ial)\b', '\baccounting\b', '\bprocurement\b', '\bbrand\b', '\bcredentialing\b',
+  '\blicensing\b', '\bcommunications\s+specialist\b', '\blogistics\b',
+  '\bbusiness\s+(?:planning|analyst|development|systems\s+analyst)\b',
+  '\bgraphic\s+(?:or\s+web\s+)?(?:layout\s+)?design', '\bweb\s+(?:layout\s+)?designer\b',
+  '\bfacilities\b',
   # "Low-Energy" with a hyphen too (2026-09-27).
   '(?<!\blow\s)(?<!\blow-)\benergy\b(?![-\s]?efficien)',
   '\b(?:mechanical|thermal|structural|civil|construction|manufacturing|industrial)\s+engineer\b',

@@ -203,6 +203,9 @@ should go was shown; **display** = wrong text, date or grouping.
 | 174 | citizenship | "does require the candidate to be a US Persons" missed | kept | pattern |
 | 175 | citizenship | "our policy is to only hire "U.S. persons"" missed | kept | pattern |
 | 176 | citizenship | "candidates must be either a U.S. citizen or ..." missed; "or be able to obtain a US export license" not read as the licence route | kept | pattern, `LICENCE_INSTEAD` |
+| 177 | title rules | finance, accounting, procurement, brand, credentialing, licensing, communications, logistics and business roles on the related tabs | kept | excluded |
+| 178 | title rules | "Graphic or Web Layout Designer - Internship" read as chip layout | kept | excluded |
+| 179 | title rules | building "Facilities Electrical Engineer" roles read as hardware | kept | excluded |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -270,3 +273,8 @@ left in the live queue (58 distinct). Measured: two postings hidden (Van
 Kaizen's Erie role, Varda's Mission Assurance Engineer), both stating the
 requirement. Deliberately left: "ability to obtain" a clearance, a licence
 route, and Microsoft's "If the role requires ..." boilerplate.
+
+#177-179 came from listing every queued related title that names a
+non-engineering function. Measured: 234 listings hidden, 20 of them from the
+To review / Early career tabs and the rest from Low relevance; every one
+read by hand, none a chip job. Open listings 7,119 -> 6,885.

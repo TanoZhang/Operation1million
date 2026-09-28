@@ -151,6 +151,40 @@ class LiveCitizenshipTests(unittest.TestCase):
             'the U.S. as a refugee or granted asylum, or be able to obtain a US export license.', RULES))
 
 
+class LiveTitleTests(unittest.TestCase):
+    """Non-engineering functions on the live queue's related tabs, 2026-09-27.
+    Red on a348a85."""
+
+    def excluded(self, title):
+        return jsearch.excluded(title, RULES)
+
+    def test_177_business_functions(self):
+        for title in ('Advanced Packaging TD/Substrate Finance Specialist', 'Business Analyst I, Verification Services',
+                      'Business Planning Specialist', 'Career Accelerator Program - Accounting Analyst',
+                      'Career Accelerator Program - Brand Specialist', 'Career Accelerator Program - Financial Planning Analyst',
+                      'Career Accelerator Program - Procurement Specialist', 'Communications Specialist, HBM Engineering',
+                      'Logistics Coordinator', 'Production Finance', 'Provider Credentialing & Verification Specialist',
+                      'Silicon Design IP Licensing Specialist', 'Staff Business Development Specialist',
+                      'Staff Business Systems Analyst'):
+            with self.subTest(title=title):
+                self.assertTrue(self.excluded(title))
+        for title in ('Wireless Communications ASIC Engineer', 'Communications Systems FPGA Engineer',
+                      'Silicon Design Engineer - Business Unit'):
+            with self.subTest(title=title):
+                self.assertFalse(self.excluded(title))
+
+    def test_178_graphic_and_web_design(self):
+        self.assertTrue(self.excluded('Graphic or Web Layout Designer - Internship'))
+        self.assertTrue(self.excluded('Web Designer'))
+        self.assertFalse(self.excluded('Mask Layout Designer'))
+
+    def test_179_building_facilities(self):
+        for title in ('Facilities Electrical Engineer', 'High Voltage Facilities Electrical Engineer',
+                      'Career Accelerator Program - Facilities Engineer'):
+            with self.subTest(title=title):
+                self.assertTrue(self.excluded(title))
+
+
 class LiveLocationTests(unittest.TestCase):
     def test_170_amazons_leading_country_codes(self):
         """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing
