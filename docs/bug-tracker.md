@@ -218,6 +218,7 @@ should go was shown; **display** = wrong text, date or grouping.
 | 189 | title rules | "Program Analyst" not blocked though "Program Manager" was | kept | function pattern |
 | 190 | location | "IN, TN, Chennai", "IT, MI, Milan", "AU, WA, Perth" read as the U.S. (the region is also a state code) | kept | country-first format |
 | 191 | location | "DE, München" read as Delaware -- regression from #88 (accents stripped from the place, not the list) | kept | list unaccented too |
+| 192 | queue | a paid listing linking to the employer's own posting ("?lang=en-us", a slug) was a second group beside the direct one | display | dropped when host and requisition match an open direct posting |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -301,3 +302,11 @@ including field-applications internships (TI, AMD).
 place abroad. Measured: 60 listings hidden, each abroad (52 in Chennai).
 Also checked, no defect: all 28 trade postings removed as PhD-only are
 titles that say "PhD", which decides by design.
+
+#192 came from grouping the live queue by company and title: 39 pairs sat in
+separate groups from different providers. Five were one posting reached
+twice (AMD x4, Micron x1) and are now shown once; the rest are separate
+requisitions or third-party copies (LinkedIn, ZipRecruiter) that cannot be
+matched to a requisition safely, and stay. Also checked, no defect: the 41
+early-career trade postings removed on the live index are all PhD titles or
+stated U.S. citizenship / clearance requirements.

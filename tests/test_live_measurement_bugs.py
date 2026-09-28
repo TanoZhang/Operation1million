@@ -264,6 +264,53 @@ class LiveAbroadTests(unittest.TestCase):
         self.assertEqual(country('Montréal, CA'), 'foreign')
 
 
+class LiveDuplicateTests(unittest.TestCase):
+    """A paid listing that links to the employer's own posting was a second
+    group beside the direct one: AMD's ".../jobs/88075?lang=en-us" and
+    ".../jobs/88075", Micron's ".../job/44540988-new-college-grad-..." and
+    ".../job/44540988" (live queue, 2026-09-27). Red on b5f8f78."""
+
+    def test_192_the_same_posting_through_a_paid_listing(self):
+        import json
+        import sqlite3
+        import tempfile
+        from contextlib import closing
+        from datetime import datetime, timedelta, timezone
+        from pathlib import Path
+        from jobdisco import applications
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        db, ledger = root / 'jobs.sqlite', root / 'operational/applications.ndjson'
+        now = datetime.now(timezone.utc)
+        seen = (now - timedelta(days=1)).isoformat()
+        rows = [
+            ('https://careers.amd.com/careers-home/jobs/88075', 'amd', '88075', 'amd_careers', 'FPGA Engineer'),
+            ('https://careers.amd.com/careers-home/jobs/88075?lang=en-us', 'discovered_amd', 'j1', 'jsearch',
+             'FPGA Engineer'),
+            ('https://careers.micron.com/careers/job/44540988', 'micron', '44540988', 'eightfold', 'ASIC Engineer'),
+            ('https://careers.micron.com/careers/job/44540988-new-college-grad-engineer', 'discovered_micron', 'j2',
+             'jsearch', 'ASIC Engineer'),
+            # A different requisition on the same host stays.
+            ('https://careers.amd.com/careers-home/jobs/99999?lang=en-us', 'discovered_amd', 'j3', 'jsearch',
+             'RTL Engineer'),
+        ]
+        with closing(sqlite3.connect(db)) as con, con:
+            con.executescript('''CREATE TABLE companies(company_key TEXT PRIMARY KEY, name TEXT);
+                CREATE TABLE jobs(url TEXT PRIMARY KEY, company_key TEXT, title TEXT, location TEXT,
+                                  source_job_id TEXT, first_seen TEXT, posted_at TEXT, provider_key TEXT,
+                                  relevance REAL, closed_at TEXT, raw TEXT, last_seen TEXT);''')
+            for url, company, ident, provider, title in rows:
+                con.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                            (url, company, title, 'Austin, TX', ident, seen, None, provider, 80, None,
+                             json.dumps({'description': '<p>Design hardware.</p>'}), seen))
+        state = applications.queue(db, ledger, now)
+        urls = sorted(job['url'] for group in state['pending'] for job in group['jobs'])
+        self.assertEqual(urls, ['https://careers.amd.com/careers-home/jobs/88075',
+                                'https://careers.amd.com/careers-home/jobs/99999?lang=en-us',
+                                'https://careers.micron.com/careers/job/44540988'])
+
+
 class LiveLocationTests(unittest.TestCase):
     def test_170_amazons_leading_country_codes(self):
         """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing

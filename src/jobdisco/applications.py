@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import re
+from urllib.parse import urlsplit
 from pathlib import Path
 import sqlite3
 import uuid
@@ -368,10 +369,32 @@ def queue(db_path=DB, path=None, now=None):
                                  evidence)
             return titles[title]
 
+        # The employer's own postings, to recognise a paid listing that links to
+        # one of them. The store merges two discoveries only on an identical
+        # address, so AMD's ".../jobs/88075?lang=en-us" and ".../jobs/88075"
+        # were two groups for one requisition (live queue, 2026-09-27).
+        direct_addresses, direct_ids = set(), set()
+        for address, requisition in db.execute(
+                "SELECT url, source_job_id FROM jobs WHERE closed_at IS NULL AND provider_key != 'jsearch'"):
+            parts = urlsplit(address)
+            direct_addresses.add((parts.netloc.lower(), parts.path.rstrip('/')))
+            if requisition and len(str(requisition)) >= 5:
+                direct_ids.add((parts.netloc.lower(), str(requisition)))
+
+        def copies_a_direct_posting(address):
+            parts = urlsplit(address)
+            host = parts.netloc.lower()
+            if (host, parts.path.rstrip('/')) in direct_addresses:
+                return True
+            return any((host, re.match(r'\d{5,}', segment).group()) in direct_ids
+                       for segment in parts.path.split('/') if re.match(r'\d{5,}(?!\d)', segment))
+
         def collect_into(target, rows):
             for row in rows:
                 job = dict(row)
                 if job.pop('superseded', None):
+                    continue
+                if job['provider_key'] == 'jsearch' and copies_a_direct_posting(job['url']):
                     continue
                 stated_age(job)
                 job['title'] = clean_title(job['title'], job['location'])
