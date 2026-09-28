@@ -93,5 +93,18 @@ class LiveRejectionSampleTests(unittest.TestCase):
         self.assertEqual(years('3+ years of experience or a PhD'), 3)
 
 
+class LiveLocationTests(unittest.TestCase):
+    def test_170_amazons_leading_country_codes(self):
+        """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing
+        from the list, so those postings abroad were unplaced and kept."""
+        from jobdisco.location import country
+        for place in ('NG, Lagos', 'BH, Manama', 'JO, Amman', 'KW, Kuwait City', 'QA, Doha'):
+            with self.subTest(place=place):
+                self.assertEqual(country(place), 'foreign')
+        # A code that is also a state stays a state: "Athens, GA".
+        self.assertEqual(country('Athens, GA'), 'us')
+        self.assertEqual(country('US, WA, Seattle'), 'us')
+
+
 if __name__ == '__main__':
     unittest.main()

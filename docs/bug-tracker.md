@@ -196,6 +196,7 @@ should go was shown; **display** = wrong text, date or grouping.
 | 167 | experience | "Master's degree ..., or Bachelor's degree and 5+ years" read as 5 | removed | `MASTERS_FIRST` |
 | 168 | experience | "BE/B.Tech ... 3+ years or M.Tech with 1+ years" lost the M.Tech path | removed | B.Tech/M.Tech/B.E./M.E. read as BS/MS |
 | 169 | experience | "3+ years ... experience, or Bachelor's degree" read as 3 | removed | `MASTERS_INSTEAD` takes a bachelor's |
+| 170 | location | Amazon's "NG, Lagos", "BH, Manama", "JO, Amman" unplaced (ISO codes missing) | kept | every ISO code that is not a state code |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -247,3 +248,8 @@ Reading these found #161-164, three of them regressions from earlier fixes.
 gate rejects on the live index. Measured on the queue they change one listing:
 the postings they are about are mostly hidden for other reasons (an excluded
 employer, a location abroad). Correct, but small on today's index.
+
+Also checked on the live index, no defect: all 256 titles on the Early career
+tab name an early-career opening; of 1,360 queued listings with no placeable
+location, the payload places none abroad except the three #170 fixes
+(most are blank or "N Locations" with no list behind them).
