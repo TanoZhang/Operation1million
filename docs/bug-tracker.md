@@ -16,7 +16,8 @@ title-rule changes also need `job-store --rescore`.
 | 2 (#21-40) | `tests/test_third_bug_hunt.py` | 9dfc8b4 | c0d6e3b |
 | 3 (#41-60) | `tests/test_fourth_bug_hunt.py` | 411c6ab | 40dd87b |
 | 4 (#61-80) | `tests/test_fifth_bug_hunt.py` | 1bd0645 | 9451fbe |
-| 5 (#81-100) | `tests/test_sixth_bug_hunt.py` | 9451fbe | see git log |
+| 5 (#81-100) | `tests/test_sixth_bug_hunt.py` | 9451fbe | aa31b7b |
+| 6 (#101-120) | `tests/test_seventh_bug_hunt.py` | aa31b7b | see git log |
 
 Direction: **removed** = a posting was wrongly hidden; **kept** = a posting that
 should go was shown; **display** = wrong text, date or grouping.
@@ -123,6 +124,26 @@ should go was shown; **display** = wrong text, date or grouping.
 | 98 | ranking | "Campus Network Engineer" early career | display | campus as the opening only |
 | 99 | job_text | "- San Jose, California" kept when the location says "CA" | display | state name/code variants |
 | 100 | citizenship | "... or hold a valid work visa", "or H-1B holder" a hard pass | removed | `WORK_AUTHORIZATION` |
+| 101 | citizenship | "Requirements: - U.S. Citizenship" bullet missed | kept | `required_citizenship_bullet` |
+| 102 | citizenship | "Citizenship: U.S. Citizen" missed | kept | pattern |
+| 103 | citizenship | "Clearance Required: TS/SCI", "Security Clearance: Active Secret" missed | kept | patterns |
+| 104 | degree | "Must be a current PhD student / a PhD candidate" missed | kept | `STATED` |
+| 105 | degree | "Must have completed a PhD", "PhD completed by start date" missed | kept | `STATED` |
+| 106 | experience | "5+ years (8+ preferred)" read as nothing | kept | `_without_asides` |
+| 107 | title rules | "SMTS", "PMTS" not excluded | kept | `[SP]MTS` |
+| 108 | experience | "5+ years ..., SystemVerilog preferred" read as nothing | kept | cut at a preference with its own subject |
+| 109 | degree | "PhD in EE required, Python experience preferred" kept | kept | `_phd_clause` |
+| 110 | experience | plural titles "Summer Interns", "Co-ops", "New Grads" not entry level | removed | `ENTRY_PLURAL` |
+| 111 | ranking | rotational programs not early career | display | `EARLY_CAREER` |
+| 112 | ranking | "Junior", "Jr." not early career | display | `EARLY_CAREER` |
+| 113 | title rules | "TS/SCI", "Top Secret", "Polygraph", "Cleared" in titles not excluded | kept | patterns |
+| 114 | title rules | "US Citizen Required" in titles not excluded | kept | pattern |
+| 115 | ranking | "1 hr ago", "3d ago", "1w ago" undated | display | `RELATIVE_DAY` |
+| 116 | job_text | the same abbreviations left on titles | display | `POSTED_SUFFIX` |
+| 117 | experience | "Our team averages 10+ years", "engineers with 15+ years" read as requirements | removed | `OTHER_PEOPLES_YEARS` |
+| 118 | experience | "We have 10 years of experience building chips" read as a requirement | removed | `OTHER_PEOPLES_YEARS` |
+| 119 | location | "Valletta, Malta" read as Malta, NY | kept | Malta a country; town rule keeps Malta, NY |
+| 120 | location | Ecuador, Panama, Nepal, Cyprus, Moldova, Iran and others unplaced | kept | countries |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -136,6 +157,8 @@ should go was shown; **display** = wrong text, date or grouping.
 - Discovered employers are keyed by `employer_name.casefold()`, so "Acme Inc."
   and "Acme, Inc." are two keys and a paid listing's copies under both do not
   group. Changing the key would re-key stored rows; left as a known gap.
+- "Tbilisi, Georgia" reads as the U.S. state: the country and the state share
+  the name, and a doubt keeps the posting.
 - Other defense contractors (Booz Allen, ManTech, Kratos, Mercury, SNC,
   Huntington Ingalls) are not on the user's employer list; suggested, not added.
 

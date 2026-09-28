@@ -167,6 +167,16 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### A sixth twenty, 2026-09-27 UTC
+
+Tests in `tests/test_seventh_bug_hunt.py`, red on `aa31b7b`; rows #101-120 of
+`docs/bug-tracker.md`. Suite 839, 10 environment skips. Most costly: the
+team's or company's years ("Our team averages 10+ years of experience") were
+read as the applicant's and rejected postings; a bare "U.S. Citizenship"
+bullet under Requirements, clearance labels and titles naming a clearance
+were missed; a bracketed or trailing preference with its own subject made a
+real requirement optional.
+
 ### A fifth twenty, 2026-09-27 UTC
 
 Tests in `tests/test_sixth_bug_hunt.py`, red on `9451fbe`; rows #81-100 of

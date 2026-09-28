@@ -68,6 +68,13 @@ FOREIGN_COUNTRIES = (
     'belarus', 'russia', 'kazakhstan', 'jordan', 'tunisia',
     # Regions wholly abroad (2026-09-27). Not "Americas", which holds the U.S.
     'apac', 'emea', 'asia pacific', 'europe',
+    # Missing until 2026-09-27; "Valletta, Malta" read as Malta, NY. A U.S.
+    # town of the same name keeps its state: "Malta, NY", "Panama City, FL".
+    'malta', 'ecuador', 'panama', 'nepal', 'cyprus', 'moldova', 'iran', 'albania',
+    'azerbaijan', 'uzbekistan', 'myanmar', 'macao', 'bosnia and herzegovina', 'montenegro',
+    'north macedonia', 'guatemala', 'venezuela', 'bolivia', 'paraguay', 'dominican republic',
+    'cambodia', 'laos', 'mongolia', 'iraq', 'lebanon', 'kuwait', 'bahrain', 'oman', 'ghana',
+    'ethiopia', 'rwanda', 'uganda', 'tanzania', 'algeria', 'senegal', 'brunei',
 )
 FOREIGN_CITIES = (
     'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'pune', 'noida', 'gurgaon', 'gurugram',

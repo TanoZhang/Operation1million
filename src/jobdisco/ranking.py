@@ -96,6 +96,8 @@ EARLY_CAREER = re.compile(r"""\b(?:
     # and apprentices, found 2026-09-27.
     | ^ \s* graduate \b | (?<=\() \s* grad(?:uate)? (?=\s*\)) | class \s+ of \s+ \d{4}
     | apprentice(?:ship)?s?
+    # Rotational programmes and junior titles (2026-09-27).
+    | rotation(?:al)? \s+ program(?:me)?s? | junior | jr
     # "Campus" as the opening, not the place: "Campus Network Engineer"
     # (2026-09-27).
     | entry[-\s]? level | early[-\s]? career | student
@@ -230,9 +232,11 @@ def posted_day(value):
 # date at all (2026-09-27). Months stay unread; their length is a guess.
 # "Posted: 3 days ago", "Reposted 3 days ago" and a bare "3 days ago" too.
 RELATIVE_DAY = re.compile(
-    r'^\s*(?:(?:re)?posted\s*:?\s+)?(?:(?P<today>today|just\s+now|(?:an?|one|\d{1,2})\s+(?:minute|hour)s?\s+ago)'
+    # Abbreviated too: "1 hr ago", "5 mins ago", "2h ago", "3d ago", "1w ago".
+    r'^\s*(?:(?:re)?posted\s*:?\s+)?(?:(?P<today>today|just\s+now|'
+    r'(?:an?|one|\d{1,2})\s*(?:minutes?|mins?|m|hours?|hrs?|h)\s+ago)'
     r'|(?P<yesterday>yesterday|(?:a|one)\s+day\s+ago)|'
-    r'(?P<days>\d{1,2})\s+days?\s+ago|(?P<weeks>\d{1,2}|a|one)\s+weeks?\s+ago)\s*$', re.I)
+    r'(?P<days>\d{1,2})\s*(?:days?|d)\s+ago|(?P<weeks>\d{1,2}|a|one)\s*(?:weeks?|wks?|w)\s+ago)\s*$', re.I)
 
 
 def relative_day(text, as_of):

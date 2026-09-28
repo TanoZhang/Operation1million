@@ -85,7 +85,8 @@ POSTED_SUFFIX = re.compile(
     # "Reposted", "Posted:" and "Posted on 09/07/2026" too (2026-09-27).
     SEPARATOR + r'(?:Re)?posted\s*:?\s+(?:today|yesterday|just now|'
     # "30+ Days Ago" is how Workday says a month or more.
-    r'(?:a|an|one|\d+\+?)\s+(?:minute|hour|day|week|month)s?\s+ago|'
+    # And abbreviated: "1 hr ago", "3d ago" (2026-09-27).
+    r'(?:a|an|one|\d+\+?)\s*(?:minute|min|hour|hr|h|day|d|week|wk|w|month|mo)s?\s+ago|'
     r'(?:on\s+)?\d{4}-\d{2}-\d{2}|(?:on\s+)?\d{1,2}/\d{1,2}/\d{4}|'
     r'(?:on\s+)?[A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})\s*$', re.I)
 

@@ -64,6 +64,11 @@ STATED = re.compile(
     # (required)", "PhD - required", "PhD: required", "This role requires a
     # PhD" and "PhD in EE is a must".
     r'|\bonly\s+' + PHD + r'\s+(?:students|candidates|holders|graduates)\b'
+    # "Must be a current PhD student", "Must have completed a PhD", "PhD
+    # completed by start date" (2026-09-27).
+    r'|\bmust\s+be\s+(?:an?\s+)?(?:current\s+)?' + PHD + r'\s+(?:student|candidate)'
+    r'|\b(?:completed|obtained|earned|received)\s+(?:a|an|your)\s+' + PHD +
+    r'|' + PHD + r'\s+(?:completed|obtained|conferred|awarded)\s+(?:by|before|within|prior)\b'
     r'|' + PHD + r'\s*(?:\(\s*|[-–:]\s*)required\b'
     r'|\brequires?\s+(?:a|an)\s+' + PHD +
     r'|' + PHD + r'\s+(?:degree\s+)?(?:in\s+[^.;:\n]{1,80}?\s+)?is\s+a\s+must\b'
@@ -95,6 +100,14 @@ _RULED_OUT = re.compile(
 _WELCOMES = re.compile(
     r'\b(?:(?:also|are|is)\s+(?:\w+\s+)?(?:welcomed?|encouraged|considered|accepted|eligible)'
     r'|welcome\s+to\s+apply|encouraged\s+to\s+apply)\b', re.I)
+
+
+def _phd_clause(block):
+    """The comma or "but" clause that names the PhD, or the block without one."""
+    for clause in re.split(r',|\bbut\b|;', block):
+        if _PHD.search(clause):
+            return clause
+    return block
 
 
 def _has_other_degree(text: str) -> bool:
@@ -153,7 +166,9 @@ def description_only(text):
         # eligible" named a master's and kept a PhD-only posting (2026-09-27).
         has_other = _has_other_degree(block) and not _RULED_OUT.search(block)
         following = blocks[index + 1] if index + 1 < len(blocks) else ''
-        optional = (optional_section or bool(PREFERENCE.search(block))
+        # The preference in the PhD's own clause: "PhD in EE required, Python
+        # experience preferred" was read as a preferred PhD (2026-09-27).
+        optional = (optional_section or bool(PREFERENCE.search(_phd_clause(block)))
                     or bool(PREFERENCE.search(following) and _TRAILING_PREFERENCE.match(following)))
         # What a block states about degrees is read before it can be taken for
         # a heading. "Or Master's degree required." is four words and matches

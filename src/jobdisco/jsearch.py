@@ -21,7 +21,7 @@ from .paths import CONFIG
 from .collection_policy import retry_after_seconds
 from .jsearch_access import AccountPaused, QuotaExhausted
 from .job_text import clean_title
-from .experience import SECTION_END
+from .experience import SECTION_END, OPTIONAL, REQUIRED, is_heading
 
 
 @dataclass(frozen=True)
@@ -814,6 +814,32 @@ def us_person_required(text, rules):
                 continue
             if not HEDGED.search(lead) and not DENIED.search(lead):
                 return True
+    return required_citizenship_bullet(text)
+
+
+# The requirement as a bare bullet under a required heading: "Requirements:
+# - BS in EE - U.S. Citizenship" said nothing the patterns could read
+# (2026-09-27). Only the bare noun phrase, and only under a heading that
+# requires; under Preferred or About it is not this posting's requirement.
+CITIZENSHIP_BULLET = re.compile(
+    r'^\s*(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens?(?:hip)?|persons?)'
+    r'\s*(?:\(\s*required\s*\))?\s*\.?\s*$', re.I)
+
+
+def required_citizenship_bullet(text):
+    required = False
+    for line in re.split(r'[\n•]', text or ''):
+        if SECTION_END in line:
+            required = False
+            line = line.replace(SECTION_END, '')
+        line = line.strip(' \t-*')
+        if not line:
+            continue
+        if is_heading(line) and len(line.split()) <= 7:
+            required = bool(REQUIRED.search(line)) and not OPTIONAL.search(line)
+            continue
+        if required and CITIZENSHIP_BULLET.match(line):
+            return True
     return False
 
 

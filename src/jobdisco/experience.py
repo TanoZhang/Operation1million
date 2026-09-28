@@ -297,6 +297,43 @@ SENIOR_TITLE = re.compile(
     r'\b(?:staff|senior|sr\.?|principal|lead|manager|director|head\s+of|fellow|distinguished)\b', re.I)
 
 
+# A title may name the openings in the plural: "Summer Interns 2027",
+# "ASIC Co-ops", "RTL New Grads" (2026-09-27). Only the title: in the body the
+# plural is usually other people.
+ENTRY_PLURAL = re.compile(r'\b(?:interns|internships|co-?ops|new\s+(?:college\s+)?grad(?:uate)?s)\b', re.I)
+# A preference in brackets with a subject of its own is an aside: "5+ years
+# (8+ preferred)" and "(SystemVerilog preferred)" made the five years optional
+# (2026-09-27). "(preferred)" alone still marks the years.
+ASIDE = re.compile(r'\(([^()]*)\)')
+MARKER_WORDS = {'preferred', 'desired', 'desirable', 'a', 'plus', 'strongly', 'highly', 'is', 'but',
+                'not', 'required', 'nice', 'to', 'have', 'bonus', 'ideally', 'an', 'advantage', 'very'}
+
+
+def _without_asides(clause):
+    def drop(found):
+        inside = found.group(1)
+        words = re.findall(r"[\w+']+", inside.lower())
+        if OPTIONAL.search(inside) and any(word not in MARKER_WORDS for word in words):
+            return ' '
+        return found.group(0)
+    return ASIDE.sub(drop, clause)
+
+
+# Years someone else has: the team, colleagues, a manager, the company. "Our
+# team averages 10+ years of experience" and "We have 10 years of experience
+# building chips" rejected postings as ten-year requirements (2026-09-27).
+OTHER_PEOPLES_YEARS = re.compile(
+    r'\bour\s+(?:[\w-]+\s+){0,2}?(?:team|teams|engineers|founders|leadership|leaders|experts|'
+    r'people|staff|company|group|members)\b(?:\s+[\w-]+){0,4}?\s+$'
+    r'|\b(?:engineers|mentors|colleagues|experts|leaders|managers?|peers|veterans|professionals|'
+    r'people|team)\s+(?:who\s+have\s+|with\s+)(?:an?\s+average\s+of\s+|over\s+|more\s+than\s+)?$'
+    r"|\b(?:we\s+have|we've|backed\s+by|built\s+on|founded\s+on)\s+(?:over\s+|more\s+than\s+)?$"
+    r'|\baverag(?:e|es|ing)\s+(?:of\s+)?$', re.I)
+# Unless the sentence is asking for that person.
+ASKING = re.compile(r'\b(?:looking\s+for|seeking|hiring|searching\s+for|someone|somebody|'
+                    r'candidates?|applicants?|need|needs|want|wants|ideal)\b', re.I)
+
+
 def entry_level(title, text):
     """Whether the posting is an entry-level opening, not one that mentions one.
 
@@ -306,7 +343,7 @@ def entry_level(title, text):
     past is read as what it is: evidence of seniority, of a posting ruling an
     internship out, or of a qualification being asked for.
     """
-    if ENTRY.search(title or ''):
+    if ENTRY.search(title or '') or ENTRY_PLURAL.search(title or ''):
         return True
     if SENIOR_TITLE.search(title or ''):
         # A staff or senior opening is not an internship whatever its
@@ -402,8 +439,11 @@ def evaluate(title, description):
                 # discarded the whole sentence, requirement included. "5 years
                 # experience, preferred" is the same marker attaching to the
                 # years themselves, and still makes them optional.
-                if not (REQUIRED.search(head) and OPTIONAL.search(tail)
-                        and len(tail.split()) > 1):
+                # And where the preference has a subject of its own: "5+
+                # years of experience with Verilog, SystemVerilog preferred"
+                # (2026-09-27). "..., preferred but not required" does not.
+                if not (OPTIONAL.search(tail) and len(tail.split()) > 1
+                        and (REQUIRED.search(head) or not OPTIONAL.match(tail.strip()))):
                     continue
             cuts.append(separator)
         clauses, start = [], 0
@@ -413,6 +453,7 @@ def evaluate(title, description):
         clauses.append(block[start:])
         candidates = []
         for clause in clauses:
+            clause = _without_asides(clause)
             if OPTIONAL.search(clause) or (optional_section and not REQUIRED.search(clause)):
                 continue
             matches = list(YEARS.finditer(clause))
@@ -420,7 +461,7 @@ def evaluate(title, description):
                 before, after = clause[:match.start()], clause[match.end():]
                 duration = (DURATION_OF.search(before)
                             and not re.search(r's$', match.group(), re.I))
-                if years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or AGE_OR_SCHOOLING.match(after) or OFFERED.search(before) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
+                if (OTHER_PEOPLES_YEARS.search(before) and not ASKING.search(before)) or years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or AGE_OR_SCHOOLING.match(after) or OFFERED.search(before) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
                         NOT_A_MINIMUM.search(before)
                         and not STILL_A_MINIMUM.search(before)
                         and not TURNED_AWAY.match(after)) or UPPER_AFTER.match(after):

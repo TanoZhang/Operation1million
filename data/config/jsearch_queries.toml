@@ -121,6 +121,11 @@ exclude_title_patterns = [
   '\bcombat\s+systems?\b', '\btactical\s+systems?\b', '\bmission\s+systems?\b',
   '\bdefen[cs]e\s+contractor\b', '\bgovernment\s+clearance\b',
   '\bsecurity\s+clearance\b',
+  # A clearance or citizenship named in the title (2026-09-27): "RTL Engineer
+  # - TS/SCI", "(Top Secret)", "with Polygraph", "US Citizen Required".
+  '\bTS\s*/\s*SCI\b', '\btop\s+secret\b', '\bsecret\s+clearance\b', '\bclearance\s+required\b',
+  '\bcleared\b', '\bpolygraph\b',
+  '\b(?:U\.?\s?S\.?|United\s+States)\s+citizen(?:s|ship)?\s+(?:required|only)\b',
   # Management: not an individual-contributor track
   '\bdirector\b', '\bmanaging\s+director\b', '\bmanagers?\b',
   '\bvice\s+president\b', '\bVP\b', '\bSVP\b', '\bEVP\b', '\bAVP\b', '\bhead\s+of\b',
@@ -147,6 +152,8 @@ exclude_title_patterns = [
   # postings name in the title. Not "(Up to Senior Level)", which hires below
   # it, as with principal below (2026-09-27).
   '(?<!\bup\sto\s)\bsenior\b', '\bsr\b(?![-\s]?iov\b)\.?',
+  # AMD's Senior and Principal Member of Technical Staff (2026-09-27).
+  '\b[SP]MTS\b',
   # Principal and lead at the user's request, 2026-09-22 -- but not a posting
   # hiring across levels: "SoC RTL Design Engineer (Up to Principal Level)"
   # and "... Lead & IC Engineers" are open to the levels below, and were the
@@ -404,6 +411,11 @@ us_person_required_patterns = [
   # TS/SCI clearance required". Not "ability to obtain" one, which is a hope.
   '\b(?:must|shall|required\s+to|need\s+to)\s+(?:have|hold|possess|maintain)\s+(?:an?\s+)?(?:active|current)\s+(?:[\w/-]+\s+){0,3}clearance\b',
   '\b(?:active|current)\s+(?:[\w/-]+\s+){0,3}clearance\s+(?:is\s+)?(?:required|mandatory)\b',
+  # Form labels (2026-09-27): "Citizenship: U.S. Citizen", "Clearance
+  # Required: TS/SCI", "Security Clearance: Active Secret".
+  '\bcitizenship\s*:\s*(?:U\.?\s?S\.?|United\s+States)\s+citizen\b',
+  '\bclearance\s+required\s*:\s*(?:TS\s*/\s*SCI|TS|top\s+secret|secret|Q|L)\b',
+  '\bclearance(?:\s+level)?\s*:\s*(?:active|current)\b',
   # "Must be a citizen of the United States".
   '\b(?:must|required\s+to)\s+be\s+(?:an?\s+)?citizens?\s+of\s+the\s+United\s+States\b',
   # "USA citizenship required", "American citizenship required", "a US-citizen".
