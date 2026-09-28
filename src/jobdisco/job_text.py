@@ -88,6 +88,13 @@ POSTED_SUFFIX = re.compile(
     r'(?:on\s+)?[A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})\s*$', re.I)
 
 
+# A requisition number is not the role: "RTL Engineer - Job ID 12345" and the
+# same listing without it grouped apart (2026-09-27).
+REQUISITION_SUFFIX = re.compile(
+    r'\s*(?:[-|–—]\s*|\(\s*)?(?:job\s+id|req(?:uisition)?(?:\s+(?:id|no\.?|number))?)'
+    r'\s*[:#]?\s*#?\s*[A-Za-z]{0,3}-?\d[\w-]*\s*\)?$', re.I)
+
+
 def clean_title(title, location=''):
     title = ' '.join(unicodedata.normalize('NFKC', title or '').split())
     location = ' '.join(unicodedata.normalize('NFKC', location or '').split())
@@ -104,16 +111,19 @@ def clean_title(title, location=''):
 
     def once(title):
         title = POSTED_SUFFIX.sub('', title).strip()
+        title = REQUISITION_SUFFIX.sub('', title).strip()
         for candidate in sorted(candidates, key=len, reverse=True):
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back
             # as "Engineer," (2026-09-27).
             # And "in Austin, TX" and "(Austin, TX)", which left "RTL
             # Engineer in" and the bracketed place behind (2026-09-27).
-            match = re.search(r'(?:\s*,\s*|\s+(?:in|at)\s+|' + SEPARATOR + ')' + re.escape(candidate) + r'$', title, re.I)
+            # "Austin,TX" without a space is the same place (2026-09-27).
+            place = r',\s*'.join(re.escape(piece.strip()) for piece in candidate.split(','))
+            match = re.search(r'(?:\s*,\s*|\s+(?:in|at)\s+|' + SEPARATOR + ')' + place + r'$', title, re.I)
             if match:
                 return title[:match.start()].strip()
-            match = re.search(r'\s*\(\s*' + re.escape(candidate) + r'\s*\)$', title, re.I)
+            match = re.search(r'\s*\(\s*' + place + r'\s*\)$', title, re.I)
             if match:
                 return title[:match.start()].strip()
         return title

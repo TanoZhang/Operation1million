@@ -16,7 +16,10 @@ ENTRY = re.compile(r'\b(?:intern|internship|co-?op|new\s+(?:college\s+)?grad(?:u
 # line (2026-09-27): hyphenated, plural or qualified, each was read as nothing.
 OPTIONAL = re.compile(r'\b(?:preferred|desired|desirable|nice[-\s]+to[-\s]+haves?|a\s+plus|pluses|'
                       r'(?:big|huge|great|strong|definite|major)\s+plus|bonus|ideally|'
-                      r'an?\s+advantage|advantageous|an\s+asset|beneficial|helpful)\b', re.I)
+                      r'an?\s+advantage|advantageous|an\s+asset|beneficial|helpful|'
+                      # "The ideal candidate has 5+ years" (2026-09-27), as the
+                      # degree filter already read it.
+                      r'ideal\s+candidates?)\b', re.I)
 REQUIRED = re.compile(r'\b(?:required|requirements?|minimum|basic\s+qualifications|must[-\s]+haves?|at\s+least)\b', re.I)
 # The short forms with their field: "BSEE + 5 years or MSEE + 3 years" was no
 # degree at all, and read as asking nothing (2026-09-27).
@@ -177,7 +180,16 @@ POINTER = re.compile(
 # have, and reading the number as a floor rejected the postings that said it.
 NOT_A_MINIMUM = re.compile(
     r'\b(?:no|not|without|less\s+than|fewer\s+than|under|up\s+to|at\s+most|'
-    r'maximum\s+of|max\.?)\s+(?:\w+\s+){0,2}$', re.I)
+    r'maximum(?:\s+of)?|max\.?)\s+(?:\w+\s+){0,2}$', re.I)
+# The bound after the number: "5 years of experience or less", "5 years max"
+# read as a five-year floor (2026-09-27).
+UPPER_AFTER = re.compile(
+    r'^\s*(?:of\s+(?:[\w-]+\s+){0,3}?)?(?:or\s+(?:less|fewer)|max(?:imum)?\b|at\s+most)', re.I)
+# A floor stated as who is turned away: "Candidates with less than 5 years of
+# experience will not be considered" (2026-09-27) is five years required.
+TURNED_AWAY = re.compile(
+    r"^\s*(?:of\s+)?(?:[\w-]+\s+){0,4}?(?:will\s+not|won't|need\s+not|are\s+not|cannot|can't)\s+"
+    r'(?:be\s+)?(?:considered|apply|eligible|accepted)', re.I)
 # Except that "no less than three years" is a floor stated in the negative.
 # The bound above saw its "no" and discarded the requirement it introduces, so
 # some of the strictest postings of all were read as stating nothing at all.
@@ -308,6 +320,8 @@ def evaluate(title, description):
     explicit BS/MS alternative selects the stated MS path, never a degree bonus.
     """
     text = html.unescape(description or '')
+    # "5 yrs. of experience": the point ended the sentence (2026-09-27).
+    text = re.sub(r'\b(yrs?|exp)\.(?=\s)', r'\1', text, flags=re.I)
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)
     text = re.sub(r'<[^>]*>', '\n', text)
     text = SPELLED.sub(lambda found: str(NUMBER_WORDS[found.group(1).lower()]), text)
@@ -396,7 +410,8 @@ def evaluate(title, description):
                             and not re.search(r's$', match.group(), re.I))
                 if years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or AGE_OR_SCHOOLING.match(after) or OFFERED.search(before) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
                         NOT_A_MINIMUM.search(before)
-                        and not STILL_A_MINIMUM.search(before)):
+                        and not STILL_A_MINIMUM.search(before)
+                        and not TURNED_AWAY.match(after)) or UPPER_AFTER.match(after):
                     continue
                 standalone = YEARS.fullmatch(clause.strip())
                 under_heading = required_section and not ELAPSED.search(before)

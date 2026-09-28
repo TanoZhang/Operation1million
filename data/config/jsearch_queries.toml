@@ -98,12 +98,15 @@ title_only_floor = [55, 50, 62, 21, 0]
 exclude_employer_patterns = [
   '\bLockheed\s+Martin\b', '\bNorthrop\s+Grumman\b',
   '\bRaytheon\b', '\bGeneral\s+Dynamics\b', '\bBAE\s+Systems\b',
-  '\bL3Harris\b', '\bLeidos\b', '\bAnduril\b',
+  # "L3 Harris" and "L-3" too (2026-09-27).
+  '\bL-?3\s*Harris\b', '\bLeidos\b', '\bAnduril\b',
+  # RTX's own businesses, named without RTX (2026-09-27).
+  '\bCollins\s+Aerospace\b', '\bPratt\s+(?:&|and)\s+Whitney\b',
   '\bBoeing\b', '\bCACI\b', '\bAmentum\b', '\bPeraton\b',
   # Ambiguous abbreviations require an exact name or a known corporate suffix.
   '^\s*RTX(?:\s+(?:Corporation|Corp\.?|Inc\.?))?\s*$',
   '^\s*SAIC(?:\s+(?:Corporation|Corp\.?|Inc\.?))?\s*$',
-  '\bScience\s+Applications\s+International\s+Corporation\b',
+  '\bScience\s+Applications\s+International\s+Corp(?:oration|\.)?(?!\w)',
 ]
 
 # Role and programme exclusions apply to titles.
@@ -125,6 +128,9 @@ exclude_title_patterns = [
   # let through while "Manager" and "Senior" were not.
   '\bmgrs?\b', '\bsnr\b',
   '\bchief\b', '\bC[TEIF]O\b',
+  # "Head, Silicon Engineering", "Team Leader", "Supervisor" (2026-09-27).
+  # Not "Head-Mounted Display" or a disk drive's "Head Design".
+  '(?<![-\w])head\b(?=\s*(?:,|$|of\b|\s[-–|]))', '\bleaders?\b', '\bsupervisors?\b',
   # Functions that are not the trade at all. These were soft rejects, and a soft
   # reject is only consulted when confidence falls below min_confidence -- but a
   # sales or technician posting at a semiconductor company is written in the

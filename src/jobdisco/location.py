@@ -45,6 +45,9 @@ US_CITIES = (
     'endicott', 'lexington', 'allentown', 'santa barbara', 'goleta', 'sacramento',
     'san mateo', 'redwood city', 'menlo park', 'los gatos', 'campbell', 'pleasanton',
     'livermore', 'hopkinton', 'nashua', 'manchester, nh', 'washington dc', 'washington, dc',
+    # Regions the boards name instead of a city (2026-09-27).
+    'bay area', 'silicon valley', 'dfw', 'dallas-fort worth', 'dallas fort worth',
+    'research triangle', 'twin cities',
 )
 
 # Countries and the cities the boards name without a country. A name here only
@@ -62,6 +65,8 @@ FOREIGN_COUNTRIES = (
     'uruguay', 'egypt', 'morocco', 'south africa', 'nigeria', 'kenya', 'united arab emirates',
     'uae', 'saudi arabia', 'qatar', 'pakistan', 'bangladesh', 'sri lanka', 'armenia',
     'belarus', 'russia', 'kazakhstan', 'jordan', 'tunisia',
+    # Regions wholly abroad (2026-09-27). Not "Americas", which holds the U.S.
+    'apac', 'emea', 'asia pacific', 'europe',
 )
 FOREIGN_CITIES = (
     'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'pune', 'noida', 'gurgaon', 'gurugram',

@@ -1,6 +1,12 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Bug tracker and a fourth twenty - 2026-09-27 UTC (claude, not deployed)
+
+`docs/bug-tracker.md` lists every fix of the day (#1-80 so far; the user asked
+for 100 after #60, so the hunt continues to #160). Suite 799, 10 environment
+skips. Needs `deploy/vps/install.sh` and `job-store --rescore`.
+
 # Account-walled job sites blocked, and not requested - 2026-09-27 UTC (claude, not deployed)
 
 At the user's request: Dice, Wellfound, Handshake and Ladders (account or

@@ -167,6 +167,16 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### A fourth twenty, 2026-09-27 UTC
+
+Tests in `tests/test_fifth_bug_hunt.py`, red on `1bd0645`; rows #61-80 of
+`docs/bug-tracker.md`, which now tracks every fix of the day. Suite 799
+tests, 10 environment skips. Highlights: "5 years of experience or less" and
+"Maximum 5 years" were five-year floors (removed postings); a curly apostrophe
+in "Master’s degree" hid the alternative and removed PhD postings open to a
+master's; five PhD-only wordings, three title levels (head, leader,
+supervisor) and three variants of already-excluded employers were missed.
+
 ### A third twenty, and the user's degree-path decision, 2026-09-27 UTC
 
 Each has a test in `tests/test_fourth_bug_hunt.py`, red on `411c6ab`. Suite

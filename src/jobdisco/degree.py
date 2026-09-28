@@ -59,7 +59,14 @@ STATED = re.compile(
     r'candidates?\s+for|completing)\s+(?:a\s+|an\s+|your\s+)?' + PHD +
     r'|' + PHD + r'\s+(?:degree\s+)?(?:is\s+)?(?:required|mandatory|needed)'
     r'|(?:must|shall|will)\s+(?:have|hold|possess|be\s+(?:pursuing|enrolled\s+in))\s+(?:a\s+|an\s+)?' + PHD +
-    r'|' + PHD + r'\s+(?:students?|candidates?)\s+only'
+    r'|' + PHD + r'\s+(?:students?|candidates?|holders?|graduates?)\s+only'
+    # Found 2026-09-27: "Only PhD candidates will be considered", "PhD
+    # (required)", "PhD - required", "PhD: required", "This role requires a
+    # PhD" and "PhD in EE is a must".
+    r'|\bonly\s+' + PHD + r'\s+(?:students|candidates|holders|graduates)\b'
+    r'|' + PHD + r'\s*(?:\(\s*|[-–:]\s*)required\b'
+    r'|\brequires?\s+(?:a|an)\s+' + PHD +
+    r'|' + PHD + r'\s+(?:degree\s+)?(?:in\s+[^.;:\n]{1,80}?\s+)?is\s+a\s+must\b'
     # Who the applicant is, or whom the opening is for: "Currently a PhD
     # student", "This internship is for PhD students" (2026-09-27).
     r"|\b(?:currently|you\s+are|you're)\s+(?:an?\s+)?" + PHD + r'\s+(?:student|candidate)'
@@ -69,7 +76,8 @@ STATED = re.compile(
     # required" and were read as stating nothing. Never across a "not".
     r'|' + PHD + r'\s+(?:degree\s+)?in\s+[^.;:\n]{1,80}?\s+(?<!\bnot\s)(?:is\s+)?(?:required|mandatory)\b)',
     re.I)
-DEGREE_LINE = re.compile(r'^\s*(?:a\s+)?' + PHD + r'\s+(?:degree\s+)?(?:in|from)\b', re.I)
+# The degree alone counts as the line too: "Required: Ph.D." (2026-09-27).
+DEGREE_LINE = re.compile(r'^\s*(?:a\s+)?' + PHD + r'(?:\s+(?:degree\s+)?(?:in|from)\b|(?:\s+degree)?\s*[.;]?\s*$)', re.I)
 # Explicitly saying the PhD is absent or optional defeats a nearby word such as
 # "required". Without this guard, STATED read the substring in "No PhD
 # required" as a requirement. The same wording can occur in a title.
@@ -97,6 +105,9 @@ def _has_other_degree(text: str) -> bool:
 def _description_blocks(text):
     """Yield prose blocks and field-end markers without losing section scope."""
     text = html.unescape(text or '')
+    # A curly apostrophe is still one: "Master’s degree" was no other
+    # degree, and a posting open to master's was removed (2026-09-27).
+    text = text.replace('’', "'").replace('‘', "'")
     text = re.sub(r'<[^>]*>', '\n', text)
     # "Ph.D. Preferred" ends a sentence at the abbreviation for the split
     # below, which left "Ph.D." read apart from its own preference.
@@ -111,7 +122,7 @@ def _description_blocks(text):
 
 def title_only(title):
     """The title names a PhD and no other degree."""
-    title = title or ''
+    title = (title or '').replace('’', "'").replace('‘', "'")
     # A title can state the preference itself. It is still not an exclusive
     # PhD opening, and this filter deliberately keeps every doubtful case.
     return (bool(_PHD.search(title)) and not _has_other_degree(title)
