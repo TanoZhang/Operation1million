@@ -165,6 +165,16 @@ CODE_CITIES = {
 }
 
 
+def _unaccented(text):
+    return ''.join(char for char in unicodedata.normalize('NFKD', text) if not unicodedata.combining(char))
+
+
+# Read the way the place is read, without accents: "DE, München" became
+# "Munchen", which the accented entry no longer matched, and read as Delaware
+# -- a regression from the accent fix (#88), found on the live queue.
+CODE_CITIES = {code: {_unaccented(city) for city in cities} for code, cities in CODE_CITIES.items()}
+
+
 def _words(options):
     return re.compile(r'(?<![\w])(?:%s)(?![\w])' % '|'.join(
         re.escape(option) for option in sorted(options, key=len, reverse=True)), re.I)
@@ -204,6 +214,13 @@ def _place(text):
     if (_US_WORDS.search(text) or re.match(r'^\s*US\b', text) or 'us' in codes
             or any(part.lower() in US_STATES for part in parts)):
         return 'us'
+    # The country written first, then a region: "IN, TN, Chennai", "IT, MI,
+    # Milan". The region is often also a state code (Tamil Nadu, Milano), and
+    # 52 queued postings in Chennai read as Tennessee (live queue, 2026-09-27).
+    # A U.S. place never opens with two codes in a row.
+    if (len(parts) >= 3 and re.fullmatch(r'[A-Za-z]{2}', parts[0]) and re.fullmatch(r'[A-Za-z]{2,3}', parts[1])
+            and parts[0].lower() in FOREIGN_CODES):
+        return 'foreign'
     countries = list(_FOREIGN_COUNTRIES.finditer(text))
     # A country's name inside the town, with a state after it, is the town:
     # "West Jordan, UT", "Poland, OH", "Mexico, MO", "Peru, IN" (2026-09-27).

@@ -244,6 +244,26 @@ class LiveSoftBlockTests(unittest.TestCase):
                 self.assertTrue(jsearch.title_blocked(title, RULES))
 
 
+class LiveAbroadTests(unittest.TestCase):
+    """Places abroad the live queue read as the U.S. Red on f808a1c."""
+
+    def test_190_the_country_code_first_with_a_region_that_is_a_state_code(self):
+        from jobdisco.location import country
+        for place in ('IN, TN, Chennai', 'IN, TN, Chennai - Virtual', 'IT, MI, Milan', 'IT, CT, Catania'):
+            with self.subTest(place=place):
+                self.assertEqual(country(place), 'foreign')
+        for place in ('US, IN, Bristol', 'US, TN, Lebanon', 'US, NY, Greece', 'Chennai, TN', 'Carmel, IN'):
+            with self.subTest(place=place):
+                self.assertEqual(country(place), 'us')
+
+    def test_191_an_accented_city_beside_its_code(self):
+        """Regression from #88: accents stripped from the place, not from the list."""
+        from jobdisco.location import country
+        self.assertEqual(country('DE, München'), 'foreign')
+        self.assertEqual(country('München, DE'), 'foreign')
+        self.assertEqual(country('Montréal, CA'), 'foreign')
+
+
 class LiveLocationTests(unittest.TestCase):
     def test_170_amazons_leading_country_codes(self):
         """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing

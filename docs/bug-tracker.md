@@ -216,6 +216,8 @@ should go was shown; **display** = wrong text, date or grouping.
 | 187 | ranking | "Electrical Engineering Internship", "Electrical Design Engineer" in the last band | display | `RELATED` |
 | 188 | title rules | "Field Applications Engineer" (plural) not blocked though "Field Application" was | kept | `applications?`, FAE |
 | 189 | title rules | "Program Analyst" not blocked though "Program Manager" was | kept | function pattern |
+| 190 | location | "IN, TN, Chennai", "IT, MI, Milan", "AU, WA, Perth" read as the U.S. (the region is also a state code) | kept | country-first format |
+| 191 | location | "DE, München" read as Delaware -- regression from #88 (accents stripped from the place, not the list) | kept | list unaccented too |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -294,3 +296,8 @@ listings moved out of it to the main tabs, none in. #188-189 came from
 reading those 53: 41 field-applications and program/project-analyst
 listings are now blocked, as the existing singular rules intended --
 including field-applications internships (TI, AMD).
+
+#190-191 came from listing queued single places read as the U.S. that name a
+place abroad. Measured: 60 listings hidden, each abroad (52 in Chennai).
+Also checked, no defect: all 28 trade postings removed as PhD-only are
+titles that say "PhD", which decides by design.
