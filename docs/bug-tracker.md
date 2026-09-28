@@ -17,7 +17,8 @@ title-rule changes also need `job-store --rescore`.
 | 3 (#41-60) | `tests/test_fourth_bug_hunt.py` | 411c6ab | 40dd87b |
 | 4 (#61-80) | `tests/test_fifth_bug_hunt.py` | 1bd0645 | 9451fbe |
 | 5 (#81-100) | `tests/test_sixth_bug_hunt.py` | 9451fbe | aa31b7b |
-| 6 (#101-120) | `tests/test_seventh_bug_hunt.py` | aa31b7b | see git log |
+| 6 (#101-120) | `tests/test_seventh_bug_hunt.py` | aa31b7b | e79a5fd |
+| 7 (#121-140) | `tests/test_eighth_bug_hunt.py` | e79a5fd | see git log |
 
 Direction: **removed** = a posting was wrongly hidden; **kept** = a posting that
 should go was shown; **display** = wrong text, date or grouping.
@@ -144,6 +145,26 @@ should go was shown; **display** = wrong text, date or grouping.
 | 118 | experience | "We have 10 years of experience building chips" read as a requirement | removed | `OTHER_PEOPLES_YEARS` |
 | 119 | location | "Valletta, Malta" read as Malta, NY | kept | Malta a country; town rule keeps Malta, NY |
 | 120 | location | Ecuador, Panama, Nepal, Cyprus, Moldova, Iran and others unplaced | kept | countries |
+| 121 | experience | "10+ years (5+ with MS)" lost the MS path | removed | bracketed MS path is an alternative |
+| 122 | experience | "thirteen" to "nineteen" years read as nothing | kept | `NUMBER_WORDS` |
+| 123 | degree | "Doctor of Philosophy", "DPhil" not a PhD | kept | `PHD` |
+| 124 | citizenship | "U.S. Person required", "US Persons Only" missed | kept | pattern |
+| 125 | ranking | "Early Talent", "Emerging Talent" not early career | display | `EARLY_CAREER` |
+| 126 | ranking | "Fresher", "Fresh Graduate" not early career | display | `EARLY_CAREER` |
+| 127 | ranking | "Trainee" not early career | display | `EARLY_CAREER` |
+| 128 | ranking | "Undergraduate Researcher" not early career | display | `EARLY_CAREER` |
+| 129 | location | bare "Malta" read abroad -- a regression from #119 (GlobalFoundries' Malta, NY) | removed | a bare U.S. site name is that site |
+| 130 | ranking | "STA Engineer" in the last band | display | `CORE` |
+| 131 | ranking | PnR, CTS, signoff, floorplanning, placement, tapeout in the last band | display | `CORE` |
+| 132 | ranking | library characterization in the last band | display | `CORE` |
+| 133 | ranking | "Verilog/VHDL Engineer" in the last band | display | `CORE` |
+| 134 | ranking | "DFx Engineer" in the last band | display | `CORE` |
+| 135 | ranking | "Microarchitect" in the last band | display | `CORE` |
+| 136 | ranking | mask design, design automation in the last band | display | `RELATED` |
+| 137 | location | Boxborough, Manassas, Tucson, Essex Junction, Bothell, Scottsdale, San Ramon unplaced | removed | US cities |
+| 138 | experience | "graduating between Dec 2026 and Jun 2027" not entry level | removed | `STUDENT_OPENING` |
+| 139 | experience | "currently enrolled / currently pursuing" not entry level | removed | `STUDENT_OPENING` |
+| 140 | experience | "Student Researcher", "Trainee", "Apprentice" titles not entry level | removed | `ENTRY_PLURAL` |
 
 ## Not bugs, recorded so they are not re-found
 

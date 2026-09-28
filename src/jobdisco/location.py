@@ -49,6 +49,9 @@ US_CITIES = (
     # Regions the boards name instead of a city (2026-09-27).
     'bay area', 'silicon valley', 'dfw', 'dallas-fort worth', 'dallas fort worth',
     'research triangle', 'twin cities',
+    # Semiconductor sites found unplaced on 2026-09-27.
+    'boxborough', 'hudson, ma', 'manassas', 'tucson', 'sherman, tx', 'taylor, tx',
+    'essex junction', 'bothell', 'everett', 'mesa, az', 'scottsdale', 'san ramon',
 )
 
 # Countries and the cities the boards name without a country. A name here only
@@ -192,7 +195,9 @@ def _place(text):
     # Written after the city it is the country: "Perth, WA, Australia".
     town = len(parts) > 1 and state_codes and all(
         found.end() <= text.index(',') for found in countries)
-    if countries and not town:
+    # A bare name that is also a U.S. site is that site: "Malta" is
+    # GlobalFoundries' Malta, NY, and #119 had read it as the country.
+    if countries and not town and not (len(parts) == 1 and _US_CITIES.fullmatch(parts[0])):
         return 'foreign'
     # A state code that is not also a country code settles it: "Paris, TX" and
     # "London, KY" are in the U.S. whatever the city is called.

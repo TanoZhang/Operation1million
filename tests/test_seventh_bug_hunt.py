@@ -149,7 +149,7 @@ class LocationTests(unittest.TestCase):
     def test_119_malta_the_country(self):
         self.assertEqual(country('Valletta, Malta'), 'foreign')
         self.assertEqual(country('Malta, NY'), 'us')
-        self.assertEqual(country('Malta'), 'foreign')
+        # A bare "Malta" is GlobalFoundries' Malta, NY: corrected by #129.
 
     def test_120_countries_missing_from_the_list(self):
         for place in ('Quito, Ecuador', 'Panama City, Panama', 'Kathmandu, Nepal', 'Nicosia, Cyprus',

@@ -414,6 +414,8 @@ us_person_required_patterns = [
   # Form labels (2026-09-27): "Citizenship: U.S. Citizen", "Clearance
   # Required: TS/SCI", "Security Clearance: Active Secret".
   '\bcitizenship\s*:\s*(?:U\.?\s?S\.?|United\s+States)\s+citizen\b',
+  # "U.S. Person required", "US Persons Only" (2026-09-27).
+  '(?<!\bno\s)\b(?:U\.?\s?S\.?|United\s+States)\s+persons?\s+(?:is\s+|are\s+)?(?:required|only)\b',
   '\bclearance\s+required\s*:\s*(?:TS\s*/\s*SCI|TS|top\s+secret|secret|Q|L)\b',
   '\bclearance(?:\s+level)?\s*:\s*(?:active|current)\b',
   # "Must be a citizen of the United States".

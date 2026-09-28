@@ -42,7 +42,6 @@ CORE = re.compile(r"""\b(?:
     | (?: silicon | soc | chip | hardware | pre-?\s?silicon | post-?\s?silicon )
       \s+ validation
     | design \s+ for \s+ test(?:ability)?
-    | micro-? architecture
     | (?: static \s+ )? timing \s+ (?: closure | analysis | engineer | design | signoff | sign-off )
     | gate[-\s]?level
     | place \s* (?: and | & ) \s* route
@@ -50,6 +49,12 @@ CORE = re.compile(r"""\b(?:
     | (?: hardware \s+ )? emulation
     | fpga \s+ prototyping
     | scan \s+ chain | uvm | systemverilog
+    # Found in the last band on 2026-09-27: the flow's steps, the languages,
+    # library characterization, DFx and the microarchitect.
+    | (?-i: STA ) | pnr | clock \s+ tree | cts (?=\s+engineer) | sign-?off
+    | floor-?plan\w* | placement (?=\s+engineer) | tape-?out
+    | (?: library | lib ) \s+ characteri[sz]ation | standard[-\s]?cell \s+ library
+    | verilog | vhdl | dfx | micro-? architect\w*
 )\b""", re.I | re.X)
 
 
@@ -75,6 +80,7 @@ RELATED = re.compile(r"""\b(?:
     # Design Engineer", "CAD Gate-level 3DIC EM/IR Engineer", "Digital Layout
     # Design Engineer" and "PhD Research Intern, Circuits".
     | cad | eda | layout | circuits | em \s* / \s* ir | emir | 3d-?ic | chipdev
+    | mask \s+ design | design \s+ automation
     | packag(?:e|ing) \s+ (?: design | engineer | integration ) | advanced \s+ packaging
     | design \s+ engineering
 )\b""", re.I | re.X)
@@ -98,6 +104,9 @@ EARLY_CAREER = re.compile(r"""\b(?:
     | apprentice(?:ship)?s?
     # Rotational programmes and junior titles (2026-09-27).
     | rotation(?:al)? \s+ program(?:me)?s? | junior | jr
+    # Early and emerging talent, freshers, trainees, undergraduates (2026-09-27).
+    | early \s+ talent | emerging \s+ talent | freshers? | fresh \s+ graduates?
+    | trainees? | undergrad\w*
     # "Campus" as the opening, not the place: "Campus Network Engineer"
     # (2026-09-27).
     | entry[-\s]? level | early[-\s]? career | student

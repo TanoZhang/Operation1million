@@ -49,7 +49,8 @@ MAX_REQUIRED_YEARS = 20
 # read as asking nothing.
 NUMBER_WORDS = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7,
                 'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12,
-                'fifteen': 15, 'twenty': 20}
+                'thirteen': 13, 'fourteen': 14, 'fifteen': 15, 'sixteen': 16,
+                'seventeen': 17, 'eighteen': 18, 'nineteen': 19, 'twenty': 20}
 # "Five to seven years" is a range from five. Only "seven" stood beside the
 # unit, so only it was rewritten and the floor read as seven (2026-09-27).
 SPELLED = re.compile((r'\b(%(words)s)\b(?=\s*(?:\(\s*\d{1,2}\s*\)\s*)?'
@@ -235,7 +236,9 @@ AS_EXPERIENCE = re.compile(r'^\s*(?:or\s+co-?op\s+)?experiences?\b', re.I)
 # is not an alternative, and reading it as one let the MS path's two years stand
 # in for the five the posting asked of a bachelor's.
 ALTERNATIVE = re.compile(
-    r'\bor\b|\s/\s|\b(?:' + SHORT_FORMS + r'|bachelor\w*|master\w*)\s*/\s*(?:' + SHORT_FORMS + r'|bachelor\w*|master\w*)\b',
+    r'\bor\b|\s/\s|\b(?:' + SHORT_FORMS + r'|bachelor\w*|master\w*)\s*/\s*(?:' + SHORT_FORMS + r'|bachelor\w*|master\w*)\b'
+    # The master's path in brackets: "10+ years (5+ with MS)" (2026-09-27).
+    r"|\(\s*\d{1,2}(?:\.\d)?\s*\+?\s*(?:years?|yrs?)\s+with\s+(?:an?\s+)?(?:MS|master)",
     re.I)
 
 # A heading opens a section; a short sentence does not. "Python preferred."
@@ -300,7 +303,15 @@ SENIOR_TITLE = re.compile(
 # A title may name the openings in the plural: "Summer Interns 2027",
 # "ASIC Co-ops", "RTL New Grads" (2026-09-27). Only the title: in the body the
 # plural is usually other people.
-ENTRY_PLURAL = re.compile(r'\b(?:interns|internships|co-?ops|new\s+(?:college\s+)?grad(?:uate)?s)\b', re.I)
+# And a student, trainee or apprentice named in the title (2026-09-27).
+ENTRY_PLURAL = re.compile(r'\b(?:interns|internships|co-?ops|new\s+(?:college\s+)?grad(?:uate)?s|'
+                          r'students?|trainees?|apprentice(?:ship)?s?)\b', re.I)
+# An opening for someone still studying, said without the word "intern":
+# "graduating between December 2026 and June 2027", "Expected graduation
+# date: May 2027", "currently enrolled in a Master's program" (2026-09-27).
+STUDENT_OPENING = re.compile(
+    r'\b(?:graduating\s+(?:in|between|by|from)|expected\s+graduation|graduation\s+date\s*:|'
+    r'currently\s+(?:enrolled|pursuing)|must\s+be\s+(?:currently\s+)?enrolled)\b', re.I)
 # A preference in brackets with a subject of its own is an aside: "5+ years
 # (8+ preferred)" and "(SystemVerilog preferred)" made the five years optional
 # (2026-09-27). "(preferred)" alone still marks the years.
@@ -349,6 +360,10 @@ def entry_level(title, text):
         # A staff or senior opening is not an internship whatever its
         # careers-site boilerplate says about internships (2026-09-27).
         return False
+    for match in STUDENT_OPENING.finditer(text or ''):
+        sentence = fragment(text, match)
+        if not SUPERVISES.search(sentence) and not POINTER.search(sentence) and not DENIES.search(sentence):
+            return True
     for match in ENTRY.finditer(text or ''):
         sentence = fragment(text, match)
         if (not SUPERVISES.search(sentence) and not DENIES.search(sentence)

@@ -167,6 +167,16 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### A seventh twenty, 2026-09-27 UTC
+
+Tests in `tests/test_eighth_bug_hunt.py`, red on `e79a5fd`; rows #121-140 of
+`docs/bug-tracker.md`. Suite 859, 10 environment skips. Most costly: postings
+for students that do not say "intern" -- a graduation window, "currently
+enrolled", a Student/Trainee/Apprentice title -- were held to the full
+experience gate; #129 corrects a regression from #119 that read a bare
+"Malta" (GlobalFoundries, NY) as abroad; eleven kinds of core titles sat in
+the last band.
+
 ### A sixth twenty, 2026-09-27 UTC
 
 Tests in `tests/test_seventh_bug_hunt.py`, red on `aa31b7b`; rows #101-120 of

@@ -39,7 +39,8 @@ _TRAILING_PREFERENCE = re.compile(
 # sits in: "Education:" under "Minimum qualifications:".
 _NEUTRAL_HEADING = re.compile(r'^(?:education|degrees?|qualifications?|skills)\b', re.I)
 
-PHD = r'(?:ph\.?\s?d\.?s?|doctora(?:l|te)(?:\s+degree)?)'
+# "Doctor of Philosophy" and "DPhil" too (2026-09-27).
+PHD = r'(?:ph\.?\s?d\.?s?|doctora(?:l|te)(?:\s+degree)?|doctor\s+of\s+philosophy|d\.?\s?phil\.?)'
 _PHD = re.compile(r'(?<![\w])' + PHD + r'(?![\w])', re.I)
 # Another degree, or another way in. Words in any case; the short forms only
 # as a degree is written -- "BS", "M.S.", "BSEE" -- because read without case
