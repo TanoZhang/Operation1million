@@ -40,8 +40,10 @@ class RequestTests(unittest.TestCase):
     def test_blocked_publishers_are_not_requested(self):
         params = self.fetch(CONFIG)
         asked = params['exclude_job_publishers'][0].split(',')
-        for name in ('JobLeads', 'Jobrapido', 'Dice', 'Wellfound', 'Handshake', 'Ladders', 'BeBee'):
+        for name in ('JobLeads', 'Jobrapido', 'Dice', 'Wellfound', 'Ladders', 'BeBee'):
             self.assertIn(name, asked)
+        # The user has a Handshake account, so it is requested (2026-09-27).
+        self.assertNotIn('Handshake', asked)
 
     def test_every_walled_site_is_excluded_by_name(self):
         asked = {jsearch._plain_name(name) for name in CONFIG['exclude_job_publishers']}
@@ -95,6 +97,7 @@ class WalledTests(unittest.TestCase):
 
     def test_open_sites_are_not_walled(self):
         for url, publisher in (('https://www.linkedin.com/jobs/view/1', 'LinkedIn'),
+                               ('https://app.joinhandshake.com/jobs/1', 'Handshake'),
                                ('https://lensa.com/job/1', 'Lensa'),
                                ('https://careers.acme.com/1', 'Acme')):
             with self.subTest(publisher=publisher):

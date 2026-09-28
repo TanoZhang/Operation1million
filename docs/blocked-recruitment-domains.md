@@ -111,11 +111,12 @@ them. Checked on 2026-09-27:
 | --- | --- | --- |
 | Dice | dice.com | Fetched a search page: "Apply Now" links to `/dashboard/login`. |
 | Wellfound (AngelList) | wellfound.com, angel.co | Fetched `/jobs`: applying needs a profile ("Create your profile"). |
-| Handshake | joinhandshake.com | MIT's Handshake guide: log in with a school email to use it. |
 | Ladders | theladders.com | Published subscription model and sign-in to view listings; our fetch got HTTP 403, so not seen directly. |
 
 JobLeads and Experteer, both membership sites, were already blocked above.
-Not blocked: LinkedIn (public listing pages), Lensa (free to browse and apply
+Not blocked: Handshake (a school login, but the user has an account, so it
+is one click for them -- removed from the list at their request the same
+day), LinkedIn (public listing pages), Lensa (free to browse and apply
 per its FAQ and reviews), ZipRecruiter (HTTP 403 to our fetch, so unverified),
 Indeed, Glassdoor and the employers' own sites.
 

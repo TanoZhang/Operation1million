@@ -206,6 +206,7 @@ should go was shown; **display** = wrong text, date or grouping.
 
 ## Related change (not counted)
 
-Account-walled third-party sites (Dice, Wellfound, Handshake, Ladders) are
+Account-walled third-party sites (Dice, Wellfound, Ladders; Handshake unblocked
+at the user's request, they have an account) are
 blocked and every blocked publisher is excluded from JSearch requests
 (1bd0645, `tests/test_account_walled.py`, `docs/blocked-recruitment-domains.md`).

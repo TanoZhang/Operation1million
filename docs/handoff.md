@@ -1,6 +1,11 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Handshake unblocked - 2026-09-27 UTC (claude, not deployed)
+
+The user has a Handshake account, so Handshake is no longer account-walled or
+excluded from JSearch requests. Dice, Wellfound and Ladders stay blocked.
+
 # 160 bugs fixed today - 2026-09-27 UTC (claude, not deployed)
 
 `docs/bug-tracker.md` lists all 160 with direction and fix; each has a test

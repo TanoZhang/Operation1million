@@ -41,7 +41,7 @@ employment_types = ["FULLTIME", "INTERN"]
 exclude_job_publishers = [
   "JobLeads", "Jobrapido", "Learn4Good", "Intern Insider", "Experteer",
   "Trabajo.org", "BeBee", "Jobsora", "Geebo", "Higher-Hire", "Nexxt",
-  "Dice", "Wellfound", "Handshake", "Ladders",
+  "Dice", "Wellfound", "Ladders",
 ]
 
 # Priority is intern -> new_grad -> early_career -> A. Daily query caps total
@@ -380,13 +380,14 @@ account_walled_domains = [
   'dice.com',
   'wellfound.com',
   'angel.co',
-  'joinhandshake.com',
   'theladders.com',
 ]
 # The publisher names JSearch reports for the same sites, compared whole and
-# without case, spaces or ".com": "Dice", "Wellfound", "Handshake", "Ladders".
+# without case, spaces or ".com": "Dice", "Wellfound", "Ladders".
+# Not Handshake: the user has an account there (2026-09-27), so its wall is
+# no wall for them.
 account_walled_publishers = [
-  'Dice', 'Wellfound', 'AngelList', 'Handshake', 'Ladders', 'TheLadders',
+  'Dice', 'Wellfound', 'AngelList', 'Ladders', 'TheLadders',
 ]
 
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person
