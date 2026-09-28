@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Third bug hunt at the user's request: twenty more defects, each with a
+         reproducer red before its fix; and, as the user decided, BS/MS paths
+         listed apart (comma, bullet or sentence) count as alternatives.
+Files:   src/jobdisco/*, data/config/jsearch_queries.toml, tests/*,
+         docs/{agent-protocol,architecture,handoff}.md
+Base commit: c0d6e3b
+Status:  in progress
+Next:    Fix, run the full suite, push to main.
+```
+
+```text
+Owner:   claude
 Scope:   Second bug hunt at the user's request: twenty defects found, each
          with a reproducer red before its fix (heading detection, R5,
          filters, location, ranking, store, review).
