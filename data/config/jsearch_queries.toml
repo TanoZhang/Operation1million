@@ -151,7 +151,10 @@ exclude_title_patterns = [
   # Not the SR of SR-IOV, a PCIe virtualisation feature firmware and driver
   # postings name in the title. Not "(Up to Senior Level)", which hires below
   # it, as with principal below (2026-09-27).
-  '(?<!\bup\sto\s)\bsenior\b', '\bsr\b(?![-\s]?iov\b)\.?',
+  # Not a student's year: "Intern (Junior/Senior)", "Rising Senior", "Senior
+  # Year Internship", "Senior standing", "Senior Design Project" (2026-09-27).
+  '(?<!\bup\sto\s)(?<!\brising\s)(?<!\bjunior/)(?<!\bjunior\s/\s)\bsenior\b(?!\s*(?:year|standing|design\s+project))',
+  '\bsr\b(?![-\s]?iov\b)\.?',
   # AMD's Senior and Principal Member of Technical Staff (2026-09-27).
   '\b[SP]MTS\b',
   # Principal and lead at the user's request, 2026-09-22 -- but not a posting

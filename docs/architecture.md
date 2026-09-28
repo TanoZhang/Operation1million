@@ -167,6 +167,16 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### An eighth twenty, 2026-09-27 UTC
+
+Tests in `tests/test_ninth_bug_hunt.py`, red on `90f2f4b`; rows #141-160 of
+`docs/bug-tracker.md`, which completes the hundred the user asked for after
+#60. Suite 879, 10 environment skips. Most costly: citizenship hard passes
+for a condition after the requirement, a licence route and a Preferred
+section; "Bachelor's degree (4-year)" and contract terms read as experience;
+"work as an intern" read as supervising one; a blank line or a byte-order
+mark in the ledger stopped the review page loading.
+
 ### A seventh twenty, 2026-09-27 UTC
 
 Tests in `tests/test_eighth_bug_hunt.py`, red on `e79a5fd`; rows #121-140 of

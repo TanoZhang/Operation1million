@@ -51,6 +51,16 @@ def slim(state):
     return trimmed
 
 
+def local_host(header):
+    """Whether a Host header names this machine. The IPv6 loopback too: a tunnel
+    opened on [::1] was refused (2026-09-27)."""
+    try:
+        host = urlsplit('http://' + (header or '')).hostname
+    except ValueError:
+        return False
+    return host in {'127.0.0.1', 'localhost', '::1'}
+
+
 def fingerprint(path):
     """What a file looks like from outside: when it changed, and how long."""
     try:
@@ -170,7 +180,7 @@ def make_server(db, ledger, port=8765):
 
         def do_GET(self):
             # An SSH tunnel may use a different local port than the server.
-            if urlsplit('http://' + self.headers.get('Host', '')).hostname not in {'127.0.0.1', 'localhost'}:
+            if not local_host(self.headers.get('Host', '')):
                 return self.send({'error': 'Local access only'}, 403)
             route = urlsplit(self.path)
             try:

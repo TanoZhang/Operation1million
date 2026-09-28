@@ -2,7 +2,7 @@
 
 One row per defect found and fixed in the bug hunt the user asked for on
 2026-09-27. Each has a regression test that was red on the commit before its
-fix. The user asked for 100 more after #60; the target is #160. Details and
+fix. The user asked for 100 more after #60; #61-160 are those hundred, all fixed. Details and
 reasoning per batch are in `docs/architecture.md` ("Bugs found and fixed").
 
 No production index was available in this session: every case below is a
@@ -18,7 +18,8 @@ title-rule changes also need `job-store --rescore`.
 | 4 (#61-80) | `tests/test_fifth_bug_hunt.py` | 1bd0645 | 9451fbe |
 | 5 (#81-100) | `tests/test_sixth_bug_hunt.py` | 9451fbe | aa31b7b |
 | 6 (#101-120) | `tests/test_seventh_bug_hunt.py` | aa31b7b | e79a5fd |
-| 7 (#121-140) | `tests/test_eighth_bug_hunt.py` | e79a5fd | see git log |
+| 7 (#121-140) | `tests/test_eighth_bug_hunt.py` | e79a5fd | 90f2f4b |
+| 8 (#141-160) | `tests/test_ninth_bug_hunt.py` | 90f2f4b | see git log |
 
 Direction: **removed** = a posting was wrongly hidden; **kept** = a posting that
 should go was shown; **display** = wrong text, date or grouping.
@@ -165,6 +166,26 @@ should go was shown; **display** = wrong text, date or grouping.
 | 138 | experience | "graduating between Dec 2026 and Jun 2027" not entry level | removed | `STUDENT_OPENING` |
 | 139 | experience | "currently enrolled / currently pursuing" not entry level | removed | `STUDENT_OPENING` |
 | 140 | experience | "Student Researcher", "Trainee", "Apprentice" titles not entry level | removed | `ENTRY_PLURAL` |
+| 141 | ranking | "09/07/26" (two-digit year) undated | display | `SHORT_YEAR` |
+| 142 | ranking | "2026/09/07", "2026.09.07" undated | display | `YEAR_FIRST` |
+| 143 | ranking | "07.09.2026", "7-Sep-2026" undated | display | `TEXT_DATES` |
+| 144 | ranking | "September 7th, 2026", "Sunday, ...", "Sep 7 2026" undated | display | ordinals, weekdays, shapes |
+| 145 | collector | board rows read fewer date shapes than the queue | display | falls back to `posted_day` |
+| 146 | experience | "new grads encouraged to apply" not entry level | removed | `STUDENT_OPENING` |
+| 147 | collection | robots.txt group "Job"/"collector" applied to our crawler (600 s delay) | display | product token compared whole |
+| 148 | experience | "Acme also offers ... internship opportunities" made an 8-year posting entry level | kept | `ELSEWHERE` |
+| 149 | applications | a blank ledger line made the review page fail | display | blank lines skipped |
+| 150 | applications | a ledger byte-order mark made the review page fail | display | `utf-8-sig` |
+| 151 | title rules | "Intern (Junior/Senior)", "Rising Senior", "Senior Year Internship" excluded | removed | student-year senior |
+| 152 | citizenship | "Must be a U.S. citizen" under Preferred a hard pass | removed | `preferred_spans` |
+| 153 | experience | "You will work as an intern" read as supervising one | removed | `AS_ROLE` |
+| 154 | experience | "Position duration: 3 years", "Must commit to 3 years" read as experience | removed | `TERM` |
+| 155 | store | `ranked --since` compared ISO strings, not instants | display | `julianday` |
+| 156 | experience | "Bachelor's degree (4-year)" a four-year requirement | removed | `TERM` |
+| 157 | citizenship | "... if working on ITAR projects", "... where applicable" a hard pass | removed | `TRAILING_CONDITION` |
+| 158 | citizenship | "... unless an export license is obtained" a hard pass | removed | `LICENCE_INSTEAD` |
+| 159 | review | Host "[::1]" refused | display | `local_host` |
+| 160 | job_text | "- Remote - US" kept when the location is "Remote, US" | display | dash-joined place |
 
 ## Not bugs, recorded so they are not re-found
 

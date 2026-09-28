@@ -132,7 +132,8 @@ def clean_title(title, location=''):
             # And "in Austin, TX" and "(Austin, TX)", which left "RTL
             # Engineer in" and the bracketed place behind (2026-09-27).
             # "Austin,TX" without a space is the same place (2026-09-27).
-            place = r',\s*'.join(re.escape(piece.strip()) for piece in candidate.split(','))
+            # Or joined with a dash: "- Remote - US" for "Remote, US" (2026-09-27).
+            place = r'(?:,\s*|\s*[-–]\s*)'.join(re.escape(piece.strip()) for piece in candidate.split(','))
             match = re.search(r'(?:\s*,\s*|\s+(?:in|at)\s+|' + SEPARATOR + ')' + place + r'$', title, re.I)
             if match:
                 return title[:match.start()].strip()

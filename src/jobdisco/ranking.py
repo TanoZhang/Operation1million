@@ -203,7 +203,15 @@ ISO_DAY = re.compile(r'^(\d{4})-(\d{2})-(\d{2})')
 ISO_SECONDS = re.compile(r'^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})')
 
 # Amazon publishes `August 9, 2026`, which no ISO parser accepts.
-TEXT_DATES = ('%B %d, %Y', '%b %d, %Y', '%m/%d/%Y', '%d %B %Y')
+# More shapes the boards print, found unread on 2026-09-27: "7-Sep-2026",
+# "07.09.2026" (day first, as a point-separated date always is), "Sep 7 2026",
+# "7 Sep, 2026". A two-digit year and a year-first date are read below.
+TEXT_DATES = ('%B %d, %Y', '%b %d, %Y', '%m/%d/%Y', '%d %B %Y', '%d %b %Y', '%d-%b-%Y',
+              '%d-%B-%Y', '%d.%m.%Y', '%b %d %Y', '%B %d %Y', '%d %b, %Y', '%d %B, %Y')
+WEEKDAY = re.compile(r'^(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+', re.I)
+ORDINAL = re.compile(r'\b(\d{1,2})(?:st|nd|rd|th)\b', re.I)
+YEAR_FIRST = re.compile(r'^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$')
+SHORT_YEAR = re.compile(r'^\d{1,2}/\d{1,2}/\d{2}$')
 
 
 def month_text(text):
@@ -216,12 +224,18 @@ def month_text(text):
 def posted_day(value):
     """The calendar day a stamp names, or None if it names nothing usable."""
     text = month_text(' '.join(str(value or '').split()))
+    text = ORDINAL.sub(r'\1', WEEKDAY.sub('', text))
     if not text:
         return None
-    found = ISO_DAY.match(text)
+    found = ISO_DAY.match(text) or YEAR_FIRST.match(text)
     if found:
         try:
             return date(*(int(part) for part in found.groups()))
+        except ValueError:
+            return None
+    if SHORT_YEAR.match(text):
+        try:
+            return datetime.strptime(text, '%m/%d/%y').date()
         except ValueError:
             return None
     for shape in TEXT_DATES:

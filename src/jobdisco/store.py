@@ -1446,7 +1446,9 @@ def ranked(path=DB, limit=40, since=None, minimum=None):
     """Open postings, most relevant first, from the score stored on each row."""
     clauses, params = ['j.closed_at IS NULL'], []
     if since:
-        clauses.append('j.first_seen >= ?')
+        # As instants, not strings (docs/architecture.md): "2026-09-20
+        # 10:00:00" sorts before "2026-09-20T00:00" though it is later.
+        clauses.append('julianday(j.first_seen) >= julianday(?)')
         params.append(since)
     if minimum is not None:
         clauses.append('COALESCE(j.relevance, 0) >= ?')

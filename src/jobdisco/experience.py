@@ -311,7 +311,26 @@ ENTRY_PLURAL = re.compile(r'\b(?:interns|internships|co-?ops|new\s+(?:college\s+
 # date: May 2027", "currently enrolled in a Master's program" (2026-09-27).
 STUDENT_OPENING = re.compile(
     r'\b(?:graduating\s+(?:in|between|by|from)|expected\s+graduation|graduation\s+date\s*:|'
-    r'currently\s+(?:enrolled|pursuing)|must\s+be\s+(?:currently\s+)?enrolled)\b', re.I)
+    r'currently\s+(?:enrolled|pursuing)|must\s+be\s+(?:currently\s+)?enrolled|'
+    # "new grads encouraged to apply" (2026-09-27).
+    r'(?:new|recent|college|university)\s+(?:college\s+)?grad(?:uate)?s\s+(?:are\s+)?'
+    r'(?:encouraged|welcome|invited|eligible)|'
+    r'open\s+to\s+(?:new|recent|college|university)\s+(?:college\s+)?grad(?:uate)?s?)\b', re.I)
+# The company's other programmes, not this opening: "Acme also offers new grad
+# and internship opportunities", "... posted separately", "Ask about our
+# internship program" (2026-09-27).
+ELSEWHERE = re.compile(
+    r'\b(?:we|our)\b[^.\n]*\balso\b|\balso\s+(?:run|runs|offer|offers|have|has|hire|hires|post|posts)\b'
+    r'|\bseparately\b|\bask\s+about\b', re.I)
+# The applicant as the intern, not someone they supervise: "You will work as
+# an intern" matched the supervising verb "work" (2026-09-27).
+AS_ROLE = re.compile(r'\bas\s+(?:an?\s+|the\s+)?$', re.I)
+# A duration the job sets, not experience it asks for: "Position duration: 3
+# years", "Contract length: 3 years", "Must commit to 3 years"; and a degree's
+# own length, "Bachelor's degree (4-year)" (2026-09-27).
+TERM = re.compile(
+    r'\b(?:duration|length|term|commitment|commit\s+to)\s*:?\s*(?:of\s+)?$'
+    r"|\b(?:degree|bachelor\S*|master\S*|BS|MS)\s*\(\s*$", re.I)
 # A preference in brackets with a subject of its own is an aside: "5+ years
 # (8+ preferred)" and "(SystemVerilog preferred)" made the five years optional
 # (2026-09-27). "(preferred)" alone still marks the years.
@@ -366,7 +385,11 @@ def entry_level(title, text):
             return True
     for match in ENTRY.finditer(text or ''):
         sentence = fragment(text, match)
-        if (not SUPERVISES.search(sentence) and not DENIES.search(sentence)
+        whole = sentence + re.split(r'[.\n;]', text[match.start():])[0]
+        if ELSEWHERE.search(whole):
+            continue
+        supervised = SUPERVISES.search(sentence) and not AS_ROLE.search(sentence)
+        if (not supervised and not DENIES.search(sentence)
                 and not PRIOR.search(sentence) and not POINTER.search(sentence)
                 and not (SPAN_START.search(sentence) and SPAN_END.match(text[match.end():]))
                 and not AS_EXPERIENCE.match(text[match.end():])):
@@ -476,7 +499,7 @@ def evaluate(title, description):
                 before, after = clause[:match.start()], clause[match.end():]
                 duration = (DURATION_OF.search(before)
                             and not re.search(r's$', match.group(), re.I))
-                if (OTHER_PEOPLES_YEARS.search(before) and not ASKING.search(before)) or years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or AGE_OR_SCHOOLING.match(after) or OFFERED.search(before) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
+                if TERM.search(before) or (OTHER_PEOPLES_YEARS.search(before) and not ASKING.search(before)) or years_value(match['low']) > MAX_REQUIRED_YEARS or NON_WORK.search(after) or AGE_OR_SCHOOLING.match(after) or OFFERED.search(before) or NOT_REQUIRED.search(after) or WINDOW.search(before) or SINCE_GRADUATION.match(after) or duration or (
                         NOT_A_MINIMUM.search(before)
                         and not STILL_A_MINIMUM.search(before)
                         and not TURNED_AWAY.match(after)) or UPPER_AFTER.match(after):

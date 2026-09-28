@@ -1,6 +1,16 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# 160 bugs fixed today - 2026-09-27 UTC (claude, not deployed)
+
+`docs/bug-tracker.md` lists all 160 with direction and fix; each has a test
+red on the commit before it (`tests/test_{second..ninth}_bug_hunt.py`). The
+user decided BS/MS paths listed apart are alternatives, and asked for
+account-walled job sites to be blocked and not requested
+(`tests/test_account_walled.py`). Suite 879, 10 environment skips. Nothing is
+deployed: run `deploy/vps/install.sh`, then `job-store --rescore`, and check
+one paid page to see how JSearch matches `exclude_job_publishers`.
+
 # Bug tracker and a fourth twenty - 2026-09-27 UTC (claude, not deployed)
 
 `docs/bug-tracker.md` lists every fix of the day (#1-80 so far; the user asked

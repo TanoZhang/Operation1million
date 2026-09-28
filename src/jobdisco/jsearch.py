@@ -786,6 +786,7 @@ def us_person_required(text, rules):
     # (2026-09-27). The same text with those points blanked, same offsets.
     plain = ABBREVIATION.sub(lambda found: found.group().replace('.', ' '), text)
     for pattern in rules.get('us_person_required_patterns', []):
+        optional_spans = preferred_spans(text)
         for match in re.finditer(pattern, text, re.I):
             # The sentence the match stands in, up to it. A requirement stated
             # conditionally is not this posting's requirement: "ITAR projects,
@@ -804,6 +805,14 @@ def us_person_required(text, rules):
             # "... Green Card holder, or authorized to work in the US" lists
             # a way in anyone with work authorization has (2026-09-27).
             rest = re.split(r'[.;!?\n•]', plain[match.end():match.end() + 200])[0]
+            # A condition or a licence after it: "... if working on ITAR
+            # projects", "... where applicable", "... unless an export
+            # license is obtained" (2026-09-27).
+            if TRAILING_CONDITION.match(rest) or LICENCE_INSTEAD.search(rest):
+                continue
+            # Under a preferred heading, or a line labelled as a preference.
+            if any(start <= match.start() < end for start, end in optional_spans):
+                continue
             if WORK_AUTHORIZATION.search(rest):
                 continue
             # About some other positions, not this one: "Some positions
@@ -841,6 +850,30 @@ def required_citizenship_bullet(text):
         if required and CITIZENSHIP_BULLET.match(line):
             return True
     return False
+
+
+TRAILING_CONDITION = re.compile(
+    r'^\s*,?\s*(?:if|where|when|whenever|depending|as\s+(?:needed|applicable|required))\b', re.I)
+LICENCE_INSTEAD = re.compile(
+    r'\b(?:unless|or)\s+(?:\w+\s+){0,3}?(?:an?\s+)?(?:export\s+)?licen[cs]e\b', re.I)
+PREFERENCE_LABEL = re.compile(r'^\s*[-*•]?\s*(?:preferred|desired|nice[-\s]to[-\s]have|bonus)\b[^:\n]{0,30}:', re.I)
+
+
+def preferred_spans(text):
+    # Character ranges under a preferred heading or on a preference-labelled
+    # line. "Preferred Qualifications: - Must be a U.S. citizen" is not this
+    # posting's requirement, and was a hard pass (2026-09-27).
+    spans, start, optional, offset = [], None, False, 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.replace(SECTION_END, '').strip(' \t\r\n-*')
+        if SECTION_END in line:
+            optional = False
+        if stripped and is_heading(stripped) and len(stripped.split()) <= 7:
+            optional = bool(OPTIONAL.search(stripped))
+        elif optional or PREFERENCE_LABEL.match(line):
+            spans.append((offset, offset + len(line)))
+        offset += len(line)
+    return spans
 
 
 ABBREVIATION = re.compile(r'\b(?:U\.\s?S\.(?:\s?A\.)?|e\.g\.|i\.e\.|etc\.)', re.I)

@@ -83,7 +83,11 @@ def crawl_delay(text, agent=USER_AGENT):
     if agents:
         groups.append((agents, rules))
     token = agent.lower()
-    chosen = [r for names, r in groups if any(n != '*' and n in token for n in names)]
+    # The product token, compared whole: a group for a crawler named "Job" or
+    # "collector" was taken as ours because the names were substrings of it,
+    # and gave a two-second host a ten-minute delay (2026-09-27).
+    product = token.split('/')[0]
+    chosen = [r for names, r in groups if any(n != '*' and n.split('/')[0] == product for n in names)]
     chosen = chosen or [r for names, r in groups if '*' in names]
     delays = []
     for group in chosen:

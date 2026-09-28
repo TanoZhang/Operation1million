@@ -105,8 +105,12 @@ def read_events(path):
     if not path.exists():
         return []
     events = []
-    with path.open(encoding='utf-8') as handle:
+    # A byte-order mark or a blank line, left by an editor, is not a damaged
+    # record; either made the whole review page fail to load (2026-09-27).
+    with path.open(encoding='utf-8-sig') as handle:
         for number, line in enumerate(handle, 1):
+            if not line.strip():
+                continue
             try:
                 event = json.loads(line)
                 if not isinstance(event, dict) or not line.endswith('\n') or event['status'] not in {'applied', 'skipped', 'pending'}:

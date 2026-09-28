@@ -115,7 +115,10 @@ def posted_from_text(text):
             return datetime.strptime(cleaned, fmt).date().isoformat()
         except ValueError:
             continue
-    return None
+    # And every shape the queue reads: the two parsers disagreed, so a board
+    # row printed as "Posted 09/07/26" was undated here (2026-09-27).
+    found = ranking.posted_day(cleaned)
+    return found.isoformat() if found else None
 
 
 def present(value):
