@@ -252,11 +252,16 @@ class PassStatisticsTests(unittest.TestCase):
             self.assertIn(field, source)
 
     def test_fetched_splits_into_new_and_existing(self):
-        """Counted from the table, because an upsert cannot report the split."""
+        """Counted from the table, because an upsert cannot report the split.
+
+        By listing address since 2026-09-27: JSearch's job_id changes for the
+        same listing, and the row count called every record new
+        (`store.count_new_listings`, tests/test_jsearch_plan_bugs.py)."""
         source = (ROOT / 'src/jobdisco/collector.py').read_text(encoding='utf-8')
         self.assertIn("seen_totals['fetched'] += len(rows)", source)
+        self.assertIn("added, existing = store.count_new_listings(db, rows)", source)
         self.assertIn("seen_totals['new_seen'] += added", source)
-        self.assertIn("seen_totals['existing_seen'] += len(rows) - added", source)
+        self.assertIn("seen_totals['existing_seen'] += existing", source)
 
     def test_summary_reads_accepted_from_pass_facts(self):
         report = collector.summary_block(

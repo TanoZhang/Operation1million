@@ -1148,12 +1148,13 @@ def main():
                     }, ensure_ascii=True) + '\n')
             if db is None:
                 return
-            before = db.execute('SELECT count(*) FROM seen_jobs').fetchone()[0]
+            # Listings, by address: a JSearch job_id changes for the same
+            # listing, and counting rows called everything new (2026-09-27).
+            added, existing = store.count_new_listings(db, rows)
             with db:
                 store.record_seen(db, rows)
-            added = db.execute('SELECT count(*) FROM seen_jobs').fetchone()[0] - before
             seen_totals['new_seen'] += added
-            seen_totals['existing_seen'] += len(rows) - added
+            seen_totals['existing_seen'] += existing
 
         companies = {employer_normalize(s.company_name): s.company_key for s in all_sources}
         for key, entry in fallbacks.items():

@@ -128,6 +128,28 @@ def _insert_seen(db, batch):
     return len(batch)
 
 
+def count_new_listings(db, rows):
+    """(new, already seen) distinct listings among rows, by address.
+
+    JSearch gives a listing a new job_id nearly every time it returns it --
+    10,867 paid records were 1,491 listings, one Qualcomm internship under 113
+    ids -- so counting by the seen table's key called every record new and
+    every manifest's seen_existing was 0 (2026-09-27). Call before recording.
+    """
+    urls = {(row.get('provider_key') or 'jsearch', row.get('url')) for row in rows if row.get('url')}
+    known = set()
+    by_provider = {}
+    for provider, url in urls:
+        by_provider.setdefault(provider, []).append(url)
+    for provider, addresses in by_provider.items():
+        for start in range(0, len(addresses), 400):
+            chunk = addresses[start:start + 400]
+            known.update((provider, url) for (url,) in db.execute(
+                'SELECT DISTINCT url FROM seen_jobs WHERE provider_key=? AND url IN (%s)'
+                % ','.join('?' * len(chunk)), [provider, *chunk]))
+    return len(urls - known), len(urls & known)
+
+
 def record_seen(db, rows, stamp=None):
     """Note that a provider returned these jobs, whatever was decided about them.
 

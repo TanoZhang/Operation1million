@@ -208,9 +208,13 @@ def fallback_plan(config, sources, max_aliases=1):
 
 
 class SearchFailure(Exception):
-    def __init__(self, message, stop=False, budget=False):
+    def __init__(self, message, stop=False, budget=False, transient=False):
         super().__init__(message)
         self.stop = stop
+        # A server error that a later request may not meet: HTTP 500, 502,
+        # 504. On 2026-09-24 fifteen of 35 queries stopped for the day at their
+        # first 504 and lost every page after it; one retry costs one credit.
+        self.transient = transient
         # Reaching the budget is how an adaptive run is meant to end. Counting
         # it as a transport failure would make the failure count useless.
         self.budget = budget
@@ -302,7 +306,7 @@ class Client:
                 self.guard.pause(max(wait, 86400 if code in {401, 403} else 900))
                 raise SearchFailure(f'JSearch HTTP {code}; account paused', stop=True)
             if code != 200:
-                raise SearchFailure(f'JSearch HTTP {code}')
+                raise SearchFailure(f'JSearch HTTP {code}', transient=code in {500, 502, 504})
             payload = response.json()
             if not isinstance(payload, dict) or payload.get('status') != 'OK':
                 raise SearchFailure('JSearch response status is not OK')
@@ -1178,10 +1182,13 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                        if reason in HARD_REJECTIONS else 'jsearch_rejected_other')
                 stats[key] += 1
                 continue
-            identity = ('id', row['source_job_id']) if row['source_job_id'] else ('url', row['url'])
-            if identity not in unique:
+            # Unique by id and by address: JSearch gives one listing a new
+            # job_id nearly every time, so an id alone counted it again, and a
+            # moved address with the same id is still one job (2026-09-27).
+            identities = {('url', row['url'])} | ({('id', row['source_job_id'])} if row['source_job_id'] else set())
+            if not identities & unique:
                 detail['jobs_unique'] += 1
-                unique.add(identity)
+            unique.update(identities)
             stats['jsearch_confidence'].append(confidence)
             rows.append(row)
 
@@ -1230,6 +1237,13 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 spent = client.guard.credits - before
                 detail['pages_used'] += spent
                 stats['jsearch_pages_used'] += spent
+                if failure is not None and failure.transient and not entry.get('retried'):
+                    # Asked again once, after the rest of the round, from the
+                    # same page: the query is not over because the server was.
+                    stats['jsearch_failures'] += 1
+                    entry['retried'] = True
+                    detail['reason'] = f'{failure}; retried once'
+                    continue
                 if failure is not None:
                     if not failure.budget:
                         stats['jsearch_failures'] += 1
@@ -1319,5 +1333,5 @@ def collect(queries, client, settings, companies, persist, backfill=False,
         persist(query, rows, detail)
         stats['jsearch_queries'].append(detail)
         all_rows.extend(rows)
-    stats['jsearch_jobs_unique'] = len(unique)
+    stats['jsearch_jobs_unique'] = sum(detail['jobs_unique'] for detail in (e['detail'] for e in state.values()))
     return all_rows, stats
