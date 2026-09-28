@@ -2,7 +2,7 @@
 
 ## Active executable plan
 
-`data/config/jsearch_queries.toml` defines the 52 nationwide functional queries,
+`data/config/jsearch_queries.toml` defines the 35 nationwide functional queries,
 page allocations, request defaults, budget, and conservative title filters.
 See [JSearch daily discovery](jsearch.md) for behavior and commands.
 

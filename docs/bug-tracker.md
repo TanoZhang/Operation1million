@@ -219,6 +219,10 @@ should go was shown; **display** = wrong text, date or grouping.
 | 190 | location | "IN, TN, Chennai", "IT, MI, Milan", "AU, WA, Perth" read as the U.S. (the region is also a state code) | kept | country-first format |
 | 191 | location | "DE, München" read as Delaware -- regression from #88 (accents stripped from the place, not the list) | kept | list unaccented too |
 | 192 | queue | a paid listing linking to the employer's own posting ("?lang=en-us", a slug) was a second group beside the direct one | display | dropped when host and requisition match an open direct posting |
+| 193 | collector | seen_new / seen_existing counted JSearch ids; every manifest said every record was new | display | `store.count_new_listings` by address |
+| 194 | jsearch | the run's unique count read unstable job_ids; inflated about five-fold | display | unique by id and by address |
+| 195 | jsearch | one HTTP 504 ended a query for the day (15 of 35 on 2026-09-24) | kept | server errors retried once |
+| 196 | docs | jsearch.md said 36 queries, search-queries.md said 52; the plan has 35 | display | corrected |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -310,3 +314,8 @@ requisitions or third-party copies (LinkedIn, ZipRecruiter) that cannot be
 matched to a requisition safely, and stay. Also checked, no defect: the 41
 early-career trade postings removed on the live index are all PhD titles or
 stated U.S. citizenship / clearance requirements.
+
+#193-196 came from analysing the JSearch plan against nine days of paid runs.
+The same analysis re-set every query's page cap (docs/jsearch.md, "Query
+yield"): caps move from queries that end after a page to general queries that
+hit their cap every day; the total stays 320 and the tier order is unchanged.

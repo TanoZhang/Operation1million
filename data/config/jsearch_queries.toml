@@ -47,11 +47,22 @@ exclude_job_publishers = [
 # Priority is intern -> new_grad -> early_career -> A. Daily query caps total
 # exactly 320; short and empty pages still stop a query before its cap.
 # A month-wide backfill uses separate deeper caps for the same four tiers.
+#
+# Caps re-set from measurement on 2026-09-27 (docs/jsearch.md, "Query yield"):
+# nine days of manifests and the index's paid listings. Most intern, entry
+# level and narrow new-grad queries run out after one or two pages, so their
+# large caps were never spent and about half of each day's 320 credits went
+# unused; the general queries hit their caps every day with results left --
+# Physical Design Engineer was capped at one page and still found the most
+# useful listings per page of any query. Caps now follow what each query has
+# returned, and "Digital Design" phrasings, which mostly return graphic and
+# web design, are held to three pages. Tier order is unchanged.
 [backfill_tier_pages]
 intern = 60
 new_grad = 50
 early_career = 40
-A = 30
+# Deeper than any daily cap in the tier (Design Verification Engineer: 36).
+A = 40
 
 [filter]
 # Relevance scoring. Terms only ever add; nothing is deducted for a term being
@@ -483,7 +494,7 @@ role_title_terms = [
 [[query]]
 query = "ASIC Intern"
 tier = "intern"
-pages = 14
+pages = 2
 [[query]]
 query = "Design Verification Intern"
 tier = "intern"
@@ -491,23 +502,23 @@ pages = 13
 [[query]]
 query = "RTL Intern"
 tier = "intern"
-pages = 13
+pages = 3
 [[query]]
 query = "Digital Design Intern"
 tier = "intern"
-pages = 12
+pages = 3
 [[query]]
 query = "FPGA Intern"
 tier = "intern"
-pages = 12
+pages = 3
 [[query]]
 query = "SoC Intern"
 tier = "intern"
-pages = 11
+pages = 3
 [[query]]
 query = "Silicon Intern"
 tier = "intern"
-pages = 10
+pages = 20
 [[query]]
 query = "Hardware Engineering Intern"
 tier = "intern"
@@ -515,11 +526,11 @@ pages = 9
 [[query]]
 query = "Physical Design Intern"
 tier = "intern"
-pages = 6
+pages = 2
 [[query]]
 query = "DFT Intern"
 tier = "intern"
-pages = 5
+pages = 3
 
 [[query]]
 query = "ASIC New Grad"
@@ -528,15 +539,15 @@ pages = 12
 [[query]]
 query = "Verification New Grad"
 tier = "new_grad"
-pages = 12
+pages = 16
 [[query]]
 query = "RTL New Grad"
 tier = "new_grad"
-pages = 11
+pages = 2
 [[query]]
 query = "Digital Design New Grad"
 tier = "new_grad"
-pages = 10
+pages = 3
 [[query]]
 query = "FPGA New Grad"
 tier = "new_grad"
@@ -544,40 +555,40 @@ pages = 10
 [[query]]
 query = "SoC New Grad"
 tier = "new_grad"
-pages = 9
+pages = 6
 [[query]]
 query = "Silicon New Grad"
 tier = "new_grad"
-pages = 9
+pages = 6
 [[query]]
 query = "Hardware New Grad"
 tier = "new_grad"
-pages = 8
+pages = 12
 [[query]]
 query = "Physical Design New Grad"
 tier = "new_grad"
-pages = 5
+pages = 10
 [[query]]
 query = "DFT New Grad"
 tier = "new_grad"
-pages = 4
+pages = 2
 
 [[query]]
 query = "Design Verification Entry Level"
 tier = "early_career"
-pages = 16
+pages = 8
 [[query]]
 query = "ASIC Entry Level"
 tier = "early_career"
-pages = 15
+pages = 2
 [[query]]
 query = "Digital Design Entry Level"
 tier = "early_career"
-pages = 10
+pages = 2
 [[query]]
 query = "FPGA Entry Level"
 tier = "early_career"
-pages = 13
+pages = 2
 [[query]]
 query = "Hardware Entry Level"
 tier = "early_career"
@@ -585,20 +596,20 @@ pages = 9
 [[query]]
 query = "Silicon Entry Level"
 tier = "early_career"
-pages = 7
+pages = 3
 
 [[query]]
 query = "Design Verification Engineer"
 tier = "A"
-pages = 10
+pages = 36
 [[query]]
 query = "RTL Engineer"
 tier = "A"
-pages = 9
+pages = 18
 [[query]]
 query = "ASIC Engineer"
 tier = "A"
-pages = 9
+pages = 22
 [[query]]
 query = "Digital Design Engineer"
 tier = "A"
@@ -606,20 +617,20 @@ pages = 8
 [[query]]
 query = "FPGA Engineer"
 tier = "A"
-pages = 7
+pages = 16
 [[query]]
 query = "Hardware Engineer"
 tier = "A"
-pages = 6
+pages = 14
 [[query]]
 query = "Silicon Engineer"
 tier = "A"
-pages = 4
+pages = 10
 [[query]]
 query = "Physical Design Engineer"
 tier = "A"
-pages = 1
+pages = 24
 [[query]]
 query = "DFT Engineer"
 tier = "A"
-pages = 1
+pages = 6

@@ -21,12 +21,13 @@ SQLite `search_queries` table is not executed by this collector.
 | --- | ---: |
 | Internships | 10 |
 | New Grad | 10 |
-| Early Career | 7 |
+| Early Career ("Entry Level") | 6 |
 | General | 9 |
-| Total | 36 |
+| Total | 35 |
 
 The daily ceiling is 320. Each broad query declares a maximum depth, and those
-caps total 320: Intern 105, New Grad 90, Early Career 70, and General 55. Every
+caps total 320: Intern 61, New Grad 79, Early Career 26, and General 154, set
+from measured yield on 2026-09-27 (see "Query yield" below). Every
 call still asks for `num_pages=1`; a short page, empty page, repeated page,
 deadline or budget limit keeps its existing early-stop behavior. Unused credits
 from an early stop remain available to the next priority tier.
@@ -76,8 +77,8 @@ allocation is exhausted. `cycle_start` is `2026-09-16` and periods roll every
 are counted within that window, including existing history; UTC audit day labels
 and monthly totals remain unchanged. Legacy credits without timestamps count
 conservatively in overlapping windows. Internships run first: with full pages,
-they can receive up to 105 credits before New Grad receives 90, Early Career
-70, and General 55.
+they can receive up to 61 credits before New Grad receives 79, Early Career
+26, and General 154.
 
 `.local/jsearch_usage.sqlite` reserves one page before each request.
 Reservations survive errors, timeouts and restarts. `jsearch_pages_used` reports
@@ -100,7 +101,7 @@ Never delete the ledger to bypass a ceiling or cooldown.
 "Pull one week" means a temporary `week` search window, not seven repeated
 daily searches and not a permanent edit to the configured `3days` default.
 For a one-keyword test, default to one page and one reserved credit. Do not
-expand to all 36 keywords or retry paid failures without a new instruction.
+expand to all 35 keywords or retry paid failures without a new instruction.
 
 ```powershell
 # One keyword, last week, at most one page/credit. Paid when executed.
@@ -108,7 +109,7 @@ expand to all 36 keywords or retry paid failures without a new instruction.
 
 # Add --jsearch-plan to preview the same command without any API call.
 
-# All 36 functional queries over one week, bounded by an explicit budget.
+# All 35 functional queries over one week, bounded by an explicit budget.
 # Direct sources and company fallbacks are skipped by --jsearch-only.
 .\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 320
 ```
@@ -296,3 +297,47 @@ A 429 or 503 pauses the account for 15 minutes and a 401 or 403 for 24 hours,
 both persisted, so a cooldown outlives the runner that earned it. Either one
 stops the rest of the pass and exits nonzero: an account-level refusal is not
 something a run should carry on through quietly.
+
+## Query yield, measured 2026-09-27
+
+From the data repository's nine daily manifests (2026-09-18 to 2026-09-27) and
+the index's paid listings, read against today's filters. "Useful" is a listing
+that passes every current rule, is in bands 0-3, and so reaches the review
+page; "useful only here" is one no other query found.
+
+**Listings, not records.** 10,867 paid records were 1,491 listings: JSearch
+gives a listing a new `job_id` nearly every time it returns it (one Qualcomm
+internship under 113 ids). A day buys 1,000-1,800 records, 220-330 distinct
+listings, of which 115-205 are new -- about 0.75-1.9 new listings per credit.
+Of the 1,291 paid listings stored, 286 (22%) are useful today. Counts in
+manifests before 3b38d81 (`jsearch_jobs_unique`, `seen_new`, `seen_existing`)
+counted ids and are inflated; they now count listings.
+
+**Spend.** Days used 110-185 of the 320 credits. Most intern, entry-level and
+narrow new-grad queries end after one or two pages, while every general query
+hit its cap every day with results left. An HTTP 504 ended a query for the day
+(15 of 35 queries on 2026-09-24); a server error is now retried once.
+
+| Query | Pages (9 days) | Useful only here | Old cap | New cap |
+| --- | ---: | ---: | ---: | ---: |
+| Design Verification Engineer | 70 | 18 | 10 | 36 |
+| Silicon Intern | 72 | 17 | 10 | 20 |
+| ASIC Engineer | 60 | 11 | 9 | 22 |
+| Verification New Grad | 50 | 9 | 12 | 16 |
+| FPGA Engineer | 61 | 8 | 7 | 16 |
+| Hardware Engineer | 48 | 7 | 6 | 14 |
+| RTL Engineer | 64 | 7 | 9 | 18 |
+| Hardware Engineering Intern | 33 | 7 | 9 | 9 |
+| Hardware Entry Level | 14 | 7 | 9 | 9 |
+| Physical Design Engineer | 9 | 6 | 1 | 24 |
+| Hardware New Grad | 43 | 6 | 8 | 12 |
+| Physical Design New Grad | 28 | 5 | 5 | 10 |
+| Digital Design New Grad | 72 | 1 | 10 | 3 |
+| Digital Design Intern | 49 | 1 | 12 | 3 |
+| ASIC Intern, RTL New Grad, DFT New Grad, ASIC/FPGA/Digital Design Entry Level | 7-8 each | 0 | 4-15 | 2 |
+
+The full per-query table and the scripts that produced it are described in the
+bug log entry of the same date. What this does not measure: how many more
+useful listings the deeper general pages will find, since those pages were
+never bought. Re-measure after a week of runs with the new caps; the manifests
+now count listings, so that is a direct read.

@@ -311,40 +311,44 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'A')},
-            {'intern': 105, 'new_grad': 90, 'early_career': 70, 'A': 55})
+            # Re-set from measured yield on 2026-09-27 (docs/jsearch.md).
+            {'intern': 61, 'new_grad': 79, 'early_career': 26, 'A': 154})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
 
     def test_catalog_is_the_four_broad_query_families(self):
         expected = {
+            # Caps re-set from nine days of measured yield, 2026-09-27: a
+            # query that runs out after a page keeps a small cap, one that hit
+            # its cap every day with results left gets more (docs/jsearch.md).
             'intern': {
-                'ASIC Intern': 14, 'Design Verification Intern': 13,
-                'RTL Intern': 13, 'Digital Design Intern': 12, 'FPGA Intern': 12,
-                'SoC Intern': 11, 'Silicon Intern': 10,
-                'Hardware Engineering Intern': 9, 'Physical Design Intern': 6,
-                'DFT Intern': 5},
+                'ASIC Intern': 2, 'Design Verification Intern': 13,
+                'RTL Intern': 3, 'Digital Design Intern': 3, 'FPGA Intern': 3,
+                'SoC Intern': 3, 'Silicon Intern': 20,
+                'Hardware Engineering Intern': 9, 'Physical Design Intern': 2,
+                'DFT Intern': 3},
             'new_grad': {
-                'ASIC New Grad': 12, 'Verification New Grad': 12,
-                'RTL New Grad': 11, 'Digital Design New Grad': 10,
-                'FPGA New Grad': 10, 'SoC New Grad': 9, 'Silicon New Grad': 9,
-                'Hardware New Grad': 8, 'Physical Design New Grad': 5,
-                'DFT New Grad': 4},
+                'ASIC New Grad': 12, 'Verification New Grad': 16,
+                'RTL New Grad': 2, 'Digital Design New Grad': 3,
+                'FPGA New Grad': 10, 'SoC New Grad': 6, 'Silicon New Grad': 6,
+                'Hardware New Grad': 12, 'Physical Design New Grad': 10,
+                'DFT New Grad': 2},
             # Measured, not guessed: "Early Career" as a search phrase returned
             # 15 postings across all seven queries and one of them survived the
             # filter. "Entry Level" returns eight to ten a page on the same
             # roles. RTL is absent because it returns nothing under either
             # phrasing, and is already asked as an intern and a new grad.
             'early_career': {
-                'Design Verification Entry Level': 16, 'ASIC Entry Level': 15,
-                'FPGA Entry Level': 13, 'Digital Design Entry Level': 10,
-                'Hardware Entry Level': 9, 'Silicon Entry Level': 7},
+                'Design Verification Entry Level': 8, 'ASIC Entry Level': 2,
+                'FPGA Entry Level': 2, 'Digital Design Entry Level': 2,
+                'Hardware Entry Level': 9, 'Silicon Entry Level': 3},
             'A': {
-                'Design Verification Engineer': 10, 'RTL Engineer': 9,
-                'ASIC Engineer': 9, 'Digital Design Engineer': 8,
-                'FPGA Engineer': 7, 'Hardware Engineer': 6,
-                'Silicon Engineer': 4, 'Physical Design Engineer': 1,
-                'DFT Engineer': 1},
+                'Design Verification Engineer': 36, 'RTL Engineer': 18,
+                'ASIC Engineer': 22, 'Digital Design Engineer': 8,
+                'FPGA Engineer': 16, 'Hardware Engineer': 14,
+                'Silicon Engineer': 10, 'Physical Design Engineer': 24,
+                'DFT Engineer': 6},
         }
         actual = {tier: {q.query: q.pages for q in self.plan if q.tier == tier}
                   for tier in expected}
@@ -1580,7 +1584,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_small_budgets_go_to_internships_first(self):
         settings, plan = jsearch.load_plan()
         for cap, expected in [(24, {'intern': 24}),
-                              (120, {'intern': 105, 'new_grad': 15})]:
+                              (120, {'intern': 61, 'new_grad': 59})]:
             with self.subTest(cap=cap):
                 guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
                 guard.interval = 0
@@ -1601,7 +1605,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(sum(q.pages for q in plan), 320)
         deep = [replace(q, pages=settings['backfill_tier_pages'][q.tier]) for q in plan]
         self.assertEqual({q.tier: q.pages for q in deep},
-                         {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 30})
+                         {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 40})
         # A sweep's whole plan still fits a sweep's share of the cycle.
         self.assertLessEqual(sum(q.pages for q in deep), 3127)
 
