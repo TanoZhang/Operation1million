@@ -279,7 +279,8 @@ reject_title_patterns = [
   '\bpower\s+electronics\b', '\bprocess\s+engineer\b',
   '\bmanufacturing\s+engineer\b', '\byield\s+engineer\b',
   '\brecruit', '\bquality\s+engineer\b',
-  '\bfield\s+application\b', '\bclinical\b',
+  # The plural too, "Field Applications Engineer", and its initials (2026-09-27).
+  '\bfield\s+applications?\b', '\bFAE\b', '\bclinical\b',
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
   '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
 
@@ -326,7 +327,8 @@ function_title_patterns = [
   '\bpower\b',
   '\bproducts?\b(?!\s*(?:/\s*test|test|development|engineer|engineering|validation|verification|yield|application))',
   '\bsupply\b', '\bmanufactur', '\bmechanical\b',
-  '\bmagnetics?\b', '\b(?:project|program)\s+manag', '\boperations?\b',
+  # "Program Analyst" as well as a manager (2026-09-27).
+  '\bmagnetics?\b', '\b(?:project|program)\s+(?:manag|analyst)', '\boperations?\b',
 ]
 # Job sites whose listings are not worth opening, blocked at the user's request
 # on 2026-09-22. Matched against the whole posting link and the publisher name

@@ -206,6 +206,16 @@ should go was shown; **display** = wrong text, date or grouping.
 | 177 | title rules | finance, accounting, procurement, brand, credentialing, licensing, communications, logistics and business roles on the related tabs | kept | excluded |
 | 178 | title rules | "Graphic or Web Layout Designer - Internship" read as chip layout | kept | excluded |
 | 179 | title rules | building "Facilities Electrical Engineer" roles read as hardware | kept | excluded |
+| 180 | ranking | "Timing Methodology", "Staff Engineer, Timing" in the last band | display | `CORE` |
+| 181 | ranking | "Physical Designer", "Logic Designer", "Package Designer" in the last band | display | "design(er)" |
+| 182 | ranking | "RTL2GDS" in the last band | display | `CORE` |
+| 183 | ranking | mixed-signal titles (modeling, design, SVE) in the last band | display | `RELATED` |
+| 184 | ranking | "Digital Test", "System Level Test", "High-Speed I/O Test" in the last band | display | `RELATED` |
+| 185 | ranking | "Chipset" in the last band | display | `RELATED` |
+| 186 | ranking | DSP / "Digital Signal Processing" in the last band | display | `RELATED` |
+| 187 | ranking | "Electrical Engineering Internship", "Electrical Design Engineer" in the last band | display | `RELATED` |
+| 188 | title rules | "Field Applications Engineer" (plural) not blocked though "Field Application" was | kept | `applications?`, FAE |
+| 189 | title rules | "Program Analyst" not blocked though "Program Manager" was | kept | function pattern |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -278,3 +288,9 @@ route, and Microsoft's "If the role requires ..." boilerplate.
 non-engineering function. Measured: 234 listings hidden, 20 of them from the
 To review / Early career tabs and the rest from Low relevance; every one
 read by hand, none a chip job. Open listings 7,119 -> 6,885.
+
+#180-187 came from reading the Low relevance tab's titles; measured, 53
+listings moved out of it to the main tabs, none in. #188-189 came from
+reading those 53: 41 field-applications and program/project-analyst
+listings are now blocked, as the existing singular rules intended --
+including field-applications internships (TI, AMD).

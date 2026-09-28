@@ -185,6 +185,65 @@ class LiveTitleTests(unittest.TestCase):
                 self.assertTrue(self.excluded(title))
 
 
+class LiveBandTests(unittest.TestCase):
+    """Trade titles the live queue put on the Low relevance tab (the last band).
+    Red on cd39d79."""
+
+    def band(self, title):
+        from jobdisco import ranking
+        return ranking.bucket(title)
+
+    def test_180_timing_methodology(self):
+        self.assertEqual(self.band('Design Engineer - Timing Methodology'), 2)
+        self.assertEqual(self.band('Staff Engineer, Timing'), 2)
+
+    def test_181_designer(self):
+        self.assertEqual(self.band('Physical Designer Engineer, Google Cloud'), 2)
+        self.assertEqual(self.band('Logic Designer'), 2)
+        self.assertEqual(self.band('Package Designer'), 3)
+
+    def test_182_rtl2gds(self):
+        self.assertEqual(self.band('RTL2GDS, Product Engineering Architect'), 2)
+
+    def test_183_mixed_signal(self):
+        self.assertEqual(self.band('Mixed-Signal Behavioral Modeling Engineer'), 3)
+        self.assertEqual(self.band('NVIDIA 2027 Internships: Mixed Signal Design'), 1)
+
+    def test_184_digital_and_system_level_test(self):
+        for title in ('Digital Test Engineer, Staff', 'System Level Test Engineer - Staff',
+                      'Staff High-Speed I/O Test Engineer'):
+            with self.subTest(title=title):
+                self.assertEqual(self.band(title), 3)
+
+    def test_185_chipset(self):
+        self.assertEqual(self.band('IoT Chipset PE'), 3)
+
+    def test_186_digital_signal_processing(self):
+        self.assertEqual(self.band('Summer 2027 Masters Digital Signal Processing Engineer Intern'), 1)
+        self.assertEqual(self.band('DSP Engineer'), 3)
+
+    def test_187_electrical_engineering_and_design(self):
+        for title in ('Electrical Engineering Internship (6-Month Program)', 'Display Electrical Design Engineer',
+                      'iPhone Touch Sensing Electrical Design Engineer', 'ENGINEER, SIG ELECTRICAL DESIGN'):
+            with self.subTest(title=title):
+                self.assertIn(self.band(title), (1, 3))
+
+
+class LiveSoftBlockTests(unittest.TestCase):
+    """Found reading what #180-187 moved to the main tabs. Red on cd39d79."""
+
+    def test_188_field_applications_in_the_plural(self):
+        for title in ('Field Applications Engineer', 'DSP Specialist FAE (Field Applications Engineer) – West Region',
+                      'Field Applications Program - Digital'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.title_blocked(title, RULES))
+
+    def test_189_program_analyst(self):
+        for title in ('Program Analyst – Mixed Signal IP', 'Program Analyst, Staff - Automotive Chipset'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.title_blocked(title, RULES))
+
+
 class LiveLocationTests(unittest.TestCase):
     def test_170_amazons_leading_country_codes(self):
         """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing

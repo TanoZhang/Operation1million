@@ -36,9 +36,12 @@ CORE = re.compile(r"""\b(?:
         | chip | cpu | gpu | npu | digital | low[-\s]?power
         | pre-?\s?silicon | post-?\s?silicon ) \s+ verification
     | (?: digital | logic | rtl | asic | soc | vlsi | chip | silicon | cpu | gpu
-        | npu | memory | sram | standard[-\s]?cell ) \s+ (?:ic\s+)? design
+        | npu | memory | sram | standard[-\s]?cell ) \s+ (?:ic\s+)? design(?:er)?
     | digital \s+ ic
-    | physical \s+ (?: design | implementation | verification )
+    # "Designer" too: "Physical Designer", "Logic Designer" sat in the last
+    # band (live queue, 2026-09-27), as did "RTL2GDS" and the timing roles.
+    | physical \s+ (?: design(?:er)? | implementation | verification )
+    | rtl2gds | timing \s+ methodology | , \s* timing \s* $
     | (?: silicon | soc | chip | hardware | pre-?\s?silicon | post-?\s?silicon )
       \s+ validation
     | design \s+ for \s+ test(?:ability)?
@@ -75,13 +78,21 @@ RELATED = re.compile(r"""\b(?:
     | (?: hardware | silicon | chip | product | board | system | ate | device
         | fpga | asic | soc ) \s+ test
     | electrical \s+ engineer | electronics? \s+ engineer
+    # Found on the live queue's Low relevance tab, 2026-09-27: "Electrical
+    # Engineering Internship", "Display Electrical Design Engineer", mixed-
+    # signal modeling and design, digital / system-level / high-speed I/O
+    # test, chipsets and signal processing.
+    | electrical \s+ (?: design \s+ )? engineer(?:ing)? | electrical \s+ design
+    | mixed[-\s]?signal
+    | (?: digital | analog | system[-\s]level | high[-\s]speed \s+ i/?o ) \s+ test
+    | chipsets? | dsp | digital \s+ signal \s+ processing
     # The trade's tooling and its neighbours, missing until 2026-09-22, when the
     # queue's "less related" section was read title by title and held "Timing
     # Design Engineer", "CAD Gate-level 3DIC EM/IR Engineer", "Digital Layout
     # Design Engineer" and "PhD Research Intern, Circuits".
     | cad | eda | layout | circuits | em \s* / \s* ir | emir | 3d-?ic | chipdev
     | mask \s+ design | design \s+ automation
-    | packag(?:e|ing) \s+ (?: design | engineer | integration ) | advanced \s+ packaging
+    | packag(?:e|ing) \s+ (?: design(?:er)? | engineer | integration ) | advanced \s+ packaging
     | design \s+ engineering
 )\b""", re.I | re.X)
 
