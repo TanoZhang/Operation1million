@@ -22,6 +22,10 @@ set -euo pipefail
 
 HOST=${JOBDISCO_VPS:-ubuntu@40.160.142.175}
 KEY=${JOBDISCO_VPS_KEY:-$HOME/.ssh/op1m_vps}
+# The laptop holds the same access as op1m_laptop (2026-10-01).
+if [ -z "${JOBDISCO_VPS_KEY:-}" ] && [ ! -f "$KEY" ] && [ -f "$HOME/.ssh/op1m_laptop" ]; then
+  KEY=$HOME/.ssh/op1m_laptop
+fi
 REMOTE=${JOBDISCO_VPS_DATA:-/opt/jobdisco/data}
 REMOTE_DB=${JOBDISCO_VPS_DB:-/opt/jobdisco/code/data/db/job_discovery.sqlite}
 REMOTE_STATE=${JOBDISCO_VPS_STATE:-/opt/jobdisco/code/.local}

@@ -5,7 +5,11 @@ rem Stops at the first step that fails; nothing is deployed after a failure.
 setlocal
 cd /d "%~dp0..\.."
 if "%JOBDISCO_VPS%"=="" (set HOST=ubuntu@40.160.142.175) else (set HOST=%JOBDISCO_VPS%)
-if "%JOBDISCO_VPS_KEY%"=="" (set KEY=%USERPROFILE%\.ssh\op1m_vps) else (set KEY=%JOBDISCO_VPS_KEY%)
+rem The VPS key: JOBDISCO_VPS_KEY, else op1m_vps, else op1m_laptop -- the name
+rem the key has on the laptop, which has no op1m_vps (2026-10-01).
+set KEY=%JOBDISCO_VPS_KEY%
+if "%KEY%"=="" set KEY=%USERPROFILE%\.ssh\op1m_vps
+if not exist "%KEY%" if exist "%USERPROFILE%\.ssh\op1m_laptop" set KEY=%USERPROFILE%\.ssh\op1m_laptop
 rem Where new files may be added from. Anything new elsewhere stays untracked.
 set NEW_PATHS=src tests docs data/config deploy AGENTS.md CLAUDE.md README.md CONTEXT.md pyproject.toml requirements.txt .gitattributes .gitignore
 
