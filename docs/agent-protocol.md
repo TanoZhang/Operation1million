@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Ten more defects at the user's request (2026-10-02), #301-310, each
+         with a reproducer red before its fix. Not the autofill extension: a
+         finding there would be claimed first.
+Files:   src/jobdisco/*, data/config/*, tests/test_twelfth_bug_hunt.py,
+         docs/{agent-protocol,architecture,handoff,bug-tracker}.md
+Base commit: f388b5c186dee48fd571855f7dd91f57cc010b1e
+Status:  claimed
+Next:    Search the live queue with independent finders, verify each finding,
+         then fix one at a time.
+```
+
+```text
+Owner:   claude
 Scope:   Autofill 0.5.1 at the user's request (2026-10-02): provider field ids
          (Workday, Greenhouse, Lever, Ashby) and HTML autocomplete tokens as
          exact aliases, from public sources. On Codex's 0.5.0; Codex owns the
