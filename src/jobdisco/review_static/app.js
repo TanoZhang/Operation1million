@@ -68,11 +68,39 @@ const companySearch = (job, title) => {
     return 'https://www.google.com/search?q=' + encodeURIComponent(`site:${host} "${title}"`);
   } catch { return null; }
 };
+// A third-party listing can be given the company's own link once it is found
+// (asked for on 2026-10-02); it is kept beside the ledger and leads the row.
+const thirdParty = job => Boolean(job.publisher) || job.provider_key === 'jsearch';
 const listingRow = (job, title) => {
-  const via = job.publisher ? `via ${job.publisher} (third-party site)` : job.provider_key;
-  const search = job.employer_site ? companySearch(job, title) : null;
-  return `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(via)}</span></span><div class="listing-links">${search ? `<a href="${safeLink(search)}" target="_blank" rel="noopener noreferrer">Find on company site &#8599;</a>` : ''}<a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a></div></div>`;
+  const via = job.official_link ? 'company link added by you'
+    : job.publisher ? `via ${job.publisher} (third-party site)` : job.provider_key;
+  const search = job.employer_site && !job.official_link ? companySearch(job, title) : null;
+  const url = escapeText(job.url);
+  const links = job.official_link
+    ? `<a href="${safeLink(job.official_link)}" target="_blank" rel="noopener noreferrer">Open company listing &#8599;</a>`
+      + `<a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Third-party listing &#8599;</a>`
+      + `<button type="button" class="link-button" data-company-link="${url}">Change</button>`
+      + `<button type="button" class="link-button" data-company-link="${url}" data-remove="1">Remove</button>`
+    : (search ? `<a href="${safeLink(search)}" target="_blank" rel="noopener noreferrer">Find on company site &#8599;</a>` : '')
+      + `<a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a>`
+      + (thirdParty(job) ? `<button type="button" class="link-button" data-company-link="${url}">Use company link</button>` : '');
+  return `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(via)}</span></span><div class="listing-links">${links}</div></div>`;
 };
+const allGroups = () => [...state.pending, ...state.backlog, ...state.applied, ...state.skipped];
+async function setCompanyLink(url, remove) {
+  const current = allGroups().flatMap(group => group.jobs).find(job => job.url === url)?.official_link || '';
+  const link = remove ? '' : prompt("Paste the company's own link for this posting", current);
+  if (link === null) return;
+  try {
+    const written = await api('/api/link', {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify({url, link})});
+    allGroups().forEach(group => group.jobs.forEach(job => {
+      if (job.url !== url) return;
+      if (written.link) job.official_link = written.link; else delete job.official_link;
+    }));
+    error('');
+    render();
+  } catch (err) { error(err.message); }
+}
 function error(message) { $('#error').textContent = message; $('#error').hidden = !message; }
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -246,6 +274,9 @@ async function renderDetail(group) {
     element.append(stamp);
   });
   if ($('#mark-applied')) $('#mark-applied').onclick = () => decide('applied');
+  document.querySelectorAll('[data-company-link]').forEach(button => {
+    button.onclick = () => setCompanyLink(button.dataset.companyLink, Boolean(button.dataset.remove));
+  });
   if ($('#skip')) $('#skip').onclick = () => { skipTarget = group.id; $('#reason').value = ''; $('#skip-dialog').showModal(); $('#reason').focus(); };
   if ($('#reopen')) $('#reopen').onclick = () => decide('pending');
   const key = `${first.url}\u0000${group.id}`;

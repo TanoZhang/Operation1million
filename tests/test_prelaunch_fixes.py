@@ -140,6 +140,17 @@ class ApplicationsBackupTests(unittest.TestCase):
             cwd=str(self.remote), capture_output=True, text=True)
         self.assertIn('skipped', stored.stdout)
 
+    def test_the_company_links_go_out_with_the_ledger(self):
+        """The review page keeps them beside the ledger (2026-10-02)."""
+        links = self.data / 'operational/listing_links.ndjson'
+        links.write_text('{"url":"u","link":"https://example.test/j","at":"t"}\n', encoding='utf-8')
+        result = self.backup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        stored = subprocess.run(
+            ['git', 'show', 'main:operational/listing_links.ndjson'],
+            cwd=str(self.remote), capture_output=True, text=True)
+        self.assertIn('example.test/j', stored.stdout)
+
     def test_an_unchanged_ledger_produces_no_commit(self):
         self.ledger().write_text('{"url":"u","at":"t","status":"skipped"}\n', encoding='utf-8')
         self.backup()

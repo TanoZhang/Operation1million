@@ -125,6 +125,18 @@ service), not on the machine running the browser. Double-click
 `deploy/local/get-export.bat` to copy it to `Documents\review-queue.xlsx`
 (or `JOBDISCO_EXPORT`), replacing the last copy.
 
+## The company's own link for a third-party listing
+
+Added 2026-10-02 at the user's request. A paid listing usually links to a
+third-party site. Once the company's own posting is found, **Use company
+link** on that listing records it; **Open company listing** then leads the
+row, the third-party link stays beside it, and **Change** / **Remove** edit it.
+The link is kept in `JOBDISCO_STORE/operational/listing_links.ndjson`, beside
+the decision ledger and append-only like it (the latest record for an address
+wins; an empty link removes it). It applies to every listing at that address,
+survives index rebuilds, is backed up with the ledger, and is what the Excel
+export links to, with the third-party address in its last column.
+
 ## Durable state
 
 The authoritative file is `JOBDISCO_STORE/operational/applications.ndjson`.

@@ -18,6 +18,9 @@ set -euo pipefail
 ROOT=${JOBDISCO_ROOT:-/opt/jobdisco}
 DATA=$ROOT/data
 LEDGER=operational/applications.ndjson
+# The company links found for third-party listings, which the review page
+# keeps beside the ledger (2026-10-02). Nothing regenerates them either.
+LINKS=operational/listing_links.ndjson
 
 cd "$DATA"
 
@@ -31,24 +34,28 @@ if ! flock -n 9; then
   exit 0
 fi
 
-if [ ! -f "$LEDGER" ]; then
+files=()
+for name in "$LEDGER" "$LINKS"; do
+  if [ -f "$name" ]; then files+=("$name"); fi
+done
+if [ "${#files[@]}" -eq 0 ]; then
   echo 'No applications ledger yet; nothing to back up.'
   exit 0
 fi
 
-git add -- "$LEDGER"
-if git diff --cached --quiet -- "$LEDGER"; then
+git add -- "${files[@]}"
+if git diff --cached --quiet -- "${files[@]}"; then
   # No empty commits: a timer that runs every fifteen minutes would otherwise
   # add ninety-six commits a day saying nothing happened.
-  git reset --quiet -- "$LEDGER"
+  git reset --quiet -- "${files[@]}"
 else
   # -m before --, because everything after -- is a pathspec: with the message
   # after it, git looked for files called "-m" and "Back up application
   # decisions ...", failed, and the backup never committed anything.
   git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
       commit --quiet --only -m "Back up application decisions $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      -- "$LEDGER"
-  echo "Committed $(wc -l < "$LEDGER") decisions."
+      -- "${files[@]}"
+  if [ -f "$LEDGER" ]; then echo "Committed $(wc -l < "$LEDGER") decisions."; fi
 fi
 
 # A commit that exists here and not on the remote is the whole case this timer

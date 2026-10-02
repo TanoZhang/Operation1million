@@ -33,7 +33,14 @@ GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
                 'early_career')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
-              'publisher', 'employer_site')
+              'publisher', 'employer_site', 'official_link')
+STATUSES = ('pending', 'backlog', 'applied', 'skipped')
+
+
+def find_group(state, group_id):
+    """(status, group) for a group id in a queue, or (None, None)."""
+    return next(((status, group) for status in STATUSES for group in state[status]
+                 if group['id'] == group_id), (None, None))
 
 
 def slim(state):
@@ -87,6 +94,7 @@ def wal_fingerprint(path):
 def make_server(db, ledger, port=8765, export_path=None):
     token = secrets.token_urlsafe(32)
     export_path = export_path or export.DEFAULT_PATH
+    links = applications.links_path(ledger)
     assets = Path(__file__).with_name('review_static')
     # One decision at a time, now that requests are served in parallel. Reading
     # the queue and appending to the ledger is a read-modify-write, and the
@@ -201,8 +209,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                     decided = None
                     if group_id and not group_id.startswith('legacy:'):
                         state = cached['state'] or current_queue()
-                        group = next((group for status in ('pending', 'backlog', 'applied', 'skipped')
-                                      for group in state[status] if group['id'] == group_id), None)
+                        _, group = find_group(state, group_id)
                         if group:
                             decided = next((job for job in group['jobs'] if job['url'] == url),
                                            group['jobs'][0] if group['jobs'] else None)
@@ -244,34 +251,41 @@ def make_server(db, ledger, port=8765, export_path=None):
             except (ValueError, OSError, sqlite3.Error) as exc:
                 self.send({'error': str(exc)}, 500)
 
+        def read_json(self, limit):
+            """The request's JSON body, refused past `limit` bytes."""
+            size = int(self.headers.get('Content-Length', 0))
+            if not 0 < size <= limit:
+                raise ValueError('Invalid request size')
+            return json.loads(self.rfile.read(size))
+
         def do_POST(self):
-            if self.path not in ('/api/decision', '/api/export'):
+            routes = {'/api/decision': self.decide, '/api/export': self.export,
+                      '/api/link': self.link}
+            if self.path not in routes:
                 return self.send({'error': 'Not found'}, 404)
             if self.headers.get('X-Review-Token') != token:
                 return self.send({'error': 'Reload the review page before saving'}, 403)
-            if self.path == '/api/export':
-                return self.export()
             try:
-                size = int(self.headers.get('Content-Length', 0))
-                if not 0 < size <= 10000:
-                    raise ValueError('Invalid request size')
-                data = json.loads(self.rfile.read(size))
-                with writing:
-                    state = current_queue()
-                    before = cached['key']
-                    source, group = next(((status, group) for status in ('pending', 'backlog', 'applied', 'skipped')
-                                          for group in state[status] if group['id'] == data.get('id')),
-                                         (None, None))
-                    if group is None:
-                        return self.send({'error': 'This item changed. Refresh the queue.'}, 409)
-                    written = applications.append_decision(
-                        ledger, group, data.get('status'), data.get('reason', ''))
-                    record_decision(before, state, source, group, written)
-                self.send(written)
+                routes[self.path]()
+            except export.ExportLocked as exc:
+                self.send({'error': str(exc)}, 409)
             except (ValueError, TypeError, AttributeError) as exc:
                 self.send({'error': str(exc)}, 400)
             except (OSError, sqlite3.Error) as exc:
                 self.send({'error': str(exc)}, 500)
+
+        def decide(self):
+            data = self.read_json(10000)
+            with writing:
+                state = current_queue()
+                before = cached['key']
+                source, group = find_group(state, data.get('id'))
+                if group is None:
+                    return self.send({'error': 'This item changed. Refresh the queue.'}, 409)
+                written = applications.append_decision(
+                    ledger, group, data.get('status'), data.get('reason', ''))
+                record_decision(before, state, source, group, written)
+            self.send(written)
 
         def export(self):
             """Write the groups the page is showing, in its order, to the one workbook.
@@ -279,28 +293,39 @@ def make_server(db, ledger, port=8765, export_path=None):
             The page sends only which groups and in what order; every value
             written comes from this server's own queue, as a decision does.
             """
-            try:
-                size = int(self.headers.get('Content-Length', 0))
-                if not 0 < size <= 4_000_000:
-                    raise ValueError('Invalid request size')
-                ids = json.loads(self.rfile.read(size)).get('ids')
-                if not isinstance(ids, list) or not all(isinstance(item, str) for item in ids):
-                    raise ValueError('Send the ids of the groups to export')
+            ids = self.read_json(4_000_000).get('ids')
+            if not isinstance(ids, list) or not all(isinstance(item, str) for item in ids):
+                raise ValueError('Send the ids of the groups to export')
+            state = current_queue()
+            where = {group['id']: (status, group) for status in STATUSES for group in state[status]}
+            entries = [where[item] for item in dict.fromkeys(ids) if item in where]
+            with writing:
+                count = export.write(export_path, entries)
+            self.send({'path': str(Path(export_path).resolve()), 'rows': count,
+                       'groups': len(entries), 'at': datetime.now(timezone.utc).isoformat()})
+
+        def link(self):
+            """The company's own link for a third-party listing, as the user found it.
+
+            Asked for on 2026-10-02. Recorded beside the ledger and set on the
+            cached queue in place, so the page shows it without a rebuild.
+            """
+            data = self.read_json(10000)
+            url = data.get('url')
+            with writing:
                 state = current_queue()
-                where = {group['id']: (status, group)
-                         for status in ('pending', 'backlog', 'applied', 'skipped')
-                         for group in state[status]}
-                entries = [where[item] for item in dict.fromkeys(ids) if item in where]
-                with writing:
-                    count = export.write(export_path, entries)
-                self.send({'path': str(Path(export_path).resolve()), 'rows': count,
-                           'groups': len(entries), 'at': datetime.now(timezone.utc).isoformat()})
-            except export.ExportLocked as exc:
-                self.send({'error': str(exc)}, 409)
-            except (ValueError, TypeError, AttributeError) as exc:
-                self.send({'error': str(exc)}, 400)
-            except (OSError, sqlite3.Error) as exc:
-                self.send({'error': str(exc)}, 500)
+                listed = [job for status in STATUSES for group in state[status]
+                          for job in group['jobs'] if job.get('url') == url]
+                if not listed:
+                    return self.send({'error': 'This listing is not in the queue. Refresh the page.'}, 409)
+                written = applications.append_link(links, url, data.get('link', ''))
+                with building:
+                    for job in listed:
+                        if written['link']:
+                            job['official_link'] = written['link']
+                        else:
+                            job.pop('official_link', None)
+            self.send(written)
 
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     server.current_queue = current_queue

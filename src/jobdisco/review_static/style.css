@@ -38,3 +38,4 @@ main{max-width:none;padding:16px 20px 12px}
 .list-tools{display:flex;align-items:center;gap:8px}
 .export{font-size:12px;padding:6px 10px;white-space:nowrap}
 .export kbd{font:inherit;font-size:10px;border:1px solid #d5dad6;border-radius:3px;padding:0 4px;margin-left:4px;color:#69736d}
+.link-button{font-size:11px;padding:3px 8px;font-weight:600}

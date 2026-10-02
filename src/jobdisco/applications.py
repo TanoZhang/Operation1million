@@ -19,6 +19,60 @@ def ledger_path():
     return Path(os.environ.get('JOBDISCO_STORE', DATA / 'store')) / 'operational/applications.ndjson'
 
 
+def links_path(ledger):
+    """Where the company links found for third-party listings are kept: beside
+    the ledger, because nothing regenerates them either (2026-10-02)."""
+    return Path(ledger).with_name('listing_links.ndjson')
+
+
+def read_links(path):
+    """The latest company link recorded for each listing address.
+
+    Append-only; a later record replaces an earlier one, and an empty link
+    removes it. A damaged line is skipped rather than refusing the whole page:
+    these are conveniences, and the ledger is the record that must not bend.
+    """
+    links = {}
+    path = Path(path)
+    if not path.exists():
+        return links
+    with path.open(encoding='utf-8-sig') as handle:
+        for line in handle:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if not (isinstance(event, dict) and isinstance(event.get('url'), str)
+                    and isinstance(event.get('link'), str)):
+                continue
+            if event['link']:
+                links[event['url']] = event['link']
+            else:
+                links.pop(event['url'], None)
+    return links
+
+
+def append_link(path, url, link):
+    """Record the company's own link for a listing; an empty link removes it."""
+    if not isinstance(url, str) or not url.strip():
+        raise ValueError('Name the listing the link is for')
+    if not isinstance(link, str):
+        raise ValueError('The link must be text')
+    link = link.strip()
+    if link:
+        parts = urlsplit(link)
+        if parts.scheme not in {'http', 'https'} or not parts.netloc or len(link) > 2000:
+            raise ValueError("Paste the company listing's full http(s) address")
+    event = {'url': url, 'link': link, 'at': datetime.now(timezone.utc).isoformat()}
+    path = Path(path)
+    with locked(path):
+        with path.open('ab') as handle:
+            handle.write((json.dumps(event, ensure_ascii=True) + '\n').encode())
+            handle.flush()
+            os.fsync(handle.fileno())
+    return event
+
+
 def decision_key(job):
     """One requisition: what a decision may cover, and nothing wider.
 
@@ -579,4 +633,16 @@ def queue(db_path=DB, path=None, now=None):
         result[status].append(group)
     for status in ('applied', 'skipped'):
         result[status].sort(key=lambda group: group['at'], reverse=True)
+    attach_links(result, read_links(links_path(path)))
     return result
+
+
+def attach_links(state, links):
+    """Give each listing the company link recorded for it, in place."""
+    for status in ('pending', 'backlog', 'applied', 'skipped'):
+        for group in state.get(status, ()):
+            for job in group['jobs']:
+                if job.get('url') in links:
+                    job['official_link'] = links[job['url']]
+                else:
+                    job.pop('official_link', None)

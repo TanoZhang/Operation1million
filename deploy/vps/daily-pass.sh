@@ -102,7 +102,8 @@ publish_state() {
     echo '         a rebuilt machine would treat old rejections as new.' >&2
   fi
   for name in operational/source_access.sqlite operational/jsearch_usage.sqlite \
-              operational/applications.ndjson operational/seen_jobs.ndjson.gz; do
+              operational/applications.ndjson operational/listing_links.ndjson \
+              operational/seen_jobs.ndjson.gz; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
   if ! git diff --cached --quiet; then

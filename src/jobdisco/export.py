@@ -24,7 +24,7 @@ SHEET = 'Review queue'
 
 COLUMNS = (('Status', 16), ('Company', 28), ('Title', 60), ('Location', 32), ('Posted', 12),
            ('Discovered', 12), ('Fit', 6), ('Band', 26), ('Published via', 22), ('Link', 12),
-           ('Decided', 12), ('Reason', 40))
+           ('Decided', 12), ('Reason', 40), ('Third-party listing', 40))
 
 # XML 1.0 has no place for most control characters, and a provider's text
 # sometimes carries them.
@@ -54,11 +54,16 @@ def rows(entries):
         bucket = group.get('bucket')
         band = ranking.LABELS[bucket] if isinstance(bucket, int) and 0 <= bucket < len(ranking.LABELS) else ''
         for job in group.get('jobs') or ():
+            # The company's own link where the user found one: the row links to
+            # it, and the third-party address it replaced is kept beside it.
+            official = job.get('official_link')
             out.append([status_of(source, group), group.get('company') or '', group.get('title') or '',
                         job.get('location') or '', (job.get('posted_at') or '')[:10],
                         (job.get('first_seen') or '')[:10], group.get('confidence'), band,
-                        job.get('publisher') or job.get('provider_key') or '', job.get('url') or '',
-                        (group.get('at') or '')[:10], group.get('reason') or ''])
+                        'company site' if official else job.get('publisher') or job.get('provider_key') or '',
+                        official or job.get('url') or '',
+                        (group.get('at') or '')[:10], group.get('reason') or '',
+                        (job.get('url') or '') if official else ''])
     return out
 
 
