@@ -6,13 +6,27 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Block JobMesh.io; add explicit user-pasted job intake and applied-link
+       reconciliation. Manual records bypass discovery eligibility by user request,
+       retain relevance ranking, durable provenance and conservative identity matching.
+Files: src/jobdisco/manual_intake.py, src/jobdisco/review.py, review_static/*,
+       data/config/jsearch_queries.toml, tests/test_manual_intake.py,
+       deploy/vps/{backup-applications,daily-pass}.sh, tests/test_prelaunch_fixes.py,
+       docs/{agent-protocol,handoff,architecture,application-review}.md
+Base commit: 085cd6f (deployed; live selected XLSX download HTTP 200 verified)
+Status: claimed
+Next: Implement durable manual intake and URL/requisition dedupe; offline tests.
+```
+
+```text
+Owner: codex
 Scope: Make Excel button download in browser; mark third-party listings except
        LinkedIn and Handshake, consistently in Review and Excel; deploy release.
 Files: src/jobdisco/{review,export}.py, review_static/*, tests/test_review*.py,
        tests/review-selection.cjs, docs/{agent-protocol,handoff,application-review}.md
 Base commit: b8123d3 plus the completed staged patches
-Status: claimed -- 106 Review tests and jsdom interactions pass
-Next: Commit complete public patch, push, install and check live download.
+Status: done -- release 085cd6f pushed and installed; live selected XLSX HTTP 200
+Next: Ctrl+F5 in the browser. Live ZIP, site marker column and Normal style verified.
 ```
 
 ```text

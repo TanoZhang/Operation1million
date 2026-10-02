@@ -437,3 +437,22 @@ $('#search').oninput = () => {
 $('#cancel-skip').onclick = () => { skipTarget = null; $('#skip-dialog').close(); };
 $('#skip-form').onsubmit = event => { event.preventDefault(); decide('skipped', $('#reason').value, skipTarget); };
 refresh();
+
+$('#manual-form').onsubmit = async event => {
+  event.preventDefault();
+  const buttons = $('#manual-form').querySelectorAll('button');
+  buttons.forEach(button => button.disabled = true);
+  $('#manual-result').textContent = 'Reading link...';
+  try {
+    const written = await post('/api/manual', {
+      official: $('#manual-official').checked, url: $('#manual-url').value, company: $('#manual-company').value,
+      title: $('#manual-title').value, location: $('#manual-location').value,
+      description: $('#manual-description').value, source_job_id: $('#manual-id').value,
+      status: event.submitter?.id === 'manual-applied' ? 'applied' : 'pending'
+    });
+    $('#manual-result').textContent = written.status === 'applied' ? 'Marked applied' :
+      `${written.replaced ? 'Replaced third-party listing' : written.created ? 'Added job' : 'Already in queue'} - Fit ${written.confidence}`;
+    error(''); await refresh();
+  } catch (err) { $('#manual-result').textContent = ''; error(err.message); }
+  finally { buttons.forEach(button => button.disabled = false); }
+};

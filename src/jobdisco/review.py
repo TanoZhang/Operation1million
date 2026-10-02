@@ -1,4 +1,4 @@
-"""Local application review server. No collection or external writes."""
+"""Local application review server. User-directed collection and durable application decisions."""
 import argparse
 from contextlib import closing
 from datetime import datetime, timezone
@@ -6,11 +6,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import secrets
+import requests
 import sqlite3
 import threading
 from urllib.parse import urlsplit, parse_qs
 
-from . import applications, export, ranking, jsearch
+from . import applications, export, ranking, jsearch, manual_intake, collection_policy
 from .job_text import display_description, readable_text
 from .paths import DB
 
@@ -115,7 +116,8 @@ def make_server(db, ledger, port=8765, export_path=None):
     def queue_key():
         return (fingerprint(ledger), fingerprint(db), wal_fingerprint(str(db) + '-wal'),
                 datetime.now(timezone.utc).date(),
-                jsearch.filter_fingerprint(jsearch.load_plan()[0]['filter']))
+                jsearch.filter_fingerprint(jsearch.load_plan()[0]['filter']),
+                fingerprint(manual_intake.path_for(ledger)))
 
     def record_decision(before, state, source, group, written):
         """Move a just-decided group in the cached queue instead of rebuilding it.
@@ -170,7 +172,7 @@ def make_server(db, ledger, port=8765, export_path=None):
         key = queue_key()
         with building:
             if cached['key'] != key:
-                cached['state'] = applications.queue(db, ledger)
+                cached['state'] = manual_intake.augment_queue(applications.queue(db, ledger), ledger)
                 cached['key'] = key
             return cached['state']
 
@@ -231,6 +233,8 @@ def make_server(db, ledger, port=8765, export_path=None):
                 if group:
                     decided = next((job for job in group['jobs'] if job['url'] == url),
                                    group['jobs'][0] if group['jobs'] else None)
+            if decided and decided.get('manual_import'):
+                return self.send({'description': decided.get('manual_description', '')})
             with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
                 con.row_factory = sqlite3.Row
                 row = con.execute(
@@ -271,13 +275,15 @@ def make_server(db, ledger, port=8765, export_path=None):
         def do_POST(self):
             routes = {'/api/decision': self.decide, '/api/export': self.export,
                       '/api/export/download': self.export,
-                      '/api/link': self.link}
+                      '/api/link': self.link, '/api/manual': self.manual}
             if self.path not in routes:
                 return self.send({'error': 'Not found'}, 404)
             if self.headers.get('X-Review-Token') != token:
                 return self.send({'error': 'Reload the review page before saving'}, 403)
             try:
                 routes[self.path]()
+            except (requests.RequestException, collection_policy.SourcePaused, collection_policy.RobotsThrottled) as exc:
+                self.send({'error': str(exc) + '. Supply Company and Title to save without fetching.'}, 400)
             except export.ExportLocked as exc:
                 self.send({'error': str(exc)}, 409)
             except (ValueError, TypeError, AttributeError) as exc:
@@ -325,6 +331,52 @@ def make_server(db, ledger, port=8765, export_path=None):
                 count = export.write(export_path, entries)
             self.send({'path': str(Path(export_path).resolve()), 'rows': count,
                        'groups': len(entries), 'at': datetime.now(timezone.utc).isoformat()})
+
+        def manual(self):
+            data = self.read_json(200000)
+            url = manual_intake.normalized_url(data.get('url', ''))
+            requested = data.get('status', 'pending')
+            if requested not in ('pending', 'applied'):
+                raise ValueError('Choose Add job or Already applied')
+            state = current_queue()
+            source, group = manual_intake.match_group(state, url)
+            metadata = None
+            final_url = url
+            if group is None:
+                if data.get('company') and data.get('title'):
+                    metadata = manual_intake.posting_metadata('', data)
+                else:
+                    final_url, text = manual_intake.read_public_page(url, ledger, db)
+                    metadata = manual_intake.posting_metadata(text, data)
+            with writing:
+                state = current_queue()
+                before = cached['key']
+                source, group = manual_intake.match_group(state, url, metadata)
+                if group is None and final_url != url:
+                    source, group = manual_intake.match_group(state, final_url, metadata)
+                replaced = None
+                if group is not None and metadata and data.get('official') is True and all(export.third_party_site(job) for job in group['jobs']):
+                    replaced = group
+                    group = None
+                created = group is None
+                if created:
+                    group = manual_intake.create_group(final_url, metadata)
+                    manual_intake.save_manual(ledger, group,
+                        [replaced['id']] if replaced else [], [replaced] if replaced else [])
+                    if replaced and source in ('applied', 'skipped') and requested != 'applied':
+                        applications.append_decision(ledger, group, source, replaced.get('reason', ''))
+                if requested == 'applied':
+                    written = applications.append_decision(ledger, group, 'applied', 'Marked applied from pasted link')
+                    if not created:
+                        record_decision(before, state, source, group, written)
+                if created:
+                    after = queue_key()
+                    with building:
+                        if cached['state'] is state and cached['key'] == before and after[1:5] == before[1:5]:
+                            cached['state'] = manual_intake.augment_queue(state, ledger)
+                            cached['key'] = after
+            self.send({'id': group['id'], 'created': created, 'replaced': bool(replaced),
+                       'confidence': group.get('confidence', 0), 'status': requested})
 
         def link(self):
             """The company's own link for a third-party listing, as the user found it.

@@ -1,3 +1,21 @@
+# Manual links and JobMesh block - 2026-10-02 (codex)
+
+Base 085cd6f plus this patch: Review accepts one pasted URL for Add job and score
+or Already applied. Explicit manual entries bypass discovery eligibility, retain
+relevance scores, persist in operational/manual_jobs.ndjson and survive DB
+rebuilds. Known applied links require no fetch; unknown script-only/challenged
+links need supplied Company/Title. Matching uses explicit URLs or company-scoped
+requisition IDs; confirmed company links replace matched third-party snapshots
+with provenance preserved. Public fetching uses collector lock, pacing and shared
+source cooldowns. Automatic discovery blocks JobMesh.io. Browser Excel remains
+a direct attachment download without server files. Offline tests listed below
+are separate from deployment verification. Full offline suite: 1,083 tests
+in 226.040s, 10 skipped, on 085cd6f plus the intake patch. Subsequent scoring/
+link-overlay and backup additions: 8 manual tests, 14 executable prelaunch
+checks (9 Windows skips), and actual page jsdom paste/selection/download checks
+passed. Shell syntax and skipped POSIX backup tests are verified separately
+on the VPS before deployment.
+
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 

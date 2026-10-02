@@ -454,6 +454,7 @@ function_title_patterns = [
 # from us.trabajo.org and none from experteer.com when these were added.
 # These preference exclusions are not findings of fraud.
 exclude_publisher_patterns = [
+  '^jobmesh(?:\.io)?$',
   '\bexperteer\b', '\btrabajo\b',
   # One open posting when added: an Intel listing republished in Dutch.
   '\badviesvanspijk\b', '\badvies\s+van\s+spijk\b',
@@ -469,6 +470,7 @@ exclude_publisher_patterns = [
 # Exact host and subdomains only; evidence and limits in
 # docs/blocked-recruitment-domains.md. Seizure is not a criminal conviction.
 exclude_publisher_domains = [
+  'jobmesh.io',
   'centrikglobalconsulting.com',
   'rightinfoconsult.com',
   'finnaclevesperconsulting.com',

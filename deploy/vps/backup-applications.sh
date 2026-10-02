@@ -21,6 +21,7 @@ LEDGER=operational/applications.ndjson
 # The company links found for third-party listings, which the review page
 # keeps beside the ledger (2026-10-02). Nothing regenerates them either.
 LINKS=operational/listing_links.ndjson
+MANUAL=operational/manual_jobs.ndjson
 
 cd "$DATA"
 
@@ -35,7 +36,7 @@ if ! flock -n 9; then
 fi
 
 files=()
-for name in "$LEDGER" "$LINKS"; do
+for name in "$LEDGER" "$LINKS" "$MANUAL"; do
   if [ -f "$name" ]; then files+=("$name"); fi
 done
 if [ "${#files[@]}" -eq 0 ]; then

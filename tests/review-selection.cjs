@@ -11,11 +11,17 @@ const group = id => ({id, company: 'Example Semiconductor', title: 'RTL Engineer
   confidence: 80, bucket: 2, jobs: [{url: 'https://example.test/' + id, location: 'Example City'}]});
 const state = {pending: [group('a'), group('b')], backlog: [], applied: [], skipped: [], token: 'fixture'};
 let downloadIds;
+let manualRequest;
 let clicked = false;
 w.URL.createObjectURL = () => 'blob:fixture';
 w.URL.revokeObjectURL = () => {};
 w.HTMLAnchorElement.prototype.click = function () {clicked = this.download === 'selected-positions.xlsx';};
 w.fetch = async (url, options) => {
+  if (url === '/api/manual') {
+    manualRequest = JSON.parse(options.body);
+    assert.equal(options.headers['X-Review-Token'], 'fixture');
+    return {ok: true, json: async () => ({id: 'a', created: false, confidence: 80, status: manualRequest.status})};
+  }
   if (url === '/api/export/download') {
     downloadIds = JSON.parse(options.body).ids;
     assert.equal(options.headers['X-Review-Token'], 'fixture');
@@ -45,6 +51,13 @@ async function main() {
   w.document.getElementById('export').click();
   await new Promise(resolve => setTimeout(resolve, 15));
   assert.deepEqual(downloadIds, ['a', 'b']);
+  w.document.getElementById('manual-url').value = 'https://example.test/a';
+  w.document.getElementById('manual-applied').click();
+  await new Promise(resolve => setTimeout(resolve, 15));
+  assert.equal(manualRequest.status, 'applied');
+  assert.equal(manualRequest.url, 'https://example.test/a');
+  assert.match(w.document.getElementById('manual-result').textContent, /Marked applied/);
+  assert.equal(w.document.getElementById('manual-applied').disabled, false);
   dom.window.close();
   console.log('Review checkbox and download interactions OK');
 }

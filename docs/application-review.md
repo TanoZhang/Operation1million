@@ -197,3 +197,23 @@ in memory, without replacing or locking the existing server export file.
 Third-party badges and the Excel Third-party site column share one classification
 in export.third_party_site. LinkedIn and Handshake are user-requested exceptions;
 other paid/third-party listings are marked. Direct company-board rows are not.
+
+## Pasted links (2026-10-02)
+
+Paste one individual posting URL in Review. Add job and score reads public
+JobPosting structured data, scores it with the active relevance rules, and keeps
+it regardless of automatic discovery eligibility. Optional Company and Title
+allow saving without fetching when a site blocks access; Description improves
+scoring. An optional requisition ID supports matching across different URLs.
+Already applied matches a known URL without fetching and writes the normal
+application ledger. Unknown links can first be read or supplied with details.
+
+Company/title alone never establishes identity. A matching explicit URL or
+company-scoped requisition ID deduplicates; check the company-link box to replace
+a matching third-party listing. Original snapshots remain in manual_jobs.ndjson
+beside the decision ledger. This private durable file must be backed up with
+operational/. It survives rebuilding SQLite. Scheduled discovery still applies
+all hard rejects, including JobMesh.io. Public fetches share the production
+collection lock, stop at challenges, and persist source cooldowns. The current
+reader supports public JSON-LD JobPosting pages; script-only pages need details.
+Excel buttons download into the browser; no server workbook is written.

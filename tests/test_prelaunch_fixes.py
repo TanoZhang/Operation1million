@@ -151,6 +151,14 @@ class ApplicationsBackupTests(unittest.TestCase):
             cwd=str(self.remote), capture_output=True, text=True)
         self.assertIn('example.test/j', stored.stdout)
 
+    def test_manual_jobs_are_backed_up_without_waiting_for_collection(self):
+        manual = self.data / 'operational/manual_jobs.ndjson'
+        manual.write_text('{"group":{"id":"manual-fixture"}}\n', encoding='utf-8')
+        result = self.backup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        stored = self.run_git(['show', 'main:operational/manual_jobs.ndjson'], cwd=self.remote)
+        self.assertIn('manual-fixture', stored.stdout)
+
     def test_an_unchanged_ledger_produces_no_commit(self):
         self.ledger().write_text('{"url":"u","at":"t","status":"skipped"}\n', encoding='utf-8')
         self.backup()

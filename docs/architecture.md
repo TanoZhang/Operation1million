@@ -2341,3 +2341,22 @@ already bought. Recorded per page now, before the checkpoint that can fail.
 fetching what it already holds. A board listing nine and read for one recorded
 one, in the delta and in `source_state.job_count`. It counts what the board
 listed.
+
+## Explicit manual intake - 2026-10-02
+
+By user request, review.manual delegates single-link fetch/parse/identity to
+manual_intake.py. Explicit imports alone bypass discovery eligibility while
+retaining relevance scores; automatic hard rejects remain unchanged.
+manual_jobs.ndjson under operational/ stores append-only snapshots and replaced
+listing provenance. Review overlays it on its derived queue and replays normal
+application decisions; nothing is written into SQLite as an application decision.
+A manual-file fingerprint invalidates the cache; own imports update it without
+rebuilding the full job index. URL and company-scoped requisition IDs match;
+title-only matches do not overwrite. A user-confirmed company link can replace
+a matching third-party listing, preserving applied/skipped state. Public fetches
+share the collector lock and operational/source_access.sqlite; recognized source
+hosts use their existing company cooldown key.
+
+The initial broad JobMesh publisher pattern rejected occurrences in unrelated
+hosts' paths/query strings. Existing domain-boundary regression fixtures caught
+this; use host-aware exclusion plus an anchored publisher-name pattern.
