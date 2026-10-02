@@ -1,6 +1,69 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# ATS autofill framework - 2026-10-01 America/Los_Angeles (codex, local only)
+
+Source base: `9d3e5ae9138116033a8271fa8172b3a8abd00404` plus the completed local
+DOM fixes and this framework patch, in `C:/Users/Tano/Documents/operation1million`.
+Extension 0.5.0 introduces a Workday/Greenhouse/Lever metadata registry, pure
+known-answer assessment with explanations, native and owned accessible custom
+single-choice/searchable dropdowns, and a browser-local setup page. The user
+explicitly requested automatically filling every known compatible answer; the
+setup switch can restore the checklist. Final submission remains manual.
+
+School, degree, major and graduation month/year are separate. Confirmed personal
+facts and two education records were saved only in the ignored local answer bank
+and extension seed. Current sponsorship has user-confirmed contextual branches;
+the browser asks for the current position's work route before using that answer.
+No personal values are recorded in tracked files or test fixtures. Repeated
+education sections use transient row identities: do not assign the first row a
+school by guesswork, or replay a mapping against a replaced row.
+
+Reload the unpacked extension, refresh an existing application page, then open
+**Set up your answers**. **Import answers saved on this computer** refreshes
+confirmed nonempty seed fields without deleting learned questions or blanking
+existing browser answers. Missing basic details can be entered there. Unknown
+wording can be explicitly mapped to an existing compatible known field.
+
+Focused suite: 38 autofill tests pass. Full offline suite: 942 tests in 198.913
+seconds, 933 passed and nine environment skips; all 27 DOM runtime/framework
+cases executed. A final follow-up lets the setup page confirm a conditional
+mapping using the position context already selected in the popup; its 15
+framework cases passed after that edit. JavaScript syntax and Git whitespace
+checks pass. See `docs/autofill-framework.md` for researched primary GitHub/ATS
+sources and exact capabilities. No live form submission, paid request,
+push or deployment was performed. Remote main now has Claude's separate twenty
+backend fixes (#197-216) at `62b7ace`; those source changes are not part of this
+local framework validation. Their claim is retained and marked done.
+
+# Ten autofill DOM fixes - 2026-10-01 America/Los_Angeles (codex, local only)
+
+Working checkout: `C:/Users/Tano/Documents/operation1million`. Tested base:
+`9d3e5ae9138116033a8271fa8172b3a8abd00404` plus this working-tree patch.
+Bug tracker #217-226 records ten independent regressions, each observed failing
+before its fix. They cover inherited visibility/disabled state, radio form and
+unnamed-control identity, disabled optgroups, atomic and unambiguous choice
+selection, revalidation of changing controls/positions, requisition IDs in query
+strings, and reconsidering approved reuse for existing unknown questions.
+
+Extension 0.4.1 requires reloading the unpacked extension and refreshing pages
+that already loaded its prior content script. Unknown/manual bindings, review
+requirements and occupied values remain protected by the compatibility tests.
+The new tests execute the actual content/popup scripts in offline jsdom fixtures;
+the popup functions are exposed only inside the isolated test VM. The optional
+test runtime is documented in `application-autofill/README.md` and installed
+under ignored `.local/audit-node`, with no private profile or answers used.
+
+Focused validation: 23 autofill tests pass, including all ten bug regressions
+and two additional compatibility cases. Full offline suite: 927 tests in
+183.808 seconds, 918 passed and nine environment skips; all twelve DOM runtime
+cases executed. JavaScript syntax and Git whitespace checks pass. The tested
+source is the base SHA above plus the local fix; the later remote commit
+`32d280b` only adds Claude's disjoint backend claim. That claim is retained
+locally, and its #197-216 reservation is respected by our #217-226 numbering.
+No paid provider request, real application submission, production measurement,
+push or VPS deployment was performed.
+
 # Review page: sorting and an Excel export - 2026-10-01 UTC (claude, not deployed)
 
 At the user's request: sort by date either way and by fit then date, and one

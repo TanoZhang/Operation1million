@@ -56,7 +56,7 @@ Status values:
 | `missing_answer` | Meaning is known, but no answer has been supplied. |
 | `incompatible_control` | Stored answer type does not match the control. |
 | `option_mismatch` | The exact answer is absent from the observed options. |
-| `requires_review` | This field requires confirmation for each use; ordinary API reads emit no answer. The authenticated browser bridge may propose it only for the separate review-fill action. |
+| `requires_review` | Ordinary Python API reads emit no answer. The extension may propose it, and its explicit automatic-known-answer preference authorizes filling; otherwise the individual checklist applies. |
 | `position_context_required` | A job-specific mapping requires its exact position ID; no answer is emitted for missing or different context. |
 | `ready` | A compatible answer can be proposed; this is not permission to transmit it. |
 
@@ -123,10 +123,12 @@ first run. ATS-specific custom widgets use adapters within this one extension;
 they do not require separate plugins.
 
 The extension is inert until its popup is used. Opening it scans the page and
-fills only `ready` exact matches. Unknown, missing, incompatible and option-
-mismatched controls remain empty. Review answers appear in a separate
-question-and-answer checklist for exact stored mappings. Only checked rows are
-sent to the page. Each selected row sets one reuse scope:
+fills known compatible exact matches. At the user's request, version 0.5.0
+defaults to filling every known matching answer, including review-policy fields.
+The setup preference can restore the individual checklist. Unknown, missing,
+ambiguous, incompatible and option-mismatched controls remain empty; contextual
+answers require a per-position context selection. In checklist mode, only checked
+rows are sent to the page. Each selected row sets one reuse scope:
 
 - `global` reuses the answer across sites only for the same normalized question,
   control kind and option set.
@@ -136,8 +138,8 @@ sent to the page. Each selected row sets one reuse scope:
 
 This is one browser-local answer bank, not one database per site. Site and
 position records are mapping constraints around a canonical answer. Exact scope
-matching only proposes review-policy learned answers; it never upgrades them to
-automatic safe fill.
+matching preserves the learned field's review policy. The explicit automatic-
+fill preference authorizes filling within that scope; it never broadens the scope.
 
 After the popup has been opened on a page, trusted `blur` and `change` events
 remember nonempty final values. Individual keystrokes are not recorded, and
@@ -148,8 +150,14 @@ than overwritten. Existing text, choice and radio values are never overwritten.
 
 Passwords, codes, government identifiers, signatures, agreement/consent labels,
 file inputs and all checkboxes stay manual. The extension never clicks Submit.
-Native text, textarea, number, select and radio controls are supported. Custom
-platform comboboxes stay manual until their open option list can be verified.
+Native text, textarea, number, select and radio controls are supported. Owned
+accessible single-choice/searchable listboxes are verified and filled one at a
+time. Other custom widgets remain manual. The setup page asks separate school,
+major, degree and graduation questions, including current and previous education.
+Repeated DOM sections have row-local identities so confirmed mappings cannot
+silently migrate to another education record or survive a replaced row.
+See [the framework contract](autofill-framework.md) for assessment statuses,
+research sources and the current platform limitations.
 See the extension README for installation steps.
 
 `application-autofill/prepare-profile.py` can refresh the ignored seed from the

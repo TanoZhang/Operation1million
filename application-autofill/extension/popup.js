@@ -6,23 +6,6 @@
   const reviewItems = document.getElementById('review-items');
   const fillReviewButton = document.getElementById('fill-review');
   const buttons = Array.from(document.querySelectorAll('button'));
-  const SAFE_SECTIONS = new Set(['', 'contact information', 'personal information',
-    'applicant information', 'about you', 'contact information section',
-    'my information', 'legal name', 'address', 'basic information',
-    'personal details', 'contact details', 'candidate information',
-    'applicant details', 'your information', 'profile', 'application',
-    'apply for this job']);
-  const BUILTIN_ALIASES = {
-    'name.first': ['First name', 'Given name'],
-    'name.last': ['Last name', 'Surname', 'Family name'],
-    'name.legal_full': ['Legal full name', 'Full legal name'],
-    'name.preferred': ['Preferred name'],
-    'contact.email': ['Email', 'Email address'],
-    'contact.phone': ['Phone', 'Phone number'],
-    'address.street': ['Street address', 'Street name', 'Address line 1'],
-    'address.city': ['City'],
-    'address.postal_code': ['Postal code', 'ZIP code', 'Zip/Postal Code']
-  };
 
   function normalize(value) {
     return String(value || '').normalize('NFKC').toLocaleLowerCase()
@@ -68,8 +51,12 @@
     fillReviewButton.disabled = selectedReviewItems().size === 0;
   }
 
+  function needsReview(item) {
+    return item.status === 'requires_review' || item.status === 'verify_options' && item.needs_review;
+  }
+
   function renderReview(results) {
-    const review = results.filter(item => item.status === 'requires_review');
+    const review = results.filter(needsReview);
     reviewItems.replaceChildren();
     review.forEach(item => {
       const row = document.createElement('div');
@@ -109,12 +96,10 @@
     let profile = stored.answerProfile;
     if (!profile) {
       const response = await fetch(chrome.runtime.getURL('local-profile.json'), {cache: 'no-store'});
-      if (!response.ok) throw new Error('Local answer profile is missing.');
-      profile = await response.json();
+      if (!response.ok && response.status !== 404) throw new Error('Cannot read the local answer profile.');
+      profile = response.ok ? await response.json() : undefined;
     }
-    if (profile.version !== 1 || !profile.fields || !profile.questions) {
-      throw new Error('Local answer profile is damaged.');
-    }
+    profile = JobdiscoAnswers.initializeProfile(profile);
     const learned = absorbCaptures(profile, Object.values(stored.answerCaptures || {}));
     await chrome.storage.local.set({answerProfile: profile, answerCaptures: {}});
     return {profile, learned};
@@ -134,17 +119,10 @@
 
   async function pageScan(includeValues = false) {
     const tab = await activeTab();
-    await chrome.scripting.executeScript({target: {tabId: tab.id}, files: ['content.js']});
+    await chrome.scripting.executeScript({target: {tabId: tab.id}, files: ['ats-adapters.js', 'content.js']});
     const payload = await chrome.tabs.sendMessage(tab.id, {action: 'scan', includeValues});
     if (!payload || payload.error) throw new Error(payload && payload.error || 'Cannot read this page.');
     return {tab, payload};
-  }
-
-  function compatible(field, question) {
-    return ((question.kind === 'text' && field.type === 'text')
-      || (question.kind === 'number' && field.type === 'integer')
-      || (['select', 'radio'].includes(question.kind) && ['text', 'choice'].includes(field.type))
-      || (question.kind === 'multiselect' && field.type === 'multi_choice'));
   }
 
   function findQuestion(profile, site, control, positionId) {
@@ -156,10 +134,13 @@
       && normalize(question.section) === normalize(control.section)
       && question.normalized === normalize(control.label)
       && question.kind === control.kind
+      && (question.repeat_context || '') === (control.repeat_context || '')
+      && Boolean(question.options_deferred) === Boolean(control.options_deferred)
       && sameOptions(question.options, control.options));
   }
 
   function reusableField(profile, site, control, positionId) {
+    if (control.repeat_context) return null;
     const siteOrigin = origin(site);
     const signature = questionSignature(control);
     const groups = ['position', 'site', 'global'].map(scope =>
@@ -178,13 +159,8 @@
   }
 
   function builtinField(profile, control) {
-    if (control.kind !== 'text' || !SAFE_SECTIONS.has(normalize(control.section))) return null;
-    const label = normalize(control.label);
-    const matches = Object.entries(profile.fields).filter(([key, field]) => {
-      const aliases = [...(field.aliases || []), ...(BUILTIN_ALIASES[key] || [])];
-      return field.type === 'text' && aliases.some(alias => normalize(alias) === label);
-    });
-    return matches.length === 1 ? matches[0][0] : null;
+    const matches = JobdiscoAnswers.aliasCandidates(profile, control);
+    return matches.length === 1 ? matches[0] : null;
   }
 
   function observe(profile, site, control, positionId = null) {
@@ -197,68 +173,66 @@
         site: origin(site), section: control.section || '', label: control.label,
         normalized: normalize(control.label), kind: control.kind,
         options: Array.from(new Set(control.options || [])).sort(), field_key: fieldKey,
+        options_deferred: Boolean(control.options_deferred),
+        repeat_context: control.repeat_context || '', repeat_label: control.repeat_label || '',
         binding: builtinKey ? 'builtin' : (fieldKey ? 'reused' : null),
         first_seen: new Date().toISOString(),
-        last_seen: new Date().toISOString(), observations: 0
+        last_seen: new Date().toISOString(), observations: 0,
+        observed_position_id: positionId
       };
       found = [questionId, profile.questions[questionId]];
+    }
+    // An unknown question can have been observed before a reusable mapping was
+    // approved elsewhere. Reconsider it without replacing an existing binding.
+    if (!found[1].field_key) {
+      const builtinKey = builtinField(profile, control);
+      const fieldKey = builtinKey || reusableField(profile, site, control, positionId);
+      if (fieldKey) {
+        found[1].field_key = fieldKey;
+        found[1].binding = builtinKey ? 'builtin' : 'reused';
+      }
     }
     found[1].last_seen = new Date().toISOString();
     found[1].observations += 1;
     return found;
   }
 
-  function resolve(profile, questionId, question, positionId) {
-    const result = {question_id: questionId, label: question.label,
-      field_key: question.field_key, status: 'unknown', answer: null};
-    if (!question.field_key) return result;
-    if (question.required_position_id && question.required_position_id !== positionId) {
-      return {...result, status: 'position_context_required'};
-    }
-    const field = profile.fields[question.field_key];
-    if (!field || field.answer === null || field.answer === undefined) {
-      return {...result, status: 'missing_answer'};
-    }
-    if (field.reuse_scope === 'site' && field.source_site !== question.site) {
-      return {...result, status: 'scope_mismatch'};
-    }
-    if (field.reuse_scope === 'position'
-      && (field.source_site !== question.site
-        || field.source_position_id !== positionId)) {
-      return {...result, status: 'position_context_required'};
-    }
-    if (!compatible(field, question)) return {...result, status: 'incompatible_control'};
-    if (['select', 'radio', 'multiselect'].includes(question.kind)) {
-      const selected = Array.isArray(field.answer) ? field.answer : [field.answer];
-      if (selected.some(value => !question.options.includes(value))) {
-        return {...result, status: 'option_mismatch'};
-      }
-    }
-    const defaultScope = question.binding === 'builtin' ? 'global' : 'site';
-    return {...result, status: field.policy === 'review' ? 'requires_review' : 'ready',
-      answer: field.answer, reuse_scope: field.reuse_scope || defaultScope,
-      position_id: positionId};
+  function resolve(profile, questionId, question, positionId, context = {}) {
+    return {question_id: questionId, label: question.label,
+      ...JobdiscoAnswers.assessKnownAnswer(profile, question, positionId, context)};
+  }
+
+  function renderAssessments(payload, results) {
+    const report = document.getElementById('question-report');
+    if (!report) return;
+    report.replaceChildren();
+    const platform = document.createElement('p');
+    platform.textContent = `Detected form: ${payload.ats || 'generic'}`;
+    report.append(platform);
+    results.forEach(item => {
+      const row = document.createElement('p');
+      row.textContent = `${item.label}: ${item.known_answer ? 'known answer' : item.status}. ${item.explanation}`;
+      report.append(row);
+    });
   }
 
   async function resolvePage(payload) {
     const {profile, learned} = await loadProfile();
+    const contextKey = JSON.stringify([origin(payload.site), payload.position_id]);
+    const context = profile.position_contexts?.[contextKey] || {};
+    const route = document.getElementById('application-route');
+    if (route) route.value = context.work_route || '';
     const results = payload.controls.map(control => {
       const [questionId, question] = observe(profile, payload.site, control,
         payload.position_id);
-      return {...resolve(profile, questionId, question, payload.position_id),
+      return {...resolve(profile, questionId, question, payload.position_id, context),
         control_id: control.control_id};
     });
     await saveProfile(profile);
     return {results, learned, profile};
   }
 
-  function valueMatchesType(type, value) {
-    if (type === 'text' || type === 'choice') return typeof value === 'string' && value.trim();
-    if (type === 'integer') return Number.isInteger(value);
-    if (type === 'multi_choice') return Array.isArray(value) && value.length
-      && value.every(item => typeof item === 'string' && item.trim());
-    return false;
-  }
+  const valueMatchesType = JobdiscoAnswers.valueMatchesType;
 
   function controlType(kind) {
     return {text: 'text', number: 'integer', select: 'choice', radio: 'choice',
@@ -306,17 +280,18 @@
 
   async function fillKnown() {
     const {tab, payload} = await pageScan(false);
-    const {results, learned} = await resolvePage(payload);
-    renderReview(results);
+    const {results, learned, profile} = await resolvePage(payload);
+    renderReview(profile.preferences.fill_known_review ? [] : results);
+    renderAssessments(payload, results);
+    const allowReview = profile.preferences.fill_known_review;
     const outcome = await chrome.tabs.sendMessage(tab.id,
-      {action: 'fill', results, allowReview: false});
+      {action: 'fill', results, allowReview});
     if (outcome.error) throw new Error(outcome.error);
-    const review = results.filter(item => item.status === 'requires_review').length;
-    const unknown = results.filter(item => item.status !== 'ready'
-      && item.status !== 'requires_review').length;
+    const review = allowReview ? 0 : results.filter(needsReview).length;
+    const unknown = results.filter(item => !item.known_answer).length;
     const learnedText = learned.saved ? ` Remembered ${learned.saved} new answer${learned.saved === 1 ? '' : 's'}.` : '';
     const conflictText = learned.conflicts ? ` Kept ${learned.conflicts} conflicting answer${learned.conflicts === 1 ? '' : 's'} unchanged.` : '';
-    show(`Filled ${outcome.filled} known field${outcome.filled === 1 ? '' : 's'}; left ${outcome.occupied} existing value${outcome.occupied === 1 ? '' : 's'} untouched; ${review} need review; ${unknown} unknown.${learnedText}${conflictText}`);
+    show(`Filled ${outcome.filled} known field${outcome.filled === 1 ? '' : 's'}; left ${outcome.occupied} existing value${outcome.occupied === 1 ? '' : 's'} untouched; ${review} need review; ${unknown} unknown or missing context; ${outcome.unresolved || 0} unfilled.${learnedText}${conflictText}`);
   }
 
   function applyReuseScopes(profile, results, selected) {
@@ -345,7 +320,7 @@
     const {results, profile} = await resolvePage(payload);
     applyReuseScopes(profile, results, selected);
     await saveProfile(profile);
-    const chosen = results.filter(item => item.status === 'requires_review'
+    const chosen = results.filter(item => needsReview(item)
       && selected.has(item.question_id));
     const outcome = await chrome.tabs.sendMessage(tab.id,
       {action: 'fill', results: chosen, allowReview: true});
@@ -366,6 +341,19 @@
   }
 
   document.getElementById('fill-known').addEventListener('click', () => run(fillKnown));
+  document.getElementById('edit-answers')?.addEventListener('click', () => chrome.runtime.openOptionsPage());
+  document.getElementById('application-route')?.addEventListener('change', event => {
+    const workRoute = event.target.value;
+    run(async () => {
+      const {payload} = await pageScan(false);
+      if (!payload.position_id) throw new Error('This page has no position identity. Leave contextual answers manual.');
+      const {profile} = await loadProfile();
+      profile.position_contexts ||= {};
+      profile.position_contexts[JSON.stringify([origin(payload.site), payload.position_id])] = {work_route: workRoute};
+      await saveProfile(profile);
+      await fillKnown();
+    });
+  });
   fillReviewButton.addEventListener('click', () => run(fillSelectedReview));
   run(fillKnown);
 })();

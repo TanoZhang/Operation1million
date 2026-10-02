@@ -245,6 +245,31 @@ should go was shown; **display** = wrong text, date or grouping.
 | 215 | job_text | 22 Qualcomm titles shown as hashtags, "#Embedded Software Engineer"; "EHS Specialist," | display | leading # and a dangling separator removed |
 | 216 | title rules | "Program Manger" passed the manager block | kept | the misspelling |
 
+## Autofill DOM audit, 2026-10-01 America/Los_Angeles
+
+Inspected base: `9d3e5ae9138116033a8271fa8172b3a8abd00404`. All ten cases
+failed on that base before the fixes. These are offline DOM reproductions,
+not measurements of real application pages. The real content/popup scripts run
+in isolated jsdom fixtures through `tests/autofill-runtime.cjs`, invoked by
+`tests/test_autofill_runtime.py`. Two additional cases protect normal filling,
+occupied controls and dynamically changed page/option identity.
+All twelve DOM runtime cases and the 23-test autofill subset pass. Full offline
+suite: 927 tests, 918 passed, nine environment skips. Extension 0.4.1 is changed
+locally; no push, production measurement or VPS deployment.
+
+| # | Area | Trigger and wrong behavior | Corrected behavior | Regression case |
+| --- | --- | --- | --- | --- |
+| 217 | autofill visibility | An input under a `display:none` ancestor was scanned as visible | Check ancestor display/hidden/inert state | `hidden_ancestor` |
+| 218 | autofill disabled controls | An input inherited `disabled` from a fieldset but its own disabled property was false | Use effective `:disabled`, retaining the first-legend exception | `disabled_fieldset` |
+| 219 | autofill radio identity | Different forms used the same radio name; scanning merged them and filling could inspect another form's answer | Group by actual form owner and tree, also honoring `form=` | `radio_form_scope` |
+| 220 | autofill unnamed radios | Unnamed radios in one fieldset were presented as one group, although HTML treats each independently | Keep each unnamed control separate | `unnamed_radios` |
+| 221 | autofill choice availability | A disabled optgroup's children appeared as selectable and could be filled | Exclude inherited disabled options in scanning and filling | `disabled_optgroup` |
+| 222 | autofill selection atomicity | A multiselect answer partly absent from the options returned failure after selecting its available subset | Validate the entire selection and cardinality before mutation | `select_mismatch_atomic` |
+| 223 | autofill ambiguous choices | Two different option values had the same display label; filling selected both, then returned failure | Require exactly one available DOM option per answer before mutation | `duplicate_option_labels` |
+| 224 | autofill stale scan | A field became disabled, hidden, read-only, sensitive or a different question between scan and fill, but still received the old answer | Recheck usability, question/control/options and position against the scan snapshot | `changed_control` |
+| 225 | autofill position scope | `/apply?gh_jid=123` and `/apply?gh_jid=456` collapsed to `/apply`, sharing a position-specific answer | Include recognized explicit requisition query parameters, even when canonical URLs drop them | `query_position_identity` |
+| 226 | autofill reusable mapping | A site already had an unknown question before a matching global answer was approved elsewhere; revisiting it never reconsidered reuse | Reconsider unbound questions only, preserving confirmed mappings and review policy | `reuse_existing_unknown` |
+
 ## Not bugs, recorded so they are not re-found
 
 - "BS with 5 years, MS with 2 years" read five years until the user decided on

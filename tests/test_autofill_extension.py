@@ -39,7 +39,9 @@ class AutofillExtensionTests(unittest.TestCase):
         self.assertIn('Rescan and fill known answers', popup)
         self.assertIn('Unknown fields stay empty', popup)
         self.assertIn('run(fillKnown)', script)
-        self.assertIn("status: 'unknown'", script)
+        engine = (EXTENSION / 'answer-engine.js').read_text()
+        self.assertIn("status: 'unknown'", engine)
+        self.assertIn('JobdiscoAnswers.assessKnownAnswer', script)
 
     def test_learning_records_only_final_trusted_events(self):
         source = (EXTENSION / 'content.js').read_text()

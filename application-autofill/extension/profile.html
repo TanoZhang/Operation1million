@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your application answers</title><link rel="stylesheet" href="profile.css"></head>
+<body><main><h1>Your application answers</h1>
+<p>Answer once, reuse when the exact question matches. Leave unknown answers blank.
+Answers are stored in this browser's extension storage.</p>
+<form id="profile-form"><label class="preference"><input id="fill-all" type="checkbox">
+Fill every known matching answer automatically</label><div id="basic-questions"></div>
+<button type="submit">Save answers</button></form>
+<p id="status" role="status"></p>
+<button id="import-seed" type="button">Import answers saved on this computer</button>
+<h2>Questions still needing a meaning</h2><p>Choose an existing answer only when it answers the complete question.</p>
+<div id="unknown-questions"></div></main>
+<script src="answer-engine.js"></script><script src="profile.js"></script></body></html>

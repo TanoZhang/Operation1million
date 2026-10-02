@@ -9,8 +9,12 @@
 <body>
   <main>
     <h1>Application Autofill</h1>
+    <label for="application-route">Work route for this position</label>
+    <select id="application-route"><option value="">Choose when sponsorship depends on it</option>
+      <option value="cpt">CPT</option><option value="other">Other / non-CPT</option></select>
     <div class="actions">
       <button id="fill-known">Rescan and fill known answers</button>
+      <button id="edit-answers">Set up your answers</button>
     </div>
     <section id="review-panel" hidden>
       <h2>Review before filling</h2>
@@ -19,8 +23,10 @@
       <button id="fill-review" class="review" disabled>Save scope and fill selected</button>
     </section>
     <p id="status" role="status">Scanning this page...</p>
+    <details><summary>How each question was matched</summary><div id="question-report"></div></details>
     <p class="note">Unknown fields stay empty. Values you enter are remembered after you leave the field.</p>
   </main>
+  <script src="answer-engine.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

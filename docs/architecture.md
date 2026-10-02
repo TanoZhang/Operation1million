@@ -95,6 +95,17 @@ control kind and option set and remains review-only. It never submits or
 overwrites an existing value. Sensitive identifiers, consent
 controls, checkboxes, files and unsupported custom comboboxes remain manual.
 Platform adapters extend this scanner rather than introducing separate extensions.
+The 0.5.0 framework adds `ats-adapters.js` for Workday/Greenhouse/Lever metadata
+and `answer-engine.js` for pure known-answer assessment. `profile.html` and its
+script own browser-local basic-question setup, confirmed unknown-question
+mapping and explicit local-seed import. At the user's request, the automatic-fill
+preference now permits every known compatible answer, including stored review
+answers; disabling it restores the checklist. Site/position scope and complete
+question meaning still apply. Owned accessible single-choice listboxes are filled
+sequentially, using real exact options and post-click verification; other custom
+widgets remain manual. Degree, major, school and graduation fields are separate,
+and contextual answers require the per-position work route. Details and research
+sources are in [the autofill framework contract](autofill-framework.md).
 Position-restricted bindings withhold answers unless the caller supplies the
 matching position ID; passing no context cannot silently reuse a prior cycle.
 See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
@@ -166,6 +177,24 @@ reproducer and update its evidence below.
   recalculate; rule changes require `job-store --rescore`.
 
 ## Bugs found and fixed
+
+### Ten autofill DOM boundary defects, 2026-10-01 America/Los_Angeles
+
+Bug tracker #217-226, reproduced before fixing on `9d3e5ae9138116033a8271fa8172b3a8abd00404`.
+The content script owns effective visibility/disabled checks and native radio
+group identity (name, form owner, tree; unnamed radios are independent).
+Choice filling verifies availability, unique display labels and full answer
+cardinality before changing selections. A scan snapshot is revalidated at fill
+time, including question, control kind, option set and position. Recognized job
+query parameters distinguish requisitions sharing an application path.
+The popup reconsiders approved reuse for existing unbound questions while
+retaining confirmed bindings and review requirements. The extension is 0.4.1;
+reload it and refresh pages already holding the previous content script.
+
+Tests run the actual scripts against fictional offline DOM fixtures, with no
+private answer profile, application submission or collection. See the autofill
+README for the optional Node/jsdom test runtime. No production measurement or
+VPS deployment accompanies these fixes.
 
 ### A fourth hunt, 2026-10-01 UTC
 

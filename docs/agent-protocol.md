@@ -17,6 +17,32 @@ Next:    Deploy with the hunt above.
 ```
 
 ```text
+Owner: codex
+Scope: ATS-native autofill framework, known-answer assessment and browser-local basic-question onboarding.
+Files: application-autofill/extension/*, application-autofill/README.md,
+       tests/{autofill-runtime.cjs,test_autofill_runtime.py,test_autofill_framework.py},
+       tests/autofill-framework.cjs, tests/test_autofill_extension.py,
+       docs/{autofill-framework,answer-bank,agent-protocol,architecture,handoff}.md
+Base commit: 9d3e5ae9138116033a8271fa8172b3a8abd00404 plus Codex's completed local DOM fixes
+Status: done -- implementation 0.5.0 and ignored local seed ready; not pushed or deployed
+Next: Reload extension, import saved local answers, verify a real ATS form. Offline:
+      942 tests, 933 passed and nine skips; final contextual-binding follow-up passed all 15 framework cases.
+```
+
+```text
+Owner: codex
+Scope: Fix ten browser autofill boundary defects (#217-226); offline fixtures only.
+Files: application-autofill/extension/{content,popup}.js,
+       application-autofill/extension/manifest.json,
+       application-autofill/README.md, tests/test_autofill_runtime.py,
+       tests/autofill-runtime.cjs, docs/{agent-protocol,architecture,handoff,bug-tracker}.md
+Base commit: 9d3e5ae9138116033a8271fa8172b3a8abd00404
+Status: done -- local fixes, no push or deployment
+Next: Reload extension 0.4.1 and refresh existing pages. Offline suite: 927 tests,
+      918 passed, nine environment skips; all twelve DOM runtime cases executed.
+```
+
+```text
 Owner:   claude
 Scope:   Fourth bug hunt at the user's request (2026-10-01): twenty defects in
          src/jobdisco, #197-216, each with a reproducer red before its fix.
@@ -24,7 +50,7 @@ Scope:   Fourth bug hunt at the user's request (2026-10-01): twenty defects in
 Files:   src/jobdisco/*, data/config/*, tests/test_tenth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker}.md
 Base commit: 9d3e5ae
-Status:  done -- #197-216 fixed (docs/bug-tracker.md); not deployed
+Status:  done -- #197-216 fixed in remote main 62b7ace; not deployed
 Next:    deploy/vps/install.sh, then job-store --rescore.
 ```
 

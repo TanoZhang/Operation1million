@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Jobdisco Application Autofill",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Conservatively fill known application fields and remember final manual answers.",
   "permissions": ["activeTab", "scripting", "storage"],
+  "options_page": "profile.html",
   "action": {
     "default_title": "Application Autofill",
     "default_popup": "popup.html"
