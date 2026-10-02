@@ -22,6 +22,7 @@ title-rule changes also need `job-store --rescore`.
 | 8 (#141-160) | `tests/test_ninth_bug_hunt.py` | 90f2f4b | eadb123 |
 | live (#161-) | `tests/test_live_measurement_bugs.py` | 691c051 | see git log |
 | hunt 4 (#197-216) | `tests/test_tenth_bug_hunt.py` | 32d280b | see git log |
+| hunt 5 (#227-) | `tests/test_eleventh_bug_hunt.py`, `tests/autofill-scanner.cjs` | f8f38b7 | see git log |
 
 Direction: **removed** = a posting was wrongly hidden; **kept** = a posting that
 should go was shown; **display** = wrong text, date or grouping.
@@ -269,6 +270,59 @@ locally; no push, production measurement or VPS deployment.
 | 224 | autofill stale scan | A field became disabled, hidden, read-only, sensitive or a different question between scan and fill, but still received the old answer | Recheck usability, question/control/options and position against the scan snapshot | `changed_control` |
 | 225 | autofill position scope | `/apply?gh_jid=123` and `/apply?gh_jid=456` collapsed to `/apply`, sharing a position-specific answer | Include recognized explicit requisition query parameters, even when canonical URLs drop them | `query_position_identity` |
 | 226 | autofill reusable mapping | A site already had an unknown question before a matching global answer was approved elsewhere; revisiting it never reconsidered reuse | Reconsider unbound questions only, preserving confirmed mappings and review policy | `reuse_existing_unknown` |
+
+## Hunt 5 (#227-), 2026-10-02
+
+The user asked for fifty, then for bugs up to #300. Tests: autofill
+`tests/autofill-scanner.cjs` (#227-229), the rest `tests/test_eleventh_bug_hunt.py`;
+each red on the commit before its fix (f8f38b7 for #230-268). Found on the live
+queue rebuilt with the code of 2026-10-02 (6,583 groups) unless the test calls
+it a wording. Counts are queued groups.
+
+| # | Area | Symptom | Direction | Fix |
+| --- | --- | --- | --- | --- |
+| 227 | autofill | a block's first heading named every field in it: an emergency contact's name was filed under "Personal information" | wrong answer | the last heading before the field |
+| 228 | autofill | a radio group with no legend was named by its first option, "Yes": every Yes/No question on a page was one question, and an answer to one was filled into the next (Lever too) | wrong answer | the question text before the options; none, left alone |
+| 229 | autofill | two plain fieldsets without a legend were rows of one repeated section; nothing in either was matched | missed fill | untitled boxes repeat only when they ask the same questions |
+| 230 | relevance | "the weekly cadence" scored as Cadence (233 non-trade postings) | kept | the vendor's own case |
+| 231 | relevance | Italian pay notices, "questa posizione", scored as Questa (28) | kept | case, and not before Italian nouns |
+| 232 | relevance | a network operations centre, "NOC", scored as a network on chip (41) | kept | NoC as written, or "network on chip" |
+| 233 | relevance | "incubators and VCs" scored as VCS (18) | kept | VCS in capitals |
+| 234 | relevance | research, image and speech synthesis scored as logic synthesis (25) | kept | not after those words |
+| 235 | relevance | "SOC 2 Type II" and a security operations centre scored as SoC (20) | kept | not before 2 / Type / reports, not after "Center (" |
+| 236 | relevance | "Silicon Valley" scored as silicon (10 non-trade) | kept | not before Valley, Beach, Slopes, Hills |
+| 237 | relevance | Azure AI Foundry and Palantir Foundry scored as a foundry | kept | not those products |
+| 238 | relevance | change data capture, "CDC pipelines", scored as clock domain crossing | kept | not after "capture", not before pipelines |
+| 239 | title rules | a technician by its short name, "Data Center Tech" (96) | kept | blocked like technician |
+| 240 | title rules | pharmacists, medical representatives (95) | kept | blocked |
+| 241 | title rules | not openings: hiring events, talent pools, an event registration (15) | kept | blocked |
+| 242 | title rules | delivery station and customer service roles (73) | kept | blocked |
+| 243 | title rules | aviation ground handlers and flight monitors (59) | kept | blocked |
+| 244 | title rules | machine and lab operators, clerks (8) | kept | blocked |
+| 245 | title rules | auditors and investigators (14) | kept | blocked |
+| 246 | title rules | producers, UX writers and designers, artists (45) | kept | blocked |
+| 247 | title rules | account strategists and negotiators, sales by other names (37) | kept | blocked |
+| 248 | title rules | retail stores, "US-Genius", "Channel Retail" (111) | kept | blocked; not part-time engineering |
+| 249 | title rules | business and customer-solutions consultants (26) | kept | blocked |
+| 250 | title rules | driver, technical and L&D trainers (9) | kept | blocked |
+| 251 | title rules | EHS, fire protection, loss prevention, security officers (177) | kept | blocked; not hardware security |
+| 252 | title rules | linguists and raters (4) | kept | blocked |
+| 253 | title rules | IT support and help desks (63) | kept | blocked |
+| 254 | title rules | administrative business partners and administrators (35) | kept | blocked |
+| 255 | title rules | facility maintenance apprenticeships, RME (34) | kept | blocked |
+| 256 | title rules | economists and policy roles (9) | kept | blocked |
+| 257 | title rules | real estate and construction planning (8) | kept | blocked |
+| 258 | experience | "completed at least 3 years of a 4-year degree" read as three years of work (wording) | removed | schooling with an article and a length |
+| 259 | experience | "a decade of experience" read as none (wording) | kept | ten years |
+| 260 | citizenship | "restricted / limited to U.S. citizens" missed (wording) | kept | pattern |
+| 261 | citizenship | "Non-U.S. citizens are not eligible", "unable to consider ... not U.S. citizens" missed (wording) | kept | patterns |
+| 262 | location | Saclay, Sibiu, Espoo, "Palestine, Rawabi" unplaced | kept | listed; "Palestine, TX" keeps its state |
+| 263 | job_text | "(Hybrid)", "(Remote)", "- Onsite" at the end of a title (14) | display | removed |
+| 264 | job_text | "(m/f/d)" gender markers in titles (4) | display | removed |
+| 265 | ranking | product development engineering in the last band (37) | display | related |
+| 266 | ranking | failure analysis in the last band (13) | display | related |
+| 267 | ranking | "Load Store Design", "NoC Interconnect Design" in the last band (10) | display | core |
+| 268 | export | Excel refused a sheet with more than 65,530 links (measured: 66,000 did not open) | display | text past the limit |
 
 ## Not bugs, recorded so they are not re-found
 

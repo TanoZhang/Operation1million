@@ -167,6 +167,52 @@ exclude_title_patterns = [
   # -- 90 queued groups, one of them in Core VLSI, "Digital IC, Account
   # Technology Executive (ATX)" (2026-10-01).
   '\baccount\s+(?:technology\s+)?executives?\b', '\baccount\s+rep(?:resentative)?s?\b',
+  # More functions with no engineering in them, by family, from the live
+  # queue on 2026-10-02 (#239-257 in docs/bug-tracker.md; counts are queued
+  # groups, nearly all on the Low relevance tab). A technician by its short
+  # name (96): "Data Center Tech", "Mechatronics & Robotics Tech".
+  '\b(?:data\s+cent(?:er|re)|dc|infra(?:structure)?(?:\s+delivery)?\s+install(?:ation)?|install(?:ation)?|maintenance|mechatronics(?:\s*(?:&|and)\s*robotics)?|robotics|field\s+service|facilities|calibration|repair|lab)\s+techs?\b',
+  # Pharmacy and medicine (95).
+  '\bpharmac(?:ist|y\s+technician)s?\b', '\bmedical\s+representatives?\b', '\bphysicians?\b',
+  '\btherapists?\b', '\bdentists?\b', '\boptometrists?\b',
+  # Not openings at all: hiring events, talent pools, event registrations (15).
+  '\bhiring\s+events?\b', '\bopen\s+(?:\w+\s+)?career\s+opportunities\b',
+  '\bvirtual\s+series\s+registration\b', '\btalent\s+(?:pool|community|network)\b',
+  # Delivery and customer service (73); aviation ground operations (59).
+  '\bcustomer\s+service\b', '\bdelivery\s+station\b', '\bdelivery\s+(?:driver|associate|trainer)s?\b',
+  '\bground\s+handlers?\b', '\bflight\s+monitors?\b',
+  # Operators and clerks (8); auditors and investigators (14).
+  '\b(?:machine|lab|equipment|rme|forklift|production)\s+operators?\b', '\bclerks?\b',
+  '\bauditors?\b', '\binvestigators?\b',
+  # Creative work (45): producers, UX writing and design, artists.
+  '\bproducers?\b', '\b(?:ux|technical|tech|content|copy)\s*writers?\b',
+  '\bux\s+(?:designer|researcher)s?\b', '\b(?:3d|game|technical|visual)\s+artists?\b',
+  '\bvisual\s+designers?\b', '\binstructional\s+designers?\b',
+  # Strategists and negotiators, which is sales by other names (37).
+  '\b(?:account|customer\s+onboarding|growth|marketing|content|brand)\s+strategists?\b', '\bnegotiators?\b',
+  # Retail stores (111): Apple's "US-Genius", "US-Creative", "Channel Retail".
+  '\bgenius\b', '^US\s*-\s*(?:creative|specialist|technical\s+specialist|expert)\b',
+  '\bchannel\s+retail\b', '\bretail\s+(?:store|associate|sales)\b',
+  # Consultants (26) and trainers (9).
+  '\b(?:customer\s+solutions|growth|business|technical\s+solutions|management|hr|benefits|implementation)\s+consultants?\b',
+  '\b(?:driver|delivery|technical|learning\s*(?:&|and)\s*development|safety|sales)\s+trainers?\b',
+  # Safety and security staff (177): EHS, fire protection, loss prevention,
+  # security officers. Not hardware security: "NPU Physical Security Testing".
+  '\bEHS\b', '\benvironmental\s*,?\s*health\s*(?:&|and)\s*safety\b', '\bfire\s+protection\b',
+  '\bloss\s+prevention\b', '\bsecurity\s+(?:officer|guard|specialist|investigator)s?\b',
+  '\bexecutive\s+protection\b', '\binjury\s+prevention\b',
+  # Linguists and raters (4); IT support and help desks (63).
+  '\blinguists?\b', '\b(?:data\s+)?annotators?\b', '\braters?\b',
+  '\bIT\s+support\b', '\bhelp\s*(?:desk|line)\b', '\bcomputer\s+support\b', '\bdesktop\s+support\b',
+  '\bservice\s+desk\b', '\btechnical\s+support\s+(?:analyst|specialist)\b',
+  # Administration (35); facility maintenance apprenticeships, RME (34).
+  '\badmin(?:istrative)?\s+(?:business\s+)?partners?\b', '\b(?:executive\s+)?business\s+administrator\b',
+  '\bstaffing\s+administrator\b', '\badministrative\s+support\b',
+  '\bmechatronics?\s+(?:apprentice|technician)s?\b', '\bRME\b',
+  # Economics and policy (9); real estate and construction planning (8).
+  '\beconomists?\b', '\bpolicy\s+(?:specialist|analyst|manager|advisor|investigator)\b', '\bpublic\s+policy\b',
+  '\breal\s+estate\b', '\bconstruction\s+(?:scheduler|planner|cost)\b', '\bspace\s+planner\b',
+  '\bmaster\s+scheduler\b',
   # Levels above what an early-career application reaches
   # Not the SR of SR-IOV, a PCIe virtualisation feature firmware and driver
   # postings name in the title. Not "(Up to Senior Level)", which hires below
@@ -253,29 +299,47 @@ evidence_title_patterns = [
 strong_terms = [
   # Languages, methodology, coverage
   '\bUVM\b', '\bSystemVerilog\b', '\bVerilog\b', '\bVHDL\b', '\bSVA\b',
-  '\bRTL\b', '\bASIC\b', '\bFPGA\b', '\bSoC\b', '\bVLSI\b',
+  '\bRTL\b', '\bASIC\b', '\bFPGA\b', '\bVLSI\b',
+  # Not the compliance report, "SOC 2 Type II", nor a security operations
+  # centre: 20 postings with no chip in them scored on it (2026-10-02).
+  '(?<!center\s\()(?<!centre\s\()\bSoC\b(?!\s*-?\s*(?:[123]|ii|iii)\b|\s+(?:type|reports?|audits?|compliance|analysts?|operations)\b)',
   '\btestbench\b', '\bnetlist\b', '\bconstrained[- ]random\b', '\bassertion',
   '\bcoverage\s+closure\b', '\bfunctional\s+coverage\b', '\bregression\s+suite\b',
-  '\bwaveform\b', '\bformal\s+verification\b', '\bUPF\b', '\bCDC\b', '\bRDC\b',
+  '\bwaveform\b', '\bformal\s+verification\b', '\bUPF\b', '\bRDC\b',
+  # Clock domain crossing, not change data capture (2026-10-02).
+  '(?<!capture\s\()(?<!capture\s)\bCDC\b(?!\s+(?:pipelines?|replication|ingestion|streams?|events?|connectors?)\b)',
   # Test and DFT
   '\bDFT\b', '\bATPG\b', '\bscan\s+chain\b', '\bMBIST\b', '\bJTAG\b', '\bTessent\b',
   # Interfaces and IP
   '\bAXI\b', '\bAHB\b', '\bAPB\b', '\bAMBA\b', '\bPCIe\b', '\bCXL\b', '\bUCIe\b',
-  '\bDDR\d?\b', '\bLPDDR\b', '\bHBM\b', '\bSerDes\b', '\bMIPI\b', '\bNoC\b',
+  '\bDDR\d?\b', '\bLPDDR\b', '\bHBM\b', '\bSerDes\b', '\bMIPI\b',
+  # A network on chip is written NoC; NOC is a network operations centre
+  # (41 postings, 2026-10-02).
+  '(?-i:\bNoC\b)', '\bnetwork[-\s]on[-\s]chip\b',
   # Emulation and prototyping
   '\bemulation\b', '\bPalladium\b', '\bZeBu\b', '\bVeloce\b', '\bFPGA\s+prototyping\b',
   # Physical implementation
-  '\bsynthesis\b', '\btiming\s+closure\b', '\bSTA\b', '\bfloorplan',
+  # Not research, data, image or speech synthesis (25 postings, 2026-10-02).
+  '(?<!research\s)(?<!data\s)(?<!evidence\s)(?<!speech\s)(?<!voice\s)(?<!video\s)(?<!image\s)(?<!audio\s)(?<!text\s)(?<!insight\s)(?<!insights\s)(?<!knowledge\s)(?<!literature\s)(?<!user\s)(?<!information\s)(?<!qualitative\s)(?<!chemical\s)(?<!protein\s)(?<!organic\s)(?<!drug\s)\bsynthesis\b(?!\s+(?:of\s+(?:research|data|insights?|information|findings|feedback|ideas)|models?)\b)',
+  '\btiming\s+closure\b', '\bSTA\b', '\bfloorplan',
   '\bplace\s*(?:and|&)\s*route\b', '\bclock\s+tree\b', '\bPPA\b',
   '\bstandard\s+cell\b', '\bLEF\b', '\bDEF\b',
   # EDA vendors and tools
-  '\bCadence\b', '\bSynopsys\b', '\bSiemens\s+EDA\b', '\bMentor\s+Graphics\b',
-  '\bVCS\b', '\bXcelium\b', '\bQuesta\b', '\bVivado\b', '\bQuartus\b',
+  # The vendor and the simulators by their names' own case: "the weekly
+  # cadence" (233 postings) and "incubators and VCs" (18) are not EDA, and
+  # Italian pay notices say "questa posizione" (28) (2026-10-02).
+  '(?-i:\bCadence\b)', '\bSynopsys\b', '\bSiemens\s+EDA\b', '\bMentor\s+Graphics\b',
+  '(?-i:\bVCS\b)', '\bXcelium\b',
+  '(?-i:\bQuesta\b)(?!\s+(?:posizione|offerta|figura|opportunit\w*|ruolo|sede|attivit\w*|azienda|societ\w*))',
+  '\bVivado\b', '\bQuartus\b',
   '\bSpyGlass\b', '\bPrimeTime\b', '\bInnovus\b', '\bGenus\b',
   '\bDesign\s+Compiler\b', '\bVerdi\b', '\bConformal\b',
   # Silicon and fabrication
-  '\bsilicon\b', '\bpre-?silicon\b', '\bpost-?silicon\b', '\btape-?out\b',
-  '\bbring-?up\b', '\bwafer\b', '\bfoundry\b', '\bTSMC\b',
+  # Not Silicon Valley, nor Azure AI Foundry or Palantir Foundry (2026-10-02).
+  '\bsilicon\b(?!\s+(?:valley|beach|slopes|hills|alley|prairie)\b)', '\bpre-?silicon\b',
+  '\bpost-?silicon\b', '\btape-?out\b', '\bbring-?up\b', '\bwafer\b',
+  '(?<!azure\sai\s)(?<!\bai\s)(?<!azure\s)(?<!palantir\s)\bfoundry\b(?!\s+(?:local|iq|agents?|models?|portal|ontology)\b)',
+  '\bTSMC\b',
 ]
 
 # Relevant but ordinary English. Worth a point, never proof on its own.
@@ -446,6 +510,13 @@ us_person_required_patterns = [
   '\brequires?\s+(?:(?:active|current)\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizenship|person\s+status)\b',
   '\brequires?\s+that\s+(?:the\s+)?(?:candidate|applicant|individual|person)s?(?:\s+selected)?\s+(?:be|is|are)\s+(?:an?\s+)?(?:U\.?\s?S\.?|United\s+States)\s+(?:citizen|person)',
   '\b(?:only|open\s+(?:only\s+)?to|restricted\s+to\s+(?:\w+\s+){0,3}who\s+are)\s+(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens|persons)\b',
+  # "Position is restricted to U.S. citizens", "limited to United States
+  # citizens" (#260, 2026-10-02). "Not limited to" is denied, as before.
+  '\b(?:restricted|limited)\s+(?:only\s+)?to\s+(?:U\.?\s?S\.?|United\s+States)\s+(?:citizens|persons)\b',
+  # Said of everyone else (#261): "Non-U.S. citizens are not eligible", "We are
+  # unable to consider candidates who are not U.S. citizens".
+  '\bnon[-\s]?(?:U\.?\s?S\.?|United\s+States)\s+citizens?\s+(?:(?:are|is)\s+(?:not\s+|in)eligible|(?:are|is|will)\s+not\s+be\s+(?:considered|accepted|eligible)|cannot\s+be\s+(?:considered|accepted|hired))\b',
+  '\b(?:unable|not\s+able|cannot)\s+(?:to\s+)?(?:consider|hire|employ|accept)\s+(?:\w+\s+){0,3}who\s+are\s+not\s+(?:U\.?\s?S\.?|United\s+States)\s+citizens\b',
   # "US Citizens or Green Card holders only" too (2026-09-27).
   '\b(?:U\.?\s?S\.?|United\s+States)\s+citizens?(?:\s+or\s+(?:green\s+card\s+holders?|(?:lawful\s+)?permanent\s+residents?))?\s+only\b',
   # A form's label: "Required: U.S. Citizenship", "Requirement: US Citizen".

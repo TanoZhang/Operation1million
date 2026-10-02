@@ -30,6 +30,8 @@ COLUMNS = (('Status', 16), ('Company', 28), ('Title', 60), ('Location', 32), ('P
 # sometimes carries them.
 _INVALID = re.compile('[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]')
 CELL_LIMIT = 32767
+# Excel's hyperlink limit for one sheet; a workbook with 66,000 did not open.
+MAX_LINKS = 65530
 
 
 class ExportLocked(OSError):
@@ -102,7 +104,9 @@ def _sheet(table):
             ref = f'{_column(index)}{number}'
             if value is None or value == '':
                 continue
-            if number > 1 and index == link_column:
+            # Excel opens no sheet holding more than MAX_LINKS hyperlinks; past
+            # that the address is written as text (#268, measured in Excel 16).
+            if number > 1 and index == link_column and len(links) < MAX_LINKS:
                 links.append((ref, value))
                 value = 'Open listing'
             if isinstance(value, (int, float)) and not isinstance(value, bool):

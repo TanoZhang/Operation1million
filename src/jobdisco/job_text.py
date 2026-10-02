@@ -102,6 +102,15 @@ REQUISITION_SUFFIX = re.compile(
     r'\s*(?:[-|–—]\s*|\(\s*)?(?:job\s+id|req(?:uisition)?(?:\s+(?:id|no\.?|number))?)'
     r'\s*[:#]?\s*#?\s*[A-Za-z]{0,3}-?\d[\w-]*\s*\)?$', re.I)
 
+# Where the work is done is not the role either: "ASIC Engineer (hybrid)",
+# "... - SDC/STA (Hybrid)", "Architect (Remote)" -- 14 queued groups (#263,
+# 2026-10-02). Only at the end, so "Remote Sensing Engineer" stays.
+ARRANGEMENT = r'(?:hybrid|remote|on-?site|in-?office)'
+WORK_ARRANGEMENT = re.compile(
+    r'\s*(?:[-|–—,;]\s*)?\(?\s*' + ARRANGEMENT + r'(?:\s*(?:/|or|and|&)\s*' + ARRANGEMENT + r')*\s*\)?$', re.I)
+# A gender marker, German postings' "(m/f/d)" and "(f/m/d)" (#264).
+GENDER_MARKER = re.compile(r'\(\s*[mfwdx]\s*/\s*[mfwdx](?:\s*/\s*[mfwdx])?\s*\)|\b[mfw]\s*/\s*[mfw]\s*/\s*[dx]\b', re.I)
+
 
 def clean_title(title, location=''):
     title = ' '.join(unicodedata.normalize('NFKC', title or '').split())
@@ -142,6 +151,10 @@ def clean_title(title, location=''):
         # and a separator with nothing after it ends nothing (#215, 2026-10-01).
         title = re.sub(r'^#(?=[A-Za-z])', '', title)
         title = re.sub(r'\s*[,|\-–—:]\s*$', '', title)
+        title = ' '.join(GENDER_MARKER.sub(' ', title).split())
+        stripped = WORK_ARRANGEMENT.sub('', title).strip()
+        if stripped:
+            title = stripped
         for candidate in sorted(candidates, key=len, reverse=True):
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back

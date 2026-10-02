@@ -78,6 +78,8 @@ FOREIGN_COUNTRIES = (
     'north macedonia', 'guatemala', 'venezuela', 'bolivia', 'paraguay', 'dominican republic',
     'cambodia', 'laos', 'mongolia', 'iraq', 'lebanon', 'kuwait', 'bahrain', 'oman', 'ghana',
     'ethiopia', 'rwanda', 'uganda', 'tanzania', 'algeria', 'senegal', 'brunei',
+    # "Palestine, Rawabi" (2026-10-02); "Palestine, TX" keeps its state.
+    'palestine',
 )
 FOREIGN_CITIES = (
     'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'pune', 'noida', 'gurgaon', 'gurugram',
@@ -109,6 +111,8 @@ FOREIGN_CITIES = (
     # forms of the accented names above (places are read without accents).
     'pyeongtaek', 'giheung', 'hwaseong-si', 'taoyuan', 'wuxi', 'xiamen', 'cyberjaya',
     'rousset', 'crolles', 'munchen', 'nurnberg', 'zurich',
+    # Unplaced in the live queue on 2026-10-02 (#262).
+    'saclay', 'sibiu', 'espoo', 'rawabi',
 )
 # ISO 3166 codes that lead "IN, KA, Bengaluru"-style strings.
 FOREIGN_CODES = {

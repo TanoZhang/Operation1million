@@ -162,8 +162,11 @@ NON_WORK = re.compile(r'^\s*[- ]?\s*(?:roadmap|degree|program(?:me)?|course|plan
 # eighteen-year requirement, "at least 3 years of college" as three (2026-09-27).
 AGE_OR_SCHOOLING = re.compile(
     r'^\s*(?:old|of\s+age)\b'
-    r'|^\s*(?:of\s+)?(?:(?:undergraduate|graduate|university|college|full[-\s]time)\s+)?'
-    r'(?:college|university|school|study|studies|coursework|education)\b', re.I)
+    # "at least 3 years of a 4-year degree" too, which read as three years
+    # of work (#258, 2026-10-02). Not "program": "years of program management".
+    r'|^\s*(?:of\s+)?(?:(?:a|an|the|your)\s+)?(?:(?:\d|two|three|four|five)[-\s]year\s+)?'
+    r"(?:(?:undergraduate|graduate|university|college|full[-\s]time|bachelor'?s?|master'?s?)\s+)?"
+    r'(?:college|university|school|study|studies|coursework|education|degree)\b', re.I)
 # Years the job gives, not years it asks for: "you will gain 3 years of experience".
 OFFERED = re.compile(r'\b(?:gain|gaining|acquire|earn)\s+(?:\w+\s+){0,2}$', re.I)
 # A master's with no years of its own as the other way in: "3 years of
@@ -480,6 +483,9 @@ def evaluate(title, description):
     text = re.sub(r'(?<![\w.])([BM])E(?=[\s,/;)]|$)', r'\1S', text)
     text = re.sub(r'\b(?:post-?\s?graduate|graduate|advanced)\s+degree\b', "Master's degree", text, flags=re.I)
     text = re.sub(r'<[^>]*>', '\n', text)
+    # "A decade of experience" is ten years, and read as none (#259, 2026-10-02).
+    text = re.sub(r'\b(?:a|one)\s+decade\b', '10 years', text, flags=re.I)
+    text = re.sub(r'\b(two|2)\s+decades\b', '20 years', text, flags=re.I)
     text = SPELLED.sub(lambda found: str(NUMBER_WORDS[found.group(1).lower()]), text)
     text = PAREN_REPEAT.sub(r'\1', text)
     text = LABELLED.sub(r'\2 years of \1', text)

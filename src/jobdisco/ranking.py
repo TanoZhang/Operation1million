@@ -65,6 +65,10 @@ CORE = re.compile(r"""\b(?:
     # out, a block's IP design, and digital implementation, which is
     # physical design under another name.
     | field[-\s]programmable \s+ gate \s+ arrays? | ip \s+ design(?:er)? | digital \s+ implementation
+    # The CPU's units and its interconnect, designed or verified: "Load Store
+    # Design Engineer", "NoC Interconnect Design Engineer" (#267, 2026-10-02).
+    | (?: load[-\s/]?store | noc | interconnect | cache | mmu | branch \s+ predict\w*
+        | execution \s+ unit ) \s+ (?: design | verification | rtl )
 )\b""", re.I | re.X)
 
 
@@ -105,6 +109,12 @@ RELATED = re.compile(r"""\b(?:
     # analog blocks by name (#201, #202, #212, live queue, 2026-10-01).
     | hw | fw | (?:pre|post)-?silicon
     | (?: pll | adc | dac | ldo | power \s+ management ) \s+ design(?:er)?
+    # Post-silicon product engineering and failure analysis, the semiconductor
+    # sense of each (#265, #266, 2026-10-02); not a software "Product Engineer".
+    | product \s+ (?: development | test | validation | characteri[sz]ation ) \s+ engineer\w*
+    | (?: board | silicon | soc | chip | asic | nand | dram | memory | semiconductor
+        | characteri[sz]ation ) \s+ product \s+ (?: development \s+ )? engineer\w*
+    | failure \s+ analysis
 )\b""", re.I | re.X)
 
 

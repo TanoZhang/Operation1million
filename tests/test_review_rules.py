@@ -507,8 +507,11 @@ class QueueRulesTests(unittest.TestCase):
                          ['Austin, Texas'])
 
     def test_less_related_takes_both_the_last_band_and_a_low_score(self):
-        """Asked for on 2026-09-22: barely related postings go to the back."""
-        for title, relevance, less in (('Onsite Medical Representative', 0, True),
+        """Asked for on 2026-09-22: barely related postings go to the back.
+
+        "Onsite Medical Representative" was the example until #240 refused
+        medical roles outright (2026-10-02)."""
+        for title, relevance, less in (('Inventory Event Coordinator', 0, True),
                                        ('SDC, Synthesis and STA Engineer', 69, False),
                                        ('RTL Design Engineer', 0, False)):
             with self.subTest(title=title):
