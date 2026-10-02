@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Replace Applied card/detail top classification chips with applied date.
+Files: review_static/app.js, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
+Base commit: 5fceb6b
+Status: claimed
+Next: Verify top date placement and deploy.
+```
+
+```text
+Owner: codex
 Scope: Per-tab Excel selection; bounded queue loading; Applied-specific paste and visible applied dates.
 Files: review.py, review_static/*, tests/{review-selection.cjs,test_manual_intake.py}, docs/{agent-protocol,handoff,application-review}.md
 Base commit: 1b9b149 (production queue currently HTTP 200 in 0.188s)

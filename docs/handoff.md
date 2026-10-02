@@ -1,3 +1,11 @@
+# Applied top badge - 2026-10-02 (codex)
+
+Base 5fceb6b. Applied card and detail top badges show the highlighted application
+ledger date above the company, replacing Intern/New Grad and other classification
+chips in that category. Other categories retain classification chips. The date
+was previously highlighted only in metadata; user clarified the desired placement.
+Real-page DOM fixture verifies top dates and absence of a top category chip.
+
 # Review Applied UX and bounded loading - 2026-10-02 (codex)
 
 Base 1b9b149. Production queue responded HTTP 200 in 0.188 seconds before

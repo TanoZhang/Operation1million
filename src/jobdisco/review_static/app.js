@@ -59,6 +59,11 @@ const flagChip = group => group.flagged
 // a reader who has one should see that the posting asks for it.
 const internChip = group => group.internship_experience
   ? '<span class="flagged" title="This posting asks for internship experience someone has already done.">Internship experience</span>' : '';
+const appliedDate = group => group.at
+  ? `Applied ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}`
+  : 'Applied date unavailable';
+const topBadge = group => tab === 'applied'
+  ? `<span class="applied-date">${escapeText(appliedDate(group))}</span>` : chips(group);
 // All three, the same in the list and in the detail.
 const chips = group => `${bandChip(group)}${flagChip(group)}${internChip(group)}${group.jobs.some(thirdParty) ? '<span class="third-party-warning">Third-party site</span>' : ''}`;
 const $ = selector => document.querySelector(selector);
@@ -273,13 +278,7 @@ function render() {
     button.className = 'job' + (group.id === selected ? ' selected' : '');
     button.setAttribute('aria-pressed', group.id === selected);
     const locations = [...new Set(group.jobs.map(job => job.location).filter(Boolean))];
-    button.innerHTML = `<div>${chips(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${listings(group.jobs.length)}</div>`;
-    if (tab === 'applied') {
-      const stamp = document.createElement('span');
-      stamp.className = 'applied-date';
-      stamp.textContent = group.at ? `Applied ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}` : 'Applied date unavailable';
-      button.querySelector('.job-meta').append(' · ', stamp);
-    }
+    button.innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${listings(group.jobs.length)}</div>`;
     if (group.jobs.some(postedToday)) {
       const mark = document.createElement('span');
       mark.className = 'posted-today';
@@ -319,7 +318,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${chips(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';

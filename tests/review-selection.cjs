@@ -62,7 +62,9 @@ async function main() {
   w.document.querySelector('[data-tab=applied]').click();
   assert.equal(w.document.querySelectorAll('.job-check:checked').length, 0);
   assert.equal(w.document.getElementById('download-selected').disabled, true);
-  assert.match(w.document.querySelector('.applied-date').textContent, /Applied.*2026/);
+  assert.match(w.document.querySelector('.job > div:first-child .applied-date').textContent, /Applied.*2026/);
+  assert.equal(w.document.querySelector('.job > div:first-child .band'), null);
+  assert.match(w.document.querySelector('#detail > div:first-child .applied-date').textContent, /Applied.*2026/);
   assert.equal(w.document.getElementById('manual-applied').hidden, true);
   const add = w.document.querySelector('#manual-form button[type=submit]:not(#manual-applied)');
   assert.equal(add.textContent, 'Add to Applied');
