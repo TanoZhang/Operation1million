@@ -2420,3 +2420,24 @@ replacement prevents partial snapshots; write failure never blocks the queue.
 The periodic warm-up saves incremental decision changes as well. This cache
 is derived; decisions remain authoritative only in the application ledger.
 Cold builds show one neutral preparing message with automatic retries.
+
+## Bulk-application policy - 2026-10-02
+
+The user now prioritizes application volume over avoiding account creation.
+Dice, Wellfound and AngelList are allowed at collection and Review read time;
+Dice/Wellfound are no longer omitted from paid search requests. Ladders remains
+blocked for paid membership. Explicit preference blocks (including JobMesh)
+and the enforcement-backed domains remain unchanged. Third-party badges,
+company-link preference and deduplication remain in force.
+
+Relevance minimum is 20 instead of 25; scoring weights and descending ranking
+are unchanged. Hard title/employer, citizenship, experience and degree checks
+run before relevance as before. Daily credit limits and query caps are unchanged.
+
+Offline comparison on the local 2026-09-27 index: of 1,817 open candidate rows
+with stored relevance 20-24 or a Dice/Wellfound/AngelList URL, 45 changed from
+off_domain to keep and one from excluded_publisher to keep. These are posting
+filter results before Review deduplication, application decisions and latest-seen
+exclusions, not a production queue increase or newly collected jobs. Previously
+rejected payloads absent from the index are not recoverable from this policy
+change; future scheduled collection can discover them within the existing budget.

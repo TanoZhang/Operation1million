@@ -1,8 +1,7 @@
 """Third-party sites behind an account wall, and publishers never requested.
 
-Asked for by the user on 2026-09-27: a listing that cannot reach the real
-posting in one click without an account or membership is blocked, and every
-blocked publisher is excluded from the JSearch request itself.
+The 2026-10-02 bulk-application policy restores Dice/Wellfound/AngelList.
+Paid membership and explicit publisher blocks remain excluded.
 """
 import os
 import unittest
@@ -18,9 +17,9 @@ QUERY = jsearch.Query('ASIC Intern', 1, 'intern')
 
 def item(**fields):
     base = {'job_id': 'j1', 'job_title': 'ASIC Design Intern', 'employer_name': 'Acme',
-            'job_apply_link': 'https://www.dice.com/job-detail/1',
+            'job_apply_link': 'https://www.theladders.com/job-detail/1',
             'job_google_link': 'https://www.google.com/search?q=acme&ibp=htl;jobs',
-            'job_publisher': 'Dice'}
+            'job_publisher': 'Ladders'}
     base.update(fields)
     return base
 
@@ -40,10 +39,12 @@ class RequestTests(unittest.TestCase):
     def test_blocked_publishers_are_not_requested(self):
         params = self.fetch(CONFIG)
         asked = params['exclude_job_publishers'][0].split(',')
-        for name in ('JobLeads', 'Jobrapido', 'Dice', 'Wellfound', 'Ladders', 'BeBee'):
+        for name in ('JobLeads', 'Jobrapido', 'Ladders', 'BeBee'):
             self.assertIn(name, asked)
         # The user has a Handshake account, so it is requested (2026-09-27).
         self.assertNotIn('Handshake', asked)
+        for restored in ('Dice', 'Wellfound'):
+            self.assertNotIn(restored, asked)
 
     def test_every_walled_site_is_excluded_by_name(self):
         asked = {jsearch._plain_name(name) for name in CONFIG['exclude_job_publishers']}
@@ -72,14 +73,14 @@ class WalledTests(unittest.TestCase):
         self.assertEqual(jsearch.rejection_reason(row, RULES), 'excluded_publisher')
 
     def test_an_open_apply_option_is_taken_instead(self):
-        options = [{'publisher': 'Dice', 'apply_link': 'https://www.dice.com/job-detail/1'},
+        options = [{'publisher': 'Ladders', 'apply_link': 'https://www.theladders.com/job-detail/1'},
                    {'publisher': 'Acme Careers', 'apply_link': 'https://careers.acme.com/job/77'}]
         row = jsearch.normalize_job(item(apply_options=options), QUERY, {}, RULES)
         self.assertEqual(row['url'], 'https://careers.acme.com/job/77')
         self.assertFalse(jsearch.publisher_excluded(row['url'], row['raw'], RULES))
 
     def test_a_walled_publisher_behind_a_google_link(self):
-        raw = {'job_publisher': 'Wellfound'}
+        raw = {'job_publisher': 'Ladders'}
         self.assertTrue(jsearch.publisher_excluded('https://www.google.com/search?q=x', raw, RULES))
         # Its name on a link to the employer's own site is not a wall.
         self.assertFalse(jsearch.publisher_excluded('https://careers.acme.com/1', raw, RULES))
@@ -92,11 +93,14 @@ class WalledTests(unittest.TestCase):
 
     def test_a_blocked_option_is_no_way_around(self):
         options = [{'publisher': 'JobLeads', 'apply_link': 'https://www.jobleads.com/job/1'}]
-        self.assertTrue(jsearch.publisher_excluded('https://www.dice.com/job/1',
+        self.assertTrue(jsearch.publisher_excluded('https://www.theladders.com/job/1',
                                                    {'apply_options': options}, RULES))
 
     def test_open_sites_are_not_walled(self):
-        for url, publisher in (('https://www.linkedin.com/jobs/view/1', 'LinkedIn'),
+        for url, publisher in (('https://www.dice.com/job-detail/1', 'Dice'),
+                               ('https://wellfound.com/jobs/1', 'Wellfound'),
+                               ('https://angel.co/jobs/1', 'AngelList'),
+                               ('https://www.linkedin.com/jobs/view/1', 'LinkedIn'),
                                ('https://app.joinhandshake.com/jobs/1', 'Handshake'),
                                ('https://lensa.com/job/1', 'Lensa'),
                                ('https://careers.acme.com/1', 'Acme')):
@@ -105,7 +109,7 @@ class WalledTests(unittest.TestCase):
 
     def test_normalizing_without_rules_is_unchanged(self):
         row = jsearch.normalize_job(item(), QUERY, {})
-        self.assertEqual(row['url'], 'https://www.dice.com/job-detail/1')
+        self.assertEqual(row['url'], 'https://www.theladders.com/job-detail/1')
 
 
 if __name__ == '__main__':

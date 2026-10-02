@@ -131,3 +131,24 @@ every blocked site. JSearch's matching of those names (exact, case, substring)
 is not documented and was not measured -- no paid request was made -- so the
 local filter still checks every result. Changing the list changes
 `search_space`, so resumable backfill cursors restart at page one once.
+
+## Bulk-application policy - 2026-10-02
+
+The user now prioritizes application volume over avoiding account creation.
+Dice, Wellfound and AngelList are allowed at collection and Review read time;
+Dice/Wellfound are no longer omitted from paid search requests. Ladders remains
+blocked for paid membership. Explicit preference blocks (including JobMesh)
+and the enforcement-backed domains remain unchanged. Third-party badges,
+company-link preference and deduplication remain in force.
+
+Relevance minimum is 20 instead of 25; scoring weights and descending ranking
+are unchanged. Hard title/employer, citizenship, experience and degree checks
+run before relevance as before. Daily credit limits and query caps are unchanged.
+
+Offline comparison on the local 2026-09-27 index: of 1,817 open candidate rows
+with stored relevance 20-24 or a Dice/Wellfound/AngelList URL, 45 changed from
+off_domain to keep and one from excluded_publisher to keep. These are posting
+filter results before Review deduplication, application decisions and latest-seen
+exclusions, not a production queue increase or newly collected jobs. Previously
+rejected payloads absent from the index are not recoverable from this policy
+change; future scheduled collection can discover them within the existing budget.

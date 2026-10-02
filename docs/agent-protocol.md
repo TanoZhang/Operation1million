@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Broaden bulk-application relevance threshold and restore account-based Dice/Wellfound sources.
+Files: data/config/jsearch_queries.toml, tests/test_account_walled.py, docs/{agent-protocol,architecture,handoff,blocked-recruitment-domains}.md
+Base commit: d74e89a
+Status: claimed
+Next: Compare retained candidates, run filtering tests; preserve ineligibility and explicit publisher blocks.
+```
+
+```text
 Owner:   claude
 Scope:   #311 at the user's request (2026-10-02): an RTX posting needing U.S.
          citizenship reached Review. Pasted jobs skip every filter; apply the

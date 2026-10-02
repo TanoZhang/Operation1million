@@ -41,7 +41,7 @@ employment_types = ["FULLTIME", "INTERN"]
 exclude_job_publishers = [
   "JobLeads", "Jobrapido", "Learn4Good", "Intern Insider", "Experteer",
   "Trabajo.org", "BeBee", "Jobsora", "Geebo", "Higher-Hire", "Nexxt",
-  "Dice", "Wellfound", "Ladders",
+  "Ladders",
 ]
 
 # Priority is intern -> new_grad -> early_career -> A. Daily query caps total
@@ -78,7 +78,8 @@ A = 40
 # To edit: add the term to the list it belongs to. Entries are regular
 # expressions matched case-insensitively against the title and the description.
 # Bound a term with \b at both ends so it does not match inside a longer word.
-min_confidence = 25
+# Bulk application policy (2026-10-02): keep borderline relevant jobs ranked lower.
+min_confidence = 20
 # 0 leaves the curve running instead of flattening every posting that reaches
 # a fixed number of strong terms onto 100. Measured: 798 postings read 100,
 # the terms behind them ranging from 6 distinct to 34, and nothing at all
@@ -507,18 +508,17 @@ exclude_publisher_domains = [
 # kept when JSearch also offers an apply link on an open site, usually the
 # employer's own, and that link is used instead. Lensa, ZipRecruiter and
 # LinkedIn are not here: free to open, or not verifiable as walled.
+# Dice/Wellfound/AngelList restored for bulk applications; account creation is
+# a workflow cost, not job ineligibility. Paid Ladders membership remains blocked.
 account_walled_domains = [
-  'dice.com',
-  'wellfound.com',
-  'angel.co',
   'theladders.com',
 ]
 # The publisher names JSearch reports for the same sites, compared whole and
-# without case, spaces or ".com": "Dice", "Wellfound", "Ladders".
+# without case, spaces or ".com". Only Ladders remains blocked.
 # Not Handshake: the user has an account there (2026-09-27), so its wall is
 # no wall for them.
 account_walled_publishers = [
-  'Dice', 'Wellfound', 'AngelList', 'Ladders', 'TheLadders',
+  'Ladders', 'TheLadders',
 ]
 
 # A requirement the applicant cannot meet: U.S. citizenship or U.S. person

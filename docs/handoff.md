@@ -1,3 +1,13 @@
+# Broader bulk-application policy - 2026-10-02 (codex)
+
+Base d74e89a. Relevance minimum 25 -> 20; restore Dice/Wellfound/AngelList.
+Paid membership, explicit publisher bans including JobMesh, and all eligibility
+checks remain unchanged. Budget/caps unchanged. Local 2026-09-27 posting-level
+comparison recovers 46 rows before dedupe/decisions; not a live queue count.
+No paid collection or application decisions performed. Validation: 230 focused tests pass (12 source-wall, 99 JSearch, 52 Review,
+48 experience, 19 degree); 23 prelaunch tests pass with 9 platform skips.
+Deployment pending.
+
 # Review restart waiting - 2026-10-02 (codex)
 
 Base a9f4299. Reproduced production Preparing/503 after restart: CPU 99.9%,
