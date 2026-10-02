@@ -3,6 +3,39 @@
   const engine = JobdiscoAnswers;
   const status = document.getElementById('status');
   const controls = new Map();
+  let memory_file = null;
+  let file_queue = Promise.resolve();
+
+  function sync_memory_file() {
+    if (!memory_file) return Promise.resolve();
+    file_queue = file_queue.catch(() => {}).then(async () => {
+      const profile = await loadProfile();
+      const stored = await chrome.storage.local.get('answerCaptures');
+      const data = JobdiscoMemory.export_memory(profile, stored.answerCaptures || {});
+      const writable = await memory_file.createWritable();
+      try {
+        await writable.write(JSON.stringify(data, null, 2) + '\n');
+        await writable.close();
+      } catch (error) {
+        await writable.abort().catch(() => {});
+        throw error;
+      }
+      document.getElementById('memory-status').textContent = `Memory file updated at ${new Date().toLocaleTimeString()}. Keep this tab open.`;
+    });
+    return file_queue;
+  }
+
+  chrome.storage.onChanged?.addListener((changes, area) => {
+    if (area === 'local' && (changes.answerProfile || changes.answerCaptures)) {
+      sync_memory_file().catch(error => {document.getElementById('memory-status').textContent = `Memory file update failed: ${error.message}`;});
+    }
+  });
+
+  async function save_profile(profile, source) {
+    const stored = await chrome.storage.local.get('answerProfile');
+    if (globalThis.JobdiscoMemory) JobdiscoMemory.record_changes(stored.answerProfile, profile, source);
+    await chrome.storage.local.set({answerProfile: profile});
+  }
 
   async function loadProfile() {
     const stored = await chrome.storage.local.get('answerProfile');
@@ -71,7 +104,7 @@
           if (!assessment.known_answer) throw new Error(assessment.explanation);
           target.field_key = select.value;
           target.binding = 'confirmed';
-          await chrome.storage.local.set({answerProfile: latest});
+          await save_profile(latest, 'confirmed-question-mapping');
           renderUnknown(latest);
           status.textContent = 'Exact question mapping saved. Rescan the application to fill it.';
         } catch (error) {status.textContent = error.message;}
@@ -100,7 +133,7 @@
         }
       }
       profile.preferences.fill_known_review = document.getElementById('fill-all').checked;
-      await chrome.storage.local.set({answerProfile: profile});
+      await save_profile(profile, 'user-edited-answers');
       renderUnknown(profile);
       status.textContent = 'Answers saved locally. Rescan the application page to use them.';
     } catch (error) {status.textContent = error.message;}
@@ -117,11 +150,45 @@
         if (!profile.fields[key] || field.answer !== null && field.answer !== undefined) profile.fields[key] = field;
       });
       if (seed.education) profile.education = seed.education;
-      await chrome.storage.local.set({answerProfile: profile});
+      await save_profile(profile, 'local-seed-import');
       renderBasics(profile);
       renderUnknown(profile);
       status.textContent = 'Saved local answers imported. Existing question mappings were preserved.';
     } catch (error) {status.textContent = error.message;}
+  });
+
+  document.getElementById('export-memory').addEventListener('click', async () => {
+    try {
+      const profile = await loadProfile();
+      const stored = await chrome.storage.local.get('answerCaptures');
+      const memory = JobdiscoMemory.export_memory(profile, stored.answerCaptures || {});
+      const url = URL.createObjectURL(new Blob([JSON.stringify(memory, null, 2) + '\n'], {type: 'application/json'}));
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = 'autofill-memory.json'; anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      document.getElementById('memory-status').textContent = 'Latest memory exported, including pending learned values.';
+    } catch (error) {status.textContent = error.message;}
+  });
+
+  document.getElementById('connect-memory').addEventListener('click', async () => {
+    try {
+      if (!window.showSaveFilePicker) throw new Error('Continuous file saving is unavailable in this browser. Use Export latest memory JSON.');
+      memory_file = await window.showSaveFilePicker({suggestedName: 'autofill-memory.json',
+        types: [{description: 'Autofill memory JSON', accept: {'application/json': ['.json']}}]});
+      await sync_memory_file();
+    } catch (error) {document.getElementById('memory-status').textContent = error.message;}
+  });
+
+  document.getElementById('import-memory').addEventListener('change', async event => {
+    try {
+      const file = event.target.files[0];
+      if (!file) return;
+      const result = JobdiscoMemory.merge_memory(await loadProfile(), JSON.parse(await file.text()));
+      await chrome.storage.local.set({answerProfile: result.profile});
+      renderBasics(result.profile); renderUnknown(result.profile);
+      document.getElementById('memory-status').textContent = `Imported ${result.added} additions; preserved ${result.conflicts} conflicts. Existing answers were retained.`;
+    } catch (error) {status.textContent = error.message;}
+    finally {event.target.value = '';}
   });
 
   loadProfile().then(profile => {renderBasics(profile); renderUnknown(profile);})

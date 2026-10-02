@@ -60,6 +60,19 @@ supplied. The popup's matching report gives a reason for each decision.
 See [the framework contract](../docs/autofill-framework.md) for capabilities,
 limitations and researched GitHub/official ATS sources.
 
+## Portable, continuously updated memory (0.6.0)
+
+Open **Set up your answers**, then **Continuously save to a memory file**.
+Choose a private JSON file outside this public repository and keep the settings
+tab open. Browser-local changes update the file automatically; reconnect after
+closing the tab. **Export latest memory JSON** works as a snapshot fallback.
+Give that file to Muse or another assistant. Import checked updates using
+**Import confirmed memory JSON**; existing conflicting answers are retained.
+The browser-owned output file should not be edited by another process.
+There is no automatic connection to Muse or automatic import of external edits.
+See [portable memory](../docs/autofill-memory.md) for the schema, update history,
+conflict handling and a task prompt for other assistants.
+
 ## Offline DOM regression tests
 
 The Python suite includes optional Node/jsdom tests of the actual extension

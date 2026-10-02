@@ -9,6 +9,16 @@ Fill every known matching answer automatically</label><div id="basic-questions">
 <button type="submit">Save answers</button></form>
 <p id="status" role="status"></p>
 <button id="import-seed" type="button">Import answers saved on this computer</button>
+<h2>Portable memory for Muse and other assistants</h2>
+<p>Export your latest answers and learned questions as JSON. Import a confirmed update to merge it.
+Existing answers stay unchanged when there is a conflict. Only import facts you have checked.</p>
+<button id="export-memory" type="button">Export latest memory JSON</button>
+<button id="connect-memory" type="button">Continuously save to a memory file</button>
+<p>Choose a private JSON file and keep this settings tab open. New browser answers and
+pending learned values will update that file automatically. Reconnect after closing this tab.
+File updates from another assistant are imported separately.</p>
+<label>Import confirmed memory JSON <input id="import-memory" type="file" accept=".json,application/json"></label>
+<p id="memory-status" role="status"></p>
 <h2>Questions still needing a meaning</h2><p>Choose an existing answer only when it answers the complete question.</p>
 <div id="unknown-questions"></div></main>
-<script src="answer-engine.js"></script><script src="profile.js"></script></body></html>
+<script src="answer-engine.js"></script><script src="portable-memory.js"></script><script src="profile.js"></script></body></html>

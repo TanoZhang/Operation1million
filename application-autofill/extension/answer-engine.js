@@ -51,7 +51,19 @@
     ['eligibility.us_sponsorship_future', 'Will you require employer sponsorship to work in the United States in the future?', 'choice', 'review',
       ['Will you require employer sponsorship to work in the United States in the future?']],
     ['eligibility.us_sponsorship_any', 'Will you now or in the future require sponsorship for employment visa status?', 'choice', 'review',
-      ['Will you now or in the future require sponsorship for employment visa status?']]
+      ['Will you now or in the future require sponsorship for employment visa status?']],
+    ['links.linkedin', 'LinkedIn profile URL', 'text', 'fill', ['LinkedIn profile URL']],
+    ['links.github', 'GitHub profile URL', 'text', 'fill', ['GitHub profile URL']],
+    ['links.portfolio', 'Portfolio URL', 'text', 'fill', ['Portfolio URL']],
+    ['address.line2', 'Address line 2', 'text', 'fill', ['Address line 2']],
+    ['education.current_gpa', 'Current GPA', 'text', 'review', ['Current GPA']],
+    ['education.current_gpa_scale', 'Current GPA scale', 'text', 'review', ['Current GPA scale']],
+    ['availability.start_date', 'Earliest available start date', 'text', 'review', ['Earliest available start date']],
+    ['availability.internship_duration', 'Available internship duration', 'text', 'review', ['Available internship duration']],
+    ['preferences.locations', 'Preferred work locations', 'text', 'review', ['Preferred work locations']],
+    ['preferences.relocation', 'Are you willing to relocate?', 'choice', 'review', ['Are you willing to relocate?']],
+    ['skills.languages', 'Languages spoken', 'text', 'review', ['Languages spoken']],
+    ['skills.technical', 'Technical skills', 'text', 'review', ['Technical skills']]
   ].map(([key, label, type, policy, aliases]) => ({key, label, type, policy, aliases}));
 
   function initializeProfile(profile = {version: 1, fields: {}, questions: {}}) {

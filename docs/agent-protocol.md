@@ -5,6 +5,32 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Initialize private split autofill data from existing local profiles;
+       provide schema, Muse instructions and a reproducible extension export.
+Files: application-autofill/data-files.py, .local/autofill/data/*,
+       tests/test_autofill_data_files.py, docs/{agent-protocol,handoff}.md
+Base commit: 4936abf plus completed 0.6.0 patch
+Status: done -- private split initialized, originals preserved; two offline tests pass
+Next: Muse can edit the private data folder; run data-files.py export and explicitly
+      import into the browser. No automatic browser/file synchronization added.
+```
+
+```text
+Owner: codex
+Scope: Portable continuously updated browser answer memory with JSON schema,
+       import/export, change history and cross-agent instructions; no submission.
+Files: application-autofill/extension/{portable-memory,profile}.js,
+       application-autofill/extension/profile.html, application-autofill/schema/*,
+       tests/autofill-memory.cjs, tests/test_autofill_memory.py, docs/autofill-memory.md,
+       docs/{agent-protocol,handoff}.md
+Base commit: 4936abf
+Status: done -- 0.6.0 local patch; 58 autofill and 18 answer-bank tests pass
+Next: Reload extension; verify the browser's file picker and hand the private
+      memory JSON to Muse. No account connection, live form or deployment tested.
+```
+
+```text
 Owner:   claude
 Scope:   Ten more defects at the user's request (2026-10-02), #301-310, each
          with a reproducer red before its fix. Not the autofill extension: a

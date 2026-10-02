@@ -99,12 +99,18 @@
       profile = response.ok ? await response.json() : undefined;
     }
     profile = JobdiscoAnswers.initializeProfile(profile);
+    const before = JSON.parse(JSON.stringify(profile));
     const learned = absorbCaptures(profile, Object.values(stored.answerCaptures || {}));
+    if (globalThis.JobdiscoMemory) JobdiscoMemory.record_changes(before, profile, 'trusted-final-values');
     await chrome.storage.local.set({answerProfile: profile, answerCaptures: {}});
     return {profile, learned};
   }
 
   async function saveProfile(profile) {
+    if (globalThis.JobdiscoMemory) {
+      const stored = await chrome.storage.local.get('answerProfile');
+      JobdiscoMemory.record_changes(stored.answerProfile, profile, 'application-scan');
+    }
     await chrome.storage.local.set({answerProfile: profile});
   }
 
@@ -272,6 +278,11 @@
         summary.unchanged += 1;
       } else {
         summary.conflicts += 1;
+        profile.memory ||= {revision: 0, history: [], conflicts: []};
+        profile.memory.conflicts.push({at: control.captured_at || new Date().toISOString(),
+          source: 'trusted-final-value', conflict: {collection: 'fields', key: question.field_key,
+            current: field.answer, incoming: control.value, site: control.site,
+            position_id: control.position_id || null}});
       }
     });
     return summary;

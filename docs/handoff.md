@@ -1,6 +1,43 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Private split autofill data - 2026-10-02 America/Los_Angeles (codex, local patch)
+
+On base `4936abf` plus the completed 0.6.0 patch, initialized ignored
+`.local/autofill/data/` from the existing extension seed and workstation profile.
+No private values are included here or in tracked files. Split files preserve
+the full profile, separate exact questions, source originals/provenance and
+conflicting alternatives; history is append-only. Muse instructions and a
+versioned JSON schema are in the private folder. Existing source files remain.
+`application-autofill/data-files.py` provides non-overwriting initialization,
+validation and an extension-compatible export; two fictional-data offline tests
+pass, and the actual private export passes extension profile validation.
+The folder is Git-ignored. This does not implement automatic browser sync:
+export after Muse edits, then use Import confirmed memory JSON. The prior
+continuous browser snapshot must use a separate file, never these source files.
+
+# Portable continuously updated autofill memory - 2026-10-02 America/Los_Angeles (codex, local patch)
+
+Tested base `4936abf003686ddacd5f567ac5175579b3f7c74e` plus the 0.6.0 patch.
+`portable-memory.js` wraps the legacy version 1 profile in a schema-versioned
+JSON export, preserving pending captures. Settings can import confirmed memory
+updates, retain existing values/scopes on conflicts, archive source documents,
+and write browser-local changes continuously to a selected private file while
+the settings tab stays open. Export is the fallback without File System Access.
+Reconnection is required after closing/reloading the settings tab. No background
+process or Muse integration is installed. External edits are imported explicitly
+from a separate file; do not let Muse write the browser-owned output file.
+
+Browser saves record revision/source/history, and learned conflicting values are
+retained as alternatives. Twelve additional optional basic questions have no
+personal defaults. The public schema and agent handoff instructions are in
+`docs/autofill-memory.md`. No personal data was read or committed for this patch.
+Offline validation: 58 autofill tests (including real settings-script fixtures
+for continuous file output/import and failed writes), 18 answer-bank tests;
+JavaScript syntax and whitespace checks. No real browser file-picker, form,
+account, submission, push or deployment verified. Reload the unpacked extension
+from `C:/Users/Tano/Documents/operation1million/application-autofill/extension`.
+
 # Fifth hunt, #227-300, and forty structural improvements - 2026-10-02 UTC (claude, not deployed)
 
 All 74 bugs the user asked for are fixed and pushed (docs/bug-tracker.md, Hunt 5;

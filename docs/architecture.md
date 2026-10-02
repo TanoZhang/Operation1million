@@ -108,6 +108,12 @@ and contextual answers require the per-position work route. Details and research
 sources are in [the autofill framework contract](autofill-framework.md).
 Position-restricted bindings withhold answers unless the caller supplies the
 matching position ID; passing no context cannot silently reuse a prior cycle.
+Version 0.6.0 adds `portable-memory.js`: schema-versioned lossless profile exports,
+conflict-preserving imports and private change history. The settings tab owns a
+user-selected output file and serializes updates while open, without a background
+process. Pending captures are exported as observations; external files require
+explicit confirmed import. Browser storage remains the runtime authority and
+Python/VPS state is not synchronized by this feature. See `docs/autofill-memory.md`.
 See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
 
 ### Operations
