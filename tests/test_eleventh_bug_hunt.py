@@ -306,3 +306,26 @@ class OlderThanTests(unittest.TestCase):
         self.assertEqual([group['id'] for group in ranking.order([older, dated])], ['b', 'a'])
         script = (Path(__file__).resolve().parents[1] / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
         self.assertIn('posted_before', script)
+
+
+class MoreDisplayTitleTests(unittest.TestCase):
+    def test_279_full_time_is_not_the_role(self):
+        """28 queued groups: "... Eng II Full Time - United States",
+        "CPU Silicon Validation Engineer - Full-time"."""
+        self.assertEqual(clean_title('CPU Silicon Validation Engineer - Full-time'), 'CPU Silicon Validation Engineer')
+        self.assertEqual(clean_title('Hardware Engineer I (Full Time)'), 'Hardware Engineer I')
+        # A contract or part-time role says so, and keeps saying so.
+        self.assertEqual(clean_title('Quality and Reliability System Engineer (Contract)'),
+                         'Quality and Reliability System Engineer (Contract)')
+
+    def test_280_the_country_alone(self):
+        """26 groups: "Hardware Engineer II Intern - United States", "(US)"."""
+        self.assertEqual(clean_title('Hardware Engineer II Intern - United States'), 'Hardware Engineer II Intern')
+        self.assertEqual(clean_title('FPGA Engineer - Intern (US)'), 'FPGA Engineer - Intern')
+        self.assertEqual(clean_title('ASIC Design Verification Eng II Full Time - United States'),
+                         'ASIC Design Verification Eng II')
+        self.assertEqual(clean_title('US Persons Only'), 'US Persons Only')
+
+    def test_281_zero_width_characters(self):
+        """27 index titles; searching "Internship/Co-op" missed them."""
+        self.assertEqual(clean_title('Silicon Engineering Internship​/Co-op'), 'Silicon Engineering Internship/Co-op')

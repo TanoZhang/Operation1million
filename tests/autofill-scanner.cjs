@@ -62,6 +62,26 @@ const cases = {
     assert.equal(new Set(controls.map(control => control.repeat_context)).size, 2);
     assert.ok(controls.every(control => control.repeat_context));
   },
+  async a_placeholder_option_with_a_value_is_no_answer() {
+    // #278: "<option value='-1'>Select...</option>" read as the current answer.
+    for (const placeholder of ['<option value="-1">Select...</option>', '<option value="0">-- Please select --</option>']) {
+      const dom = new JSDOM('<label for="s">Are you legally authorized to work in the United States?</label>'
+        + '<select id="s">' + placeholder + '<option>Yes</option><option>No</option></select>',
+        {url: 'https://careers.example.test/apply', runScripts: 'outside-only'});
+      const w = dom.window;
+      w.CSS = {escape: String};
+      let listener;
+      w.chrome = {runtime: {onMessage: {addListener: value => {listener = value;}}}};
+      for (const file of ['ats-adapters.js', 'content.js']) w.eval(fs.readFileSync(path.join(ext, file), 'utf8'));
+      try {
+        const {controls} = await new Promise(resolve => listener({action: 'scan'}, {}, resolve));
+        assert.deepEqual(Array.from(controls[0].options), ['Yes', 'No']);
+        const outcome = await new Promise(resolve => listener({action: 'fill', results: [
+          {...controls[0], status: 'ready', answer: 'Yes'}]}, {}, resolve));
+        assert.equal(outcome.filled, 1, placeholder);
+      } finally {w.close();}
+    }
+  },
   async a_punctuated_placeholder_is_not_an_answer() {
     // #275: "Select..." and "-- Select --" read as answers, and the dropdown
     // was reported occupied and never filled.

@@ -110,9 +110,13 @@
     return true;
   }
 
+  // A placeholder option is no answer even with a value of its own: "-1" or
+  // "0" for "Select..." made the select read as answered, never filled, and
+  // offered the placeholder as an option (#278, 2026-10-02).
   function usableOption(option) {
     const group = option.closest('optgroup');
-    return !option.disabled && !(group && group.disabled) && option.value !== '';
+    return !option.disabled && !(group && group.disabled) && option.value !== ''
+      && !placeholderText(option.textContent);
   }
 
   function isCustomChoice(element) {
@@ -127,11 +131,15 @@
   // answers, and those dropdowns were left alone as occupied (#275, 2026-10-02).
   const PLACEHOLDER = /^(?:please\s+)?(?:select|choose|pick)(?:\s+(?:one|an?\s+(?:option|answer|value)|from\s+(?:the\s+)?list))?$|^search$/i;
 
+  function placeholderText(value) {
+    const bare = String(value || '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    return !bare || PLACEHOLDER.test(bare);
+  }
+
   function customValue(element) {
     const value = element instanceof HTMLInputElement ? element.value
       : element.getAttribute('aria-valuetext') || cleanText(element.textContent);
-    const bare = value.replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-    return !bare || PLACEHOLDER.test(bare) ? '' : value;
+    return placeholderText(value) ? '' : value;
   }
 
   function describeCustomControl(element, includeValues) {

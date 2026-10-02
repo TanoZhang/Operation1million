@@ -332,6 +332,10 @@ it a wording. Counts are queued groups.
 | 275 | autofill | a custom dropdown showing "Select...", "-- Select --", "Choose an option…" or "Please select an option" was read as answered and never filled; only "Select One" passed | missed fill | placeholders read without their punctuation |
 | 276 | ranking | "Digital Design Engineer I", "Design Verification Engineer I": the first level of a ladder sat with experienced roles, off the Early career tab | display | Engineer I / 1 is early career |
 | 277 | ranking | "Posted 30+ Days Ago" was ignored and 409 queued Workday postings sorted by first_seen, ahead of newer ones | display | read as a bound, "posted on or before", for sort, page and export |
+| 278 | autofill | a select whose placeholder option has a value, "-1" or "0" for "Select...", read as answered, was never filled, and offered the placeholder as an option | missed fill | placeholder options are no answer |
+| 279 | job_text | "Full-time" / "Full Time" left in titles (28) | display | removed; contract and part-time kept |
+| 280 | job_text | the country alone at the end, "- United States", "(US)" (26) | display | removed |
+| 281 | job_text | zero-width characters in 27 titles; searching the page for "Internship/Co-op" missed them | display | removed |
 
 ## Not bugs, recorded so they are not re-found
 

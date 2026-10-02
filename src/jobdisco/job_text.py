@@ -110,10 +110,19 @@ WORK_ARRANGEMENT = re.compile(
     r'\s*(?:[-|–—,;]\s*)?\(?\s*' + ARRANGEMENT + r'(?:\s*(?:/|or|and|&)\s*' + ARRANGEMENT + r')*\s*\)?$', re.I)
 # A gender marker, German postings' "(m/f/d)" and "(f/m/d)" (#264).
 GENDER_MARKER = re.compile(r'\(\s*[mfwdx]\s*/\s*[mfwdx](?:\s*/\s*[mfwdx])?\s*\)|\b[mfw]\s*/\s*[mfw]\s*/\s*[dx]\b', re.I)
+# "Full-time" says nothing every other posting does not (#279, 28 groups).
+# A contract or part-time role keeps saying so.
+FULL_TIME = re.compile(r'\s*(?:[-|–—,;]\s*)?\(?\s*(?:full[-\s]?time|permanent)\s*\)?$', re.I)
+# The country alone, "- United States", "(US)" (#280, 26 groups): the location
+# says it. "US" only in capitals and after a separator.
+COUNTRY_SUFFIX = re.compile(
+    r'\s*(?:[-|–—,;]\s*|\(\s*)(?:(?i:united\s+states(?:\s+of\s+america)?)|U\.?S\.?A?\.?)\s*\)?$')
+# Invisible characters, which broke searching the page for the title (#281).
+ZERO_WIDTH = re.compile('[​‌‍⁠﻿]')
 
 
 def clean_title(title, location=''):
-    title = ' '.join(unicodedata.normalize('NFKC', title or '').split())
+    title = ' '.join(unicodedata.normalize('NFKC', ZERO_WIDTH.sub('', title or '')).split())
     location = ' '.join(unicodedata.normalize('NFKC', location or '').split())
     candidates = {location} if location else set()
     parts = [part.strip() for part in location.split(',')]
@@ -152,9 +161,10 @@ def clean_title(title, location=''):
         title = re.sub(r'^#(?=[A-Za-z])', '', title)
         title = re.sub(r'\s*[,|\-–—:]\s*$', '', title)
         title = ' '.join(GENDER_MARKER.sub(' ', title).split())
-        stripped = WORK_ARRANGEMENT.sub('', title).strip()
-        if stripped:
-            title = stripped
+        for suffix in (WORK_ARRANGEMENT, FULL_TIME, COUNTRY_SUFFIX):
+            stripped = suffix.sub('', title).strip()
+            if stripped:
+                title = stripped
         for candidate in sorted(candidates, key=len, reverse=True):
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back
