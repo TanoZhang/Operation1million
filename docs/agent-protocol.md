@@ -9,8 +9,8 @@ Owner: codex
 Scope: Replace Applied card/detail top classification chips with applied date.
 Files: review_static/app.js, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
 Base commit: 5fceb6b
-Status: claimed
-Next: Verify top date placement and deploy.
+Status: done -- 6e3802a installed; DOM verifies date above company on card/detail.
+Next: Ctrl+F5. Live script contains both topBadge placements.
 ```
 
 ```text
