@@ -323,6 +323,12 @@ it a wording. Counts are queued groups.
 | 266 | ranking | failure analysis in the last band (13) | display | related |
 | 267 | ranking | "Load Store Design", "NoC Interconnect Design" in the last band (10) | display | core |
 | 268 | export | Excel refused a sheet with more than 65,530 links (measured: 66,000 did not open) | display | text past the limit |
+| 269 | jsearch | Greenhouse escapes its HTML; the structured text was one line with no headings, and a citizenship line under Preferred read as required (would have hidden postings once #207 fetched descriptions) | removed | escaped markup unescaped first |
+| 270 | relevance | software emulators, "virtualization or emulation (KVM, QEMU)", scored as hardware emulation | kept | not those |
+| 271 | relevance | "patent assertions" scored as SystemVerilog assertions | kept | not after patent |
+| 272 | relevance | "conformal coating" scored as Cadence Conformal | kept | not before coat |
+| 273 | relevance | Amazon's "sva vendors" and "Strategic Vendor Acceleration (SVA)" scored as SVA | kept | as written, not those |
+| 274 | relevance | "Amazon Private Brands (APB)" scored as the APB bus | kept | not after brands / balance |
 
 ## Not bugs, recorded so they are not re-found
 

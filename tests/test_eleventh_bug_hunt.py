@@ -238,3 +238,42 @@ class ExportLimitTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class EscapedMarkupTests(unittest.TestCase):
+    def test_269_escaped_markup_keeps_its_lines(self):
+        """Greenhouse escapes its HTML; as one line, a citizenship line under
+        "Preferred" read as required, and would have hidden the posting once
+        #207 fetched the descriptions."""
+        html = ('<h3>Requirements</h3><ul><li>BS in EE</li></ul><h3>Preferred Qualifications</h3>'
+                '<ul><li>Must be a U.S. citizen</li></ul>')
+        escaped = html.replace('<', '&lt;').replace('>', '&gt;')
+        for content in (html, escaped):
+            text = jsearch.description_text({'title': 'RTL Engineer', 'raw': {'content': content}}, structured=True)
+            self.assertFalse(jsearch.us_person_required(text, RULES), content[:20])
+        self.assertEqual(jsearch.description_text({'raw': {'content': escaped}}),
+                         jsearch.description_text({'raw': {'content': html}}))
+
+
+class MoreStrongTermTests(unittest.TestCase):
+    def test_270_software_emulators(self):
+        self.assertNotIn('emulation', matched('Experience with virtualization or emulation (KVM, QEMU).'))
+        self.assertNotIn('emulation', matched('Test apps on the Android emulation.'))
+        self.assertIn('emulation', matched('Bring up the design on hardware emulation platforms.'))
+
+    def test_271_patent_assertions(self):
+        self.assertNotIn('assertion', matched('Experience with patent assertions, invalidity and infringement.'))
+        self.assertIn('assertion', matched('Write SystemVerilog assertions for the arbiter.'))
+
+    def test_272_conformal_coating(self):
+        self.assertNotIn('conformal', matched('Own underfill and conformal coating processes.'))
+        self.assertIn('conformal', matched('Equivalence checking with Conformal LEC.'))
+
+    def test_273_amazons_strategic_vendor_acceleration(self):
+        self.assertNotIn('sva', matched('Manage a portfolio of sva vendors.'))
+        self.assertNotIn('sva', matched('The Strategic Vendor Acceleration (SVA) team was created.'))
+        self.assertIn('sva', matched('Write SVA properties for the protocol checker.'))
+
+    def test_274_amazon_private_brands(self):
+        self.assertNotIn('apb', matched('Amazon Private Brands (APB) owns paid social.'))
+        self.assertIn('apb', matched('Design the AXI to APB bridge.'))

@@ -694,6 +694,7 @@ COLLECTOR_FIELDS = frozenset({'relevance', 'experience_filter', 'discovery_queri
 
 TAGS = re.compile(r'<[^>]{0,400}>')
 WHITESPACE = re.compile(r'\s+')
+ESCAPED_TAG = re.compile(r'&lt;/?(?:p|li|ul|ol|div|br|h[1-6]|span|strong|b|em|i|a)\b', re.I)
 
 
 # A field whose name is a qualification heading. `requirements` was missing
@@ -760,11 +761,16 @@ def description_text(row, structured=False):
     # the grounds that a short description is truncation and not silence -- but
     # a few hundred words of boilerplate wrapped in tags measured well past the
     # length that decides it, so the excerpt was judged after all and dropped.
+    # Greenhouse escapes its markup. Left escaped, its "<p>" and "<li>" were
+    # no line breaks, the whole description one line with no headings, and a
+    # U.S.-citizenship line under "Preferred" read as required (#269, 2026-10-02).
+    joined = '\n'.join(parts)
+    if ESCAPED_TAG.search(joined):
+        joined = html.unescape(joined)
     if structured:
-        text = '\n'.join(parts)
-        text = re.sub(r'</?(?:p|li|ul|ol|div|br|h[1-6])\b[^>]*>', '\n', text, flags=re.I)
+        text = re.sub(r'</?(?:p|li|ul|ol|div|br|h[1-6])\b[^>]*>', '\n', joined, flags=re.I)
         return TAGS.sub(' ', text).strip()
-    return WHITESPACE.sub(' ', TAGS.sub(' ', ' '.join(parts))).strip()
+    return WHITESPACE.sub(' ', TAGS.sub(' ', joined)).strip()
 
 
 def experience_debug(row, text=None):

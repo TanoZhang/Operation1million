@@ -298,12 +298,15 @@ evidence_title_patterns = [
 # fabrication. Another industry has no reason to print these words.
 strong_terms = [
   # Languages, methodology, coverage
-  '\bUVM\b', '\bSystemVerilog\b', '\bVerilog\b', '\bVHDL\b', '\bSVA\b',
+  # SVA as written, not Amazon's "sva vendors" (#273).
+  '\bUVM\b', '\bSystemVerilog\b', '\bVerilog\b', '\bVHDL\b',
+  '(?<!acceleration\s\()(?-i:\bSVA\b)(?!\s+vendors?\b)',
   '\bRTL\b', '\bASIC\b', '\bFPGA\b', '\bVLSI\b',
   # Not the compliance report, "SOC 2 Type II", nor a security operations
   # centre: 20 postings with no chip in them scored on it (2026-10-02).
   '(?<!center\s\()(?<!centre\s\()\bSoC\b(?!\s*-?\s*(?:[123]|ii|iii)\b|\s+(?:type|reports?|audits?|compliance|analysts?|operations)\b)',
-  '\btestbench\b', '\bnetlist\b', '\bconstrained[- ]random\b', '\bassertion',
+  # Not a patent assertion (#271).
+  '\btestbench\b', '\bnetlist\b', '\bconstrained[- ]random\b', '(?<!patent\s)\bassertion',
   '\bcoverage\s+closure\b', '\bfunctional\s+coverage\b', '\bregression\s+suite\b',
   '\bwaveform\b', '\bformal\s+verification\b', '\bUPF\b', '\bRDC\b',
   # Clock domain crossing, not change data capture (2026-10-02).
@@ -311,13 +314,17 @@ strong_terms = [
   # Test and DFT
   '\bDFT\b', '\bATPG\b', '\bscan\s+chain\b', '\bMBIST\b', '\bJTAG\b', '\bTessent\b',
   # Interfaces and IP
-  '\bAXI\b', '\bAHB\b', '\bAPB\b', '\bAMBA\b', '\bPCIe\b', '\bCXL\b', '\bUCIe\b',
+  # Not Amazon Private Brands or Amazon Pay Balance, "(APB)" (#274).
+  '\bAXI\b', '\bAHB\b', '(?<!brands\s\()(?<!balance\s\()\bAPB\b', '\bAMBA\b', '\bPCIe\b', '\bCXL\b', '\bUCIe\b',
   '\bDDR\d?\b', '\bLPDDR\b', '\bHBM\b', '\bSerDes\b', '\bMIPI\b',
   # A network on chip is written NoC; NOC is a network operations centre
   # (41 postings, 2026-10-02).
   '(?-i:\bNoC\b)', '\bnetwork[-\s]on[-\s]chip\b',
   # Emulation and prototyping
-  '\bemulation\b', '\bPalladium\b', '\bZeBu\b', '\bVeloce\b', '\bFPGA\s+prototyping\b',
+  # Not a software emulator: "virtualization or emulation (KVM, QEMU)",
+  # "the Android emulation" (#270, 2026-10-02).
+  '(?<!android\s)(?<!terminal\s)(?<!console\s)(?<!game\s)(?<!software\s)\bemulation\b(?!\s*\(\s*(?:kvm|qemu))',
+  '\bPalladium\b', '\bZeBu\b', '\bVeloce\b', '\bFPGA\s+prototyping\b',
   # Physical implementation
   # Not research, data, image or speech synthesis (25 postings, 2026-10-02).
   '(?<!research\s)(?<!data\s)(?<!evidence\s)(?<!speech\s)(?<!voice\s)(?<!video\s)(?<!image\s)(?<!audio\s)(?<!text\s)(?<!insight\s)(?<!insights\s)(?<!knowledge\s)(?<!literature\s)(?<!user\s)(?<!information\s)(?<!qualitative\s)(?<!chemical\s)(?<!protein\s)(?<!organic\s)(?<!drug\s)\bsynthesis\b(?!\s+(?:of\s+(?:research|data|insights?|information|findings|feedback|ideas)|models?)\b)',
@@ -333,7 +340,8 @@ strong_terms = [
   '(?-i:\bQuesta\b)(?!\s+(?:posizione|offerta|figura|opportunit\w*|ruolo|sede|attivit\w*|azienda|societ\w*))',
   '\bVivado\b', '\bQuartus\b',
   '\bSpyGlass\b', '\bPrimeTime\b', '\bInnovus\b', '\bGenus\b',
-  '\bDesign\s+Compiler\b', '\bVerdi\b', '\bConformal\b',
+  # Not conformal coating, a board assembly process (#272).
+  '\bDesign\s+Compiler\b', '\bVerdi\b', '\bConformal\b(?!\s+coat)',
   # Silicon and fabrication
   # Not Silicon Valley, nor Azure AI Foundry or Palantir Foundry (2026-10-02).
   '\bsilicon\b(?!\s+(?:valley|beach|slopes|hills|alley|prairie)\b)', '\bpre-?silicon\b',
