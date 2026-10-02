@@ -7,7 +7,13 @@ snapshots on unchanged inputs and source code, while invalid/changed inputs
 rebuild. Cache saves are atomic and failure is non-fatal; the authoritative
 application ledger remains unchanged. Preparing now has a single neutral
 message, not duplicate error/retry sentences. First cache creation still needs
-one full build. Verify cold creation and a second restart separately on VPS.
+one full build. Deployed 1806349; first observed ready after 176.8 seconds
+from probe start, private snapshot 4,793,973 bytes. After a separate systemd
+restart, GET /api/queue returned HTTP 200 in 0.175 seconds (request measurement,
+not total restart time). 106 Review tests, 10 intake/loading tests, 6 snapshot
+tests and browser interactions pass on a9f4299 plus this patch; 5 initial
+snapshot tests also passed on installed 1806349 on Linux. No paid requests or
+application decisions were made during production verification.
 
 # Section selection - 2026-10-02 (codex)
 

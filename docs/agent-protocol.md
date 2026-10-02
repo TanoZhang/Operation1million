@@ -10,8 +10,8 @@ Scope: Persist validated derived Review queue cache to avoid full restart builds
 Files: src/jobdisco/{review,queue_snapshot}.py, review_static/app.js, tests/test_queue_snapshot.py,
        docs/{agent-protocol,handoff,architecture}.md
 Base commit: a9f4299
-Status: claimed
-Next: Verify cache recovery/invalidation and deploy; production cold build CPU 99.9% at 1m53s.
+Status: done -- 1806349 installed; private cache created, restart queue GET HTTP 200 in 0.175s.
+Next: Ctrl+F5. Cold preparation is neutral and retrying; unchanged restarts restore cache.
 ```
 
 ```text
