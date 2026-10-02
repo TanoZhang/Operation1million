@@ -76,6 +76,49 @@ accessible option model, cross-origin embedded forms, file uploads and automatic
 multi-step navigation are not implemented by this version. ATS detection is not
 proof that every variant of that provider's application form is supported.
 
+## Declared field identity (0.5.1, 2026-10-02)
+
+Added by Claude at the user's request, on Codex's 0.5.0 framework. A label is
+not the only exact statement of a field's meaning: each ATS gives its standard
+applicant fields fixed identifiers, and HTML's `autocomplete` attribute lets a
+page name a field outright. `ats-adapters.js` now reports such a field as
+`declared_field`, and `answer-engine.js` treats it as one more exact alias:
+
+- Workday: form-kit paths (`name--legalName--firstName`, `phoneNumber--phoneNumber`,
+  `address--city`, ...) and the older automation ids (`legalNameSection_firstName`,
+  `phone-number`, `addressSection_city`, ...). Workday labels such as "Given
+  Name(s)" and "Family Name" matched no alias before. Local-script names
+  (`...firstNameLocal`) and the phone extension are different fields and stay unbound.
+- Greenhouse: `first_name`, `last_name`, `email`, `phone`, and the
+  `job_application[...]` names of the older boards.
+- Lever (`name`, `email`, `phone`) and Ashby (`_systemfield_name`,
+  `_systemfield_email`, `_systemfield_phone`). Both ask for one full name, which is
+  the legal full name field.
+- Any site: `given-name`, `family-name`, `name`, `email`, `tel`, `street-address`,
+  `address-line1`, `address-level1/2`, `postal-code`, `country-name`. A
+  `section-`, `shipping` or `billing` token is not taken.
+
+Only exact identifiers count, and only on the provider's own hosts. A wrapper's
+identifier counts only when it holds that one control. A label naming a
+different field makes two candidates, which is ambiguous, so nothing is filled.
+A provider identifier needs no section check, because it names the applicant's
+own field by definition; an autocomplete token gets the same section check as
+a label, so an emergency contact's "given-name" is not the applicant's.
+Repeated sections still never auto-bind. Tests: `tests/autofill-ats-fields.cjs`
+(eight fixture cases, red on 0.5.0 where the behaviour is new).
+
+Sources, read for identifiers only; no code is copied:
+[Greenhouse application fields](https://github.com/grnhse/greenhouse-api-docs/blob/master/source/includes/job-board/_applications.md),
+[Ashby form definition](https://developers.ashbyhq.com/docs/creating-a-custom-careers-page),
+Workday paths as rendered in
+[application-autofiller](https://github.com/Jamalfox85/application-autofiller) and
+[Workday_Automater](https://github.com/chetaniitbhilai/Workday_Automater),
+selector tables in [JustHireMe](https://github.com/vasu-devs/JustHireMe) and
+[jobSearch](https://github.com/Mayhopar/jobSearch) (`_systemfield_phone`), and
+[jobops-copilot #289](https://github.com/Taleef7/jobops-copilot/issues/289)
+(Greenhouse/Lever/Ashby/Workday ids). Where two sources disagreed (Ashby `name`
+against `_systemfield_name`), the provider's documentation decided.
+
 ## Research evidence
 
 Reviewed 2026-10-01; no third-party source code is copied or vendored.

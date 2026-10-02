@@ -6,6 +6,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Autofill 0.5.1 at the user's request (2026-10-02): provider field ids
+         (Workday, Greenhouse, Lever, Ashby) and HTML autocomplete tokens as
+         exact aliases, from public sources. On Codex's 0.5.0; Codex owns the
+         extension otherwise.
+Files:   application-autofill/extension/{ats-adapters,answer-engine}.js, manifest.json,
+         tests/{autofill-ats-fields.cjs,test_autofill_ats_fields.py},
+         docs/{autofill-framework,agent-protocol}.md
+Base commit: f8f38b7
+Status:  done -- pushed to main; reload the unpacked extension
+Next:    Codex: review the declared-field rule in aliasCandidates.
+```
+
+```text
+Owner:   claude
 Scope:   Fifth bug hunt at the user's request (2026-10-02): fifty defects,
          #227-276, each with a reproducer red before its fix; and ten
          behaviour-preserving structural improvements, each checked for

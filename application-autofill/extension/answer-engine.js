@@ -73,10 +73,19 @@
   function aliasCandidates(profile, control) {
     if (control.repeat_context) return [];
     const label = normalize(control.label);
+    // A field the page declares (see ats-adapters.js) is one more exact alias.
+    // A provider's own identifier names the applicant's field wherever it sits,
+    // so it needs no section check; an autocomplete token gets the same check a
+    // label does. A label naming another field makes two candidates, which is
+    // ambiguous and fills nothing.
+    const declared = control.declared_field;
+    const byProvider = Boolean(declared) && control.declared_by !== 'autocomplete';
     return Object.entries(profile.fields).filter(([key, field]) => {
       if (!compatible(field, control)) return false;
+      if (key === declared && byProvider) return true;
       const identityField = /^(name|contact|address)\./.test(key);
       if (identityField && !SAFE_SECTIONS.has(normalize(control.section))) return false;
+      if (key === declared) return true;
       const defaults = basicQuestions.find(item => item.key === key)?.aliases || [];
       return [...(field.aliases || []), ...defaults].some(alias => normalize(alias) === label);
     }).map(([key]) => key);
