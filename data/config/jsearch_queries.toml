@@ -114,6 +114,9 @@ exclude_employer_patterns = [
   # RTX's own businesses, named without RTX (2026-09-27).
   '\bCollins\s+Aerospace\b', '\bPratt\s+(?:&|and)\s+Whitney\b',
   '\bBoeing\b', '\bCACI\b', '\bAmentum\b', '\bPeraton\b',
+  # Queued on 2026-10-02 (#293): defence electronics, defence IT, directed
+  # energy, autonomous naval vessels, defence consulting.
+  '\bMercury\s+Systems\b', '\bManTech\b', '\bEpirus\b', '\bSaronic\b', '\bBooz\s+Allen\b',
   # Ambiguous abbreviations require an exact name or a known corporate suffix.
   '^\s*RTX(?:\s+(?:Corporation|Corp\.?|Inc\.?))?\s*$',
   '^\s*SAIC(?:\s+(?:Corporation|Corp\.?|Inc\.?))?\s*$',
@@ -211,6 +214,18 @@ exclude_title_patterns = [
   '\bmechatronics?\s+(?:apprentice|technician)s?\b', '\bRME\b',
   # A fab's material handlers and coordinators (#292).
   '\bmaterial\s+handlers?\b', '\b(?:training|moves|event|logistics|equipment)\s+coordinators?\b',
+  # Fab process equipment and process modules, as process engineers already
+  # are (#295, 76 groups; #296); test equipment stays.
+  '(?<!test\s)(?<!ate\s)(?<!slt\s)\bequipment\s+engineer',
+  '\bmodule\s+(?:development|integration)\s+engineer',
+  '\b(?:etch|dry\s+etch|planar|diffusion|thin\s+film|cmp|litho\w*|implant|deposition)\s+module\s+engineer',
+  # Transportation (#297, 49); more of the retail store, "US-Technical
+  # Expert", "US-Pro" (#298); business partners by function (#299);
+  # construction project engineers (#300).
+  '\btransportation\s+(?:associate|specialist|manager|coordinator|analyst)s?\b',
+  '^US\s*-\s*(?:technical\s+expert|pro|business\s+expert|operations\s+expert|technician)\b',
+  '\b(?:executive|compensation|hr|people|finance|talent)\s+business\s+partners?\b',
+  '\bconstruction\s+(?:project\s+)?(?:engineer|manager|lead)\b',
   # Economics and policy (9); real estate and construction planning (8).
   '\beconomists?\b', '\bpolicy\s+(?:specialist|analyst|manager|advisor|investigator)\b', '\bpublic\s+policy\b',
   '\breal\s+estate\b', '\bconstruction\s+(?:scheduler|planner|cost)\b', '\bspace\s+planner\b',

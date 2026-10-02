@@ -347,6 +347,14 @@ it a wording. Counts are queued groups.
 | 290 | ranking | "Bluespec Design Engineer", "Design (Digital Logic)" in the last band | display | core |
 | 291 | ranking | UCIe and CXL titles in the last band | display | related |
 | 292 | title rules | a fab's material handlers and training, equipment and moves coordinators (10 titles) | kept | blocked |
+| 293 | employers | Mercury Systems, ManTech, Epirus, Saronic and Booz Allen Hamilton queued; the list refuses the defence primes | kept | added |
+| 294 | experience | "the best and most interesting internship experience", "Your internship experience will involve" put the Internship experience chip on postings asking for none | display | this internship, described, is not asked for |
+| 295 | title rules | fab process equipment engineers, "CVD/PVD Equipment Engineer" (76) | kept | blocked like process engineers; test equipment kept |
+| 296 | title rules | process module development and integration engineers | kept | blocked |
+| 297 | title rules | transportation associates and specialists (49) | kept | blocked |
+| 298 | title rules | more retail store roles, "US-Technical Expert", "US-Pro" (23) | kept | blocked |
+| 299 | title rules | executive and compensation business partners | kept | blocked |
+| 300 | title rules | "Construction Project Engineer" passed the construction engineer block | kept | blocked |
 
 ## Not bugs, recorded so they are not re-found
 

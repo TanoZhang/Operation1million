@@ -352,9 +352,18 @@ def internship_experience(text):
     word is there. It is also what keeps such a posting out of `entry_level`.
     """
     for match in ENTRY.finditer(text or ''):
-        if PRIOR.search(fragment(text, match)) or AS_EXPERIENCE.match(text[match.end():]):
+        if PRIOR.search(fragment(text, match)):
+            return True
+        # "Your internship experience will involve", "the best and most
+        # interesting internship experience": this internship, described, and
+        # no internship asked for (#294, 2026-10-02).
+        if (AS_EXPERIENCE.match(text[match.end():])
+                and not THIS_INTERNSHIP.search(text[max(0, match.start() - 80):match.start()])):
             return True
     return False
+
+
+THIS_INTERNSHIP = re.compile(r'\b(?:your|this|our|the\s+(?:best|most))\s+(?:[\w-]+\s+){0,3}$', re.I)
 
 
 SENIOR_TITLE = re.compile(

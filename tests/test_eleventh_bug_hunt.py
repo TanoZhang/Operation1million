@@ -368,3 +368,52 @@ class MainTabTitleTests(unittest.TestCase):
     def test_292_fab_support_roles(self):
         for title in ('Wafer Fab Material Handler', 'Wafer Fab Training Coordinator, Raxium'):
             self.assertTrue(refused(title), title)
+
+
+class LastEightTests(unittest.TestCase):
+    """#293-300, from the live queue's titles, employers and chips."""
+
+    def test_293_defence_contractors(self):
+        """Mercury Systems, ManTech, Epirus (directed energy), Saronic
+        (autonomous naval vessels) and Booz Allen Hamilton were queued; the
+        user's employer list already refuses the primes."""
+        for employer in ('Mercury Systems', 'MANTECH', 'Epirus Inc.', 'Saronic Technologies',
+                         'Booz Allen Hamilton'):
+            self.assertTrue(jsearch.employer_excluded({'company': employer}, RULES), employer)
+        self.assertFalse(jsearch.employer_excluded({'company': 'Mercury Insurance'}, RULES))
+
+    def test_294_this_internship_is_not_prior_internship_experience(self):
+        """"The best and most interesting internship experience" (Lightmatter)
+        and "Your internship experience will involve" (Amazon) put the
+        "Internship experience" chip on postings that ask for none."""
+        from jobdisco.experience import internship_experience
+        self.assertFalse(internship_experience('To have the best and most interesting internship experience!'))
+        self.assertFalse(internship_experience('Your internship experience will involve safety reviews.'))
+        self.assertTrue(internship_experience('Previous internship experience in digital logic design.'))
+
+    def test_295_fab_equipment_engineers(self):
+        for title in ('CVD/PVD Equipment Engineer (DMOS6)', 'Fab Support Equipment Engineer',
+                      'Diffusion/RTP Equipment Engineer (DMOS6)'):
+            self.assertTrue(refused(title), title)
+        self.assertFalse(refused('Test Equipment Engineer Intern'))
+        self.assertFalse(refused('SLT Equipment Engineer'))
+
+    def test_296_process_module_engineers(self):
+        for title in ('Module Development Engineer', 'Experienced Module Integration Engineer',
+                      'NMSI F11X Dry Etch Module Engineer-Technologist'):
+            self.assertTrue(refused(title), title)
+
+    def test_297_transportation(self):
+        self.assertTrue(refused('Transportation Specialist, Amazon Intermodal (AZIM)'))
+        self.assertTrue(refused('Transportation Associate'))
+
+    def test_298_more_of_the_retail_store(self):
+        self.assertTrue(refused('US-Technical Expert'))
+        self.assertTrue(refused('US-Pro'))
+
+    def test_299_business_partners_by_function(self):
+        self.assertTrue(refused('Executive Business Partner, Global Threat Intelligence'))
+        self.assertTrue(refused('Compensation Business Partner'))
+
+    def test_300_construction_project_engineers(self):
+        self.assertTrue(refused('Construction Project Engineer'))
