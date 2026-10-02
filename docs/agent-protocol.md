@@ -12,8 +12,8 @@ Scope:   #311 at the user's request (2026-10-02): an RTX posting needing U.S.
 Files:   src/jobdisco/{manual_intake,review}.py, tests/test_twelfth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
 Base commit: de2add0
-Status:  done -- pushed, not deployed
-Next:    Deploy (deploy-vps.bat); Ctrl+F5 Review.
+Status:  done -- installed at fcee2bd; Review restarted, HTTP 200
+Next:    Ctrl+F5 Review.
 ```
 
 ```text
@@ -148,8 +148,8 @@ Scope:   #301-310 at the user's request (2026-10-02): defects in pasted-link
 Files:   src/jobdisco/{manual_intake,ranking}.py, tests/test_twelfth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
 Base commit: 1b9b149
-Status:  done -- #301-310 fixed, Windows suite OK; not deployed
-Next:    Deploy (deploy-vps.bat); Ctrl+F5 Review.
+Status:  done -- installed at fcee2bd; Review restarted, HTTP 200
+Next:    Ctrl+F5 Review.
 ```
 
 ```text
