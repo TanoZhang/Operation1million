@@ -14,9 +14,12 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .job_text import TEASERS, FULL_DESCRIPTIONS  # shared with review
 from .paths import CONFIG, DATA, DB, ROOT
 
 MIGRATION = CONFIG / 'migrations/002_job_store.sql'
+# Applied after it, each once, as `catalog_migrations` records.
+LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass')
 
 # Boards whose listing is strictly newest-first, verified by sampling offsets
 # across the whole result set. Only these may stop paginating early; a board
@@ -36,6 +39,12 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def chunks(values, size=400):
+    """`values` in consecutive slices, few enough for one `IN (...)` each."""
+    for start in range(0, len(values), size):
+        yield values[start:start + size]
+
+
 def migrate(path=DB):
     """Apply the job store migration, backing the catalog up the first time."""
     path = Path(path)
@@ -53,12 +62,9 @@ def migrate(path=DB):
         db.executescript(MIGRATION.read_text(encoding='utf-8'))
         db.executescript((CONFIG / 'migrations/003_job_identities.sql').read_text(encoding='utf-8'))
         applied = {r[0] for r in db.execute('SELECT migration_key FROM catalog_migrations')}
-        if '004_relevance' not in applied:
-            db.executescript((CONFIG / 'migrations/004_relevance.sql').read_text(encoding='utf-8'))
-        if '005_seen_jobs' not in applied:
-            db.executescript((CONFIG / 'migrations/005_seen_jobs.sql').read_text(encoding='utf-8'))
-        if '006_source_full_pass' not in applied:
-            db.executescript((CONFIG / 'migrations/006_source_full_pass.sql').read_text(encoding='utf-8'))
+        for key in LATER_MIGRATIONS:
+            if key not in applied:
+                db.executescript((CONFIG / f'migrations/{key}.sql').read_text(encoding='utf-8'))
 
 
 SEEN_SNAPSHOT = 'operational/seen_jobs.ndjson.gz'
@@ -142,8 +148,7 @@ def count_new_listings(db, rows):
     for provider, url in urls:
         by_provider.setdefault(provider, []).append(url)
     for provider, addresses in by_provider.items():
-        for start in range(0, len(addresses), 400):
-            chunk = addresses[start:start + 400]
+        for chunk in chunks(addresses):
             known.update((provider, url) for (url,) in db.execute(
                 'SELECT DISTINCT url FROM seen_jobs WHERE provider_key=? AND url IN (%s)'
                 % ','.join('?' * len(chunk)), [provider, *chunk]))
@@ -426,8 +431,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     # the same clock tick, which Windows timer granularity makes possible.
     incoming = [r['url'] for r in rows]
     known = set()
-    for start in range(0, len(incoming), 400):
-        chunk = incoming[start:start + 400]
+    for chunk in chunks(incoming):
         known.update(r[0] for r in db.execute(
             'SELECT url FROM jobs WHERE url IN (%s)' % ','.join('?' * len(chunk)), chunk))
     moved_urls = {r['url'] for r in rows if '_first_seen' in r}
@@ -522,8 +526,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     seen_count = len(live)
     # Postings the board still lists but this pass skipped fetching are alive.
     listed_only = sorted(live - seen)
-    for start in range(0, len(listed_only), 400):
-        chunk = listed_only[start:start + 400]
+    for chunk in chunks(listed_only):
         # A listed URL is positive evidence that this source's posting is open,
         # even if its unchanged detail was skipped. Log a full job event when
         # reopening; a compact seen event only restores last_seen on replay.
@@ -648,7 +651,6 @@ LOG = Path(os.environ.get('JOBDISCO_STORE') or DATA / 'store')
 # assets, employer ratings, the provider's own relevance scoring and parser output,
 # duplicate renderings of a description we already keep, and the row markup we
 # scraped the normalized fields out of.
-from .job_text import TEASERS, FULL_DESCRIPTIONS  # noqa: E402 -- shared with review
 DROP_FIELDS = {
     # Branding and employer reputation.
     'employer_logo', 'hiring_organization_logo', 'logo', 'employer_reviews',
@@ -778,11 +780,17 @@ def manifest_path(stamp):
 _FACTS = {}
 
 
-def _scan_file(path):
+def _hash_file(path):
+    """The SHA-256 of a file, read a megabyte at a time."""
     sha = hashlib.sha256()
     with path.open('rb') as handle:
         for block in iter(lambda: handle.read(1 << 20), b''):
             sha.update(block)
+    return sha
+
+
+def _scan_file(path):
+    sha = _hash_file(path)
     with gzip.open(path, 'rt', encoding='utf-8') as handle:
         records = sum(1 for line in handle if line.strip())
     return sha, records
@@ -813,11 +821,7 @@ def _extend_facts(path, before, member, count):
 
 
 def _file_digest(path):
-    sha = hashlib.sha256()
-    with path.open('rb') as handle:
-        for block in iter(lambda: handle.read(1 << 20), b''):
-            sha.update(block)
-    return sha.hexdigest()
+    return _hash_file(path).hexdigest()
 
 
 def _write_json_atomic(path, value):
@@ -923,8 +927,7 @@ def append_log(db, urls, closed_urls, stamp, seen_urls=(), source_id=None,
     # Build a complete gzip member before touching the existing stream. Restore
     # its previous length if a write fails; never leave half a member appended.
     records = []
-    for start in range(0, len(urls), 400):
-        chunk = urls[start:start + 400]
+    for chunk in chunks(urls):
         for row in db.execute(
                 'SELECT %s FROM jobs WHERE url IN (%s)'
                 % (','.join(LOG_FIELDS), ','.join('?' * len(chunk))), chunk):
@@ -971,8 +974,7 @@ def append_scores(db, stamp, urls=None):
     else:
         values = sorted(set(urls))
         rows = []
-        for start in range(0, len(values), 400):
-            chunk = values[start:start + 400]
+        for chunk in chunks(values):
             rows.extend(db.execute(
                 'SELECT url, relevance FROM jobs WHERE relevance IS NOT NULL AND url IN (%s) ORDER BY url'
                 % ','.join('?' * len(chunk)), chunk))

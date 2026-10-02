@@ -119,6 +119,7 @@ See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
 | `deploy/vps/jobdisco-collect.timer` | The schedule. Its `OnCalendar` and `budget_day_resets_at` in the TOML must say the same thing. |
 | `deploy/vps/backup-applications.sh` | Pushes the decision ledger every fifteen minutes, because it is the one file nothing regenerates. |
 | `deploy/local/backup-from-vps.sh` | One-way VPS to workstation copy, including a consistent SQLite snapshot. |
+| `deploy/local/vps-env.bat` | The VPS address and SSH key the workstation scripts use (`deploy-vps.bat`, `open-review.bat`, `get-export.bat`), chosen in one place. |
 | `heartbeat.py`, `deploy/vps/heartbeat.sh` | Healthchecks reporting, so a dead timer is noticed. |
 
 ## Rules that are easy to break
@@ -175,6 +176,87 @@ reproducer and update its evidence below.
   JSearch's name matching is unmeasured. Do not drop either.
 - **Scores cache unchanged content, not unchanged rules.** Content changes
   recalculate; rule changes require `job-store --rescore`.
+
+## Structural improvements
+
+### Forty, with every output unchanged, 2026-10-02 UTC
+
+Asked for by the user: improve the structure "without changing functionality",
+ten places and then thirty more. 1-4 went out with the fifth hunt (`2bc4b5b`,
+`bc82efd`, `cc49cc2`); 5-40 are one commit on `0b92f44`.
+
+| # | Where | Change |
+| --- | --- | --- |
+| 1 | `review.py` | The three writes share one route table, one error mapping and `read_json`. |
+| 2 | `review.py` | `find_group`: the one lookup of a group by id. |
+| 3 | `popup.js` | The popup uses the answer engine's `normalize`, not a copy of it. |
+| 4 | `content.js` | `placeholderText`: one test for "Select..." options, native and custom. |
+| 5 | `deploy/local/vps-env.bat` | The VPS host and key, chosen once for the three scripts that used to choose them each. |
+| 6 | `location.py` | The code patterns named; state codes a set, not a values view scanned per part. |
+| 7 | `location.py` | `country` calls `_unaccented` instead of repeating it. |
+| 8 | `export.py` | `_xml_safe`, shared by cell text and attributes. |
+| 9 | `export.py` | `BytesIO` imported with the other modules. |
+| 10 | `prune.py` | `main`'s imports at module level. |
+| 11 | `workflow_state.py` | `_has_cursors`: the cursor-table check, once. |
+| 12 | `answer_bank.py` | `BASIC_SECTIONS`: the sections a built-in alias may answer, out of a comprehension. |
+| 13 | `answer_bank.py` | `POLICIES`, shared by `add_field` and the CLI. |
+| 14 | `answer_bank.py` | `COMPATIBLE`: the control kinds and field types that fit, as data. |
+| 15 | `store.py` | `_hash_file`, shared by the manifest digest and the cached file facts. |
+| 16 | `store.py`, `applications.py` | `chunks`: the six 400-wide `IN (...)` loops. |
+| 17 | `store.py` | The `job_text` import moved from mid-module to the top. |
+| 18 | `store.py` | `LATER_MIGRATIONS`: 004-006 applied by one loop. |
+| 19 | `collection_policy.py` | `SOURCE_PAUSES`: one `CREATE TABLE` for the pause table. |
+| 20 | `collection_policy.py` | `SourcePolicy._stop`: one wording of a stopped source. |
+| 21 | `ranking.py` | `_days`: the three date readings in `rank`. |
+| 22 | `applications.py` | `_scope`: the provider scope `decision_key` and `scoped_identity` each wrote out. |
+| 23 | `applications.py` | `_append_line`: the fsynced append both ledgers use. |
+| 24 | `applications.py` | `_has_identities`: the `job_identities` check, once. |
+| 25 | `applications.py` | `_opening`: provider, company and cleaned title, once. |
+| 26 | `collector.py` | `HTML_JOB_LINKS` and `NOT_TITLES` at module level, not rebuilt per page. |
+| 27 | `collector.py` | `REQUISITION_IN_URL`: each provider's id pattern; `ID_FROM_URL` follows from it. |
+| 28 | `job_text.py` | `_location_candidates` out of `clean_title`; the candidates sorted once per title. |
+| 29 | `job_text.py` | `_STATE_NAMES`: a state's name by its code, not a scan of all 52 per piece. |
+| 30 | `job_text.py` | `HASHTAG` and `DANGLING_SEPARATOR` named beside the other patterns. |
+| 31 | `location.py` | `US_STATE_CODES` beside `US_STATES`, and used for `FOREIGN_CODES` and `AMBIGUOUS_CODES`. |
+| 32 | `review.py` | `each_group`: one walk over the four tabs, for lookup, export and links. |
+| 33 | `review.py` | `/api/job` a handler method like the writes; `ASSETS` a module constant. |
+| 34 | `app.js` | `post()`: the three writes that carry the token. |
+| 35 | `app.js` | `clock()`: the time shown after a save or an export. |
+| 36 | `app.js` | `listings(n)`: "1 listing", "2 listings". |
+| 37 | `app.js` | `newTab()`: the four listing links. |
+| 38 | `app.js` | `chips()`: the three chips, list and detail. |
+| 39 | `app.js` | `lockActions()`: the decision buttons held while one saves. |
+| 40 | `app.js` | `PAGE`: the 75 rows drawn at a time, in five places. |
+
+Checked against `0b92f44` on the live index (47,738 jobs) and a copy of the
+ledger, with throwaway harnesses run on both trees:
+
+- `clean_title` and `country` for every job, the band and early-career reading
+  of every title, the description shown for 3,000 payloads, export rows and
+  the workbook's XML: identical.
+- The review queue, 5,522 groups: byte-identical, and again under two hash
+  seeds per tree.
+- 76 probes of the rest: link patterns and requisition ids on saved Google and
+  Renesas pages and every stored URL, the answer bank's whole kind-by-type
+  matrix and hand-damaged banks, migrations on an empty catalog, pauses,
+  prune plans and the CLI errors, cursor restores, 374 checks of a decision
+  against what its address now holds: identical.
+- The review server over HTTP, 275 descriptions, eleven refusals, a decision,
+  a link and an export: identical, once two values the run sets rather than the
+  code are masked -- the path of each server's copy of the ledger, which the
+  queue reports, and the time the decision was saved.
+- The page in jsdom, old and new `app.js`: 63 snapshots across every tab and
+  sort, search, selection, links, decisions and export, and the 62 requests
+  sent: identical.
+- `vps-env.bat`: the same host and key as before in five environments.
+
+Speed was not the aim, and nothing slowed: best of three, `clean_title` over
+every job 23.8 s before and 23.3 s after, `country` 0.75 s and 0.69 s, ranking
+the queue 0.23 s either way.
+
+One stored difference: a pause table that `merge_source_pauses` creates now
+records the same columns in the other function's spacing in `sqlite_master`.
+Nothing reads that text.
 
 ## Bugs found and fixed
 

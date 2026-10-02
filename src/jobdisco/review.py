@@ -35,11 +35,19 @@ GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
               'posted_before', 'publisher', 'employer_site', 'official_link')
 STATUSES = ('pending', 'backlog', 'applied', 'skipped')
+# The page and its two assets, by path.
+ASSETS = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
+          '/style.css': ('style.css', 'text/css')}
+
+
+def each_group(state):
+    """(status, group) for every group in a queue, a status at a time."""
+    return ((status, group) for status in STATUSES for group in state[status])
 
 
 def find_group(state, group_id):
     """(status, group) for a group id in a queue, or (None, None)."""
-    return next(((status, group) for status in STATUSES for group in state[status]
+    return next(((status, group) for status, group in each_group(state)
                  if group['id'] == group_id), (None, None))
 
 
@@ -199,57 +207,58 @@ def make_server(db, ledger, port=8765, export_path=None):
                     return self.send(dict(slim(current_queue()),
                                           token=token, labels=list(ranking.LABELS)))
                 if route.path == '/api/job':
-                    query = parse_qs(route.query)
-                    url = query.get('url', [''])[0]
-                    group_id = query.get('id', [''])[0]
-                    # The decision's own record of the job, from the queue this
-                    # server already holds, rather than the provider and title
-                    # the page sends back: whether a posting moved or was
-                    # replaced is decided on the snapshot, as the queue decides it.
-                    decided = None
-                    if group_id and not group_id.startswith('legacy:'):
-                        state = cached['state'] or current_queue()
-                        _, group = find_group(state, group_id)
-                        if group:
-                            decided = next((job for job in group['jobs'] if job['url'] == url),
-                                           group['jobs'][0] if group['jobs'] else None)
-                    with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
-                        con.row_factory = sqlite3.Row
-                        row = con.execute(
-                            'SELECT raw, company_key, provider_key, source_job_id, title, location '
-                            'FROM jobs WHERE url=?', (url,)).fetchone()
-                        # A decided group is replayed from the snapshot it was
-                        # decided on, and a board may since have advertised
-                        # another requisition at the same address. Showing that
-                        # opening's prose under the earlier decision says the
-                        # applicant applied to something they never read. A
-                        # posting that only changed provider -- found through
-                        # JSearch, then on the company's own board -- is still
-                        # the one decided on, and the store's aliases say which
-                        # of the two happened.
-                        if row is not None and decided is not None and (
-                                not applications.describes_decision(con, url, dict(row), decided)):
-                            return self.send({'description': '', 'replaced': True})
-                    raw = json.loads(row['raw'] or '{}') if row else {}
-                    description, kind = display_description(raw)
-                    description = str(description)
-                    # Parsed only where there is markup to parse. Everything
-                    # used to go through the parser, including descriptions the
-                    # provider states as plain text, and a plain-text sentence
-                    # about `vector<T>` came back missing the type.
-                    description = readable_text(description)
-                    body = {'description': description.strip()}
-                    if kind in ('excerpt', 'discovery'):
-                        body['kind'] = kind
-                    return self.send(body)
-                names = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
-                         '/style.css': ('style.css', 'text/css')}
-                if route.path in names:
-                    name, mime = names[route.path]
+                    return self.job(parse_qs(route.query))
+                if route.path in ASSETS:
+                    name, mime = ASSETS[route.path]
                     return self.send((assets / name).read_bytes(), mime=mime)
                 self.send({'error': 'Not found'}, 404)
             except (ValueError, OSError, sqlite3.Error) as exc:
                 self.send({'error': str(exc)}, 500)
+
+        def job(self, query):
+            """One posting's description, unless the decision shown was about another."""
+            url = query.get('url', [''])[0]
+            group_id = query.get('id', [''])[0]
+            # The decision's own record of the job, from the queue this
+            # server already holds, rather than the provider and title
+            # the page sends back: whether a posting moved or was
+            # replaced is decided on the snapshot, as the queue decides it.
+            decided = None
+            if group_id and not group_id.startswith('legacy:'):
+                state = cached['state'] or current_queue()
+                _, group = find_group(state, group_id)
+                if group:
+                    decided = next((job for job in group['jobs'] if job['url'] == url),
+                                   group['jobs'][0] if group['jobs'] else None)
+            with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
+                con.row_factory = sqlite3.Row
+                row = con.execute(
+                    'SELECT raw, company_key, provider_key, source_job_id, title, location '
+                    'FROM jobs WHERE url=?', (url,)).fetchone()
+                # A decided group is replayed from the snapshot it was
+                # decided on, and a board may since have advertised
+                # another requisition at the same address. Showing that
+                # opening's prose under the earlier decision says the
+                # applicant applied to something they never read. A
+                # posting that only changed provider -- found through
+                # JSearch, then on the company's own board -- is still
+                # the one decided on, and the store's aliases say which
+                # of the two happened.
+                if row is not None and decided is not None and (
+                        not applications.describes_decision(con, url, dict(row), decided)):
+                    return self.send({'description': '', 'replaced': True})
+            raw = json.loads(row['raw'] or '{}') if row else {}
+            description, kind = display_description(raw)
+            description = str(description)
+            # Parsed only where there is markup to parse. Everything
+            # used to go through the parser, including descriptions the
+            # provider states as plain text, and a plain-text sentence
+            # about `vector<T>` came back missing the type.
+            description = readable_text(description)
+            body = {'description': description.strip()}
+            if kind in ('excerpt', 'discovery'):
+                body['kind'] = kind
+            return self.send(body)
 
         def read_json(self, limit):
             """The request's JSON body, refused past `limit` bytes."""
@@ -297,7 +306,7 @@ def make_server(db, ledger, port=8765, export_path=None):
             if not isinstance(ids, list) or not all(isinstance(item, str) for item in ids):
                 raise ValueError('Send the ids of the groups to export')
             state = current_queue()
-            where = {group['id']: (status, group) for status in STATUSES for group in state[status]}
+            where = {group['id']: (status, group) for status, group in each_group(state)}
             entries = [where[item] for item in dict.fromkeys(ids) if item in where]
             with writing:
                 count = export.write(export_path, entries)
@@ -314,7 +323,7 @@ def make_server(db, ledger, port=8765, export_path=None):
             url = data.get('url')
             with writing:
                 state = current_queue()
-                listed = [job for status in STATUSES for group in state[status]
+                listed = [job for _, group in each_group(state)
                           for job in group['jobs'] if job.get('url') == url]
                 if not listed:
                     return self.send({'error': 'This listing is not in the queue. Refresh the page.'}, 409)

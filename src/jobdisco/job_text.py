@@ -119,11 +119,16 @@ COUNTRY_SUFFIX = re.compile(
     r'\s*(?:[-|–—,;]\s*|\(\s*)(?:(?i:united\s+states(?:\s+of\s+america)?)|U\.?S\.?A?\.?)\s*\)?$')
 # Invisible characters, which broke searching the page for the title (#281).
 ZERO_WIDTH = re.compile('[​‌‍⁠﻿]')
+# A hashtag is not the role, "#Embedded Software Engineer" (Qualcomm), and a
+# separator with nothing after it ends nothing (#215, 2026-10-01).
+HASHTAG = re.compile(r'^#(?=[A-Za-z])')
+DANGLING_SEPARATOR = re.compile(r'\s*[,|\-–—:]\s*$')
+# A state's name for its code, as a title writes it: "California" for "ca".
+_STATE_NAMES = {code: name.title() for name, code in US_STATES.items()}
 
 
-def clean_title(title, location=''):
-    title = ' '.join(unicodedata.normalize('NFKC', ZERO_WIDTH.sub('', title or '')).split())
-    location = ' '.join(unicodedata.normalize('NFKC', location or '').split())
+def _location_candidates(location):
+    """The ways a title may end with the posting's own location."""
     candidates = {location} if location else set()
     parts = [part.strip() for part in location.split(',')]
     if parts and parts[-1].casefold() in {'us', 'usa', 'united states', 'united states of america'}:
@@ -139,8 +144,7 @@ def clean_title(title, location=''):
     for candidate in list(candidates):
         pieces = [piece.strip() for piece in candidate.split(',')]
         for index, piece in enumerate(pieces):
-            other = US_STATES.get(piece.casefold()) or next(
-                (name.title() for name, code in US_STATES.items() if code == piece.casefold()), None)
+            other = US_STATES.get(piece.casefold()) or _STATE_NAMES.get(piece.casefold())
             if other and index:
                 candidates.add(', '.join(pieces[:index] + [other.upper() if len(other) == 2 else other]
                                          + pieces[index + 1:]))
@@ -152,20 +156,25 @@ def clean_title(title, location=''):
         city = parts[-1] if re.fullmatch(r'[A-Za-z]{2}', parts[0]) else parts[0]
         if len(city) >= 3:
             candidates.add(city)
+    return candidates
+
+
+def clean_title(title, location=''):
+    title = ' '.join(unicodedata.normalize('NFKC', ZERO_WIDTH.sub('', title or '')).split())
+    location = ' '.join(unicodedata.normalize('NFKC', location or '').split())
+    candidates = sorted(_location_candidates(location), key=len, reverse=True)
 
     def once(title):
         title = POSTED_SUFFIX.sub('', title).strip()
         title = REQUISITION_SUFFIX.sub('', title).strip()
-        # A hashtag is not the role, "#Embedded Software Engineer" (Qualcomm),
-        # and a separator with nothing after it ends nothing (#215, 2026-10-01).
-        title = re.sub(r'^#(?=[A-Za-z])', '', title)
-        title = re.sub(r'\s*[,|\-–—:]\s*$', '', title)
+        title = HASHTAG.sub('', title)
+        title = DANGLING_SEPARATOR.sub('', title)
         title = ' '.join(GENDER_MARKER.sub(' ', title).split())
         for suffix in (WORK_ARRANGEMENT, FULL_TIME, COUNTRY_SUFFIX):
             stripped = suffix.sub('', title).strip()
             if stripped:
                 title = stripped
-        for candidate in sorted(candidates, key=len, reverse=True):
+        for candidate in candidates:
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back
             # as "Engineer," (2026-09-27).

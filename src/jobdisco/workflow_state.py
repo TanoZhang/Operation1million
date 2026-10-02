@@ -5,17 +5,22 @@ from contextlib import closing
 from pathlib import Path
 
 
+def _has_cursors(db):
+    """Whether this ledger keeps sweep cursors at all."""
+    return db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_cursor'").fetchone()
+
+
 def restore_cursors(ledger, baseline):
     """Discard unpublished progress without refunding credits or cooldowns."""
     rows = []
     if Path(baseline).exists():
         with closing(sqlite3.connect(baseline)) as db:
-            if db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_cursor'").fetchone():
+            if _has_cursors(db):
                 rows = db.execute('SELECT * FROM backfill_cursor').fetchall()
     if not Path(ledger).exists():
         return
     with closing(sqlite3.connect(ledger)) as db, db:
-        if db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_cursor'").fetchone():
+        if _has_cursors(db):
             db.execute('DELETE FROM backfill_cursor')
             db.executemany('INSERT INTO backfill_cursor VALUES (?, ?, ?, ?, ?)', rows)
 

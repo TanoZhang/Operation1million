@@ -28,6 +28,7 @@ US_STATES = {
     'west virginia': 'wv', 'wisconsin': 'wi', 'wyoming': 'wy', 'district of columbia': 'dc',
     'puerto rico': 'pr',
 }
+US_STATE_CODES = frozenset(US_STATES.values())
 
 # Cities the boards name without a state -- Apple's "Location Cupertino" above
 # all. Only places that are unambiguous; a name shared with somewhere abroad
@@ -136,7 +137,7 @@ _ISO_CODES = set('''
     qa re ro rs ru rw sa sb sc sd se sg sh si sj sk sl sm sn so sr ss st sv sx sy sz tc td tf tg
     th tj tk tl tm tn to tr tt tv tw tz ua ug um uy uz va vc ve vg vi vn vu wf ws ye yt za zm zw
 '''.split())
-FOREIGN_CODES |= _ISO_CODES - set(US_STATES.values()) - {'us', 'um', 'vi', 'as', 'gu', 'mp', 'pr'}
+FOREIGN_CODES |= _ISO_CODES - US_STATE_CODES - {'us', 'um', 'vi', 'as', 'gu', 'mp', 'pr'}
 
 
 # Canada's provinces, which a board writes where a U.S. board writes a state.
@@ -196,6 +197,9 @@ _FOREIGN_COUNTRIES = _words(FOREIGN_COUNTRIES)
 _FOREIGN_CITIES = _words(FOREIGN_CITIES)
 _PROVINCES = _words(CANADIAN_PROVINCES)
 _LEADING_CODE = re.compile(r'^\s*([a-z]{2})\s*,', re.I)
+# A part that is a two-letter code, and a region after a leading country code.
+_CODE = re.compile(r'[A-Za-z]{2}')
+_REGION = re.compile(r'[A-Za-z]{2,3}')
 
 
 # Two-letter codes that are a U.S. state and a country at once. After a comma
@@ -203,7 +207,7 @@ _LEADING_CODE = re.compile(r'^\s*([a-z]{2})\s*,', re.I)
 # India, and the place named beside the code decides. Only the codes this module
 # reads as a country: GA, PA, SC, MT and AL were listed too, though no country
 # here is written that way, and "Athens, GA" was read as Greece.
-AMBIGUOUS_CODES = set(US_STATES.values()) & FOREIGN_CODES
+AMBIGUOUS_CODES = FOREIGN_CODES & US_STATE_CODES
 
 
 def _place(text):
@@ -213,8 +217,8 @@ def _place(text):
     Canadian one, however many Burlingtons the U.S. has.
     """
     parts = [_ZIP.sub('', part.strip()) for part in text.split(',') if part.strip()]
-    codes = [part.lower() for part in parts if re.fullmatch(r'[A-Za-z]{2}', part)]
-    state_codes = [code for code in codes if code in US_STATES.values()]
+    codes = [part.lower() for part in parts if _CODE.fullmatch(part)]
+    state_codes = [code for code in codes if code in US_STATE_CODES]
     if (_US_WORDS.search(text) or re.match(r'^\s*US\b', text) or 'us' in codes
             or any(part.lower() in US_STATES for part in parts)):
         return 'us'
@@ -222,7 +226,7 @@ def _place(text):
     # Milan". The region is often also a state code (Tamil Nadu, Milano), and
     # 52 queued postings in Chennai read as Tennessee (live queue, 2026-09-27).
     # A U.S. place never opens with two codes in a row.
-    if (len(parts) >= 3 and re.fullmatch(r'[A-Za-z]{2}', parts[0]) and re.fullmatch(r'[A-Za-z]{2,3}', parts[1])
+    if (len(parts) >= 3 and _CODE.fullmatch(parts[0]) and _REGION.fullmatch(parts[1])
             and parts[0].lower() in FOREIGN_CODES):
         return 'foreign'
     countries = list(_FOREIGN_COUNTRIES.finditer(text))
@@ -278,8 +282,7 @@ def country(location):
     text = re.sub(r'^\s*locations?\s+', '', str(location or ''), flags=re.I).strip()
     # Without accents: "Gdańsk", "Timișoara" and "Iași" did not match the
     # names listed without them (2026-09-27).
-    text = ''.join(char for char in unicodedata.normalize('NFKD', text)
-                   if not unicodedata.combining(char))
+    text = _unaccented(text)
     if not text:
         return None
     # "Austin, TX & Toronto, ON" as well (2026-09-27), but only between places

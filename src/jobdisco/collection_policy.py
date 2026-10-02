@@ -14,6 +14,12 @@ import requests
 from .paths import ROOT
 
 STATE = ROOT / '.local' / 'source_access.sqlite'
+# Kept by both supported collectors, and merged between them.
+SOURCE_PAUSES = '''CREATE TABLE IF NOT EXISTS source_pauses (
+    company_key TEXT PRIMARY KEY,
+    retry_at REAL NOT NULL,
+    reason TEXT NOT NULL
+)'''
 
 
 class SourcePaused(Exception):
@@ -51,8 +57,7 @@ def merge_source_pauses(local, published):
     with closing(sqlite3.connect(Path(published).resolve().as_uri() + '?mode=ro', uri=True)) as remote:
         rows = remote.execute('SELECT company_key, retry_at, reason FROM source_pauses').fetchall()
     with closing(sqlite3.connect(local)) as db, db:
-        db.execute('''CREATE TABLE IF NOT EXISTS source_pauses (
-            company_key TEXT PRIMARY KEY, retry_at REAL NOT NULL, reason TEXT NOT NULL)''')
+        db.execute(SOURCE_PAUSES)
         db.executemany('''INSERT INTO source_pauses VALUES (?, ?, ?)
             ON CONFLICT(company_key) DO UPDATE SET retry_at=excluded.retry_at,
                 reason=excluded.reason WHERE excluded.retry_at > source_pauses.retry_at''', rows)
@@ -189,11 +194,7 @@ class SourcePolicy:
     def connect(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         con = sqlite3.connect(self.path, timeout=30)
-        con.execute('''CREATE TABLE IF NOT EXISTS source_pauses (
-            company_key TEXT PRIMARY KEY,
-            retry_at REAL NOT NULL,
-            reason TEXT NOT NULL
-        )''')
+        con.execute(SOURCE_PAUSES)
         return con
 
     def check(self):
@@ -203,9 +204,7 @@ class SourcePolicy:
             row = con.execute('SELECT retry_at, reason FROM source_pauses WHERE company_key=?',
                               (self.company_key,)).fetchone()
         if row and row[0] > time.time():
-            stamp = datetime.fromtimestamp(row[0], timezone.utc).isoformat()
-            self.stopped = f'{self.company_key}: {row[1]}; retry no earlier than {stamp}'
-            raise SourcePaused(self.stopped)
+            raise self._stop(row[1], row[0])
 
     def pause(self, reason, seconds):
         retry_at = time.time() + seconds
@@ -216,9 +215,13 @@ class SourcePolicy:
                     reason=excluded.reason''', (self.company_key, retry_at, reason))
             retry_at = con.execute('SELECT retry_at FROM source_pauses WHERE company_key=?',
                                    (self.company_key,)).fetchone()[0]
+        raise self._stop(reason, retry_at)
+
+    def _stop(self, reason, retry_at):
+        """Stop this source for the run, saying why and until when."""
         stamp = datetime.fromtimestamp(retry_at, timezone.utc).isoformat()
         self.stopped = f'{self.company_key}: {reason}; retry no earlier than {stamp}'
-        raise SourcePaused(self.stopped)
+        return SourcePaused(self.stopped)
 
 
 if __name__ == '__main__':

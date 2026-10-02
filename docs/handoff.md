@@ -1,6 +1,19 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Fifth hunt, #227-300, and forty structural improvements - 2026-10-02 UTC (claude, not deployed)
+
+All 74 bugs the user asked for are fixed and pushed (docs/bug-tracker.md, Hunt 5;
+the last eight in `0b92f44`). Then forty improvements to structure that change no
+behaviour, listed with how each was checked in docs/architecture.md (Structural
+improvements). Against `0b92f44` on the live index: the whole review queue came out
+byte-identical, every stored title and location read the same, and the review
+server over HTTP and the page in jsdom answered and drew the same. Windows suite
+1066 tests, OK, 10 skips. Also pushed today: autofill 0.5.1-0.5.6, company links
+for third-party listings, the VPS export folder. To ship: deploy-vps.bat, then
+job-store --rescore on the VPS (strong terms changed); reload the unpacked
+extension.
+
 # ATS autofill framework - 2026-10-01 America/Los_Angeles (codex, local only)
 
 Source base: `9d3e5ae9138116033a8271fa8172b3a8abd00404` plus the completed local
@@ -63,15 +76,6 @@ source is the base SHA above plus the local fix; the later remote commit
 locally, and its #197-216 reservation is respected by our #217-226 numbering.
 No paid provider request, real application submission, production measurement,
 push or VPS deployment was performed.
-
-# Fifth hunt, #227-292, paused - 2026-10-02 UTC (claude, not deployed)
-
-Sixty-six of the 74 bugs the user asked for are fixed and pushed (docs/bug-tracker.md, Hunt 5);
-#293-300 remain, and so do the 40 behaviour-preserving improvements (a few were done in
-passing: review.py POST routing and find_group, the popup using the engine normalize). Also
-pushed today: autofill 0.5.1-0.5.6 (provider field ids, scanner fixes), company links for
-third-party listings, the export folder on the VPS. Deploy with deploy-vps.bat, then run
-job-store --rescore (strong-term changes); reload the unpacked extension.
 
 # Review page: sorting and an Excel export - 2026-10-01 UTC (claude, not deployed)
 

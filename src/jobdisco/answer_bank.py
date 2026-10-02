@@ -18,6 +18,21 @@ from .paths import ROOT
 
 TYPES = ('text', 'integer', 'boolean', 'choice', 'multi_choice')
 KINDS = ('text', 'number', 'select', 'radio', 'multiselect', 'checkbox')
+POLICIES = ('fill', 'review')
+# The (control kind, field type) pairs an answer may be filled into.
+COMPATIBLE = (('text', 'text'), ('number', 'integer'), ('select', 'text'), ('select', 'choice'),
+              ('radio', 'text'), ('radio', 'choice'), ('multiselect', 'multi_choice'),
+              ('checkbox', 'boolean'))
+# Sections whose ordinary text questions a built-in alias may answer: the
+# applicant's own details, under whatever heading a form gives them, or none.
+BASIC_SECTIONS = ('', 'contact information', 'personal information',
+                  'applicant information', 'about you',
+                  'contact information section', 'my information',
+                  'legal name', 'address', 'basic information',
+                  'personal details', 'contact details',
+                  'candidate information', 'applicant details',
+                  'your information', 'profile', 'application',
+                  'apply for this job')
 # Only unambiguous labels are automatic. Bare "name" and "formal name" need
 # context, and preferred names are deliberately distinct from legal names.
 DEFAULT_FIELDS = {
@@ -137,7 +152,7 @@ class AnswerBank:
         if not re.fullmatch(r'[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+', key):
             raise ValueError('Use a dotted lowercase field key, for example personal.enrolled')
         normalize(label)
-        if kind not in TYPES or policy not in ('fill', 'review'):
+        if kind not in TYPES or policy not in POLICIES:
             raise ValueError('Invalid field type or policy')
         with locked(self.path):
             data = self._read()
@@ -177,14 +192,7 @@ class AnswerBank:
         if ident not in data['questions']:
             candidates = [key for key, field in data['fields'].items()
                           if kind == 'text' and field['type'] == 'text'
-                          and identity[1] in ('', 'contact information', 'personal information',
-                                              'applicant information', 'about you',
-                                              'contact information section', 'my information',
-                                              'legal name', 'address', 'basic information',
-                                              'personal details', 'contact details',
-                                              'candidate information', 'applicant details',
-                                              'your information', 'profile', 'application',
-                                              'apply for this job')
+                          and identity[1] in BASIC_SECTIONS
                           and identity[2] in {normalize(alias) for alias in field['aliases']}]
             data['questions'][ident] = dict(
                 site=identity[0], section=section, label=label, normalized=identity[2],
@@ -247,12 +255,7 @@ class AnswerBank:
         if value is None:
             return dict(result, status='missing_answer')
         kind = q['kind']
-        compatible = ((kind == 'text' and field['type'] == 'text')
-                      or (kind == 'number' and field['type'] == 'integer')
-                      or (kind in ('select', 'radio') and field['type'] in ('text', 'choice'))
-                      or (kind == 'multiselect' and field['type'] == 'multi_choice')
-                      or (kind == 'checkbox' and field['type'] == 'boolean'))
-        if not compatible:
+        if not any(kind == control and field['type'] == accepted for control, accepted in COMPATIBLE):
             return dict(result, status='incompatible_control')
         if kind in ('select', 'radio', 'multiselect'):
             selected = value if isinstance(value, list) else [value]
@@ -316,7 +319,7 @@ def main(argv=None):
     add.add_argument('key')
     add.add_argument('label')
     add.add_argument('--type', choices=TYPES, default='text')
-    add.add_argument('--policy', choices=('fill', 'review'), default='review')
+    add.add_argument('--policy', choices=POLICIES, default='review')
     answer = sub.add_parser('set-answer')
     answer.add_argument('key')
     answer.add_argument('--file', type=Path, required=True, help='UTF-8 JSON value file; avoid answers in shell history')

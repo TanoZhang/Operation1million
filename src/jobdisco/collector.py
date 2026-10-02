@@ -274,10 +274,19 @@ def reported_total(provider, data):
     return None
 
 
-# Providers whose posting URL carries a requisition this code can name. The
-# fallback in `html_job_id` is the last path segment, which two postings can
+# Providers whose posting URL carries a requisition this code can name, and
+# where it is in the path.
+REQUISITION_IN_URL = {
+    'apple_jobs': re.compile(r'/details/([0-9][\w-]*)'),
+    # Renesas publishes no id of its own and ends the slug with the
+    # requisition: /job/-in-hitachinaka-ibaraki-japan-jid-6866. Without this
+    # the identity is the whole slug, so a retitled or relocated posting reads
+    # as one withdrawal and one arrival.
+    'renesas_careers': re.compile(r'-jid-(\d+)$'),
+}
+# The fallback in `html_job_id` is the last path segment, which two postings can
 # share, so it is not safe to adopt as an identity where nothing else is known.
-ID_FROM_URL = {'apple_jobs', 'renesas_careers'}
+ID_FROM_URL = set(REQUISITION_IN_URL)
 
 
 def html_job_id(href, provider):
@@ -290,32 +299,28 @@ def html_job_id(href, provider):
     thirty-nine as withdrawn.
     """
     path = urlsplit(href).path.rstrip('/')
-    if provider == 'apple_jobs':
-        found = re.search(r'/details/([0-9][\w-]*)', path)
-        if found:
-            return found.group(1)
-    if provider == 'renesas_careers':
-        # Renesas publishes no id of its own and ends the slug with the
-        # requisition: /job/-in-hitachinaka-ibaraki-japan-jid-6866. Without
-        # this the identity is the whole slug, so a retitled or relocated
-        # posting reads as one withdrawal and one arrival.
-        found = re.search(r'-jid-(\d+)$', path)
-        if found:
-            return found.group(1)
-    return path.split('/')[-1]
+    pattern = REQUISITION_IN_URL.get(provider)
+    found = pattern.search(path) if pattern else None
+    return found.group(1) if found else path.split('/')[-1]
+
+
+# The path of a posting's link on each board read as HTML. A board not named
+# here is read only for the structured data it publishes.
+HTML_JOB_LINKS = {
+    'achronix_careers': r'/job/[^/]+', 'apple_jobs': r'/details/[^/]+/[^/]+$',
+    'jobs2web': r'/job/.+/\d+/?$', 'talentbrew': r'/job/.+/\d+/\d+',
+    'avature': r'/job/.+/\d+/\d+|/JobDetail/', 'google_jobs': r'jobs/results/\d+-',
+    'jobvite': r'/job/[^/]+', 'tsmc_careers': r'/JobDetail/',
+    'hibob': r'/jobs/[\w-]+', 'uplers_company_profile': r'/talent/all-opportunities/HR\d+',
+}
+# Link texts that are a board's buttons, not a posting's title.
+NOT_TITLES = {'see full role description', "where we're hiring", 'apply', 'apply now'}
 
 
 def html_items(text, base, provider):
     soup = BeautifulSoup(text, 'html.parser')
     structured = list(jsonld(soup))
-    patterns = {
-        'achronix_careers': r'/job/[^/]+', 'apple_jobs': r'/details/[^/]+/[^/]+$',
-        'jobs2web': r'/job/.+/\d+/?$', 'talentbrew': r'/job/.+/\d+/\d+',
-        'avature': r'/job/.+/\d+/\d+|/JobDetail/', 'google_jobs': r'jobs/results/\d+-',
-        'jobvite': r'/job/[^/]+', 'tsmc_careers': r'/JobDetail/',
-        'hibob': r'/jobs/[\w-]+', 'uplers_company_profile': r'/talent/all-opportunities/HR\d+',
-    }
-    pattern = patterns.get(provider)
+    pattern = HTML_JOB_LINKS.get(provider)
     items = []
     if pattern:
         for a in soup.select('a[href]'):
@@ -330,7 +335,7 @@ def html_items(text, base, provider):
                 h = row.select_one('h3,h2')
                 title = h.get_text(' ', strip=True) if h else title
                 href = urljoin('https://www.google.com/about/careers/applications/', href)
-            if not title or title.lower() in {'see full role description', "where we're hiring", 'apply', 'apply now'}:
+            if not title or title.lower() in NOT_TITLES:
                 continue
             loc = row.select_one('[class*=location], [class*=Location]')
             if provider == 'google_jobs' and not loc:

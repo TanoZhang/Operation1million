@@ -20,16 +20,16 @@ Next:    Codex: review the declared-field rule in aliasCandidates.
 
 ```text
 Owner:   claude
-Scope:   Fifth bug hunt at the user's request (2026-10-02): fifty defects,
-         #227-276, each with a reproducer red before its fix; and ten
-         behaviour-preserving structural improvements, each checked for
+Scope:   Fifth bug hunt at the user's request (2026-10-02): seventy-four
+         defects, #227-300, each with a reproducer red before its fix; and
+         forty behaviour-preserving structural improvements, each checked for
          identical output. Not the autofill extension.
 Files:   src/jobdisco/*, data/config/*, deploy/*, tests/*,
          docs/{agent-protocol,architecture,handoff,bug-tracker}.md
 Base commit: bcc5b04
-Status:  paused at the usage limit -- #227-292 fixed and pushed (e9df4f6);
-         #293-300 and the 40 structural improvements not done
-Next:    Resume the hunt; deploy, then job-store --rescore.
+Status:  done -- #227-300 pushed (0b92f44); improvements 5-40 pushed on top
+         of it (1-4 went out with the hunt); not deployed
+Next:    Deploy with deploy-vps.bat, then job-store --rescore.
 ```
 
 ```text

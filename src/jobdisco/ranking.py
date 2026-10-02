@@ -358,6 +358,11 @@ def _seconds(value):
         return 0
 
 
+def _days(jobs, field):
+    """The days the jobs' `field` names, leaving out what does not read as one."""
+    return [day for day in (posted_day(job.get(field)) for job in jobs) if day is not None]
+
+
 def rank(group):
     """Sort key for one group: bucket, then newest, then the score, then stable.
 
@@ -370,19 +375,16 @@ def rank(group):
     two-month-old posting as today's news.
     """
     jobs = group.get('jobs') or ()
-    published = [day for day in (posted_day(job.get('posted_at')) for job in jobs)
-                 if day is not None]
+    published = _days(jobs, 'posted_at')
     # A stated bound, "30+ days ago", outranks first_seen, which for such a
     # posting is only when we happened to see it (#277).
-    bounds = [day for day in (posted_day(job.get('posted_before')) for job in jobs)
-              if day is not None]
+    bounds = _days(jobs, 'posted_before')
     if published:
         day, stated = max(published), True
     elif bounds:
         day, stated = max(bounds), False
     else:
-        seen = [day for day in (posted_day(job.get('first_seen')) for job in jobs)
-                if day is not None]
+        seen = _days(jobs, 'first_seen')
         day, stated = (max(seen) if seen else date.min), False
     return (bucket(group.get('title')),
             -day.toordinal(),

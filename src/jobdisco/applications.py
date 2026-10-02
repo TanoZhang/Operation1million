@@ -12,6 +12,7 @@ import uuid
 
 from .paths import DB, DATA
 from .job_text import clean_title
+from .store import chunks
 from . import jsearch, location, ranking
 
 
@@ -66,11 +67,23 @@ def append_link(path, url, link):
     event = {'url': url, 'link': link, 'at': datetime.now(timezone.utc).isoformat()}
     path = Path(path)
     with locked(path):
-        with path.open('ab') as handle:
-            handle.write((json.dumps(event, ensure_ascii=True) + '\n').encode())
-            handle.flush()
-            os.fsync(handle.fileno())
+        _append_line(path, event)
     return event
+
+
+def _append_line(path, event):
+    """Add one record to an append-only file, on disk before this returns."""
+    with path.open('ab') as handle:
+        handle.write((json.dumps(event, ensure_ascii=True) + '\n').encode())
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _scope(job):
+    """(provider, scope) as the store scopes job_identities: JSearch ids are
+    provider-wide, while a direct source's are unique only within its company."""
+    provider = job.get('provider_key') or ''
+    return provider, '' if provider == 'jsearch' else (job.get('company_key') or '')
 
 
 def decision_key(job):
@@ -93,9 +106,8 @@ def decision_key(job):
     genuinely listed once per location now appears once per location; showing a
     posting twice is recoverable, and hiding one is not.
     """
-    provider = job.get('provider_key') or ''
+    provider, scope = _scope(job)
     requisition = str(job.get('source_job_id') or '').strip() or job['url']
-    scope = '' if provider == 'jsearch' else (job.get('company_key') or '')
     return hashlib.sha256(
         json.dumps([provider, scope, requisition]).encode()).hexdigest()
 
@@ -109,10 +121,7 @@ def scoped_identity(job):
     requisition = str(job.get('source_job_id') or '').strip()
     if not requisition:
         return None
-    provider = job.get('provider_key') or ''
-    return (provider,
-            '' if provider == 'jsearch' else (job.get('company_key') or ''),
-            requisition)
+    return (*_scope(job), requisition)
 
 
 def listing_signature(job):
@@ -185,6 +194,18 @@ def read_events(path):
     return events
 
 
+def _has_identities(db):
+    """Whether the index keeps `job_identities`; an older or hand-made one may not."""
+    return db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='job_identities'").fetchone()
+
+
+def _opening(job):
+    """Provider, company and title, the title cleaned as the queue cleans it today (#208)."""
+    return (job.get('provider_key') or '', job.get('company_key') or '',
+            clean_title(job.get('title') or '', job.get('location') or ''))
+
+
 def describes_decision(db, url, row, decided):
     """Whether the posting now at `url` is the opening `decided` was made on.
 
@@ -201,13 +222,11 @@ def describes_decision(db, url, row, decided):
         return True
     here = (row['provider_key'] or '', row['company_key'] or '',
             clean_title(row['title'] or '', row['location'] or ''))
-    under = (decided.get('provider_key') or '', decided.get('company_key') or '',
-             clean_title(decided.get('title') or '', decided.get('location') or ''))
+    under = _opening(decided)
     if not (under[0] and under[0] != here[0] and under[1:] == here[1:]):
         return False
     identity = scoped_identity(decided)
-    if identity is None or not db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='job_identities'").fetchone():
+    if identity is None or not _has_identities(db):
         return True
     held = {(provider or '', scope or '', str(requisition)) for provider, scope, requisition in db.execute(
         'SELECT provider_key, scope, source_job_id FROM job_identities WHERE url=?', (url,))}
@@ -224,10 +243,7 @@ def append_decision(path, group, status, reason=''):
              'reason': reason.strip(), 'group_id': group['id'], 'group': group}
     with locked(path):
         read_events(path)
-        with path.open('ab') as handle:
-            handle.write((json.dumps(event, ensure_ascii=True) + '\n').encode())
-            handle.flush()
-            os.fsync(handle.fileno())
+        _append_line(path, event)
     return event
 
 
@@ -301,9 +317,7 @@ def queue(db_path=DB, path=None, now=None):
                     # one is not.
                     # Its title cleaned as the queue cleans it today (#208).
                     moved_states.setdefault(job['url'], []).append(
-                        ((job.get('provider_key') or '', job.get('company_key') or '',
-                          clean_title(job.get('title') or '', job.get('location') or '')),
-                         scoped_identity(job), decision))
+                        (_opening(job), scoped_identity(job), decision))
             continue
         # Only records without a scoped snapshot may fall back to URL identity.
         # Applying a modern decision by URL too hides a replacement requisition
@@ -355,12 +369,10 @@ def queue(db_path=DB, path=None, now=None):
     rules = jsearch.load_plan()[0]['filter']
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
-        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
-                      "AND name='job_identities'").fetchone():
+        if _has_identities(db):
             aliases = {}
             decided = sorted(moved_states)
-            for start in range(0, len(decided), 400):
-                chunk = decided[start:start + 400]
+            for chunk in chunks(decided):
                 for row in db.execute(
                         'SELECT url, provider_key, scope, source_job_id FROM job_identities '
                         'WHERE url IN (%s)' % ','.join('?' * len(chunk)), chunk):

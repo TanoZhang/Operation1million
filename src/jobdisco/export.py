@@ -9,6 +9,7 @@ Written with the standard library. An .xlsx file is a zip of XML parts, and
 this needs one sheet of text, numbers and links -- not a reason for a
 dependency.
 """
+from io import BytesIO
 import os
 from pathlib import Path
 import re
@@ -80,12 +81,17 @@ def _column(index):
     return name
 
 
+def _xml_safe(value):
+    """The value as text XML 1.0 can hold."""
+    return _INVALID.sub('', str(value))
+
+
 def _text(value):
-    return escape(_INVALID.sub('', str(value))[:CELL_LIMIT])
+    return escape(_xml_safe(value)[:CELL_LIMIT])
 
 
 def _attribute(value):
-    return escape(_INVALID.sub('', str(value)), {'"': '&quot;'})
+    return escape(_xml_safe(value), {'"': '&quot;'})
 
 
 def _sheet(table):
@@ -186,7 +192,6 @@ def workbook_bytes(table):
         'xl/worksheets/sheet1.xml': sheet,
         'xl/worksheets/_rels/sheet1.xml.rels': sheet_relations,
     }
-    from io import BytesIO
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
         for name, text in parts.items():

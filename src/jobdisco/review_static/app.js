@@ -1,5 +1,7 @@
 let state = {pending: [], backlog: [], applied: [], skipped: [], labels: []};
-let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLimit = 75;
+// Rows the list draws at a time; Show more draws as many again.
+const PAGE = 75;
+let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLimit = PAGE;
 // The sort is remembered in this browser; a private window or blocked storage
 // simply starts from the default.
 const SORT_KEY = 'review-sort';
@@ -45,9 +47,13 @@ const flagChip = group => group.flagged
 // a reader who has one should see that the posting asks for it.
 const internChip = group => group.internship_experience
   ? '<span class="flagged" title="This posting asks for internship experience someone has already done.">Internship experience</span>' : '';
+// All three, the same in the list and in the detail.
+const chips = group => `${bandChip(group)}${flagChip(group)}${internChip(group)}`;
 const $ = selector => document.querySelector(selector);
 const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const safeLink = value => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? escapeText(url.href) : '#'; } catch { return '#'; } };
+// A link that opens in a new tab, which gets no hold on this page.
+const newTab = (href, text) => `<a href="${safeLink(href)}" target="_blank" rel="noopener noreferrer">${text} &#8599;</a>`;
 // A bare `2026-09-20` is a calendar day, and `new Date` reads it as UTC
 // midnight -- which is the day before, everywhere west of Greenwich. Every
 // date this page shows was arriving a day early in Los Angeles.
@@ -56,6 +62,8 @@ const asDate = value => {
   return bare ? new Date(+bare[1], +bare[2] - 1, +bare[3]) : new Date(value);
 };
 const date = value => value ? asDate(value).toLocaleDateString(undefined, {month:'short', day:'numeric'}) : 'Unknown';
+const clock = () => new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+const listings = count => `${count} listing${count === 1 ? '' : 's'}`;
 const postedToday = job => job.posted_at && asDate(job.posted_at).toDateString() === new Date().toDateString();
 // "30+ Days Ago" is a bound, and says so rather than claiming a day (#277).
 const postedLabel = job => !job.posted_at
@@ -80,12 +88,12 @@ const listingRow = (job, title) => {
   const search = job.employer_site && !job.official_link ? companySearch(job, title) : null;
   const url = escapeText(job.url);
   const links = job.official_link
-    ? `<a href="${safeLink(job.official_link)}" target="_blank" rel="noopener noreferrer">Open company listing &#8599;</a>`
-      + `<a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Third-party listing &#8599;</a>`
+    ? newTab(job.official_link, 'Open company listing')
+      + newTab(job.url, 'Third-party listing')
       + `<button type="button" class="link-button" data-company-link="${url}">Change</button>`
       + `<button type="button" class="link-button" data-company-link="${url}" data-remove="1">Remove</button>`
-    : (search ? `<a href="${safeLink(search)}" target="_blank" rel="noopener noreferrer">Find on company site &#8599;</a>` : '')
-      + `<a href="${safeLink(job.url)}" target="_blank" rel="noopener noreferrer">Open listing &#8599;</a>`
+    : (search ? newTab(search, 'Find on company site') : '')
+      + newTab(job.url, 'Open listing')
       + (thirdParty(job) ? `<button type="button" class="link-button" data-company-link="${url}">Use company link</button>` : '');
   return `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(via)}</span></span><div class="listing-links">${links}</div></div>`;
 };
@@ -95,7 +103,7 @@ async function setCompanyLink(url, remove) {
   const link = remove ? '' : prompt("Paste the company's own link for this posting", current);
   if (link === null) return;
   try {
-    const written = await api('/api/link', {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify({url, link})});
+    const written = await post('/api/link', {url, link});
     allGroups().forEach(group => group.jobs.forEach(job => {
       if (job.url !== url) return;
       if (written.link) job.official_link = written.link; else delete job.official_link;
@@ -111,6 +119,8 @@ async function api(path, options) {
   if (!response.ok) throw new Error(body.error || 'Request failed');
   return body;
 }
+// A write, with the token that shows this page was served by this server.
+const post = (path, body) => api(path, {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify(body)});
 async function refresh() {
   const version = ++queueVersion;
   try {
@@ -238,7 +248,7 @@ function render() {
     button.className = 'job' + (group.id === selected ? ' selected' : '');
     button.setAttribute('aria-pressed', group.id === selected);
     const locations = [...new Set(group.jobs.map(job => job.location).filter(Boolean))];
-    button.innerHTML = `<div>${bandChip(group)}${flagChip(group)}${internChip(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${group.jobs.length} listing${group.jobs.length === 1 ? '' : 's'}</div>`;
+    button.innerHTML = `<div>${chips(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${listings(group.jobs.length)}</div>`;
     if (group.jobs.some(postedToday)) {
       const mark = document.createElement('span');
       mark.className = 'posted-today';
@@ -252,7 +262,7 @@ function render() {
     const more = document.createElement('button');
     more.textContent = 'Show more';
     more.className = 'load-more';
-    more.onclick = () => { visibleLimit += 75; render(); };
+    more.onclick = () => { visibleLimit += PAGE; render(); };
     $('#list').append(more);
   }
   renderDetail(groups.find(group => group.id === selected));
@@ -266,7 +276,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${bandChip(group)}${flagChip(group)}${internChip(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${chips(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';
@@ -323,24 +333,26 @@ function moveDecided(id, written) {
   described = {key: null, text: null};
   render();
 }
+// The decision buttons, held while one decision is saving.
+const lockActions = locked => document.querySelectorAll('.actions button, .dialog-actions button').forEach(button => button.disabled = locked);
 async function decide(status, reason = '', target = null) {
   const id = target ?? selected;
   if (busy || !id) return;
   busy = true;
-  document.querySelectorAll('.actions button, .dialog-actions button').forEach(button => button.disabled = true);
+  lockActions(true);
   try {
-    const written = await api('/api/decision', {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify({id,status,reason})});
+    const written = await post('/api/decision', {id,status,reason});
     $('#skip-dialog').close();
     skipTarget = null;
-    $('#saved').textContent = `Saved locally at ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    $('#saved').textContent = `Saved locally at ${clock()}`;
     moveDecided(id, written);
     refresh();
   } catch (err) { error(err.message); }
-  finally { busy = false; document.querySelectorAll('.actions button, .dialog-actions button').forEach(button => button.disabled = false); }
+  finally { busy = false; lockActions(false); }
 }
 document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () => {
   if (busy) return;
-  tab = button.dataset.tab; selected = null; visibleLimit = 75;
+  tab = button.dataset.tab; selected = null; visibleLimit = PAGE;
   document.querySelectorAll('[data-tab]').forEach(item => item.setAttribute('aria-pressed', item === button));
   render();
 });
@@ -353,9 +365,9 @@ async function exportView() {
   $('#export').disabled = true;
   try {
     const ids = filtered().map(group => group.id);
-    const written = await api('/api/export', {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify({ids})});
+    const written = await post('/api/export', {ids});
     error('');
-    $('#saved').textContent = `Exported ${written.rows} listing${written.rows === 1 ? '' : 's'} at ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} to ${written.path}`;
+    $('#saved').textContent = `Exported ${listings(written.rows)} at ${clock()} to ${written.path}`;
   } catch (err) { error(err.message); }
   finally { exporting = false; $('#export').disabled = false; }
 }
@@ -373,13 +385,13 @@ $('#sort').onchange = event => {
   sortMode = event.target.value;
   try { localStorage.setItem(SORT_KEY, sortMode); } catch { /* no storage */ }
   selected = null;
-  visibleLimit = 75;
+  visibleLimit = PAGE;
   $('#list').scrollTop = 0;
   render();
 };
 $('#search').oninput = () => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { visibleLimit = 75; render(); }, 120);
+  searchTimer = setTimeout(() => { visibleLimit = PAGE; render(); }, 120);
 };
 $('#cancel-skip').onclick = () => { skipTarget = null; $('#skip-dialog').close(); };
 $('#skip-form').onsubmit = event => { event.preventDefault(); decide('skipped', $('#reason').value, skipTarget); };

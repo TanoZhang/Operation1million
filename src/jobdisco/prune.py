@@ -16,10 +16,14 @@ What is never pruned: everything under `operational/`. The credit ledger, the
 cooldowns and the applications log are records of decisions and of money, not of
 the world, and nothing regenerates them.
 """
+import argparse
 from datetime import datetime, timedelta, timezone
+import os
 from pathlib import Path
 import re
 import sys
+
+from .paths import DATA
 
 KEEP_DAYS = 14
 
@@ -75,10 +79,6 @@ def prune(store, keep_days=KEEP_DAYS, today=None, dry_run=False):
 
 
 def main(argv=None):
-    import argparse
-    from .paths import DATA
-    import os
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--store', type=Path,
                         default=Path(os.environ.get('JOBDISCO_STORE', DATA / 'store')))
