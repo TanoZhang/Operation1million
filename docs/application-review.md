@@ -120,9 +120,10 @@ While Excel has the workbook open, Windows refuses the replacement and the page
 says to close it. The file holds job data: keep it out of the public repo.
 
 Served from the VPS through the tunnel, the workbook is written on the VPS
-(`/opt/jobdisco/code/.local/exports/review-queue.xlsx`), not on the machine
-running the browser; copy it down with `scp`, or set `--export` in the
-service to a folder that is shared.
+(`/opt/jobdisco/exports/review-queue.xlsx`; the checkout is read-only to the
+service), not on the machine running the browser. Double-click
+`deploy/local/get-export.bat` to copy it to `Documents\review-queue.xlsx`
+(or `JOBDISCO_EXPORT`), replacing the last copy.
 
 ## Durable state
 

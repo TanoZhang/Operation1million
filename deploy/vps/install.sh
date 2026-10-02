@@ -42,6 +42,10 @@ if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
   useradd --system --create-home --home-dir "$ROOT" --shell /usr/sbin/nologin "$SERVICE_USER"
 fi
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 755 "$ROOT" "$ROOT/bin"
+# Where the review page writes its Excel export: outside both checkouts, so
+# it is never committed, and named in the review unit's ReadWritePaths, which
+# must exist before the unit starts (2026-10-02).
+install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 750 "$ROOT/exports"
 touch "$ROOT/collection.lock"
 chown "$SERVICE_USER:$SERVICE_USER" "$ROOT/collection.lock"
 exec 9>"$ROOT/collection.lock"

@@ -17,14 +17,16 @@ Group=jobdisco
 WorkingDirectory=/opt/jobdisco/code
 Environment=JOBDISCO_STORE=/opt/jobdisco/data
 Environment=PYTHONPATH=/opt/jobdisco/code/src
-ExecStart=/opt/jobdisco/venv/bin/python -m jobdisco.review --db /opt/jobdisco/code/data/db/job_discovery.sqlite --port 8765
+# The export goes to its own folder: the checkout is read-only here
+# (ProtectSystem=strict), and the default under it failed with Errno 30.
+ExecStart=/opt/jobdisco/venv/bin/python -m jobdisco.review --db /opt/jobdisco/code/data/db/job_discovery.sqlite --port 8765 --export /opt/jobdisco/exports/review-queue.xlsx
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/jobdisco/data/operational /opt/jobdisco/code/data/db
+ReadWritePaths=/opt/jobdisco/data/operational /opt/jobdisco/code/data/db /opt/jobdisco/exports
 
 [Install]
 WantedBy=multi-user.target
