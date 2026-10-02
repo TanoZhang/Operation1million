@@ -6,6 +6,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Persist validated derived Review queue cache to avoid full restart builds; simplify preparing message.
+Files: src/jobdisco/{review,queue_snapshot}.py, review_static/app.js, tests/test_queue_snapshot.py,
+       docs/{agent-protocol,handoff,architecture}.md
+Base commit: a9f4299
+Status: claimed
+Next: Verify cache recovery/invalidation and deploy; production cold build CPU 99.9% at 1m53s.
+```
+
+```text
+Owner: codex
 Scope: Select all positions within a Review section (recent 72 hours/backlog).
 Files: review_static/{app.js,style.css}, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
 Base commit: 3cb16f0

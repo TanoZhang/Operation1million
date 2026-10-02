@@ -2399,3 +2399,16 @@ Cold warm-up returns Preparing/503 promptly. Writes are never retried silently.
 Excel selection clears on category changes. Applied pastes use the existing
 manual matching/decision path with status applied; highlighted dates use the
 ledger's decision timestamp, separate from posting dates.
+
+### Rebuildable Review restart cache - 2026-10-02
+
+Measured Preparing/503 during restart with 99.9% CPU at 1m53s: the live queue
+was being reconstructed, not an SSH rejection. queue_snapshot.py stores a
+private disposable full queue beside the ledger as review_queue.cache.json.
+Restore requires matching ledger/index/WAL/manual file fingerprints, UTC date,
+filter rules, listing links, absolute input paths and Python/config source digest.
+Changed inputs or damaged snapshots rebuild normally. Atomic temporary-file
+replacement prevents partial snapshots; write failure never blocks the queue.
+The periodic warm-up saves incremental decision changes as well. This cache
+is derived; decisions remain authoritative only in the application ledger.
+Cold builds show one neutral preparing message with automatic retries.

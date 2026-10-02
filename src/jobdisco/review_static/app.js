@@ -142,7 +142,10 @@ async function api(path, options) {
   try {
     const response = await fetch(path, {...options, ...(!options?.method ? {signal: controller.signal} : {})});
     const body = await response.json();
-    if (!response.ok) throw new Error(body.error || 'Request failed');
+    if (!response.ok) {
+      const failure = new Error(body.error || 'Request failed');
+      failure.status = response.status; throw failure;
+    }
     return body;
   } catch (err) {
     if (err.name === 'AbortError') throw new Error('Queue connection timed out. Check the SSH tunnel; retrying shortly');
@@ -161,8 +164,13 @@ async function refresh() {
     state = next; loaded = true; error(''); render();
   } catch (err) {
     if (version !== queueVersion) return;
-    error(err.message);
-    if (!loaded) $('#list').innerHTML = `<div class="empty">The queue could not be loaded: ${escapeText(err.message)}. Retrying shortly; you can also use Refresh.</div>`;
+    if (err.status === 503) {
+      error('');
+      if (!loaded) $('#list').innerHTML = '<div class="empty">Preparing the job queue. This page will update automatically.</div>';
+    } else {
+      error(err.message);
+      if (!loaded) $('#list').innerHTML = `<div class="empty">${escapeText(err.message)}. Retrying shortly; you can also use Refresh.</div>`;
+    }
     queueRetry = setTimeout(refresh, 10000);
   }
 }

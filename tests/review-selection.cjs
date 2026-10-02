@@ -101,6 +101,7 @@ async function main() {
   await new Promise(resolve => setTimeout(resolve, 15));
   dom.window.close();
   await checkLoadingTimeout();
+  await checkPreparingMessage();
   console.log('Review checkbox and download interactions OK');
 }
 main().catch(error => {console.error(error); dom.window.close(); process.exitCode = 1;});
@@ -120,4 +121,18 @@ async function checkLoadingTimeout() {
     assert.match(view.document.getElementById('list').textContent, /timed out/);
     assert.match(view.document.getElementById('list').textContent, /Retrying/);
   } finally {stalled.window.close();}
+}
+
+async function checkPreparingMessage() {
+  const preparing = new JSDOM(fs.readFileSync(path.join(assets, 'index.html'), 'utf8'),
+    {url:'http://localhost:8765', runScripts:'outside-only'});
+  const view = preparing.window;
+  view.fetch = async () => ({ok:false, status:503, json:async () => ({error:'Preparing the job queue'})});
+  try {
+    view.eval(fs.readFileSync(path.join(assets, 'app.js'), 'utf8'));
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(view.document.getElementById('error').hidden, true);
+    assert.equal(view.document.getElementById('list').textContent,
+      'Preparing the job queue. This page will update automatically.');
+  } finally {preparing.window.close();}
 }

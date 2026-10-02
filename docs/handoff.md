@@ -1,3 +1,14 @@
+# Review restart waiting - 2026-10-02 (codex)
+
+Base a9f4299. Reproduced production Preparing/503 after restart: CPU 99.9%,
+process age 1m53s. Full queue reconstruction repeatedly cost minutes after UI
+releases. A disposable private review_queue.cache.json now restores full queue
+snapshots on unchanged inputs and source code, while invalid/changed inputs
+rebuild. Cache saves are atomic and failure is non-fatal; the authoritative
+application ledger remains unchanged. Preparing now has a single neutral
+message, not duplicate error/retry sentences. First cache creation still needs
+one full build. Verify cold creation and a second restart separately on VPS.
+
 # Section selection - 2026-10-02 (codex)
 
 Base 3cb16f0. Review section headers have checkboxes for selecting only that

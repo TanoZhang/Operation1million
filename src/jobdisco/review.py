@@ -12,6 +12,7 @@ import threading
 from urllib.parse import urlsplit, parse_qs
 
 from . import applications, export, ranking, jsearch, manual_intake, collection_policy
+from .queue_snapshot import QueueSnapshot
 from .job_text import display_description, readable_text
 from .paths import DB
 
@@ -112,6 +113,7 @@ def make_server(db, ledger, port=8765, export_path=None):
     writing = threading.Lock()
     building = threading.Lock()
     cached = {'key': None, 'state': None}
+    snapshot = QueueSnapshot(ledger, db)
 
     def queue_key():
         return (fingerprint(ledger), fingerprint(db), wal_fingerprint(str(db) + '-wal'),
@@ -171,9 +173,14 @@ def make_server(db, ledger, port=8765, export_path=None):
         """
         key = queue_key()
         with building:
+            signature = snapshot.signature(key, fingerprint(links))
             if cached['key'] != key:
-                cached['state'] = manual_intake.augment_queue(applications.queue(db, ledger), ledger)
+                restored = snapshot.load(signature) if cached['state'] is None else None
+                cached['state'] = restored if restored is not None else manual_intake.augment_queue(applications.queue(db, ledger), ledger)
                 cached['key'] = key
+            if queue_key() == key:
+                applications.attach_links(cached['state'], applications.read_links(links))
+                snapshot.save(signature, cached['state'])
             return cached['state']
 
     class Handler(BaseHTTPRequestHandler):
@@ -206,7 +213,7 @@ def make_server(db, ledger, port=8765, export_path=None):
             try:
                 if route.path == '/api/queue':
                     if cached['state'] is None and building.locked():
-                        return self.send({'error': 'Preparing the job queue. Retrying shortly.'}, 503)
+                        return self.send({'error': 'Preparing the job queue'}, 503)
                     # Added after `slim`, which would read a bare list of names
                     # as a list of groups and project the strings away.
                     return self.send(dict(slim(current_queue()),
