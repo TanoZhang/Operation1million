@@ -14,8 +14,9 @@ Files: src/jobdisco/manual_intake.py, src/jobdisco/review.py, review_static/*,
        deploy/vps/{backup-applications,daily-pass}.sh, tests/test_prelaunch_fixes.py,
        docs/{agent-protocol,handoff,architecture,application-review}.md
 Base commit: 085cd6f (deployed; live selected XLSX download HTTP 200 verified)
-Status: claimed
-Next: Implement durable manual intake and URL/requisition dedupe; offline tests.
+Status: done -- implementation b15b226 pushed and installed; offline and POSIX tests pass.
+Next: Ctrl+F5. Paste a link to add/score or mark applied; confirm company link
+      when replacing a third-party match. JSON-LD or supplied details are supported.
 ```
 
 ```text

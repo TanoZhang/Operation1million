@@ -14,7 +14,12 @@ in 226.040s, 10 skipped, on 085cd6f plus the intake patch. Subsequent scoring/
 link-overlay and backup additions: 8 manual tests, 14 executable prelaunch
 checks (9 Windows skips), and actual page jsdom paste/selection/download checks
 passed. Shell syntax and skipped POSIX backup tests are verified separately
-on the VPS before deployment.
+on the VPS against installed b15b226: 8 manual tests and all 23 prelaunch
+checks passed (no skips); both shell syntax checks passed. A subsequent local
+403/cooldown regression brings the manual suite to 9 passing tests. Installed
+b15b226 serves the paste/applied form (HTTP 200), and /api/manual requires the
+page token (403 without it). No paid requests or application submissions were
+made during validation.
 
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.

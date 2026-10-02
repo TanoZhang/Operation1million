@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from urllib.request import Request, urlopen
 from jobdisco import manual_intake as intake, applications, jsearch, review
 
@@ -102,3 +102,20 @@ class ManualTests(unittest.TestCase):
                 self.assertEqual([g['id'] for g in rebuilt['pending']], [written['id']])
             finally:
                 server.shutdown(); server.server_close(); thread.join()
+
+    def test_access_refusal_persists_cooldown_and_prevents_next_fetch(self):
+        session = MagicMock()
+        session.__enter__.return_value = session
+        response = MagicMock(status_code=403, headers={})
+        response.__enter__.return_value = response
+        session.get.return_value = response
+        with patch.object(intake, 'public_url', side_effect=lambda url: url), \
+             patch.object(intake.requests, 'Session', return_value=session), \
+             patch.object(intake.collection_policy, 'STATE', Path(self.temp.name)/'absent.sqlite'), \
+             patch.object(intake.collection_policy, 'request_interval', return_value=0):
+            with self.assertRaises(intake.collection_policy.SourcePaused):
+                intake.read_public_page('https://company.example/job', self.ledger)
+            with self.assertRaises(intake.collection_policy.SourcePaused):
+                intake.read_public_page('https://company.example/job', self.ledger)
+        self.assertEqual(session.get.call_count, 1)
+        self.assertTrue(self.ledger.with_name('source_access.sqlite').exists())
