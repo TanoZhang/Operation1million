@@ -69,6 +69,9 @@ CORE = re.compile(r"""\b(?:
     # Design Engineer", "NoC Interconnect Design Engineer" (#267, 2026-10-02).
     | (?: load[-\s/]?store | noc | interconnect | cache | mmu | branch \s+ predict\w*
         | execution \s+ unit ) \s+ (?: design | verification | rtl )
+    # An HDL by name and digital logic design (#290): "Bluespec Design
+    # Engineer", "Technical Staff Engineer-Design (Digital Logic)".
+    | bluespec | digital \s+ logic
 )\b""", re.I | re.X)
 
 
@@ -115,6 +118,13 @@ RELATED = re.compile(r"""\b(?:
     | (?: board | silicon | soc | chip | asic | nand | dram | memory | semiconductor
         | characteri[sz]ation ) \s+ product \s+ (?: development \s+ )? engineer\w*
     | failure \s+ analysis
+    # Still in the last band on 2026-10-02 (#287-289, #291): electrical and
+    # electronics design and test, computer engineering and digital systems,
+    # semiconductor test by its initials, and the chiplet interconnects.
+    | electr(?:ical|onics?) \s+ (?: design | test | platform | hardware ) \w*
+    | computer \s+ engineering | digital \s+ systems?
+    | slt | automated \s+ test \s+ equipment
+    | ucie | cxl
 )\b""", re.I | re.X)
 
 

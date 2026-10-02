@@ -11,7 +11,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-CASES = ('lever_required_marker', 'required_and_optional_words', 'workday_form_kit_paths', 'workday_automation_ids', 'a_wrapper_holding_two_inputs_names_neither',
+CASES = ('lever_required_marker', 'required_and_optional_words', 'a_leading_required_marker', 'workday_form_kit_paths', 'workday_automation_ids', 'a_wrapper_holding_two_inputs_names_neither',
          'greenhouse_application_fields', 'lever_and_ashby_full_name', 'autocomplete_tokens',
          'other_peoples_sections_stay_guarded', 'a_label_that_disagrees_is_ambiguous')
 

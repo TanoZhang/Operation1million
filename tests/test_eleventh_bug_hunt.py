@@ -329,3 +329,42 @@ class MoreDisplayTitleTests(unittest.TestCase):
     def test_281_zero_width_characters(self):
         """27 index titles; searching "Internship/Co-op" missed them."""
         self.assertEqual(clean_title('Silicon Engineering Internship​/Co-op'), 'Silicon Engineering Internship/Co-op')
+
+
+class SpelledPlusTests(unittest.TestCase):
+    def test_285_three_plus_bracketed(self):
+        """"Three plus (3+) years" read as no requirement (wording)."""
+        self.assertEqual(years('Three plus (3+) years of experience in RTL design.'), 3)
+        self.assertEqual(years('Five (5) years of experience.'), 5)
+
+
+class MainTabTitleTests(unittest.TestCase):
+    """The last band's titles still shown in the main tabs on 2026-10-02."""
+
+    def test_286_mechanical_misspelled(self):
+        self.assertTrue(refused('Mechancial / Thermal Intern'))
+
+    def test_287_electrical_and_electronics_work(self):
+        for title in ('Electronics Design Engineer', 'Electrical Platform Intern',
+                      'Electrical Test Engineering Co-op Intern January-June 2027'):
+            self.assertIn(ranking.bucket(title), (1, 3), title)
+
+    def test_288_computer_engineering_and_digital_systems(self):
+        for title in ('Computer Engineering Internship', 'Digital Systems Engineering Intern'):
+            self.assertEqual(ranking.bucket(title), 1, title)
+
+    def test_289_semiconductor_test_by_its_initials(self):
+        for title in ('SLT Test Engineer', 'Staff Test Engineer - Automated Test Equipment'):
+            self.assertEqual(ranking.bucket(title), 3, title)
+
+    def test_290_hdl_and_digital_logic_design(self):
+        for title in ('Bluespec Design Engineer (Haskell)', 'Technical Staff Engineer-Design (Digital Logic)'):
+            self.assertEqual(ranking.bucket(title), 2, title)
+
+    def test_291_chiplet_and_coherent_interconnects(self):
+        for title in ('UCIe Applications Engineering Architect', 'CXL Platform Engineer'):
+            self.assertEqual(ranking.bucket(title), 3, title)
+
+    def test_292_fab_support_roles(self):
+        for title in ('Wafer Fab Material Handler', 'Wafer Fab Training Coordinator, Raxium'):
+            self.assertTrue(refused(title), title)

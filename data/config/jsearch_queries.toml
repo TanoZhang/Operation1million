@@ -209,6 +209,8 @@ exclude_title_patterns = [
   '\badmin(?:istrative)?\s+(?:business\s+)?partners?\b', '\b(?:executive\s+)?business\s+administrator\b',
   '\bstaffing\s+administrator\b', '\badministrative\s+support\b',
   '\bmechatronics?\s+(?:apprentice|technician)s?\b', '\bRME\b',
+  # A fab's material handlers and coordinators (#292).
+  '\bmaterial\s+handlers?\b', '\b(?:training|moves|event|logistics|equipment)\s+coordinators?\b',
   # Economics and policy (9); real estate and construction planning (8).
   '\beconomists?\b', '\bpolicy\s+(?:specialist|analyst|manager|advisor|investigator)\b', '\bpublic\s+policy\b',
   '\breal\s+estate\b', '\bconstruction\s+(?:scheduler|planner|cost)\b', '\bspace\s+planner\b',
@@ -425,7 +427,8 @@ function_title_patterns = [
   # going with "Product Management Intern" until 2026-09-22.
   '\bpower\b',
   '\bproducts?\b(?!\s*(?:/\s*test|test|development|engineer|engineering|validation|verification|yield|application))',
-  '\bsupply\b', '\bmanufactur', '\bmechanical\b',
+  # "Mechancial / Thermal Intern" as well (#286, 2026-10-02).
+  '\bsupply\b', '\bmanufactur', '\bmech(?:anical|ancial|nical)\b',
   # "Program Analyst" as well as a manager (2026-09-27).
   '\bmagnetics?\b', '\b(?:project|program)\s+(?:manag|analyst)', '\boperations?\b',
 ]

@@ -338,6 +338,15 @@ it a wording. Counts are queued groups.
 | 281 | job_text | zero-width characters in 27 titles; searching the page for "Internship/Co-op" missed them | display | removed |
 | 282 | autofill | Lever marks a required field with "✱", and only "*" was stripped: every such label, the sponsorship questions included, matched nothing | missed fill | the marker dropped, in the extension and the Python answer bank |
 | 283 | autofill | "(required)", "- Required" and "(optional)" suffixes broke exact label matching | missed fill | dropped when bracketed or after a dash; "Sponsorship required" kept |
+| 284 | autofill | the required marker written first, "* First Name", broke exact label matching | missed fill | dropped at the start too |
+| 285 | experience | "Three plus (3+) years" read as no requirement (wording) | kept | the bracketed digits after the plus |
+| 286 | title rules | "Mechancial / Thermal Intern" passed the mechanical block | kept | the misspelling |
+| 287 | ranking | "Electronics Design Engineer", "Electrical Platform Intern", "Electrical Test Engineering Co-op" in the last band | display | related |
+| 288 | ranking | "Computer Engineering Internship", "Digital Systems Engineering Intern" in the last band | display | related |
+| 289 | ranking | "SLT Test Engineer", "Automated Test Equipment" in the last band | display | related |
+| 290 | ranking | "Bluespec Design Engineer", "Design (Digital Logic)" in the last band | display | core |
+| 291 | ranking | UCIe and CXL titles in the last band | display | related |
+| 292 | title rules | a fab's material handlers and training, equipment and moves coordinators (10 titles) | kept | blocked |
 
 ## Not bugs, recorded so they are not re-found
 

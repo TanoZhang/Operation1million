@@ -511,7 +511,7 @@ class QueueRulesTests(unittest.TestCase):
 
         "Onsite Medical Representative" was the example until #240 refused
         medical roles outright (2026-10-02)."""
-        for title, relevance, less in (('Inventory Event Coordinator', 0, True),
+        for title, relevance, less in (('Inventory Planning Associate', 0, True),
                                        ('SDC, Synthesis and STA Engineer', 69, False),
                                        ('RTL Design Engineer', 0, False)):
             with self.subTest(title=title):

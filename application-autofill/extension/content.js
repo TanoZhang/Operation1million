@@ -127,7 +127,7 @@
   }
 
   // A placeholder, not an answer, however it is punctuated: "Select...",
-  // "-- Select --", "Choose an option…" and "Please select an option" read as
+  // "-- Select --", "Choose an option..." and "Please select an option" read as
   // answers, and those dropdowns were left alone as occupied (#275, 2026-10-02).
   const PLACEHOLDER = /^(?:please\s+)?(?:select|choose|pick)(?:\s+(?:one|an?\s+(?:option|answer|value)|from\s+(?:the\s+)?list))?$|^search$/i;
 

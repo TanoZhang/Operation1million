@@ -486,6 +486,9 @@ def evaluate(title, description):
     # "A decade of experience" is ten years, and read as none (#259, 2026-10-02).
     text = re.sub(r'\b(?:a|one)\s+decade\b', '10 years', text, flags=re.I)
     text = re.sub(r'\b(two|2)\s+decades\b', '20 years', text, flags=re.I)
+    # "Three plus (3+) years": the digits in brackets after the plus (#285).
+    text = re.sub(r'\b(?:%s)\s*(?:\+|plus)\s*\(\s*(\d{1,2})\s*\+?\s*\)' % '|'.join(NUMBER_WORDS),
+                  r'\1+', text, flags=re.I)
     text = SPELLED.sub(lambda found: str(NUMBER_WORDS[found.group(1).lower()]), text)
     text = PAREN_REPEAT.sub(r'\1', text)
     text = LABELLED.sub(r'\2 years of \1', text)

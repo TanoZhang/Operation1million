@@ -1,15 +1,18 @@
 (function (root) {
   'use strict';
   // A label without its required or optional marker, however the form writes
-  // it: Lever's "✱" (#282), "(required)", "- Required", "(optional)" (#283).
-  // The bare word is part of the question: "Sponsorship required" stays.
-  const MARKS = /[\s*:✱∗⁎★]+$/u;
-  const WORDS = /\s*(?:\(\s*(?:required|optional)\s*\)|[-–—]\s*(?:required|optional))$/i;
+  // it: Lever's heavy asterisk U+2731 (#282), "(required)", "- Required",
+  // "(optional)" (#283). The bare word is part of the question: "Sponsorship
+  // required" stays. Escaped, so this file stays ASCII for every reader.
+  const MARKS = /[\s*:\u2731\u2217\u204e\u2605]+$/u;
+  const WORDS = /\s*(?:\(\s*(?:required|optional)\s*\)|[-\u2013\u2014]\s*(?:required|optional))$/i;
+  // And the marker written first, "* First Name" (#284).
+  const LEADING = /^[\s*\u2731\u2217\u204e\u2605]+/u;
   const normalize = value => {
     let text = String(value ?? '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
     for (let previous = null; text !== previous;) {
       previous = text;
-      text = text.replace(MARKS, '').replace(WORDS, '').trim();
+      text = text.replace(LEADING, '').replace(MARKS, '').replace(WORDS, '').trim();
     }
     return text;
   };

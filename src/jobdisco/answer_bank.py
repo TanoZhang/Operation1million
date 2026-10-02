@@ -45,6 +45,7 @@ DEFAULT_FIELDS = {
 # Lever's "✱", "(required)", "- Required", "(optional)" (#282, #283).
 _MARKS = re.compile(r'[\s*:✱∗⁎★]+$')
 _WORDS = re.compile(r'\s*(?:\(\s*(?:required|optional)\s*\)|[-–—]\s*(?:required|optional))$', re.I)
+_LEADING = re.compile(r'^[\s*✱∗⁎★]+')  # "* First Name" (#284)
 
 
 def normalize(label):
@@ -55,7 +56,7 @@ def normalize(label):
     previous = None
     while text != previous:
         previous = text
-        text = _WORDS.sub('', _MARKS.sub('', text)).strip()
+        text = _WORDS.sub('', _MARKS.sub('', _LEADING.sub('', text))).strip()
     return text
 
 

@@ -63,6 +63,13 @@ const cases = {
     // The word itself, unbracketed, is part of the question.
     assert.notEqual(engine.normalize('Sponsorship required'), engine.normalize('Sponsorship'));
   },
+  async a_leading_required_marker() {
+    // #284: "* First Name", the marker first, as some forms write it.
+    const p = profile();
+    for (const label of ['* First Name', '*First Name', '✱ First name']) {
+      assert.deepEqual(engine.aliasCandidates(p, {label, kind: 'text', section: ''}), ['name.first'], label);
+    }
+  },
   async workday_form_kit_paths() {
     // Workday's current form-kit renders "Given Name(s)" and "Family Name",
     // which no label alias matched; the local-script names are other fields.
