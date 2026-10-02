@@ -9,8 +9,8 @@ Owner: codex
 Scope: User-requested virginiacommons.com publisher block.
 Files: data/config/jsearch_queries.toml, tests/test_review_rules.py, docs/{agent-protocol,handoff,blocked-recruitment-domains}.md
 Base commit: 876f78a
-Status: claimed
-Next: Verify exact host/subdomain exclusions and deploy.
+Status: done -- 64 focused tests and targeted checks pass; installed cd3e3ca.
+Next: Review rebuilds its queue after this configuration change.
 ```
 
 ```text
