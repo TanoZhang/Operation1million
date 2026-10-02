@@ -110,15 +110,15 @@ Next: Reload extension; verify the browser's file picker and hand the private
 
 ```text
 Owner:   claude
-Scope:   Ten more defects at the user's request (2026-10-02), #301-310, each
-         with a reproducer red before its fix. Not the autofill extension: a
-         finding there would be claimed first.
-Files:   src/jobdisco/*, data/config/*, tests/test_twelfth_bug_hunt.py,
-         docs/{agent-protocol,architecture,handoff,bug-tracker}.md
-Base commit: f388b5c186dee48fd571855f7dd91f57cc010b1e
+Scope:   #301-310 at the user's request (2026-10-02): defects in pasted-link
+         intake (Codex's b15b226, claim done), measured on live postings, each
+         with a reproducer red before its fix. The user has abandoned autofill
+         (submission is done through Muse): no autofill work.
+Files:   src/jobdisco/{manual_intake,ranking}.py, tests/test_twelfth_bug_hunt.py,
+         docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
+Base commit: 1b9b149
 Status:  claimed
-Next:    Search the live queue with independent finders, verify each finding,
-         then fix one at a time.
+Next:    Fix one at a time, then the full suite on Windows and WSL.
 ```
 
 ```text
