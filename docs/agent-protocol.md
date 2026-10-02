@@ -9,8 +9,8 @@ Owner: codex
 Scope: Select all positions within a Review section (recent 72 hours/backlog).
 Files: review_static/{app.js,style.css}, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
 Base commit: 3cb16f0
-Status: claimed
-Next: Verify section-only selection including unexpanded rows; deploy.
+Status: done -- ca47d3c installed; DOM verifies section-only and unexpanded selection.
+Next: Ctrl+F5; checkbox beside New in the last 72 hours selects that section.
 ```
 
 ```text
