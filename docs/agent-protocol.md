@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Review page, at the user's request (2026-10-01): sort by date
+         (newest / oldest) and by fit then date; one key and a button that
+         export the current view to one Excel file, rewritten in place.
+Files:   src/jobdisco/{review,export}.py, src/jobdisco/review_static/*,
+         tests/test_review_export.py, docs/{agent-protocol,application-review,handoff}.md
+Base commit: 62b7ace
+Status:  claimed
+Next:    Build, test, push.
+```
+
+```text
+Owner:   claude
 Scope:   Fourth bug hunt at the user's request (2026-10-01): twenty defects in
          src/jobdisco, #197-216, each with a reproducer red before its fix.
          Not the autofill extension (Codex's claim).
