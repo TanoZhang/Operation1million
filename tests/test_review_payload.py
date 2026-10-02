@@ -34,7 +34,7 @@ class SlimTests(unittest.TestCase):
         self.assertEqual(set(out), {'id', 'company', 'title', 'confidence', 'jobs',
                                     'bucket', 'flagged'})
         self.assertEqual(set(out['jobs'][0]),
-                         {'url', 'location', 'provider_key', 'first_seen', 'posted_at'})
+                         {'url', 'location', 'provider_key', 'first_seen', 'posted_at', 'third_party_site'})
 
     def test_the_band_and_its_mark_reach_the_page(self):
         """Band 0 must survive the projection; a falsy value is still a value."""

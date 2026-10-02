@@ -7,7 +7,18 @@ let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLi
 const SORT_KEY = 'review-sort';
 let sortMode = 'fit-desc';
 try { sortMode = localStorage.getItem(SORT_KEY) || sortMode; } catch { /* no storage */ }
-let exporting = false;
+const checkedJobs = new Set();
+let downloading = false;
+function updateSelection() {
+  const valid = new Set(allGroups().map(group => group.id));
+  for (const id of checkedJobs) if (!valid.has(id)) checkedJobs.delete(id);
+  const matches = filtered();
+  const count = matches.filter(group => checkedJobs.has(group.id)).length;
+  $('#select-matching').checked = matches.length > 0 && count === matches.length;
+  $('#select-matching').indeterminate = count > 0 && count < matches.length;
+  $('#download-selected').textContent = `Download selected Excel (${checkedJobs.size})`;
+  $('#download-selected').disabled = downloading || checkedJobs.size === 0;
+}
 // Two refreshes can be in flight -- a click on Refresh, a decision saving, a
 // slow first request -- and they do not answer in the order they were asked.
 // The later answer is the current one; an earlier one arriving after it used
@@ -48,7 +59,7 @@ const flagChip = group => group.flagged
 const internChip = group => group.internship_experience
   ? '<span class="flagged" title="This posting asks for internship experience someone has already done.">Internship experience</span>' : '';
 // All three, the same in the list and in the detail.
-const chips = group => `${bandChip(group)}${flagChip(group)}${internChip(group)}`;
+const chips = group => `${bandChip(group)}${flagChip(group)}${internChip(group)}${group.jobs.some(thirdParty) ? '<span class="third-party-warning">Third-party site</span>' : ''}`;
 const $ = selector => document.querySelector(selector);
 const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const safeLink = value => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? escapeText(url.href) : '#'; } catch { return '#'; } };
@@ -81,10 +92,10 @@ const companySearch = (job, title) => {
 };
 // A third-party listing can be given the company's own link once it is found
 // (asked for on 2026-10-02); it is kept beside the ledger and leads the row.
-const thirdParty = job => Boolean(job.publisher) || job.provider_key === 'jsearch';
+const thirdParty = job => job.third_party_site === true;
 const listingRow = (job, title) => {
   const via = job.official_link ? 'company link added by you'
-    : job.publisher ? `via ${job.publisher} (third-party site)` : job.provider_key;
+    : job.publisher ? `via ${job.publisher}${thirdParty(job) ? ' (third-party site)' : ''}` : job.provider_key;
   const search = job.employer_site && !job.official_link ? companySearch(job, title) : null;
   const url = escapeText(job.url);
   const links = job.official_link
@@ -230,6 +241,7 @@ function render() {
   $('#backlog-count').textContent = state.backlog.filter(experienced).length;
   $('#less-count').textContent = state.pending.length + state.backlog.length - open.length;
   const groups = filtered();
+  updateSelection();
   if (!groups.some(group => group.id === selected)) selected = groups[0]?.id ?? null;
   $('#count').textContent = `${groups.length} positions` + bandSummary(groups);
   $('#list').replaceChildren();
@@ -256,7 +268,19 @@ function render() {
       button.querySelector('.job-meta').append(' \u00b7 ', mark);
     }
     button.onclick = () => { selected = group.id; render(); };
-    $('#list').append(button);
+    const row = document.createElement('div');
+    row.className = 'job-row';
+    const check = document.createElement('input');
+    check.type = 'checkbox'; check.className = 'job-check';
+    check.checked = checkedJobs.has(group.id);
+    check.setAttribute('aria-label', `Select ${group.company}: ${group.title}`);
+    check.dataset.groupId = group.id;
+    check.onchange = () => {
+      if (check.checked) checkedJobs.add(group.id); else checkedJobs.delete(group.id);
+      updateSelection();
+    };
+    row.append(check, button);
+    $('#list').append(row);
   });
   if (groups.length > visibleLimit) {
     const more = document.createElement('button');
@@ -358,20 +382,37 @@ document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () =>
 });
 $('#refresh').onclick = refresh;
 // The list on screen -- this tab, this search, this order -- into the one
-// workbook the server keeps. Nothing is opened; the footer says where it is.
+// Browser download: selected positions, or the current filtered list.
 async function exportView() {
-  if (!loaded || exporting) return;
-  exporting = true;
-  $('#export').disabled = true;
-  try {
-    const ids = filtered().map(group => group.id);
-    const written = await post('/api/export', {ids});
-    error('');
-    $('#saved').textContent = `Exported ${listings(written.rows)} at ${clock()} to ${written.path}`;
-  } catch (err) { error(err.message); }
-  finally { exporting = false; $('#export').disabled = false; }
+  const ids = checkedJobs.size ? [...checkedJobs] : filtered().map(group => group.id);
+  return downloadWorkbook(ids);
 }
 $('#export').onclick = exportView;
+$('#select-matching').onchange = event => {
+  for (const group of filtered()) {
+    if (event.target.checked) checkedJobs.add(group.id); else checkedJobs.delete(group.id);
+  }
+  render();
+};
+$('#clear-selection').onclick = () => {checkedJobs.clear(); render();};
+async function downloadWorkbook(ids) {
+  if (!loaded || downloading || !ids.length) return;
+  downloading = true; $('#export').disabled = true; updateSelection();
+  try {
+    const response = await fetch('/api/export/download', {method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Review-Token': state.token},
+      body: JSON.stringify({ids})});
+    if (!response.ok) throw new Error((await response.json()).error || 'Download failed');
+    const url = URL.createObjectURL(await response.blob());
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = 'selected-positions.xlsx';
+    document.body.append(anchor); anchor.click(); anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    error(''); $('#saved').textContent = `Downloaded ${ids.length} positions at ${clock()}`;
+  } catch (err) {error(err.message);}
+  finally {downloading = false; $('#export').disabled = false; updateSelection();}
+}
+$('#download-selected').onclick = () => downloadWorkbook([...checkedJobs]);
 document.addEventListener('keydown', event => {
   if (event.key !== 'e' && event.key !== 'E') return;
   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;

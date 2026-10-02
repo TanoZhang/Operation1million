@@ -6,14 +6,14 @@ setlocal
 cd /d "%~dp0..\.."
 call "%~dp0vps-env.bat"
 rem Where new files may be added from. Anything new elsewhere stays untracked.
-set NEW_PATHS=src tests docs data/config deploy AGENTS.md CLAUDE.md README.md CONTEXT.md pyproject.toml requirements.txt .gitattributes .gitignore
+set NEW_PATHS=src tests docs data/config deploy application-autofill AGENTS.md CLAUDE.md README.md CONTEXT.md pyproject.toml requirements.txt .gitattributes .gitignore
 
 echo == 1. Status ==
 git status --short || goto failed
 
 echo == 2. Tests ==
 set PYTHONPATH=src
-.venv\Scripts\python.exe -m unittest discover -s tests || goto failed
+.venv\Scripts\python.exe -m unittest discover -s tests --buffer || goto failed
 
 echo == 3-4. Stage ==
 git add -u || goto failed

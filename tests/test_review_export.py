@@ -5,6 +5,7 @@ that each export replaces; nothing is opened and no second file is left.
 """
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 import json
 from pathlib import Path
 import re
@@ -43,6 +44,21 @@ GROUP = {'id': 'g1', 'company': 'A & B Semiconductor', 'title': 'RTL <Design> En
 
 
 class WorkbookTests(unittest.TestCase):
+    def test_third_party_marker_has_explicit_site_exceptions(self):
+        for url in ('https://www.linkedin.com/jobs/1', 'https://app.joinhandshake.com/jobs/1'):
+            self.assertFalse(export.third_party_site({'url': url, 'provider_key': 'jsearch'}))
+        self.assertTrue(export.third_party_site({'url': 'https://indeed.com/1', 'provider_key': 'jsearch'}))
+        self.assertTrue(export.third_party_site({'url': 'https://linkedin.com.other.test/1', 'provider_key': 'jsearch'}))
+        self.assertFalse(export.third_party_site({'url': 'https://company.test/1', 'provider_key': 'workday'}))
+
+    def test_workbook_declares_the_excel_normal_style(self):
+        with zipfile.ZipFile(BytesIO(export.workbook_bytes([]))) as book:
+            styles = xml.dom.minidom.parseString(book.read('xl/styles.xml'))
+        normal = styles.getElementsByTagName('cellStyle')
+        self.assertEqual(len(normal), 1)
+        self.assertEqual(normal[0].getAttribute('name'), 'Normal')
+        self.assertEqual(normal[0].getAttribute('builtinId'), '0')
+
     def setUp(self):
 
         temporary = tempfile.TemporaryDirectory()
@@ -134,6 +150,34 @@ class ExportEndpointTests(unittest.TestCase):
         self.assertEqual(refused.exception.code, 403)
         self.assertFalse(self.export_path.exists())
 
+    def test_selected_download_contains_only_requested_group_and_is_an_attachment(self):
+        root = self.serve()
+        with urlopen(root + '/api/queue') as response:
+            state = json.load(response)
+        chosen = state['pending'][0]
+        request = Request(root + '/api/export/download',
+                          data=json.dumps({'ids': [chosen['id'], chosen['id']]}).encode(), method='POST',
+                          headers={'Content-Type': 'application/json', 'X-Review-Token': state['token']})
+        with urlopen(request) as response:
+            self.assertIn('attachment', response.headers['Content-Disposition'])
+            self.assertEqual(response.headers['Content-Type'],
+                             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            downloaded = response.read()
+        self.assertFalse(self.export_path.exists())
+        download_path = self.root / 'download.xlsx'
+        download_path.write_bytes(downloaded)
+        rows, _ = sheet_rows(download_path)
+        self.assertEqual(len(rows) - 1, len(chosen['jobs']))
+        self.assertEqual([row[3] for row in rows[1:]], [job['location'] for job in chosen['jobs']])
+
+    def test_selected_download_requires_token(self):
+        root = self.serve()
+        request = Request(root + '/api/export/download', data=b'{"ids":[]}', method='POST',
+                          headers={'Content-Type': 'application/json'})
+        with self.assertRaises(HTTPError) as refused:
+            urlopen(request)
+        self.assertEqual(refused.exception.code, 403)
+
 
 class PageContractTests(unittest.TestCase):
     def setUp(self):
@@ -151,7 +195,7 @@ class PageContractTests(unittest.TestCase):
     def test_the_export_key_stays_out_of_text_fields(self):
         self.assertIn("event.key !== 'e'", self.script)
         self.assertIn("closest?.('input, textarea, select", self.script)
-        self.assertIn("'/api/export'", self.script)
+        self.assertIn("'/api/export/download'", self.script)
         self.assertIn('id="export"', self.page)
 
 

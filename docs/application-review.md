@@ -183,3 +183,17 @@ ssh -N -L 8767:127.0.0.1:8765 <configured-vps-host>
 
 Then open `http://127.0.0.1:8767`. Keep one authoritative ledger on the VPS; the
 earlier standalone local ledger is not automatically merged into it.
+# Checkbox selection and browser Excel download
+
+Each position has an independent checkbox. Select all matching positions includes
+the entire current filtered list, including rows behind Show more. Selection
+survives tabs/search/sorting, and Clear selection removes all checked IDs.
+Download selected Excel downloads the selected requisitions, including all their
+locations, directly to the browser. It does not mark them Applied or Skipped.
+Download Excel/E now downloads checked positions, or all current matching
+positions when none are checked. It no longer silently saves to a VPS path.
+The download endpoint requires the same page token and creates workbook bytes
+in memory, without replacing or locking the existing server export file.
+Third-party badges and the Excel Third-party site column share one classification
+in export.third_party_site. LinkedIn and Handshake are user-requested exceptions;
+other paid/third-party listings are marked. Direct company-board rows are not.

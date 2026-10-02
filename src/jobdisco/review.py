@@ -33,7 +33,7 @@ GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
                 'early_career')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
-              'posted_before', 'publisher', 'employer_site', 'official_link')
+              'posted_before', 'publisher', 'employer_site', 'official_link', 'third_party_site')
 STATUSES = ('pending', 'backlog', 'applied', 'skipped')
 # The page and its two assets, by path.
 ASSETS = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
@@ -60,7 +60,8 @@ def slim(state):
             continue
         trimmed[key] = [
             dict({name: group[name] for name in GROUP_FIELDS if name in group},
-                 jobs=[{name: job[name] for name in JOB_FIELDS if name in job}
+                 jobs=[dict({name: job[name] for name in JOB_FIELDS if name in job},
+                            third_party_site=export.third_party_site(job))
                        for job in group.get('jobs', [])])
             for group in value]
     return trimmed
@@ -269,6 +270,7 @@ def make_server(db, ledger, port=8765, export_path=None):
 
         def do_POST(self):
             routes = {'/api/decision': self.decide, '/api/export': self.export,
+                      '/api/export/download': self.export,
                       '/api/link': self.link}
             if self.path not in routes:
                 return self.send({'error': 'Not found'}, 404)
@@ -308,6 +310,17 @@ def make_server(db, ledger, port=8765, export_path=None):
             state = current_queue()
             where = {group['id']: (status, group) for status, group in each_group(state)}
             entries = [where[item] for item in dict.fromkeys(ids) if item in where]
+            if self.path == '/api/export/download':
+                data = export.workbook_bytes(export.rows(entries))
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                self.send_header('Content-Disposition', 'attachment; filename="selected-positions.xlsx"')
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('X-Content-Type-Options', 'nosniff')
+                self.end_headers()
+                self.wfile.write(data)
+                return
             with writing:
                 count = export.write(export_path, entries)
             self.send({'path': str(Path(export_path).resolve()), 'rows': count,

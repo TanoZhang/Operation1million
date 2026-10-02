@@ -6,3 +6,12 @@
 *.timer text eol=lf
 # cmd.exe mislocates goto labels in LF-only batch files.
 *.bat text eol=crlf
+# Source and documentation stay LF across Windows editors and Linux checkouts.
+*.py text eol=lf
+*.js text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+.gitattributes text eol=lf

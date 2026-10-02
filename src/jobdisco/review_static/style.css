@@ -39,3 +39,9 @@ main{max-width:none;padding:16px 20px 12px}
 .export{font-size:12px;padding:6px 10px;white-space:nowrap}
 .export kbd{font:inherit;font-size:10px;border:1px solid #d5dad6;border-radius:3px;padding:0 4px;margin-left:4px;color:#69736d}
 .link-button{font-size:11px;padding:3px 8px;font-weight:600}
+.selection-tools{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 0;font-size:12px}
+.selection-tools label{display:flex;align-items:center;gap:6px}
+.job-row{display:flex;align-items:center;border-bottom:1px solid #edf0ed}
+.job-check{margin:0 0 0 14px;width:18px;height:18px;flex-shrink:0;cursor:pointer;accent-color:#286747}
+.job-row .job{flex:1;min-width:0;border-bottom:0}
+.third-party-warning{display:inline-block;margin:0 6px 6px 0;padding:3px 6px;border-radius:3px;background:#fff0df;color:#94551c;font-size:10px;font-weight:600}

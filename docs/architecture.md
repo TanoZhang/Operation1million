@@ -154,6 +154,24 @@ See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
   on a lastmod board. Compare timestamp instants, not their ISO strings. A listed
   closed row reopens within its source, unless it is an alias of another identity.
 
+## Deployment release completeness
+
+Review selected downloads build workbook bytes in memory under the existing
+page-token authorization; the server-owned export file remains exclusive to
+the existing export operation. Default Excel Normal style is declared explicitly:
+omitting it caused independent workbook readers to warn and substitute defaults.
+The regression was red before the style addition. Neither checkbox selection
+nor download changes the application decision ledger.
+
+Deployment's new-file allowlist must include `application-autofill`. On
+`b8123d3`, tracked pages referenced a new module that remained untracked because
+`deploy-vps.bat` staged only its older directory list. Tests passed against the
+local files while the release omitted them. An isolated Git staging regression
+now verifies new extension code/scripts/schema are included and ignored personal
+profiles are excluded. Source/documentation text has explicit LF attributes;
+batch files retain CRLF. Successful unittest output is buffered during deployment,
+with failure details retained. No collection or application behavior changes.
+
 ## Protected decisions
 
 These choices can look wrong when read in isolation. Change one only with a

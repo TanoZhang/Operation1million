@@ -1,6 +1,53 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Browser Excel button and third-party markers - 2026-10-02 America/Los_Angeles (codex)
+
+The user's no-response symptom was the production b8123d3 Excel button saving
+only to a server path, with the selected-download UI still undeployed. Both
+Download Excel/E and the selected-only button now trigger browser downloads;
+the main button exports all matching positions if no boxes are checked.
+Third-party markers share export.third_party_site between the response and XLSX:
+LinkedIn/Handshake are exceptions, other third-party publishers/paid rows are
+marked, and direct company-board rows are not. This is user labeling, not a
+claim that any link was tested for availability. 106 focused Review tests and
+real page jsdom selection/download interactions pass on b8123d3 plus this patch.
+The complete public patch includes the previously omitted autofill source files.
+
+# Selected Excel downloads and Normal style - 2026-10-02 America/Los_Angeles (codex, local patch)
+
+On b8123d3 plus the staged deployment repair: Review has per-position checkboxes,
+select-all matching, clear and a selected-count browser download button. Checked
+IDs survive tab/search/sort changes, are pruned on queue removal, and never write
+application decisions. POST /api/export/download requires the page token and
+returns XLSX bytes with attachment headers. It does not overwrite the existing
+server workbook, avoiding file-lock and shared-path coupling. Existing E export
+remains intact. A jsdom fixture executes selection/sort/select-all/clear/download.
+
+The user then reported an unspecified Excel problem. Independent openpyxl reading
+found a missing default Normal style warning; the XML regression failed before
+adding cellStyles/Normal, and independent reading with warnings as errors passes
+afterward. This finding is not claimed as the user's unconfirmed symptom.
+Review HTTP/export tests and XML checks pass. No real Excel app, live selected
+download or deployment performed; user's exact Excel error remains pending.
+
+# Deployment omitted new autofill files - 2026-10-02 America/Los_Angeles (codex, local fix)
+
+On `b8123d3`, the deployment allowlist omitted application-autofill, so tracked
+pages were committed while portable-memory.js, data-files.py and the public
+schema stayed untracked. Existing local tests passed using those omitted files.
+Both regressions in test_deploy_autofill.py failed before fixing the allowlist
+and source/documentation LF attributes. An isolated Git index now stages all
+three code files and excludes local-profile.json and private .local answers.
+The deployment unittest invocation buffers expected error output from passing
+tests while retaining failures. Batch files remain CRLF. No global Git setting
+or existing personal data was changed; no wholesale renormalization performed.
+
+Full local validation on b8123d3 plus this patch: 1071 tests in 221.536 seconds,
+OK with ten environment skips; focused autofill 60 tests and deployment two
+tests pass. Missing public files and the fix are staged. Not pushed or deployed
+in this session. Re-run deploy/local/deploy-vps.bat to ship the complete release.
+
 # Private split autofill data - 2026-10-02 America/Los_Angeles (codex, local patch)
 
 On base `4936abf` plus the completed 0.6.0 patch, initialized ignored

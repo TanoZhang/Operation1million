@@ -6,6 +6,42 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Make Excel button download in browser; mark third-party listings except
+       LinkedIn and Handshake, consistently in Review and Excel; deploy release.
+Files: src/jobdisco/{review,export}.py, review_static/*, tests/test_review*.py,
+       tests/review-selection.cjs, docs/{agent-protocol,handoff,application-review}.md
+Base commit: b8123d3 plus the completed staged patches
+Status: claimed -- 106 Review tests and jsdom interactions pass
+Next: Commit complete public patch, push, install and check live download.
+```
+
+```text
+Owner: codex
+Scope: Review checkbox selection and browser download of selected Excel rows.
+Files: src/jobdisco/{review,export}.py, src/jobdisco/review_static/*,
+       tests/{test_review_export.py,review-selection.cjs},
+       docs/{agent-protocol,handoff,application-review,architecture}.md
+Base commit: b8123d3 plus completed staged deployment fix
+Status: done -- selection DOM fixture and Review tests pass; Normal style regression
+        failed before fix, independent workbook reader passes after fix
+Next: Deploy the local patch and refresh Review. The user's specific Excel symptom
+      is still awaiting clarification; no real Excel application validation claimed.
+```
+
+```text
+Owner: codex
+Scope: Fix deployment staging omitting new autofill source files; reduce expected
+       test-output noise and pin text line endings without changing runtime logic.
+Files: deploy/local/deploy-vps.bat, .gitattributes, tests/test_deploy_autofill.py,
+       docs/{agent-protocol,handoff,architecture}.md
+Base commit: b8123d3
+Status: done -- two regressions red before fix, full suite 1071 tests, ten skips
+Next: Re-run deploy-vps.bat to ship missing public autofill files and this fix.
+      Current validation is local on b8123d3 plus the staged patch, not deployed.
+```
+
+```text
+Owner: codex
 Scope: Initialize private split autofill data from existing local profiles;
        provide schema, Muse instructions and a reproducible extension export.
 Files: application-autofill/data-files.py, .local/autofill/data/*,

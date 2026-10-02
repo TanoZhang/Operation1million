@@ -16,6 +16,7 @@ import re
 import tempfile
 import zipfile
 from xml.sax.saxutils import escape
+from urllib.parse import urlsplit
 
 from . import ranking
 from .paths import ROOT
@@ -25,7 +26,22 @@ SHEET = 'Review queue'
 
 COLUMNS = (('Status', 16), ('Company', 28), ('Title', 60), ('Location', 32), ('Posted', 12),
            ('Discovered', 12), ('Fit', 6), ('Band', 26), ('Published via', 22), ('Link', 12),
-           ('Decided', 12), ('Reason', 40), ('Third-party listing', 40))
+           ('Decided', 12), ('Reason', 40), ('Third-party listing', 40), ('Third-party site', 20))
+
+
+def third_party_site(job):
+    """User marker for third-party listings except LinkedIn and Handshake."""
+    try:
+        host = (urlsplit(job.get('url') or '').hostname or '').lower()
+    except ValueError:
+        host = ''
+    domains = ('linkedin.com', 'joinhandshake.com', 'handshake.com')
+    if any(host == domain or host.endswith('.' + domain) for domain in domains):
+        return False
+    publisher = re.sub(r'[^a-z0-9]', '', str(job.get('publisher') or '').lower())
+    if publisher in ('linkedin', 'linkedincom', 'handshake', 'joinhandshake', 'joinhandshakecom'):
+        return False
+    return bool(job.get('publisher')) or job.get('provider_key') == 'jsearch'
 
 # XML 1.0 has no place for most control characters, and a provider's text
 # sometimes carries them.
@@ -68,7 +84,8 @@ def rows(entries):
                         'company site' if official else job.get('publisher') or job.get('provider_key') or '',
                         official or job.get('url') or '',
                         (group.get('at') or '')[:10], group.get('reason') or '',
-                        (job.get('url') or '') if official else ''])
+                        (job.get('url') or '') if official else '',
+                        'Third-party' if third_party_site(job) else ''])
     return out
 
 
@@ -188,6 +205,7 @@ def workbook_bytes(table):
             '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
             '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
             '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
+            '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
             '</styleSheet>',
         'xl/worksheets/sheet1.xml': sheet,
         'xl/worksheets/_rels/sheet1.xml.rels': sheet_relations,
