@@ -364,6 +364,7 @@ it a wording. Counts are queued groups.
 | 307 | ranking | "2026-9-21" (Synopsys, Arm) read as undated, so a pasted posting ranked as new today | display | read as a date |
 | 308 | intake | a link on a board the index reads took the page's legal name ("Silicon Labs Intl", "Advanced Micro Devices, Inc") and its bare requisition ("20521" for Workday's "20521-1"); with Workday's /en-US/ share link, a posting already queued was added a second time under another name, and Already applied marked the copy | duplicate | the catalog's company and key, and the board's requisition as the collector reads it |
 | 309 | intake | a pasted posting marked applied was listed after every older application | display | newest first |
+| 311 | intake | reported by the user: an RTX posting requiring U.S. citizenship reached Review. Collected RTX postings are all refused (16 of 17 in the index state citizenship; the 17th, JobLeads' copy, cut it and is refused as Raytheon), but a pasted job skipped every check | kept | pasted jobs refused for an excluded employer or stated citizenship; already pasted ones hidden; Already applied still records |
 | 310 | intake | a pasted ZipRecruiter, Indeed or other job-board link carried no publisher, so it was not marked third-party and the company link could not replace it | display | publisher named from the host |
 
 ## Not bugs, recorded so they are not re-found

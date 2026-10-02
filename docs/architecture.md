@@ -2385,6 +2385,14 @@ answered nothing for an open requisition, so it is not used.
   posting matches it instead of adding a copy.
 - The collector's helpers, not new ones: `location_text`, `jsonld`, `clean`,
   `html_job_id`, its `META_CHARSET` reading, and `job_text.readable_text`.
+- Citizenship is the one filter a pasted job does not skip (#311, reported
+  by the user for RTX): `manual_intake.refusal` applies the excluded-employer
+  list and `us_person_required` to the title and description. Add job is
+  refused with the reason; a pending paste from before is not offered;
+  Already applied still records. Title, seniority, experience and PhD stay
+  skipped, as asked: the title list also refuses "Senior" and "Staff", and
+  `test_manual_intake` keeps a pasted "Sales Manager". On the local queue the
+  check refuses 0 of 5,458 groups, all of which passed the collector's rule.
 - A job-board host (`JOB_BOARDS`, from every paid listing's host in the index)
   names the publisher, so the page and the workbook mark it third-party and a
   company link can replace it. Not when the company-link box is ticked.

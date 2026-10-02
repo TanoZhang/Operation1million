@@ -358,6 +358,10 @@ def make_server(db, ledger, port=8765, export_path=None):
                         '', data, url, manual_intake.catalog_source(url, db), official)
                 else:
                     final_url, metadata = manual_intake.read_posting(url, ledger, db, data, official)
+                # Recording an application already made is a fact, not a choice.
+                refused = manual_intake.refusal(metadata) if requested != 'applied' else None
+                if refused:
+                    raise ValueError(f'{refused}. Not added; Already applied still records it.')
             with writing:
                 state = current_queue()
                 before = cached['key']

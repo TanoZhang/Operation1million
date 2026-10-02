@@ -23,6 +23,16 @@ beyond Show more. Other sections are unchanged. Individual toggles update the
 section checkbox's checked/partial state. Existing browser fixture checks recent
 selection excluding backlog, partial state, and 82 recent rows with 75 displayed.
 
+# Citizenship for pasted jobs, #311 - 2026-10-02 (claude)
+
+The user reported an RTX posting needing U.S. citizenship in Review. Every
+RTX posting in the local index (2026-09-27) is refused already; pasted jobs
+skipped all filters, citizenship included. The live server was not read (the
+permission check refused a production read), so which path brought the one
+the user saw is inferred, not measured. Now Add job refuses an excluded
+employer or stated citizenship, and pending pastes that fail are hidden.
+Suites in the commit after this one. Not deployed.
+
 # Pasted links read like the collector reads boards, #301-310 - 2026-10-02 (claude)
 
 The user asked for pasted links to fetch everything correctly. One open posting

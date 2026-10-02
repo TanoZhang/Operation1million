@@ -297,5 +297,55 @@ class Tabs(Pasted):
         self.assertFalse(export.third_party_site(job))
 
 
+class HardRejects(Pasted):
+    """#311, reported by the user: an RTX posting that requires U.S.
+    citizenship reached Review. Collected copies are refused -- every RTX
+    posting in the index is -- but a pasted one skipped every check. Title,
+    seniority, experience and PhD stay the user's call for a pasted job;
+    citizenship does not."""
+
+    CITIZEN = ('RTX is seeking a Digital Design Engineer intern. U.S. Citizen, U.S. Person, or Immigration '
+               'Status Requirements: U.S. citizenship is required, as only U.S. citizens are eligible '
+               'for a security clearance.')
+
+    def refused(self, **data):
+        from urllib.error import HTTPError
+        with self.assertRaises(HTTPError) as caught:
+            self.paste({}, dict({'url': 'https://careers.rtx.com/global/en/job/01790999'}, **data))
+        self.assertEqual(caught.exception.code, 400)
+        return json.loads(caught.exception.read())['error']
+
+    def test_311_citizenship_stated_in_the_posting(self):
+        error = self.refused(company='Example Avionics', title='Digital Design Engineer Intern',
+                             description=self.CITIZEN)
+        self.assertIn('citizenship', error)
+
+    def test_311_excluded_employer_whose_copy_cut_the_requirement(self):
+        # JobLeads' copy of RTX's Tucson internship: two paragraphs, the
+        # citizenship line gone. The employer list answers for it.
+        error = self.refused(company='Raytheon', title='Digital Design Engineer Intern (FPGA/ASIC)',
+                             description='RTX is seeking a Digital Design Engineer intern in the Effector '
+                                         'Digital Products department.')
+        self.assertIn('Raytheon', error)
+
+    def test_311_citizenship_stated_in_the_title(self):
+        error = self.refused(company='Example', title='FPGA Engineer - US Citizen Required')
+        self.assertIn('citizenship', error)
+
+    def test_311_already_pasted_is_hidden_and_applied_is_still_recorded(self):
+        group = intake.create_group('https://careers.rtx.com/global/en/job/1', intake.posting_metadata(
+            '', {'company': 'RTX', 'title': 'Digital Design Engineer', 'description': self.CITIZEN}))
+        intake.save_manual(self.ledger, group)
+        self.assertFalse(intake.augment_queue(empty(), self.ledger)['pending'])
+        written, state = self.paste({}, {'url': 'https://careers.rtx.com/global/en/job/2', 'status': 'applied',
+                                         'company': 'RTX', 'title': 'FPGA Engineer', 'description': self.CITIZEN})
+        self.assertEqual([g['id'] for g in state['applied']], [written['id']])
+
+    def test_311_experience_stays_the_users_call(self):
+        group, job = self.added({}, 'https://company.example/R5', company='Example', title='RTL Design Engineer',
+                                description='Requires 8+ years of RTL design experience.')
+        self.assertEqual(group['title'], 'RTL Design Engineer')
+
+
 if __name__ == '__main__':
     unittest.main()

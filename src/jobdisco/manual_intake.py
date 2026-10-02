@@ -329,6 +329,28 @@ def posting_metadata(text, supplied, url='', source=None, official=False, record
     return metadata
 
 
+def refusal(job, rules=None):
+    """Why a pasted posting is one the user cannot take, else None (#311).
+
+    A pasted job skips discovery's filters: title, seniority, experience and
+    PhD are the user's call for a posting they chose. Citizenship is not --
+    the user cannot meet it -- and an RTX posting requiring it reached Review
+    this way. The excluded employers are the defence employers whose postings
+    require it; a third-party copy often cuts the sentence that says so.
+    """
+    rules = rules or jsearch.load_plan()[0]['filter']
+    description = job.get('manual_description', job.get('description')) or ''
+    raw = job.get('raw') if isinstance(job.get('raw'), dict) else {}
+    row = {'title': job.get('title') or '', 'company': job.get('company') or '',
+           'raw': dict(raw, description=description)}
+    if jsearch.employer_excluded(row, rules):
+        return f"{row['company']} is an excluded employer (defence; U.S. citizenship or clearance)"
+    text = row['title'] + '\n' + jsearch.description_text(row, structured=True)
+    if jsearch.us_person_required(text, rules):
+        return 'The posting requires U.S. citizenship or U.S. person status'
+    return None
+
+
 def same_url(left, right):
     try:
         return normalized_url(left) == normalized_url(right)
@@ -405,6 +427,10 @@ def augment_queue(state, ledger):
         removed = {ident, *event.get('replaced_ids', [])}
         for name in ('pending', 'backlog', 'applied', 'skipped'):
             state[name] = [item for item in state[name] if item['id'] not in removed]
+        # Pasted before #311, or refused under rules added since: not offered.
+        # A decision already made keeps its tab.
+        if status == 'pending' and refusal(group['jobs'][0], rules):
+            continue
         state[status].append(group)
     state['pending'].sort(key=ranking.rank)
     # Newest first, as applications.queue orders them (#309).

@@ -12,8 +12,8 @@ Scope:   #311 at the user's request (2026-10-02): an RTX posting needing U.S.
 Files:   src/jobdisco/{manual_intake,review}.py, tests/test_twelfth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
 Base commit: de2add0
-Status:  claimed
-Next:    Reproducer, fix, suites.
+Status:  done -- pushed, not deployed
+Next:    Deploy (deploy-vps.bat); Ctrl+F5 Review.
 ```
 
 ```text

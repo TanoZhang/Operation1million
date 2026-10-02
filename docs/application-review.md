@@ -219,6 +219,9 @@ takes Greenhouse and SmartRecruiters links from their posting APIs and other
 pages from their JSON-LD or schema.org microdata; on a board the index reads,
 the company is the catalog's. Apple, Google, HiBob and Oracle (TI) pages publish
 no structured posting: fill Company and Title for those (#301-310).
+Pasted jobs skip discovery's filters except citizenship: Add job refuses an
+excluded employer (the defence list) or a posting that states U.S. citizenship
+or U.S. person status, and says why. Already applied still records (#311).
 Excel buttons download into the browser; no server workbook is written.
 
 ## Applied view and selection scope (2026-10-02)
