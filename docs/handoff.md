@@ -10,7 +10,7 @@ the index's company and requisition; Apple, Google, HiBob and TI still need
 Company and Title. Details in docs/architecture.md and the tracker.
 
 Offline: tests/test_twelfth_bug_hunt.py, each red on 1b9b149 but one guard;
-Windows suite 1098 tests, OK, 11 skips. Live reads were one request per site,
+on 3cb16f0, Windows 1098 tests, OK, 11 skips; WSL 1052, OK, 5 skips. Live reads were one request per site,
 2026-10-02, no paid requests. Not deployed. The user has abandoned autofill:
 submission is through Muse, so no autofill work.
 
