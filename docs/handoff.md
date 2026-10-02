@@ -1,6 +1,16 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# A fourth hunt, #197-216 - 2026-10-01 UTC (claude, not deployed)
+
+Twenty defects from the live queue, each red on `32d280b`
+(`tests/test_tenth_bug_hunt.py`, rows in `docs/bug-tracker.md`). Suite 936
+on Windows, 9 POSIX skips; the WSL run is in the commit message. Needs
+`deploy/vps/install.sh` and `job-store --rescore` (title and band rules
+changed). Stored Google and Renesas rows are corrected only as their boards
+are read again; Greenhouse descriptions arrive on the next pass that is not
+answered 304.
+
 # Handshake unblocked - 2026-09-27 UTC (claude, not deployed)
 
 The user has a Handshake account, so Handshake is no longer account-walled or

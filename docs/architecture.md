@@ -167,6 +167,17 @@ reproducer and update its evidence below.
 
 ## Bugs found and fixed
 
+### A fourth hunt, 2026-10-01 UTC
+
+Tests in `tests/test_tenth_bug_hunt.py`, red on `32d280b`; rows #197-216 of
+`docs/bug-tracker.md`. Found on the live queue rather than by feeding
+wordings. Most costly: Amazon's "non-internship" boilerplate made 80 postings
+asking three or more years internships (#204); Google postings carried no
+location (#206) and Greenhouse postings no description (#207), so neither was
+ever placed abroad or screened; Renesas pages were decoded as Latin-1 (#197).
+The collector now reads a page in its declared charset when the header names
+none; snapshot titles are cleaned before a decision is matched to a listing.
+
 ### An eighth twenty, 2026-09-27 UTC
 
 Tests in `tests/test_ninth_bug_hunt.py`, red on `90f2f4b`; rows #141-160 of

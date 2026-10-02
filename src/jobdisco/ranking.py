@@ -31,7 +31,10 @@ import re
 # bucket below, because an industry that is not this one prints them too.
 CORE = re.compile(r"""\b(?:
       rtl | asic | fpga | vlsi | dft | atpg | dv
-    | (?<!security\s)(?<!cybersecurity\s) soc(?!\s*(?:analyst|operations?|compliance|audit|\d))
+    # Not a security centre's "SOC Support" or an auditor's "SOC Services"
+    # (#198, 2026-10-01).
+    | (?<!security\s)(?<!cybersecurity\s)
+      soc(?!\s*(?:analyst|operations?|compliance|audit|support|services?|\d))
     | (?: design | functional | formal | hardware | rtl | soc | asic | ip | block
         | chip | cpu | gpu | npu | digital | low[-\s]?power
         | pre-?\s?silicon | post-?\s?silicon ) \s+ verification
@@ -58,6 +61,10 @@ CORE = re.compile(r"""\b(?:
     | floor-?plan\w* | placement (?=\s+engineer) | tape-?out
     | (?: library | lib ) \s+ characteri[sz]ation | standard[-\s]?cell \s+ library
     | verilog | vhdl | dfx | micro-? architect\w*
+    # Found on the live queue on 2026-10-01 (#200, #211): the FPGA spelled
+    # out, a block's IP design, and digital implementation, which is
+    # physical design under another name.
+    | field[-\s]programmable \s+ gate \s+ arrays? | ip \s+ design(?:er)? | digital \s+ implementation
 )\b""", re.I | re.X)
 
 
@@ -94,6 +101,10 @@ RELATED = re.compile(r"""\b(?:
     | mask \s+ design | design \s+ automation
     | packag(?:e|ing) \s+ (?: design(?:er)? | engineer | integration ) | advanced \s+ packaging
     | design \s+ engineering
+    # Hardware and firmware abbreviated, "post-silicon" as one word, and the
+    # analog blocks by name (#201, #202, #212, live queue, 2026-10-01).
+    | hw | fw | (?:pre|post)-?silicon
+    | (?: pll | adc | dac | ldo | power \s+ management ) \s+ design(?:er)?
 )\b""", re.I | re.X)
 
 
@@ -178,7 +189,12 @@ def bucket(title):
     early = _early(title)
     # A security operations centre's SOC is not a system on chip, however the
     # title spells it: "Security Operations Center (SOC) Engineer" (2026-09-27).
-    if CORE.search(title) and not SECURITY_OPERATIONS.search(title):
+    # Only the SOC: "FPGA/SoC Embedded Cybersecurity Engineer" is still an
+    # FPGA posting, and the whole title used to be ruled out (#199).
+    core = [found.group(0) for found in CORE.finditer(title)]
+    if SECURITY_OPERATIONS.search(title):
+        core = [word for word in core if not re.search(r'\bsoc\b', word, re.I)]
+    if core:
         return 0 if early else 2
     if RELATED.search(title):
         return 1 if early else 3

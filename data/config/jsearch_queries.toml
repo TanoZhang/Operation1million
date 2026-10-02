@@ -143,10 +143,15 @@ exclude_title_patterns = [
   # The same levels abbreviated: "Engineering Mgr" and "Snr. Engineer" were
   # let through while "Manager" and "Senior" were not.
   '\bmgrs?\b', '\bsnr\b',
+  # Misspelled: "Program Manger" (Amazon, 2026-10-01).
+  '\bmangers?\b',
   '\bchief\b', '\bC[TEIF]O\b',
   # A recruiter is not the trade however silicon the title (2026-09-27), and
   # nor is a security operations centre.
   '\brecruiters?\b', '\btalent\s+acquisition\b',
+  # And a sourcer, who finds candidates or parts but not chips: "Talent
+  # Sourcer", "Strategic Sourcing Specialist" (2026-10-01).
+  '\bsourc(?:er|ers|ing)\b',
   '\bsecurity\s+operations\b', '\bSOC\s+analysts?\b', '\bcyber\s*security\s+SOC\b',
   # "Head, Silicon Engineering", "Team Leader", "Supervisor" (2026-09-27).
   # Not "Head-Mounted Display" or a disk drive's "Head Design".
@@ -158,6 +163,10 @@ exclude_title_patterns = [
   # fires. Measured on the live queue: 423 sales, 151 marketing and 633
   # technician postings were surviving exactly that way.
   '\bsales\b', '\bmarketing\b', '\btechnician\b',
+  # Sales without the word: "Account Executive" and "Account Representative"
+  # -- 90 queued groups, one of them in Core VLSI, "Digital IC, Account
+  # Technology Executive (ATX)" (2026-10-01).
+  '\baccount\s+(?:technology\s+)?executives?\b', '\baccount\s+rep(?:resentative)?s?\b',
   # Levels above what an early-career application reaches
   # Not the SR of SR-IOV, a PCIe virtualisation feature firmware and driver
   # postings name in the title. Not "(Up to Senior Level)", which hires below
@@ -172,11 +181,18 @@ exclude_title_patterns = [
   # hiring across levels: "SoC RTL Design Engineer (Up to Principal Level)"
   # and "... Lead & IC Engineers" are open to the levels below, and were the
   # only titles of 2,221 these took that were not a level of their own.
-  '(?<!\bup\sto\s)\bprincipal\b', '\blead\b(?!\s*(?:&|and|/)\s*(?:ic|individual)\b)',
+  # "Principle" too, as Astera and NXP write it (2026-10-01).
+  '(?<!\bup\sto\s)\bprincip(?:al|le)\b', '\blead\b(?!\s*(?:&|and|/)\s*(?:ic|individual)\b)',
   # Blocked wherever it appears, at the user's request on 2026-09-22; the
   # same word is in exclude_publisher_patterns, which reads the whole link.
   '\btrabajos?\b',
-  '\bfellow\b', '\bdistinguished\s+engineer\b', '\bdistinguished\s+member\b',
+  # Distinguished is the level, whatever follows it: "Distinguished Formal
+  # Verification Architect" passed when only the engineer and the member
+  # were named (2026-10-01).
+  '\bfellow\b', '\bdistinguished\b',
+  # An MBA programme is open to MBA students, as a PhD one is to PhD
+  # students: "MBA Internships" was on the Early career tab (2026-10-01).
+  '\bMBA\b',
   # Unrelated disciplines: title-only exclusions, before explicit trade keeps.
   # "Optical" on its own since 2026-09-23 at the user's request, like
   # photonics: "Optical Module Firmware Intern" and "Hardware Design Engineer,
@@ -277,7 +293,7 @@ keep_title_patterns = [
   '\bpre[-\s]?silicon\s+verification\b', '\bformal\s+verification\b',
   '\brtl\b', '\bfpga\b', '\b(?:digital|logic)\s+(?:ic\s+)?design\b',
   # Not a security operations centre (2026-09-27): "SOC Analyst".
-  '\bdft\b', '\basic\b', '\bvlsi\b', '(?<!\bsecurity\s)(?<!\bcybersecurity\s)\bsoc\b(?!\s*(?:analyst|\d|operations?))',
+  '\bdft\b', '\basic\b', '\bvlsi\b', '(?<!\bsecurity\s)(?<!\bcybersecurity\s)\bsoc\b(?!\s*(?:analyst|\d|operations?|support|services?))',
   '\bphysical\s+design\b',
   # Mixed-signal verification is the trade, as rejection_reason's docstring
   # says; only "design verification" was named (2026-09-27).

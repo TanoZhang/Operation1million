@@ -21,6 +21,7 @@ title-rule changes also need `job-store --rescore`.
 | 7 (#121-140) | `tests/test_eighth_bug_hunt.py` | e79a5fd | 90f2f4b |
 | 8 (#141-160) | `tests/test_ninth_bug_hunt.py` | 90f2f4b | eadb123 |
 | live (#161-) | `tests/test_live_measurement_bugs.py` | 691c051 | see git log |
+| hunt 4 (#197-216) | `tests/test_tenth_bug_hunt.py` | 32d280b | see git log |
 
 Direction: **removed** = a posting was wrongly hidden; **kept** = a posting that
 should go was shown; **display** = wrong text, date or grouping.
@@ -223,6 +224,26 @@ should go was shown; **display** = wrong text, date or grouping.
 | 194 | jsearch | the run's unique count read unstable job_ids; inflated about five-fold | display | unique by id and by address |
 | 195 | jsearch | one HTTP 504 ended a query for the day (15 of 35 on 2026-09-24) | kept | server errors retried once |
 | 196 | docs | jsearch.md said 36 queries, search-queries.md said 52; the plan has 35 | display | corrected |
+| 197 | collector | a page whose header names no charset read as ISO-8859-1; 150 Renesas titles stored as "â\x80\x93" and Japanese mojibake | display | the page's `<meta charset>`, else UTF-8 |
+| 198 | ranking | "SOC Support Specialist" (Huntress) Core VLSI; an auditor's "SOC Services Intern" led Early career | display | not before support / services |
+| 199 | ranking | "FPGA/SoC Embedded Cybersecurity Engineer" Related: the security-centre test vetoed every core word | display | it rules out only the SOC |
+| 200 | ranking | "Field-Programmable Gate Arrays Engineer" in the last band | display | spelled-out FPGA is core |
+| 201 | ranking | "HW Engineer", "SIT Engineer (HW/FW Focus)" in the last band | display | HW, FW related |
+| 202 | ranking | "Server Postsilicon Project Engineer" in the last band | display | pre/post-silicon as one word |
+| 203 | title rules | "Principle DFT Engineer", "Principle Validation Engineer" passed the principal block | kept | principle |
+| 204 | experience | "3+ years of non-internship ... experience" made the posting an internship; 80 queued listings asking 3+ years | kept | not after non- |
+| 205 | title rules | five "Distinguished ... Architect/Engineer" titles passed; only engineer and member were named | kept | distinguished alone |
+| 206 | collector | all 3,263 Google postings stored with no location; none could be placed abroad (7 of 20 on one page were) | kept | the span after the `place` icon |
+| 207 | collector | Greenhouse fetched without `content=true`: 414 postings never screened for experience, citizenship or PhD; its escaped HTML would show as tags | kept | asked for; escaped markup parsed |
+| 208 | applications | a decided paid listing's snapshot title predates today's cleaning, so the same listing under a new id came back (an application of 2026-09-26) | kept | snapshot titles cleaned before matching |
+| 209 | job_text | "CPU Physical Design Engineer, San Diego", "(Austin)", "– Lehi": the city alone stayed (25 groups) | display | the location's city is a removable suffix |
+| 210 | title rules | "Account Executive" / "Account Representative" passed the sales block; 90 groups, one in Core VLSI | kept | blocked |
+| 211 | ranking | "Fabric IP Designer", "Security IP Design Engineer", "Digital Implementation AE Architect" in the last band | display | IP design, digital implementation core |
+| 212 | ranking | "PLL Design Engineer", "High Speed DAC Design Expert", "Power Management Design Engineer" in the last band | display | analog blocks related |
+| 213 | title rules | "MBA Internships", "2027 MBA Leadership Development Program Intern" on Early career | kept | MBA blocked |
+| 214 | title rules | "Talent Sourcer", "Strategic Sourcing Specialist" passed the recruiter block | kept | sourcer / sourcing |
+| 215 | job_text | 22 Qualcomm titles shown as hashtags, "#Embedded Software Engineer"; "EHS Specialist," | display | leading # and a dangling separator removed |
+| 216 | title rules | "Program Manger" passed the manager block | kept | the misspelling |
 
 ## Not bugs, recorded so they are not re-found
 
@@ -319,3 +340,11 @@ stated U.S. citizenship / clearance requirements.
 The same analysis re-set every query's page cap (docs/jsearch.md, "Query
 yield"): caps move from queries that end after a page to general queries that
 hit their cap every day; the total stays 320 and the tier order is unchanged.
+
+#197-216 are the fourth hunt the user asked for on 2026-10-01: the review
+queue rebuilt from the live index (bootstrapped 2026-09-27) and read for what
+it showed, hid and stored. Two came from one manual request each, the
+documented diagnostic allowance: a Google results page (the location markup,
+#206) and a Renesas posting (`text/html` with no charset, #197). Rows stored
+before #197 and #206 keep their text until their board is read again; Renesas
+is a lastmod sitemap, so an unchanged posting is not refetched.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import csv
 import json
 import os
@@ -119,6 +120,32 @@ def posted_from_text(text):
     # row printed as "Posted 09/07/26" was undated here (2026-09-27).
     found = ranking.posted_day(cleaned)
     return found.isoformat() if found else None
+
+
+META_CHARSET = re.compile(rb'<meta[^>]+charset\s*=\s*["\']?\s*([\w-]+)', re.I)
+
+
+def declared_encoding(response):
+    """Read a page in the charset it declares when its header names none.
+
+    `requests` reads a text/* body whose header names no charset as
+    ISO-8859-1. Renesas sends text/html that way and declares UTF-8 in the
+    page, and 150 open titles were stored as "Architect â\\x80\\x93 Drone" and
+    as Japanese mojibake (#197, live index, 2026-10-01). The page's own <meta>
+    decides, and UTF-8 where it says nothing.
+    """
+    content_type = str(response.headers.get('content-type') or '').lower()
+    body = getattr(response, 'content', None)
+    if (not content_type.startswith('text/') or 'charset=' in content_type
+            or not isinstance(body, bytes)):
+        return
+    found = META_CHARSET.search(body[:4096])
+    encoding = found.group(1).decode('ascii') if found else 'utf-8'
+    try:
+        codecs.lookup(encoding)
+    except LookupError:
+        encoding = 'utf-8'
+    response.encoding = encoding
 
 
 def present(value):
@@ -306,6 +333,12 @@ def html_items(text, base, provider):
             if not title or title.lower() in {'see full role description', "where we're hiring", 'apply', 'apply now'}:
                 continue
             loc = row.select_one('[class*=location], [class*=Location]')
+            if provider == 'google_jobs' and not loc:
+                # Google names no class for it: the place is the span after a
+                # `place` icon. All 3,263 open Google postings were stored with
+                # no location, so none could be read as abroad (#206, 2026-10-01).
+                icon = next((i for i in row.select('i') if i.get_text(strip=True) == 'place'), None)
+                loc = icon.find_next_sibling('span') if icon else None
             d = row.select_one('[class*=posted-date], [class*=date-posted]')
             items.append({'title': title, 'url': urljoin(base, href), 'location': loc.get_text(' ', strip=True) if loc else None, 'source_job_id': html_job_id(href, provider), 'posted_text': d.get_text(' ', strip=True) if d else None, 'html': str(row)})
     if structured:
@@ -378,6 +411,7 @@ class Collector:
                 self.policy.pause('HTTP 503 service unavailable; deferred', max(900, wait))
             time.sleep(wait)
         r.raise_for_status()
+        declared_encoding(r)
         if 'json' not in r.headers.get('content-type', '') and 'xml' not in r.headers.get('content-type', ''):
             soup = BeautifulSoup(r.text, 'html.parser')
             if html_challenge(soup):

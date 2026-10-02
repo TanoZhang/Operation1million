@@ -23,7 +23,12 @@ def readable_text(value):
         return BeautifulSoup(value, 'html.parser').get_text('\n', strip=True).strip()
     # Entity decoding alone does not make plain text HTML. Parsing vector<T>
     # merely because the same sentence contains &amp; deletes the type name.
-    return unescape(value).strip()
+    plain = unescape(value)
+    # Unless what it decodes to is markup: Greenhouse escapes its HTML, and the
+    # page showed "<p>" and "<li>" as text (#207, 2026-10-01).
+    if MARKUP.search(plain):
+        return BeautifulSoup(plain, 'html.parser').get_text('\n', strip=True).strip()
+    return plain.strip()
 
 
 QUALIFICATION_FIELDS = (
@@ -121,10 +126,22 @@ def clean_title(title, location=''):
             if other and index:
                 candidates.add(', '.join(pieces[:index] + [other.upper() if len(other) == 2 else other]
                                          + pieces[index + 1:]))
+    # The city alone: "CPU Physical Design Engineer, San Diego" and "(Austin)"
+    # for "San Diego, California, United States of America" (#209, 25 queued
+    # groups, 2026-10-01). The city is the first part, or the last where a
+    # country code leads: "US, NV, Henderson".
+    if len(parts) >= 2:
+        city = parts[-1] if re.fullmatch(r'[A-Za-z]{2}', parts[0]) else parts[0]
+        if len(city) >= 3:
+            candidates.add(city)
 
     def once(title):
         title = POSTED_SUFFIX.sub('', title).strip()
         title = REQUISITION_SUFFIX.sub('', title).strip()
+        # A hashtag is not the role, "#Embedded Software Engineer" (Qualcomm),
+        # and a separator with nothing after it ends nothing (#215, 2026-10-01).
+        title = re.sub(r'^#(?=[A-Za-z])', '', title)
+        title = re.sub(r'\s*[,|\-–—:]\s*$', '', title)
         for candidate in sorted(candidates, key=len, reverse=True):
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back
@@ -134,11 +151,12 @@ def clean_title(title, location=''):
             # "Austin,TX" without a space is the same place (2026-09-27).
             # Or joined with a dash: "- Remote - US" for "Remote, US" (2026-09-27).
             place = r'(?:,\s*|\s*[-–]\s*)'.join(re.escape(piece.strip()) for piece in candidate.split(','))
+            # Never the whole title: "Austin" for a posting in Austin stays.
             match = re.search(r'(?:\s*,\s*|\s+(?:in|at)\s+|' + SEPARATOR + ')' + place + r'$', title, re.I)
-            if match:
+            if match and title[:match.start()].strip():
                 return title[:match.start()].strip()
             match = re.search(r'\s*\(\s*' + place + r'\s*\)$', title, re.I)
-            if match:
+            if match and title[:match.start()].strip():
                 return title[:match.start()].strip()
         return title
 

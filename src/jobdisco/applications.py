@@ -71,11 +71,18 @@ def listing_signature(job):
     Only paid listings are matched this way. A direct board's id is the
     company's own requisition, and one title in one city can be several of
     those.
+
+    The title is cleaned as the queue cleans it. A decision's snapshot keeps
+    the title as it was cleaned on the day, and an application of 2026-09-26
+    held "... Summer 2027 - Chandler, AZ, United States", which today's
+    cleaning shortens: the same listing under a new id no longer matched it
+    and came back to be applied for again (#208).
     """
     def plain(value):
         return ' '.join(re.sub(r'[\W_]+', ' ', str(value or '')).casefold().split())
     return (plain(job.get('company_key') or job.get('company')),
-            plain(job.get('title')), plain(job.get('location')))
+            plain(clean_title(job.get('title') or '', job.get('location') or '')),
+            plain(job.get('location')))
 
 
 @contextmanager
@@ -141,7 +148,7 @@ def describes_decision(db, url, row, decided):
     here = (row['provider_key'] or '', row['company_key'] or '',
             clean_title(row['title'] or '', row['location'] or ''))
     under = (decided.get('provider_key') or '', decided.get('company_key') or '',
-             decided.get('title') or '')
+             clean_title(decided.get('title') or '', decided.get('location') or ''))
     if not (under[0] and under[0] != here[0] and under[1:] == here[1:]):
         return False
     identity = scoped_identity(decided)
@@ -233,9 +240,11 @@ def queue(db_path=DB, path=None, now=None):
                     # retitled will come back as pending, which is the side to
                     # err on -- showing a posting twice is recoverable, hiding
                     # one is not.
+                    # Its title cleaned as the queue cleans it today (#208).
                     moved_states.setdefault(job['url'], []).append(
                         ((job.get('provider_key') or '', job.get('company_key') or '',
-                          job.get('title') or ''), scoped_identity(job), decision))
+                          clean_title(job.get('title') or '', job.get('location') or '')),
+                         scoped_identity(job), decision))
             continue
         # Only records without a scoped snapshot may fall back to URL identity.
         # Applying a modern decision by URL too hides a replacement requisition

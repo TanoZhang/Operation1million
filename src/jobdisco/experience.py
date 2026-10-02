@@ -7,7 +7,11 @@ import unicodedata
 # a new one; "Hardware Co-op" asking three years of Python was refused while
 # the same posting called an internship was not. "Early career" and "entry
 # level" stay out on purpose: those postings may still ask for years.
-ENTRY = re.compile(r'\b(?:intern|internship|co-?op|new\s+(?:college\s+)?grad(?:uate)?|'
+# Not "non-internship": Amazon's "3+ years of non-internship professional
+# software development experience" made 80 queued postings internships, and
+# their years were waved through (#204, live queue, 2026-10-01).
+ENTRY = re.compile(r'(?<!\bnon-)(?<!\bnon\s)(?<!\bnon)'
+                   r'\b(?:intern|internship|co-?op|new\s+(?:college\s+)?grad(?:uate)?|'
                    r'(?:university|college|recent)\s+graduate)\b', re.I)
 # "Will be an advantage" (Samsung) is a preference; a bare "advantage for
 # FullChip" (NVIDIA) is not the marker, so the article is required.

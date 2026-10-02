@@ -122,6 +122,13 @@ def request_for(source: Source) -> tuple[str, str, dict[str, Any] | None]:
         return oracle_request(source)
     if source.provider_key == "phenom":
         return phenom_request(source)
+    if source.provider_key == "greenhouse" and "content=" not in source.access_url:
+        # The job board API sends each posting's description only when asked
+        # for it. Without it the 414 open postings on four boards had none, and
+        # no experience, citizenship or PhD requirement of theirs was ever read
+        # (#207, live index, 2026-10-01). Still one request per board.
+        separator = "&" if "?" in source.access_url else "?"
+        return source.access_url + separator + urlencode({"content": "true"}), "GET", None
     return source.access_url, "GET", None
 
 

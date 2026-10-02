@@ -12,8 +12,8 @@ Scope:   Fourth bug hunt at the user's request (2026-10-01): twenty defects in
 Files:   src/jobdisco/*, data/config/*, tests/test_tenth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker}.md
 Base commit: 9d3e5ae
-Status:  claimed (worktree ../op1m-hunt4, branch claude/bug-hunt-4)
-Next:    Read the modules, write reproducers, fix.
+Status:  done -- #197-216 fixed (docs/bug-tracker.md); not deployed
+Next:    deploy/vps/install.sh, then job-store --rescore.
 ```
 
 ```text
