@@ -261,7 +261,9 @@ TEXT_DATES = ('%B %d, %Y', '%b %d, %Y', '%m/%d/%Y', '%d %B %Y', '%d %b %Y', '%d-
               '%d-%B-%Y', '%d.%m.%Y', '%b %d %Y', '%B %d %Y', '%d %b, %Y', '%d %B, %Y')
 WEEKDAY = re.compile(r'^(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+', re.I)
 ORDINAL = re.compile(r'\b(\d{1,2})(?:st|nd|rd|th)\b', re.I)
-YEAR_FIRST = re.compile(r'^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$')
+# With dashes too: Avature and TalentBrew publish datePosted as "2026-9-21",
+# which ISO_DAY's two digits do not read (#307).
+YEAR_FIRST = re.compile(r'^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$')
 SHORT_YEAR = re.compile(r'^\d{1,2}/\d{1,2}/\d{2}$')
 
 

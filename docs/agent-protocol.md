@@ -117,8 +117,8 @@ Scope:   #301-310 at the user's request (2026-10-02): defects in pasted-link
 Files:   src/jobdisco/{manual_intake,ranking}.py, tests/test_twelfth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
 Base commit: 1b9b149
-Status:  claimed
-Next:    Fix one at a time, then the full suite on Windows and WSL.
+Status:  done -- #301-310 fixed, Windows suite OK; not deployed
+Next:    Deploy (deploy-vps.bat); Ctrl+F5 Review.
 ```
 
 ```text

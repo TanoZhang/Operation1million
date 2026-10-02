@@ -345,11 +345,12 @@ def make_server(db, ledger, port=8765, export_path=None):
             metadata = None
             final_url = url
             if group is None:
+                official = data.get('official') is True
                 if data.get('company') and data.get('title'):
-                    metadata = manual_intake.posting_metadata('', data)
+                    metadata = manual_intake.posting_metadata(
+                        '', data, url, manual_intake.catalog_source(url, db), official)
                 else:
-                    final_url, text = manual_intake.read_public_page(url, ledger, db)
-                    metadata = manual_intake.posting_metadata(text, data)
+                    final_url, metadata = manual_intake.read_posting(url, ledger, db, data, official)
             with writing:
                 state = current_queue()
                 before = cached['key']

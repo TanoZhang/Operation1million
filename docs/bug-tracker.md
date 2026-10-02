@@ -355,6 +355,16 @@ it a wording. Counts are queued groups.
 | 298 | title rules | more retail store roles, "US-Technical Expert", "US-Pro" (23) | kept | blocked |
 | 299 | title rules | executive and compensation business partners | kept | blocked |
 | 300 | title rules | "Construction Project Engineer" passed the construction engineer block | kept | blocked |
+| 301 | intake | a pasted Greenhouse link could not be read: the page draws the posting in the browser, with no JSON-LD | not read | the board API the collector reads |
+| 302 | intake | the same for SmartRecruiters | not read | its posting API |
+| 303 | intake | SuccessFactors (Teradyne) marks the posting up as schema.org microdata, which was not read | not read | microdata, its place in streetAddress, its Java-printed date |
+| 304 | intake | a schema.org Country object stored as "San Diego, CA, {'@type': 'Country', 'name': 'US'}" (Qualcomm); only the first of several places kept | display | the collector's location_text |
+| 305 | intake | escaped markup in a description shown as "<p>Please note ..." (Cisco) | display | job_text.readable_text |
+| 306 | intake | a page without a header charset read as ISO-8859-1, the collector's #197 | display | header, else the page's meta, else UTF-8 |
+| 307 | ranking | "2026-9-21" (Synopsys, Arm) read as undated, so a pasted posting ranked as new today | display | read as a date |
+| 308 | intake | a link on a board the index reads took the page's legal name ("Silicon Labs Intl", "Advanced Micro Devices, Inc") and its bare requisition ("20521" for Workday's "20521-1"); with Workday's /en-US/ share link, a posting already queued was added a second time under another name, and Already applied marked the copy | duplicate | the catalog's company and key, and the board's requisition as the collector reads it |
+| 309 | intake | a pasted posting marked applied was listed after every older application | display | newest first |
+| 310 | intake | a pasted ZipRecruiter, Indeed or other job-board link carried no publisher, so it was not marked third-party and the company link could not replace it | display | publisher named from the host |
 
 ## Not bugs, recorded so they are not re-found
 

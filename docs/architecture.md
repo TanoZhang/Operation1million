@@ -2361,6 +2361,34 @@ The initial broad JobMesh publisher pattern rejected occurrences in unrelated
 hosts' paths/query strings. Existing domain-boundary regression fixtures caught
 this; use host-aware exclusion plus an anchored publisher-name pattern.
 
+## Reading a pasted link - 2026-10-02 (#301-310)
+
+Measured by pasting one open posting per provider in the live index (one
+request per site): on 1b9b149, 7 of 15 could not be read and three of the
+rest stored a wrong location, description or date. Now 11 of the 14 still
+open read in full; Apple, Google, HiBob and Oracle (TI) publish no structured
+posting and still ask for Company and Title. Oracle's single-posting API
+answered nothing for an open requisition, so it is not used.
+
+- The posting is read the way the collector reads its board: Greenhouse and
+  SmartRecruiters from their posting APIs, everything else from the page's
+  JSON-LD, else schema.org microdata. Never from the page's heading: Google's
+  says "job details", and a wrong title is worse than asking for one.
+- `catalog_source` finds the source a link belongs to. A board of one employer
+  matches on host. A tenant board (Greenhouse, SmartRecruiters, Lever, Ashby)
+  needs the tenant as well: the API host is shared, so the host alone named
+  the first company listed under it.
+- A known source gives the catalog's company name and key, and the
+  requisition as the collector stores it: Workday's after the last `_`, else
+  `collector.html_job_id`. `match_group` accepts any of the posting's ids,
+  within the company. With that, Workday's `/en-US/` share link of a queued
+  posting matches it instead of adding a copy.
+- The collector's helpers, not new ones: `location_text`, `jsonld`, `clean`,
+  `html_job_id`, its `META_CHARSET` reading, and `job_text.readable_text`.
+- A job-board host (`JOB_BOARDS`, from every paid listing's host in the index)
+  names the publisher, so the page and the workbook mark it third-party and a
+  company link can replace it. Not when the company-link box is ticked.
+
 ### Review loading and Applied contracts - 2026-10-02
 
 A healthy warm queue was measured at HTTP 200 in 0.188 seconds. The reported

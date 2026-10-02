@@ -1,3 +1,19 @@
+# Pasted links read like the collector reads boards, #301-310 - 2026-10-02 (claude)
+
+The user asked for pasted links to fetch everything correctly. One open posting
+per provider in the live index, pasted through the intake: on 1b9b149, 7 of 15
+could not be read (Greenhouse, SmartRecruiters, Teradyne among them), and Qualcomm's
+location, Cisco's description and Arm's and Synopsys's dates were wrong. A
+posting already queued, pasted as Workday's /en-US/ share link, was added again
+under the page's legal name. Now 11 of the 14 still open read in full and match
+the index's company and requisition; Apple, Google, HiBob and TI still need
+Company and Title. Details in docs/architecture.md and the tracker.
+
+Offline: tests/test_twelfth_bug_hunt.py, each red on 1b9b149 but one guard;
+Windows suite 1098 tests, OK, 11 skips. Live reads were one request per site,
+2026-10-02, no paid requests. Not deployed. The user has abandoned autofill:
+submission is through Muse, so no autofill work.
+
 # Clear successful paste - 2026-10-02 (codex)
 
 Base 5f90e8b. Successful manual adds and applied saves reset the paste form,

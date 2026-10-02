@@ -214,8 +214,11 @@ a matching third-party listing. Original snapshots remain in manual_jobs.ndjson
 beside the decision ledger. This private durable file must be backed up with
 operational/. It survives rebuilding SQLite. Scheduled discovery still applies
 all hard rejects, including JobMesh.io. Public fetches share the production
-collection lock, stop at challenges, and persist source cooldowns. The current
-reader supports public JSON-LD JobPosting pages; script-only pages need details.
+collection lock, stop at challenges, and persist source cooldowns. The reader
+takes Greenhouse and SmartRecruiters links from their posting APIs and other
+pages from their JSON-LD or schema.org microdata; on a board the index reads,
+the company is the catalog's. Apple, Google, HiBob and Oracle (TI) pages publish
+no structured posting: fill Company and Title for those (#301-310).
 Excel buttons download into the browser; no server workbook is written.
 
 ## Applied view and selection scope (2026-10-02)
