@@ -2441,3 +2441,7 @@ filter results before Review deduplication, application decisions and latest-see
 exclusions, not a production queue increase or newly collected jobs. Previously
 rejected payloads absent from the index are not recoverable from this policy
 change; future scheduled collection can discover them within the existing budget.
+
+Production read-only comparison on installed 52c1b1b (2026-10-02):
+51 open indexed rows change to keep (50 off_domain, one publisher);
+this is before Review deduplication and durable application decisions.

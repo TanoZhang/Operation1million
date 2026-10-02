@@ -9,8 +9,8 @@ Owner: codex
 Scope: Broaden bulk-application relevance threshold and restore account-based Dice/Wellfound sources.
 Files: data/config/jsearch_queries.toml, tests/test_account_walled.py, docs/{agent-protocol,architecture,handoff,blocked-recruitment-domains}.md
 Base commit: d74e89a
-Status: claimed
-Next: Compare retained candidates, run filtering tests; preserve ineligibility and explicit publisher blocks.
+Status: done -- installed 52c1b1b; queue HTTP 200, 0.128 seconds; 230 focused tests pass.
+Next: Refresh Review; scheduled collection uses restored sources within existing budget.
 ```
 
 ```text

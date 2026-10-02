@@ -6,7 +6,10 @@ checks remain unchanged. Budget/caps unchanged. Local 2026-09-27 posting-level
 comparison recovers 46 rows before dedupe/decisions; not a live queue count.
 No paid collection or application decisions performed. Validation: 230 focused tests pass (12 source-wall, 99 JSearch, 52 Review,
 48 experience, 19 degree); 23 prelaunch tests pass with 9 platform skips.
-Deployment pending.
+Installed 52c1b1b. On the production read-only index, 51 open rows pass the
+new posting filter that failed the old one (50 relevance, one publisher),
+before Review dedupe/decisions. 131 tests rerun on exact 52c1b1b pass.
+Queue readiness verified: HTTP 200 in 0.128 seconds after the initial rebuild.
 
 # Review restart waiting - 2026-10-02 (codex)
 
