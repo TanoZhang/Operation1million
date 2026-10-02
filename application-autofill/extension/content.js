@@ -122,10 +122,16 @@
       && element.getAttribute('aria-multiselectable') !== 'true';
   }
 
+  // A placeholder, not an answer, however it is punctuated: "Select...",
+  // "-- Select --", "Choose an option…" and "Please select an option" read as
+  // answers, and those dropdowns were left alone as occupied (#275, 2026-10-02).
+  const PLACEHOLDER = /^(?:please\s+)?(?:select|choose|pick)(?:\s+(?:one|an?\s+(?:option|answer|value)|from\s+(?:the\s+)?list))?$|^search$/i;
+
   function customValue(element) {
     const value = element instanceof HTMLInputElement ? element.value
       : element.getAttribute('aria-valuetext') || cleanText(element.textContent);
-    return /^(select(?: one| an option)?|choose(?: one| an option)?|please select|search)?$/i.test(value.trim()) ? '' : value;
+    const bare = value.replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    return !bare || PLACEHOLDER.test(bare) ? '' : value;
   }
 
   function describeCustomControl(element, includeValues) {

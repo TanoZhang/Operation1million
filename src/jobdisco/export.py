@@ -60,7 +60,9 @@ def rows(entries):
             # it, and the third-party address it replaced is kept beside it.
             official = job.get('official_link')
             out.append([status_of(source, group), group.get('company') or '', group.get('title') or '',
-                        job.get('location') or '', (job.get('posted_at') or '')[:10],
+                        job.get('location') or '',
+                        (job.get('posted_at') or '')[:10]
+                        or (f"on or before {job['posted_before']}" if job.get('posted_before') else ''),
                         (job.get('first_seen') or '')[:10], group.get('confidence'), band,
                         'company site' if official else job.get('publisher') or job.get('provider_key') or '',
                         official or job.get('url') or '',

@@ -277,3 +277,32 @@ class MoreStrongTermTests(unittest.TestCase):
     def test_274_amazon_private_brands(self):
         self.assertNotIn('apb', matched('Amazon Private Brands (APB) owns paid social.'))
         self.assertIn('apb', matched('Design the AXI to APB bridge.'))
+
+
+class EarlyCareerLevelTests(unittest.TestCase):
+    def test_276_engineer_i_is_the_entry_level(self):
+        """"Digital Design Engineer I" and Annapurna's "Design Verification
+        Engineer I" sat with the experienced roles, off the Early career tab."""
+        for title in ('Digital Design Engineer I', 'MLA Design Verification Engineer I, Annapurna Labs',
+                      'Hardware Engineer I (Full Time) - United States', 'Embedded Engineer 1'):
+            self.assertTrue(ranking.early_career(title), title)
+        for title in ('Design Engineer II', 'Engineer III, RTL', 'Staff Engineer I, System Structure Design',
+                      'Engineer IV', 'Physical Design Engineer'):
+            self.assertFalse(ranking.early_career(title), title)
+
+
+class OlderThanTests(unittest.TestCase):
+    def test_277_thirty_days_or_more_is_not_new(self):
+        """Workday's "Posted 30+ Days Ago" was ignored, and the posting sorted
+        by the day it was first seen, ahead of newer ones (409 queued)."""
+        from jobdisco import applications
+        job = {'posted_at': None, 'posted_relative': 'Posted 30+ Days Ago',
+               'last_seen': '2026-09-27T10:00:00+00:00', 'first_seen': '2026-09-20T10:00:00+00:00'}
+        applications.stated_age(job)
+        self.assertIsNone(job['posted_at'])
+        self.assertEqual(job['posted_before'], '2026-08-28')
+        older = {'id': 'a', 'title': 'RTL Engineer', 'jobs': [job]}
+        dated = {'id': 'b', 'title': 'RTL Engineer', 'jobs': [{'posted_at': '2026-09-01', 'first_seen': '2026-09-02'}]}
+        self.assertEqual([group['id'] for group in ranking.order([older, dated])], ['b', 'a'])
+        script = (Path(__file__).resolve().parents[1] / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+        self.assertIn('posted_before', script)

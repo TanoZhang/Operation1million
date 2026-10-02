@@ -33,7 +33,7 @@ GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
                 'early_career')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
-              'publisher', 'employer_site', 'official_link')
+              'posted_before', 'publisher', 'employer_site', 'official_link')
 STATUSES = ('pending', 'backlog', 'applied', 'skipped')
 
 

@@ -329,6 +329,9 @@ it a wording. Counts are queued groups.
 | 272 | relevance | "conformal coating" scored as Cadence Conformal | kept | not before coat |
 | 273 | relevance | Amazon's "sva vendors" and "Strategic Vendor Acceleration (SVA)" scored as SVA | kept | as written, not those |
 | 274 | relevance | "Amazon Private Brands (APB)" scored as the APB bus | kept | not after brands / balance |
+| 275 | autofill | a custom dropdown showing "Select...", "-- Select --", "Choose an option…" or "Please select an option" was read as answered and never filled; only "Select One" passed | missed fill | placeholders read without their punctuation |
+| 276 | ranking | "Digital Design Engineer I", "Design Verification Engineer I": the first level of a ladder sat with experienced roles, off the Early career tab | display | Engineer I / 1 is early career |
+| 277 | ranking | "Posted 30+ Days Ago" was ignored and 409 queued Workday postings sorted by first_seen, ahead of newer ones | display | read as a bound, "posted on or before", for sort, page and export |
 
 ## Not bugs, recorded so they are not re-found
 

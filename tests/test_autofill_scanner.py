@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CASES = ('the_heading_before_a_field_is_its_section', 'a_radio_group_is_named_by_its_question',
          'a_lever_radio_question', 'a_radio_group_with_no_question_text_is_left_alone',
-         'boxes_without_a_legend_are_not_repeated_rows', 'untitled_rows_with_the_same_questions_still_are')
+         'boxes_without_a_legend_are_not_repeated_rows', 'untitled_rows_with_the_same_questions_still_are',
+         'a_punctuated_placeholder_is_not_an_answer')
 
 
 class AutofillScannerTests(unittest.TestCase):

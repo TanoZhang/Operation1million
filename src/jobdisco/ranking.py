@@ -149,6 +149,10 @@ EARLY_CAREER = re.compile(r"""\b(?:
     # Only in capitals and not hyphenated, so "NG-RAN" stays a radio network.
     # "NCG", new college grad, the same way (2026-09-27).
     | (?-i: (?<![\w-]) N C? G (?![\w-]) )
+    # The first level of a ladder: "Digital Design Engineer I", "Design
+    # Verification Engineer I", "Embedded Engineer 1" (#276, 2026-10-02). Not
+    # II, III or IV, and not a staff level, which SENIOR answers below.
+    | (?: engineer | developer | designer | scientist | technologist ) \s+ (?-i: I | 1 ) (?! [\w.] | \s* [IV] \b )
 )\b""", re.I | re.X)
 
 # A senior title names a recruiting or programme role when it also says
@@ -316,6 +320,21 @@ def relative_day(text, as_of):
     return date.fromordinal(seen.toordinal() - back).isoformat()
 
 
+# "Posted 30+ Days Ago" names a bound, not a day: posted that long ago or
+# earlier. Left unread, 409 queued Workday postings sorted by the day we first
+# saw them, ahead of newer ones (#277, 2026-10-02).
+AT_LEAST = re.compile(r'^\s*(?:(?:re)?posted\s*:?\s+)?(\d{1,3})\s*\+\s*(?:days?|d)\s+ago\s*$', re.I)
+
+
+def posted_before(text, as_of):
+    """The latest day a posting stated as "N+ days ago" can have been posted."""
+    found = AT_LEAST.match(str(text or ''))
+    seen = posted_day(as_of)
+    if not found or seen is None:
+        return None
+    return date.fromordinal(seen.toordinal() - int(found.group(1))).isoformat()
+
+
 def _seconds(value):
     """A monotone number for an ISO stamp, so it can be sorted descending."""
     found = ISO_SECONDS.match(' '.join(str(value or '').split()))
@@ -343,8 +362,14 @@ def rank(group):
     jobs = group.get('jobs') or ()
     published = [day for day in (posted_day(job.get('posted_at')) for job in jobs)
                  if day is not None]
+    # A stated bound, "30+ days ago", outranks first_seen, which for such a
+    # posting is only when we happened to see it (#277).
+    bounds = [day for day in (posted_day(job.get('posted_before')) for job in jobs)
+              if day is not None]
     if published:
         day, stated = max(published), True
+    elif bounds:
+        day, stated = max(bounds), False
     else:
         seen = [day for day in (posted_day(job.get('first_seen')) for job in jobs)
                 if day is not None]

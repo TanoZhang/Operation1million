@@ -57,7 +57,10 @@ const asDate = value => {
 };
 const date = value => value ? asDate(value).toLocaleDateString(undefined, {month:'short', day:'numeric'}) : 'Unknown';
 const postedToday = job => job.posted_at && asDate(job.posted_at).toDateString() === new Date().toDateString();
-const postedLabel = job => !job.posted_at ? 'Posting date unavailable' : postedToday(job) ? 'Posted today' : `Posted ${date(job.posted_at)}`;
+// "30+ Days Ago" is a bound, and says so rather than claiming a day (#277).
+const postedLabel = job => !job.posted_at
+  ? (job.posted_before ? `Posted on or before ${date(job.posted_before)}` : 'Posting date unavailable')
+  : postedToday(job) ? 'Posted today' : `Posted ${date(job.posted_at)}`;
 // A paid listing links to wherever Google Jobs found the posting, which is
 // usually a third-party site. Say so, and offer the employer's own copy: a
 // search of the employer's site for the exact title, since the provider gives
@@ -127,7 +130,8 @@ async function refresh() {
 const groupTime = group => {
   const read = field => (group.jobs || []).map(job => job[field]).filter(Boolean)
     .map(value => asDate(value).getTime()).filter(Number.isFinite);
-  const stamps = read('posted_at').length ? read('posted_at') : read('first_seen');
+  // A stated "30+ days" bound before the day we first saw it (#277).
+  const stamps = [read('posted_at'), read('posted_before'), read('first_seen')].find(found => found.length) || [];
   return stamps.length ? Math.max(...stamps) : null;
 };
 const score = group => typeof group.confidence === 'number' && Number.isFinite(group.confidence)

@@ -61,6 +61,34 @@ const cases = {
       + '<fieldset><input aria-label="School"><input aria-label="Degree"></fieldset>');
     assert.equal(new Set(controls.map(control => control.repeat_context)).size, 2);
     assert.ok(controls.every(control => control.repeat_context));
+  },
+  async a_punctuated_placeholder_is_not_an_answer() {
+    // #275: "Select..." and "-- Select --" read as answers, and the dropdown
+    // was reported occupied and never filled.
+    for (const placeholder of ['Select...', '-- Select --', 'Choose an option…', 'Please select an option']) {
+      const dom = new JSDOM('<label id="l">Current degree level</label><button aria-labelledby="l" aria-haspopup="listbox" '
+        + 'aria-controls="box" aria-expanded="false">' + placeholder + '</button><ul role="listbox" id="box" hidden>'
+        + '<li role="option">Bachelor of Science</li><li role="option">Master of Science</li></ul>',
+        {url: 'https://careers.example.test/apply', runScripts: 'outside-only'});
+      const w = dom.window;
+      w.CSS = {escape: String};
+      let listener;
+      w.chrome = {runtime: {onMessage: {addListener: value => {listener = value;}}}};
+      for (const file of ['ats-adapters.js', 'content.js']) w.eval(fs.readFileSync(path.join(ext, file), 'utf8'));
+      const button = w.document.querySelector('button');
+      const list = w.document.querySelector('ul');
+      button.onclick = () => {list.hidden = !list.hidden; button.setAttribute('aria-expanded', String(!list.hidden));};
+      for (const option of list.children) option.onclick = () => {
+        button.textContent = option.textContent; list.hidden = true; button.setAttribute('aria-expanded', 'false');
+      };
+      try {
+        const {controls} = await new Promise(resolve => listener({action: 'scan'}, {}, resolve));
+        const outcome = await new Promise(resolve => listener({action: 'fill', results: [
+          {...controls[0], status: 'verify_options', answer: 'Master of Science', answer_aliases: []}]}, {}, resolve));
+        assert.equal(outcome.filled, 1, placeholder);
+        assert.equal(button.textContent, 'Master of Science');
+      } finally {w.close();}
+    }
   }
 };
 

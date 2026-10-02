@@ -242,6 +242,11 @@ def stated_age(job):
     relative, as_of = job.pop('posted_relative', None), job.pop('last_seen', None)
     if not job.get('posted_at'):
         job['posted_at'] = ranking.relative_day(relative, as_of)
+        # "30+ Days Ago" is no day, but it is a bound: posted on or before
+        # this one (#277). Kept apart from posted_at, which states a day.
+        before = None if job['posted_at'] else ranking.posted_before(relative, as_of)
+        if before:
+            job['posted_before'] = before
     return job
 
 
