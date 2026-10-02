@@ -9,8 +9,8 @@ Owner: codex
 Scope: Reset paste form after successful add/applied save; preserve failed input.
 Files: review_static/app.js, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
 Base commit: 5f90e8b
-Status: claimed
-Next: Verify and deploy form reset.
+Status: done -- 9c64fe0 installed; browser interaction fixture passed.
+Next: Ctrl+F5; successful paste clears inputs, failures preserve them.
 ```
 
 ```text
