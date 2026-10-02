@@ -1,3 +1,10 @@
+# Virginia Commons preference block - 2026-10-02 (codex)
+
+Base 876f78a. User requested virginiacommons.com exclusion; exact host and
+subdomains plus whole publisher name blocked, paid request excludes names too.
+Domain-count fixture updated 26 -> 27. Existing decisions/data preserved.
+Validation: 52 Review and 12 publisher tests; targeted exact-host/name checks.
+
 # Broader bulk-application policy - 2026-10-02 (codex)
 
 Base d74e89a. Relevance minimum 25 -> 20; restore Dice/Wellfound/AngelList.

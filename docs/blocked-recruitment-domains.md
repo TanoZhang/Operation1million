@@ -152,3 +152,12 @@ filter results before Review deduplication, application decisions and latest-see
 exclusions, not a production queue increase or newly collected jobs. Previously
 rejected payloads absent from the index are not recoverable from this policy
 change; future scheduled collection can discover them within the existing budget.
+
+## Virginia Commons - 2026-10-02
+
+User-requested preference block: virginiacommons.com and its subdomains.
+Whole publisher names VirginiaCommons / Virginia Commons are also blocked,
+and VirginiaCommons / virginiacommons.com excluded in paid requests. Provider
+name matching is unverified; result-level filtering remains authoritative.
+This is a preference block, not a finding of fraud. Existing records are hidden
+at Review read time, not deleted; application decisions remain unchanged.

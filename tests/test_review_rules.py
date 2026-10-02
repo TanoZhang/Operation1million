@@ -594,7 +594,7 @@ class QueueRulesTests(unittest.TestCase):
     def test_evidence_domains_reject_before_keeps_and_hide_existing_rows(self):
         rules = jsearch.load_plan()[0]['filter']
         domains = rules['exclude_publisher_domains']
-        self.assertEqual(len(domains), 26)
+        self.assertEqual(len(domains), 27)
         self.assertEqual(len(set(domains)), len(domains))
         self.assertTrue({'trabajo.org', 'bebee.com', 'experteer.com', 'jobsora.com',
                          'geebo.com', 'higher-hire.com', 'nexxt.com',

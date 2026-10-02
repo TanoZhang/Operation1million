@@ -41,7 +41,7 @@ employment_types = ["FULLTIME", "INTERN"]
 exclude_job_publishers = [
   "JobLeads", "Jobrapido", "Learn4Good", "Intern Insider", "Experteer",
   "Trabajo.org", "BeBee", "Jobsora", "Geebo", "Higher-Hire", "Nexxt",
-  "Ladders",
+  "Ladders", "VirginiaCommons", "virginiacommons.com",
 ]
 
 # Priority is intern -> new_grad -> early_career -> A. Daily query caps total
@@ -456,6 +456,7 @@ function_title_patterns = [
 # These preference exclusions are not findings of fraud.
 exclude_publisher_patterns = [
   '^jobmesh(?:\.io)?$',
+  '^virginia[\s-]*commons(?:\.com)?$',
   '\bexperteer\b', '\btrabajo\b',
   # One open posting when added: an Intel listing republished in Dutch.
   '\badviesvanspijk\b', '\badvies\s+van\s+spijk\b',
@@ -472,6 +473,7 @@ exclude_publisher_patterns = [
 # docs/blocked-recruitment-domains.md. Seizure is not a criminal conviction.
 exclude_publisher_domains = [
   'jobmesh.io',
+  'virginiacommons.com',
   'centrikglobalconsulting.com',
   'rightinfoconsult.com',
   'finnaclevesperconsulting.com',
