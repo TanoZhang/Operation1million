@@ -1,3 +1,10 @@
+# Clear successful paste - 2026-10-02 (codex)
+
+Base 5f90e8b. Successful manual adds and applied saves reset the paste form,
+including optional details and company-link checkbox. The success message stays
+visible. Failed saves retain all inputs. Existing browser interaction fixture
+passes for both applied actions and repasting the next link.
+
 # Applied top badge - 2026-10-02 (codex)
 
 Base 5fceb6b. Applied card and detail top badges show the highlighted application

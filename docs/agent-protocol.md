@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Reset paste form after successful add/applied save; preserve failed input.
+Files: review_static/app.js, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
+Base commit: 5f90e8b
+Status: claimed
+Next: Verify and deploy form reset.
+```
+
+```text
+Owner: codex
 Scope: Replace Applied card/detail top classification chips with applied date.
 Files: review_static/app.js, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
 Base commit: 5fceb6b

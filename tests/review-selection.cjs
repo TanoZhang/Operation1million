@@ -68,6 +68,7 @@ async function main() {
   assert.equal(w.document.getElementById('manual-applied').hidden, true);
   const add = w.document.querySelector('#manual-form button[type=submit]:not(#manual-applied)');
   assert.equal(add.textContent, 'Add to Applied');
+  w.document.getElementById('manual-url').value = 'https://example.test/b';
   add.click();
   await new Promise(resolve => setTimeout(resolve, 15));
   assert.equal(manualRequest.status, 'applied');

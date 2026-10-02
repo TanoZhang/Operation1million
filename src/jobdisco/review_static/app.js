@@ -469,6 +469,7 @@ $('#manual-form').onsubmit = async event => {
       description: $('#manual-description').value, source_job_id: $('#manual-id').value,
       status: tab === 'applied' || event.submitter?.id === 'manual-applied' ? 'applied' : 'pending'
     });
+    $('#manual-form').reset();
     $('#manual-result').textContent = written.status === 'applied' ? 'Marked applied' :
       `${written.replaced ? 'Replaced third-party listing' : written.created ? 'Added job' : 'Already in queue'} - Fit ${written.confidence}`;
     error(''); await refresh();
