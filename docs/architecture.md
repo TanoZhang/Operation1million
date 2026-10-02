@@ -2360,3 +2360,14 @@ hosts use their existing company cooldown key.
 The initial broad JobMesh publisher pattern rejected occurrences in unrelated
 hosts' paths/query strings. Existing domain-boundary regression fixtures caught
 this; use host-aware exclusion plus an anchored publisher-name pattern.
+
+### Review loading and Applied contracts - 2026-10-02
+
+A healthy warm queue was measured at HTTP 200 in 0.188 seconds. The reported
+user-side Loading jobs hang was not reproduced by that VPS request; the client
+had no GET timeout and a cold queue could wait behind warm-up. GETs now bound
+that wait to 25 seconds and show errors, with queue retry after 10 seconds.
+Cold warm-up returns Preparing/503 promptly. Writes are never retried silently.
+Excel selection clears on category changes. Applied pastes use the existing
+manual matching/decision path with status applied; highlighted dates use the
+ledger's decision timestamp, separate from posting dates.

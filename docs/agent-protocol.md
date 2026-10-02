@@ -9,8 +9,8 @@ Owner: codex
 Scope: Per-tab Excel selection; bounded queue loading; Applied-specific paste and visible applied dates.
 Files: review.py, review_static/*, tests/{review-selection.cjs,test_manual_intake.py}, docs/{agent-protocol,handoff,application-review}.md
 Base commit: 1b9b149 (production queue currently HTTP 200 in 0.188s)
-Status: claimed
-Next: Reproduce UI contracts, implement and deploy.
+Status: done -- 9727d4a installed; 106 Review and 10 intake/loading tests passed.
+Next: Ctrl+F5. Live JS/CSS and prompt cold-queue Preparing/503 verified.
 ```
 
 ```text

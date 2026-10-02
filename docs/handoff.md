@@ -12,6 +12,8 @@ Applied cards and details highlight the ledger timestamp as a full local date.
 DOM regression fails on the previous app (retained cross-tab selection), passes
 on this patch; selection/paste/date and simulated stalled fetch are exercised.
 106 Review tests and 10 intake/loading tests pass on 1b9b149 plus this patch.
+Deployed commit 9727d4a; live JS/CSS contains the tab/paste/date/timeout changes.
+Cold /api/queue promptly returned Preparing/503 after restart.
 
 # Manual links and JobMesh block - 2026-10-02 (codex)
 
