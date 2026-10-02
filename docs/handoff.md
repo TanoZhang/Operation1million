@@ -31,7 +31,7 @@ skipped all filters, citizenship included. The live server was not read (the
 permission check refused a production read), so which path brought the one
 the user saw is inferred, not measured. Now Add job refuses an excluded
 employer or stated citizenship, and pending pastes that fail are hidden.
-Suites in the commit after this one. Not deployed.
+On 2e19f46: Windows 1109 tests, OK, 11 skips; WSL 1063, OK, 5 skips. Not deployed.
 
 # Pasted links read like the collector reads boards, #301-310 - 2026-10-02 (claude)
 
