@@ -7,10 +7,9 @@
   const fillReviewButton = document.getElementById('fill-review');
   const buttons = Array.from(document.querySelectorAll('button'));
 
-  function normalize(value) {
-    return String(value || '').normalize('NFKC').toLocaleLowerCase()
-      .replace(/\s+/g, ' ').trim().replace(/[ *:]+$/, '').trim();
-  }
+  // The engine's, so a question is named the same way where it is stored
+  // and where it is matched (#282, #283).
+  const normalize = JobdiscoAnswers.normalize;
 
   function origin(url) {
     const parsed = new URL(url);

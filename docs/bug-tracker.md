@@ -336,6 +336,8 @@ it a wording. Counts are queued groups.
 | 279 | job_text | "Full-time" / "Full Time" left in titles (28) | display | removed; contract and part-time kept |
 | 280 | job_text | the country alone at the end, "- United States", "(US)" (26) | display | removed |
 | 281 | job_text | zero-width characters in 27 titles; searching the page for "Internship/Co-op" missed them | display | removed |
+| 282 | autofill | Lever marks a required field with "✱", and only "*" was stripped: every such label, the sponsorship questions included, matched nothing | missed fill | the marker dropped, in the extension and the Python answer bank |
+| 283 | autofill | "(required)", "- Required" and "(optional)" suffixes broke exact label matching | missed fill | dropped when bracketed or after a dash; "Sponsorship required" kept |
 
 ## Not bugs, recorded so they are not re-found
 

@@ -41,12 +41,22 @@ DEFAULT_FIELDS = {
 }
 
 
+# Required and optional markers, as the extension's normalize drops them:
+# Lever's "✱", "(required)", "- Required", "(optional)" (#282, #283).
+_MARKS = re.compile(r'[\s*:✱∗⁎★]+$')
+_WORDS = re.compile(r'\s*(?:\(\s*(?:required|optional)\s*\)|[-–—]\s*(?:required|optional))$', re.I)
+
+
 def normalize(label):
     """Cosmetic normalization only: preserve negation and qualifiers."""
     if not isinstance(label, str) or not label.strip():
         raise ValueError('A nonempty question label is required')
-    text = unicodedata.normalize('NFKC', label).casefold().strip()
-    return re.sub(r'\s+', ' ', text).rstrip(' *:').strip()
+    text = re.sub(r'\s+', ' ', unicodedata.normalize('NFKC', label).casefold()).strip()
+    previous = None
+    while text != previous:
+        previous = text
+        text = _WORDS.sub('', _MARKS.sub('', text)).strip()
+    return text
 
 
 def origin(url):

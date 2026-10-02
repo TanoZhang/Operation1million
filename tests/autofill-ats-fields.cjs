@@ -45,6 +45,24 @@ async function bindings(html, url) {
 }
 
 const cases = {
+  async lever_required_marker() {
+    // #282: Lever marks a required field with "✱", which only "*" was
+    // stripped of, so every such label matched nothing.
+    const p = profile();
+    for (const label of ['Email ✱', 'Email ∗', 'Email ⁎']) {
+      assert.deepEqual(engine.aliasCandidates(p, {label, kind: 'text', section: ''}), ['contact.email'], label);
+    }
+  },
+  async required_and_optional_words() {
+    // #283: "(required)", "- Required" and "(optional)" suffixes.
+    const p = profile();
+    for (const [label, key] of [['First name (required)', 'name.first'], ['First Name - Required', 'name.first'],
+                                ['Phone (optional)', 'contact.phone'], ['Email (Required) *', 'contact.email']]) {
+      assert.deepEqual(engine.aliasCandidates(p, {label, kind: 'text', section: ''}), [key], label);
+    }
+    // The word itself, unbracketed, is part of the question.
+    assert.notEqual(engine.normalize('Sponsorship required'), engine.normalize('Sponsorship'));
+  },
   async workday_form_kit_paths() {
     // Workday's current form-kit renders "Given Name(s)" and "Family Name",
     // which no label alias matched; the local-script names are other fields.
