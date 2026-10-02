@@ -27,8 +27,9 @@ Scope:   Fifth bug hunt at the user's request (2026-10-02): fifty defects,
 Files:   src/jobdisco/*, data/config/*, deploy/*, tests/*,
          docs/{agent-protocol,architecture,handoff,bug-tracker}.md
 Base commit: bcc5b04
-Status:  claimed (worktree ../op1m-hunt5, branch claude/bug-hunt-5)
-Next:    Hunt on the live index and in the code; fix in batches.
+Status:  paused at the usage limit -- #227-292 fixed and pushed (e9df4f6);
+         #293-300 and the 40 structural improvements not done
+Next:    Resume the hunt; deploy, then job-store --rescore.
 ```
 
 ```text

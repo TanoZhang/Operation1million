@@ -64,6 +64,15 @@ locally, and its #197-216 reservation is respected by our #217-226 numbering.
 No paid provider request, real application submission, production measurement,
 push or VPS deployment was performed.
 
+# Fifth hunt, #227-292, paused - 2026-10-02 UTC (claude, not deployed)
+
+Sixty-six of the 74 bugs the user asked for are fixed and pushed (docs/bug-tracker.md, Hunt 5);
+#293-300 remain, and so do the 40 behaviour-preserving improvements (a few were done in
+passing: review.py POST routing and find_group, the popup using the engine normalize). Also
+pushed today: autofill 0.5.1-0.5.6 (provider field ids, scanner fixes), company links for
+third-party listings, the export folder on the VPS. Deploy with deploy-vps.bat, then run
+job-store --rescore (strong-term changes); reload the unpacked extension.
+
 # Review page: sorting and an Excel export - 2026-10-01 UTC (claude, not deployed)
 
 At the user's request: sort by date either way and by fit then date, and one
