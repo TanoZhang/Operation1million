@@ -15,15 +15,26 @@
   const scannedControls = new Map();
   const repeatIds = new WeakMap();
 
+  // The questions a row asks, for telling untitled rows apart.
+  function rowQuestions(group) {
+    return Array.from(group.querySelectorAll('input, select, textarea'))
+      .map(control => normalized(cleanText(control.getAttribute('aria-label')) || control.name || control.type))
+      .join('|');
+  }
+
   function repeatContext(element) {
     const selector = 'fieldset, [data-automation-id="educationSection"], [data-automation-id="workExperienceSection"]';
     const group = element.closest(selector);
     if (!group) return {};
-    const title = cleanText(group.querySelector('legend, h2, h3, h4')?.textContent)
-      || group.getAttribute('data-automation-id') || '';
+    const titleOf = peer => cleanText(peer.querySelector('legend, h2, h3, h4')?.textContent)
+      || peer.getAttribute('data-automation-id') || '';
+    const title = titleOf(group);
+    // An untitled box repeats another only when it asks the same questions:
+    // a page's two plain fieldsets, one holding a name and one an email, were
+    // read as rows of one section, and nothing in either was matched (2026-10-02).
+    const questions = title ? null : rowQuestions(group);
     const peers = Array.from(document.querySelectorAll(selector)).filter(peer =>
-      (cleanText(peer.querySelector('legend, h2, h3, h4')?.textContent)
-        || peer.getAttribute('data-automation-id') || '') === title);
+      titleOf(peer) === title && (title || rowQuestions(peer) === questions));
     if (peers.length < 2) return {};
     // A repeated row has no known education meaning merely because it is first.
     // Keep explicit mappings tied to this DOM row; do not reuse them after replacement.
@@ -67,8 +78,13 @@
       if (legend && cleanText(legend.textContent)) return cleanText(legend.textContent);
     }
     for (let node = element.parentElement, depth = 0; node && depth < 8; node = node.parentElement, depth += 1) {
-      const heading = node.querySelector(':scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > [data-automation-id="sectionTitle"]');
-      if (heading && cleanText(heading.textContent)) return cleanText(heading.textContent);
+      // The last heading before the field, not the first in its block: a block
+      // holding "Personal information" and then "Emergency contact" filed the
+      // contact's name under the applicant's section (2026-10-02).
+      const before = Array.from(node.querySelectorAll(':scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > [data-automation-id="sectionTitle"]'))
+        .filter(heading => cleanText(heading.textContent)
+          && heading.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING);
+      if (before.length) return cleanText(before[before.length - 1].textContent);
     }
     return '';
   }
@@ -197,13 +213,33 @@
     return BLOCKED_LABEL_WORDS.some(word => normalized.includes(word));
   }
 
+  // The question a radio group asks, where no legend or radiogroup names it:
+  // the first text before the options in the block holding them all. An
+  // option's own label ("Yes") is never the question -- named by its first
+  // option, every Yes/No question on a page was one question, and an answer
+  // to one was filled into the next (2026-10-02). None found means the group
+  // is left alone.
+  function groupQuestion(first, members) {
+    const options = new Set(members.map(member => normalized(radioLabel(member))));
+    const candidates = [globalThis.JobdiscoATS?.metadata(first, location.href).label, nearbyLabel(first)];
+    let node = first.parentElement;
+    while (node && !members.every(member => node.contains(member))) node = node.parentElement;
+    for (let depth = 0; node && depth < 3; node = node.parentElement, depth += 1) {
+      for (const child of node.children) {
+        if (members.some(member => child.contains(member))) break;
+        candidates.push(cleanText(child.textContent));
+      }
+    }
+    return candidates.find(text => text && !options.has(normalized(text))) || '';
+  }
+
   function describeRadioGroup(first, members, includeValues) {
     const fieldset = first.closest('fieldset');
     const legend = fieldset && fieldset.querySelector(':scope > legend');
     const group = first.closest('[role="radiogroup"]');
     const groupLabel = group && (cleanText(group.getAttribute('aria-label'))
       || textFromIds(group.getAttribute('aria-labelledby')));
-    const label = cleanText(legend && legend.textContent) || groupLabel || nearbyLabel(first);
+    const label = cleanText(legend && legend.textContent) || groupLabel || groupQuestion(first, members);
     if (!label || blockedLabel(label)) return null;
     const selected = members.find(item => item.checked);
     return {

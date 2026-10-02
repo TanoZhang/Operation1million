@@ -60,9 +60,11 @@ const cases = {
       assert.equal(p.w.document.querySelector('#one input[value="no"]').checked, true);
       assert.equal(p.w.document.querySelector('#two input[value="yes"]').checked, true);
       // Form ownership can come from form= rather than DOM ancestry.
+      // Each group names its question: a lone "Yes" with no question is no
+      // longer scanned at all (tests/autofill-scanner.cjs, 2026-10-02).
       p.w.document.body.innerHTML = '<form id="one"></form><form id="two"></form>'
-        + '<input type="radio" form="one" name="answer" aria-label="Yes">'
-        + '<input type="radio" form="two" name="answer" aria-label="No">';
+        + '<div role="radiogroup" aria-label="Work authorization"><input type="radio" form="one" name="answer" aria-label="Yes"></div>'
+        + '<div role="radiogroup" aria-label="Relocation"><input type="radio" form="two" name="answer" aria-label="No"></div>';
       assert.equal((await scan(p)).controls.length, 2);
     } finally {p.close();}
   },
