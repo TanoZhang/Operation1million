@@ -8,8 +8,8 @@ the last eight in `0b92f44`). Then forty improvements to structure that change n
 behaviour, listed with how each was checked in docs/architecture.md (Structural
 improvements). Against `0b92f44` on the live index: the whole review queue came out
 byte-identical, every stored title and location read the same, and the review
-server over HTTP and the page in jsdom answered and drew the same. Windows suite
-1066 tests, OK, 10 skips. Also pushed today: autofill 0.5.1-0.5.6, company links
+server over HTTP and the page in jsdom answered and drew the same. Suites on
+`218344e`: Windows 1066 tests, OK, 10 skips; WSL 1020 tests, OK, 4 skips. Also pushed today: autofill 0.5.1-0.5.6, company links
 for third-party listings, the VPS export folder. To ship: deploy-vps.bat, then
 job-store --rescore on the VPS (strong terms changed); reload the unpacked
 extension.
