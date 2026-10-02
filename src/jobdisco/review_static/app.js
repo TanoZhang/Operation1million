@@ -24,6 +24,7 @@ function updateSelection() {
 // The later answer is the current one; an earlier one arriving after it used
 // to put the queue back to a state the user had already moved on from.
 let queueVersion = 0;
+let queueRetry;
 // Nothing is known until the first queue arrives. The state above is a
 // placeholder, and rendering it -- which a tab click or a keystroke in the
 // search box did while a cold build was still running -- drew an empty queue
@@ -125,15 +126,23 @@ async function setCompanyLink(url, remove) {
 }
 function error(message) { $('#error').textContent = message; $('#error').hidden = !message; }
 async function api(path, options) {
-  const response = await fetch(path, options);
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error || 'Request failed');
-  return body;
+  const controller = new AbortController();
+  const timer = !options?.method ? setTimeout(() => controller.abort(), 25000) : null;
+  try {
+    const response = await fetch(path, {...options, ...(!options?.method ? {signal: controller.signal} : {})});
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || 'Request failed');
+    return body;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Queue connection timed out. Check the SSH tunnel; retrying shortly');
+    throw err;
+  } finally { clearTimeout(timer); }
 }
 // A write, with the token that shows this page was served by this server.
 const post = (path, body) => api(path, {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify(body)});
 async function refresh() {
   const version = ++queueVersion;
+  clearTimeout(queueRetry);
   try {
     const next = await api('/api/queue');
     if (version !== queueVersion) return;
@@ -142,7 +151,8 @@ async function refresh() {
   } catch (err) {
     if (version !== queueVersion) return;
     error(err.message);
-    if (!loaded) $('#list').innerHTML = `<div class="empty">The queue could not be loaded: ${escapeText(err.message)}. Use Refresh to try again.</div>`;
+    if (!loaded) $('#list').innerHTML = `<div class="empty">The queue could not be loaded: ${escapeText(err.message)}. Retrying shortly; you can also use Refresh.</div>`;
+    queueRetry = setTimeout(refresh, 10000);
   }
 }
 // When a group was published -- its newest listing's posting date, or where
@@ -241,6 +251,9 @@ function render() {
   $('#backlog-count').textContent = state.backlog.filter(experienced).length;
   $('#less-count').textContent = state.pending.length + state.backlog.length - open.length;
   const groups = filtered();
+  const appliedMode = tab === 'applied';
+  $('#manual-form button[type=submit]:not(#manual-applied)').textContent = appliedMode ? 'Add to Applied' : 'Add job and score';
+  $('#manual-applied').hidden = appliedMode;
   updateSelection();
   if (!groups.some(group => group.id === selected)) selected = groups[0]?.id ?? null;
   $('#count').textContent = `${groups.length} positions` + bandSummary(groups);
@@ -261,6 +274,12 @@ function render() {
     button.setAttribute('aria-pressed', group.id === selected);
     const locations = [...new Set(group.jobs.map(job => job.location).filter(Boolean))];
     button.innerHTML = `<div>${chips(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${listings(group.jobs.length)}</div>`;
+    if (tab === 'applied') {
+      const stamp = document.createElement('span');
+      stamp.className = 'applied-date';
+      stamp.textContent = group.at ? `Applied ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}` : 'Applied date unavailable';
+      button.querySelector('.job-meta').append(' · ', stamp);
+    }
     if (group.jobs.some(postedToday)) {
       const mark = document.createElement('span');
       mark.className = 'posted-today';
@@ -300,7 +319,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${chips(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span>${tab === 'applied' ? 'Applied' : 'Skipped'} ${date(group.at)}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${chips(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';
@@ -376,6 +395,7 @@ async function decide(status, reason = '', target = null) {
 }
 document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () => {
   if (busy) return;
+  checkedJobs.clear();
   tab = button.dataset.tab; selected = null; visibleLimit = PAGE;
   document.querySelectorAll('[data-tab]').forEach(item => item.setAttribute('aria-pressed', item === button));
   render();
@@ -448,7 +468,7 @@ $('#manual-form').onsubmit = async event => {
       official: $('#manual-official').checked, url: $('#manual-url').value, company: $('#manual-company').value,
       title: $('#manual-title').value, location: $('#manual-location').value,
       description: $('#manual-description').value, source_job_id: $('#manual-id').value,
-      status: event.submitter?.id === 'manual-applied' ? 'applied' : 'pending'
+      status: tab === 'applied' || event.submitter?.id === 'manual-applied' ? 'applied' : 'pending'
     });
     $('#manual-result').textContent = written.status === 'applied' ? 'Marked applied' :
       `${written.replaced ? 'Replaced third-party listing' : written.created ? 'Added job' : 'Already in queue'} - Fit ${written.confidence}`;

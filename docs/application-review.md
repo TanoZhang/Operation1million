@@ -217,3 +217,14 @@ all hard rejects, including JobMesh.io. Public fetches share the production
 collection lock, stop at challenges, and persist source cooldowns. The current
 reader supports public JSON-LD JobPosting pages; script-only pages need details.
 Excel buttons download into the browser; no server workbook is written.
+
+## Applied view and selection scope (2026-10-02)
+
+Switching category clears Excel checkbox selections. Applied changes the paste
+form's primary action to Add to Applied: known links are moved to Applied, and
+new imported postings receive an application decision directly. Applied cards
+and details highlight the recorded application date, including the year. This
+date comes from the application ledger, not the posting's publication date.
+Queue GETs time out after 25 seconds with a visible message and retry every
+10 seconds; initial server warm-up returns Preparing/503 rather than waiting
+behind the cold build. Writes are not automatically retried.

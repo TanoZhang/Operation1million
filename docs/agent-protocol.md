@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Per-tab Excel selection; bounded queue loading; Applied-specific paste and visible applied dates.
+Files: review.py, review_static/*, tests/{review-selection.cjs,test_manual_intake.py}, docs/{agent-protocol,handoff,application-review}.md
+Base commit: 1b9b149 (production queue currently HTTP 200 in 0.188s)
+Status: claimed
+Next: Reproduce UI contracts, implement and deploy.
+```
+
+```text
+Owner: codex
 Scope: Block JobMesh.io; add explicit user-pasted job intake and applied-link
        reconciliation. Manual records bypass discovery eligibility by user request,
        retain relevance ranking, durable provenance and conservative identity matching.
@@ -24,7 +33,7 @@ Owner: codex
 Scope: Make Excel button download in browser; mark third-party listings except
        LinkedIn and Handshake, consistently in Review and Excel; deploy release.
 Files: src/jobdisco/{review,export}.py, review_static/*, tests/test_review*.py,
-       tests/review-selection.cjs, docs/{agent-protocol,handoff,application-review}.md
+       tests/{review-selection.cjs,test_manual_intake.py}, docs/{agent-protocol,handoff,application-review}.md
 Base commit: b8123d3 plus the completed staged patches
 Status: done -- release 085cd6f pushed and installed; live selected XLSX HTTP 200
 Next: Ctrl+F5 in the browser. Live ZIP, site marker column and Normal style verified.

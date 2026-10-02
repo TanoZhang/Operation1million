@@ -119,3 +119,21 @@ class ManualTests(unittest.TestCase):
                 intake.read_public_page('https://company.example/job', self.ledger)
         self.assertEqual(session.get.call_count, 1)
         self.assertTrue(self.ledger.with_name('source_access.sqlite').exists())
+
+    def test_cold_queue_returns_preparing_instead_of_waiting_on_build(self):
+        from urllib.error import HTTPError
+        entered, release = threading.Event(), threading.Event()
+        def build(*args):
+            entered.set(); release.wait(5); return empty()
+        with patch.object(review.applications, 'queue', side_effect=build):
+            server = review.make_server(Path(self.temp.name)/'missing.sqlite', self.ledger, port=0)
+            serving = threading.Thread(target=server.serve_forever, daemon=True); serving.start()
+            warming = threading.Thread(target=server.current_queue); warming.start()
+            try:
+                self.assertTrue(entered.wait(2))
+                with self.assertRaises(HTTPError) as caught:
+                    urlopen(f'http://127.0.0.1:{server.server_port}/api/queue', timeout=1)
+                self.assertEqual(caught.exception.code, 503)
+                self.assertIn('Preparing', caught.exception.read().decode())
+            finally:
+                release.set(); warming.join(); server.shutdown(); server.server_close(); serving.join()

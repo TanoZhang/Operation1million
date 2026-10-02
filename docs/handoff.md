@@ -1,3 +1,18 @@
+# Review Applied UX and bounded loading - 2026-10-02 (codex)
+
+Base 1b9b149. Production queue responded HTTP 200 in 0.188 seconds before
+changes; user-side hanging could not be reproduced on that healthy VPS request.
+The prior client had no GET timeout, and cold warm-up could block behind the
+build lock. GETs now time out visibly after 25 seconds and retry the queue after
+10 seconds; cold-build requests return Preparing/503 promptly.
+
+Excel selection now clears on category changes. Applied's primary paste action
+is Add to Applied, matching existing jobs or importing directly into Applied.
+Applied cards and details highlight the ledger timestamp as a full local date.
+DOM regression fails on the previous app (retained cross-tab selection), passes
+on this patch; selection/paste/date and simulated stalled fetch are exercised.
+106 Review tests and 10 intake/loading tests pass on 1b9b149 plus this patch.
+
 # Manual links and JobMesh block - 2026-10-02 (codex)
 
 Base 085cd6f plus this patch: Review accepts one pasted URL for Add job and score

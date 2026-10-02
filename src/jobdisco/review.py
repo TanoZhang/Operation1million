@@ -205,6 +205,8 @@ def make_server(db, ledger, port=8765, export_path=None):
             route = urlsplit(self.path)
             try:
                 if route.path == '/api/queue':
+                    if cached['state'] is None and building.locked():
+                        return self.send({'error': 'Preparing the job queue. Retrying shortly.'}, 503)
                     # Added after `slim`, which would read a bare list of names
                     # as a list of groups and project the strings away.
                     return self.send(dict(slim(current_queue()),

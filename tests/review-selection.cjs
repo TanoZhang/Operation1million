@@ -9,7 +9,7 @@ const dom = new JSDOM(fs.readFileSync(path.join(assets, 'index.html'), 'utf8'),
 const w = dom.window;
 const group = id => ({id, company: 'Example Semiconductor', title: 'RTL Engineer ' + id,
   confidence: 80, bucket: 2, jobs: [{url: 'https://example.test/' + id, location: 'Example City'}]});
-const state = {pending: [group('a'), group('b')], backlog: [], applied: [], skipped: [], token: 'fixture'};
+const state = {pending: [group('a'), group('b')], backlog: [], applied: [{...group('done'), at: '2026-10-01T18:00:00Z'}], skipped: [], token: 'fixture'};
 let downloadIds;
 let manualRequest;
 let clicked = false;
@@ -30,7 +30,7 @@ w.fetch = async (url, options) => {
   return {ok: true, json: async () => url === '/api/queue' ? state : {description: ''}};
 };
 async function main() {
-  w.eval(fs.readFileSync(path.join(assets, 'app.js'), 'utf8'));
+  w.eval(fs.readFileSync(process.env.REVIEW_APP_SOURCE || path.join(assets, 'app.js'), 'utf8'));
   await new Promise(resolve => setTimeout(resolve, 15));
   const boxes = w.document.querySelectorAll('.job-check');
   assert.equal(boxes.length, 2);
@@ -58,7 +58,40 @@ async function main() {
   assert.equal(manualRequest.url, 'https://example.test/a');
   assert.match(w.document.getElementById('manual-result').textContent, /Marked applied/);
   assert.equal(w.document.getElementById('manual-applied').disabled, false);
+  w.document.querySelector('.job-check').click();
+  w.document.querySelector('[data-tab=applied]').click();
+  assert.equal(w.document.querySelectorAll('.job-check:checked').length, 0);
+  assert.equal(w.document.getElementById('download-selected').disabled, true);
+  assert.match(w.document.querySelector('.applied-date').textContent, /Applied.*2026/);
+  assert.equal(w.document.getElementById('manual-applied').hidden, true);
+  const add = w.document.querySelector('#manual-form button[type=submit]:not(#manual-applied)');
+  assert.equal(add.textContent, 'Add to Applied');
+  add.click();
+  await new Promise(resolve => setTimeout(resolve, 15));
+  assert.equal(manualRequest.status, 'applied');
+  w.document.querySelector('[data-tab=pending]').click();
+  assert.equal(w.document.getElementById('manual-applied').hidden, false);
+  assert.equal(add.textContent, 'Add job and score');
+  await new Promise(resolve => setTimeout(resolve, 15));
   dom.window.close();
+  await checkLoadingTimeout();
   console.log('Review checkbox and download interactions OK');
 }
 main().catch(error => {console.error(error); dom.window.close(); process.exitCode = 1;});
+
+async function checkLoadingTimeout() {
+  const stalled = new JSDOM(fs.readFileSync(path.join(assets, 'index.html'), 'utf8'),
+    {url:'http://localhost:8765', runScripts:'outside-only'});
+  const view = stalled.window;
+  const schedule = view.setTimeout.bind(view);
+  view.setTimeout = (callback, ms) => schedule(callback, ms === 25000 ? 5 : ms);
+  view.fetch = (url, options) => new Promise((resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(new view.DOMException('timeout', 'AbortError')));
+  });
+  try {
+    view.eval(fs.readFileSync(path.join(assets, 'app.js'), 'utf8'));
+    await new Promise(resolve => setTimeout(resolve, 25));
+    assert.match(view.document.getElementById('list').textContent, /timed out/);
+    assert.match(view.document.getElementById('list').textContent, /Retrying/);
+  } finally {stalled.window.close();}
+}
