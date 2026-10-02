@@ -18,6 +18,12 @@ function updateSelection() {
   $('#select-matching').indeterminate = count > 0 && count < matches.length;
   $('#download-selected').textContent = `Download selected Excel (${checkedJobs.size})`;
   $('#download-selected').disabled = downloading || checkedJobs.size === 0;
+  document.querySelectorAll('.section-check').forEach(check => {
+    const members = matches.filter(group => sectionOf.get(group.id) === check.dataset.section);
+    const selectedCount = members.filter(group => checkedJobs.has(group.id)).length;
+    check.checked = members.length > 0 && selectedCount === members.length;
+    check.indeterminate = selectedCount > 0 && selectedCount < members.length;
+  });
 }
 // Two refreshes can be in flight -- a click on Refresh, a decision saving, a
 // slow first request -- and they do not answer in the order they were asked.
@@ -271,7 +277,21 @@ function render() {
     if (section && section !== sectionOf.get(groups[index - 1]?.id)) {
       const divider = document.createElement('div');
       divider.className = 'list-divider';
-      divider.textContent = `${SECTION_NAMES[section]} \u00b7 ${groups.filter(item => sectionOf.get(item.id) === section).length}`;
+      const members = groups.filter(item => sectionOf.get(item.id) === section);
+      const label = document.createElement('label');
+      const check = document.createElement('input');
+      check.type = 'checkbox'; check.className = 'section-check'; check.dataset.section = section;
+      check.setAttribute('aria-label', `Select all ${SECTION_NAMES[section]}`);
+      const count = members.filter(item => checkedJobs.has(item.id)).length;
+      check.checked = count === members.length; check.indeterminate = count > 0 && count < members.length;
+      check.onchange = () => {
+        for (const member of members) {
+          if (check.checked) checkedJobs.add(member.id); else checkedJobs.delete(member.id);
+        }
+        render();
+      };
+      label.append(check, ` ${SECTION_NAMES[section]} · ${members.length}`);
+      divider.append(label);
       $('#list').append(divider);
     }
     const button = document.createElement('button');

@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Select all positions within a Review section (recent 72 hours/backlog).
+Files: review_static/{app.js,style.css}, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
+Base commit: 3cb16f0
+Status: claimed
+Next: Verify section-only selection including unexpanded rows; deploy.
+```
+
+```text
+Owner: codex
 Scope: Reset paste form after successful add/applied save; preserve failed input.
 Files: review_static/app.js, tests/review-selection.cjs, docs/{agent-protocol,handoff}.md
 Base commit: 5f90e8b

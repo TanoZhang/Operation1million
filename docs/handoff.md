@@ -1,3 +1,11 @@
+# Section selection - 2026-10-02 (codex)
+
+Base 3cb16f0. Review section headers have checkboxes for selecting only that
+section's matching positions (e.g. New in the last 72 hours), including rows
+beyond Show more. Other sections are unchanged. Individual toggles update the
+section checkbox's checked/partial state. Existing browser fixture checks recent
+selection excluding backlog, partial state, and 82 recent rows with 75 displayed.
+
 # Pasted links read like the collector reads boards, #301-310 - 2026-10-02 (claude)
 
 The user asked for pasted links to fetch everything correctly. One open posting
