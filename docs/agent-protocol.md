@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Fifth bug hunt at the user's request (2026-10-02): fifty defects,
+         #227-276, each with a reproducer red before its fix; and ten
+         behaviour-preserving structural improvements, each checked for
+         identical output. Not the autofill extension.
+Files:   src/jobdisco/*, data/config/*, deploy/*, tests/*,
+         docs/{agent-protocol,architecture,handoff,bug-tracker}.md
+Base commit: bcc5b04
+Status:  claimed (worktree ../op1m-hunt5, branch claude/bug-hunt-5)
+Next:    Hunt on the live index and in the code; fix in batches.
+```
+
+```text
+Owner:   claude
 Scope:   Review page, at the user's request (2026-10-01): sort by date
          (newest / oldest) and by fit then date; one key and a button that
          export the current view to one Excel file, rewritten in place.
