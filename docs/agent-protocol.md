@@ -5,6 +5,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner:   claude
+Scope:   #311 at the user's request (2026-10-02): an RTX posting needing U.S.
+         citizenship reached Review. Pasted jobs skip every filter; apply the
+         employer, title and citizenship hard rejects to them.
+Files:   src/jobdisco/{manual_intake,review}.py, tests/test_twelfth_bug_hunt.py,
+         docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
+Base commit: de2add0
+Status:  claimed
+Next:    Reproducer, fix, suites.
+```
+
+```text
 Owner: codex
 Scope: Persist validated derived Review queue cache to avoid full restart builds; simplify preparing message.
 Files: src/jobdisco/{review,queue_snapshot}.py, review_static/app.js, tests/test_queue_snapshot.py,
