@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner:   claude
+Scope:   Fourth bug hunt at the user's request (2026-10-01): twenty defects in
+         src/jobdisco, #197-216, each with a reproducer red before its fix.
+         Not the autofill extension (Codex's claim).
+Files:   src/jobdisco/*, data/config/*, tests/test_tenth_bug_hunt.py,
+         docs/{agent-protocol,architecture,handoff,bug-tracker}.md
+Base commit: 9d3e5ae
+Status:  claimed (worktree ../op1m-hunt4, branch claude/bug-hunt-4)
+Next:    Read the modules, write reproducers, fix.
+```
+
+```text
+Owner:   claude
 Scope:   Third bug hunt at the user's request: twenty more defects, each with a
          reproducer red before its fix; and, as the user decided, BS/MS paths
          listed apart (comma, bullet or sentence) count as alternatives.
