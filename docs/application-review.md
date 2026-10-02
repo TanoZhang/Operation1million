@@ -103,6 +103,27 @@ Applied and skipped views retain decision history, including jobs that have
 since closed or aged out. **Move to review** appends a `pending` event. A reopened
 position appears in the queue only if it still meets the open/72-hour rule.
 
+## Sorting and the Excel export
+
+Added 2026-10-01 at the user's request. The sort menu offers fit high to low
+(then newest or oldest), fit low to high (then newest), newest first, oldest
+first, and the recommended order above. A group's date is its newest posting
+date, or where no listing states one, the newest day it was first seen; a
+group with neither goes last. The browser remembers the choice.
+
+**Export to Excel**, or the **E** key anywhere outside a text field, writes the
+list on screen -- this tab, this search, this order, one row per listing --
+to one workbook: `.local/exports/review-queue.xlsx` unless `job-review
+--export PATH` names another, such as a shared folder others apply from.
+Each export replaces that file; nothing is opened and no second copy is made.
+While Excel has the workbook open, Windows refuses the replacement and the page
+says to close it. The file holds job data: keep it out of the public repo.
+
+Served from the VPS through the tunnel, the workbook is written on the VPS
+(`/opt/jobdisco/code/.local/exports/review-queue.xlsx`), not on the machine
+running the browser; copy it down with `scp`, or set `--export` in the
+service to a folder that is shared.
+
 ## Durable state
 
 The authoritative file is `JOBDISCO_STORE/operational/applications.ndjson`.

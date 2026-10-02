@@ -12,8 +12,8 @@ Scope:   Review page, at the user's request (2026-10-01): sort by date
 Files:   src/jobdisco/{review,export}.py, src/jobdisco/review_static/*,
          tests/test_review_export.py, docs/{agent-protocol,application-review,handoff}.md
 Base commit: 62b7ace
-Status:  claimed
-Next:    Build, test, push.
+Status:  done -- pushed to main, not deployed
+Next:    Deploy with the hunt above.
 ```
 
 ```text

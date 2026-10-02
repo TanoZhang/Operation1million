@@ -1,6 +1,11 @@
 let state = {pending: [], backlog: [], applied: [], skipped: [], labels: []};
 let tab = 'pending', selected = null, busy = false, detailVersion = 0, visibleLimit = 75;
+// The sort is remembered in this browser; a private window or blocked storage
+// simply starts from the default.
+const SORT_KEY = 'review-sort';
 let sortMode = 'fit-desc';
+try { sortMode = localStorage.getItem(SORT_KEY) || sortMode; } catch { /* no storage */ }
+let exporting = false;
 // Two refreshes can be in flight -- a click on Refresh, a decision saving, a
 // slow first request -- and they do not answer in the order they were asked.
 // The later answer is the current one; an earlier one arriving after it used
@@ -88,18 +93,43 @@ async function refresh() {
     if (!loaded) $('#list').innerHTML = `<div class="empty">The queue could not be loaded: ${escapeText(err.message)}. Use Refresh to try again.</div>`;
   }
 }
-// The sort the menu asks for, over one section. Equal fits keep server order;
-// absent scores go last in either direction, and state is never mutated.
+// When a group was published -- its newest listing's posting date, or where
+// no listing states one, the newest day we first saw one, as the server ranks
+// it. Null when neither is known.
+const groupTime = group => {
+  const read = field => (group.jobs || []).map(job => job[field]).filter(Boolean)
+    .map(value => asDate(value).getTime()).filter(Number.isFinite);
+  const stamps = read('posted_at').length ? read('posted_at') : read('first_seen');
+  return stamps.length ? Math.max(...stamps) : null;
+};
+const score = group => typeof group.confidence === 'number' && Number.isFinite(group.confidence)
+  ? group.confidence : null;
+// Each sort is a list of (key, direction) read in turn; asked for on
+// 2026-10-01: by date either way, and by fit with the date breaking ties.
+const SORTS = {
+  'fit-desc': [['fit', -1], ['time', -1]],
+  'fit-desc-oldest': [['fit', -1], ['time', 1]],
+  'fit-asc': [['fit', 1], ['time', -1]],
+  'newest': [['time', -1]],
+  'oldest': [['time', 1]],
+};
+// An unknown value goes last in either direction.
+const compareKnown = (left, right, direction) => left === null ? (right === null ? 0 : 1)
+  : right === null ? -1 : direction * (left - right);
+// The sort the menu asks for, over one section. Equal keys keep server order,
+// and state is never mutated.
 function sorted(groups) {
-  if (sortMode === 'recommended') return groups;
-  const score = group => typeof group.confidence === 'number' && Number.isFinite(group.confidence)
-    ? group.confidence : null;
-  return [...groups].sort((a, b) => {
-    const left = score(a), right = score(b);
-    if (left === null) return right === null ? 0 : 1;
-    if (right === null) return -1;
-    return sortMode === 'fit-asc' ? left - right : right - left;
-  });
+  const keys = SORTS[sortMode];
+  if (!keys) return groups;
+  return groups.map(group => ({group, fit: score(group), time: groupTime(group)}))
+    .sort((a, b) => {
+      for (const [key, direction] of keys) {
+        const order = compareKnown(a[key], b[key], direction);
+        if (order) return order;
+      }
+      return 0;
+    })
+    .map(item => item.group);
 }
 // Which section each listed group was placed in, for the dividers.
 let sectionOf = new Map();
@@ -280,8 +310,33 @@ document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () =>
   render();
 });
 $('#refresh').onclick = refresh;
+// The list on screen -- this tab, this search, this order -- into the one
+// workbook the server keeps. Nothing is opened; the footer says where it is.
+async function exportView() {
+  if (!loaded || exporting) return;
+  exporting = true;
+  $('#export').disabled = true;
+  try {
+    const ids = filtered().map(group => group.id);
+    const written = await api('/api/export', {method:'POST', headers:{'Content-Type':'application/json', 'X-Review-Token':state.token}, body:JSON.stringify({ids})});
+    error('');
+    $('#saved').textContent = `Exported ${written.rows} listing${written.rows === 1 ? '' : 's'} at ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} to ${written.path}`;
+  } catch (err) { error(err.message); }
+  finally { exporting = false; $('#export').disabled = false; }
+}
+$('#export').onclick = exportView;
+document.addEventListener('keydown', event => {
+  if (event.key !== 'e' && event.key !== 'E') return;
+  if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
+  if (event.target.closest?.('input, textarea, select, [contenteditable]') || $('#skip-dialog').open) return;
+  event.preventDefault();
+  exportView();
+});
+$('#sort').value = SORTS[sortMode] || sortMode === 'recommended' ? sortMode : 'fit-desc';
+sortMode = $('#sort').value;
 $('#sort').onchange = event => {
   sortMode = event.target.value;
+  try { localStorage.setItem(SORT_KEY, sortMode); } catch { /* no storage */ }
   selected = null;
   visibleLimit = 75;
   $('#list').scrollTop = 0;

@@ -1,6 +1,13 @@
 > **Startup rule:** Read the newest handoff first. Older handoffs are historical
 > evidence, not current instructions or an active backlog.
 
+# Review page: sorting and an Excel export - 2026-10-01 UTC (claude, not deployed)
+
+At the user's request: sort by date either way and by fit then date, and one
+key (E) or a button that writes the visible list to one workbook, replaced on
+each export (docs/application-review.md). Opened in Excel 16 from a live-queue
+export: 6,805 rows, every link, filter on. Not deployed.
+
 # A fourth hunt, #197-216 - 2026-10-01 UTC (claude, not deployed)
 
 Twenty defects from the live queue, each red on `32d280b`

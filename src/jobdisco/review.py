@@ -10,7 +10,7 @@ import sqlite3
 import threading
 from urllib.parse import urlsplit, parse_qs
 
-from . import applications, ranking, jsearch
+from . import applications, export, ranking, jsearch
 from .job_text import display_description, readable_text
 from .paths import DB
 
@@ -84,8 +84,9 @@ def wal_fingerprint(path):
     return state if state and state[1] else None
 
 
-def make_server(db, ledger, port=8765):
+def make_server(db, ledger, port=8765, export_path=None):
     token = secrets.token_urlsafe(32)
+    export_path = export_path or export.DEFAULT_PATH
     assets = Path(__file__).with_name('review_static')
     # One decision at a time, now that requests are served in parallel. Reading
     # the queue and appending to the ledger is a read-modify-write, and the
@@ -244,10 +245,12 @@ def make_server(db, ledger, port=8765):
                 self.send({'error': str(exc)}, 500)
 
         def do_POST(self):
-            if self.path != '/api/decision':
+            if self.path not in ('/api/decision', '/api/export'):
                 return self.send({'error': 'Not found'}, 404)
             if self.headers.get('X-Review-Token') != token:
                 return self.send({'error': 'Reload the review page before saving'}, 403)
+            if self.path == '/api/export':
+                return self.export()
             try:
                 size = int(self.headers.get('Content-Length', 0))
                 if not 0 < size <= 10000:
@@ -265,6 +268,35 @@ def make_server(db, ledger, port=8765):
                         ledger, group, data.get('status'), data.get('reason', ''))
                     record_decision(before, state, source, group, written)
                 self.send(written)
+            except (ValueError, TypeError, AttributeError) as exc:
+                self.send({'error': str(exc)}, 400)
+            except (OSError, sqlite3.Error) as exc:
+                self.send({'error': str(exc)}, 500)
+
+        def export(self):
+            """Write the groups the page is showing, in its order, to the one workbook.
+
+            The page sends only which groups and in what order; every value
+            written comes from this server's own queue, as a decision does.
+            """
+            try:
+                size = int(self.headers.get('Content-Length', 0))
+                if not 0 < size <= 4_000_000:
+                    raise ValueError('Invalid request size')
+                ids = json.loads(self.rfile.read(size)).get('ids')
+                if not isinstance(ids, list) or not all(isinstance(item, str) for item in ids):
+                    raise ValueError('Send the ids of the groups to export')
+                state = current_queue()
+                where = {group['id']: (status, group)
+                         for status in ('pending', 'backlog', 'applied', 'skipped')
+                         for group in state[status]}
+                entries = [where[item] for item in dict.fromkeys(ids) if item in where]
+                with writing:
+                    count = export.write(export_path, entries)
+                self.send({'path': str(Path(export_path).resolve()), 'rows': count,
+                           'groups': len(entries), 'at': datetime.now(timezone.utc).isoformat()})
+            except export.ExportLocked as exc:
+                self.send({'error': str(exc)}, 409)
             except (ValueError, TypeError, AttributeError) as exc:
                 self.send({'error': str(exc)}, 400)
             except (OSError, sqlite3.Error) as exc:
@@ -298,11 +330,17 @@ def main():
     parser.add_argument('--db', type=Path, default=DB)
     parser.add_argument('--ledger', type=Path, default=None)
     parser.add_argument('--port', type=int, default=8765)
+    # A shared folder -- OneDrive, a network drive -- puts the workbook where
+    # other people can open it. Job data is private: never inside this repo
+    # except under the ignored .local/.
+    parser.add_argument('--export', type=Path, default=export.DEFAULT_PATH,
+                        help='The one Excel file the page exports to (default %(default)s)')
     args = parser.parse_args()
     if not args.db.is_file():
         parser.error('Job database missing. Restore private history and run job-store --bootstrap first.')
-    server = make_server(args.db, args.ledger or applications.ledger_path(), args.port)
+    server = make_server(args.db, args.ledger or applications.ledger_path(), args.port, args.export)
     print(f'Review: http://127.0.0.1:{server.server_port}', flush=True)
+    print(f'Export: {Path(args.export).resolve()}', flush=True)
     threading.Thread(target=keep_warm, args=(server,), daemon=True).start()
     try:
         server.serve_forever()
