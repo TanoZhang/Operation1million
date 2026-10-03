@@ -187,7 +187,7 @@ class SoftBlockTests(unittest.TestCase):
         self.rules = jsearch.load_plan()[0]['filter']
 
     def test_another_functions_word_alone_is_blocked(self):
-        for title in ('Power Systems Engineer', 'Supply Chain Planner', 'Product Owner',
+        for title in ('Power Integrity Engineer', 'Supply Chain Planner', 'Product Owner',
                       'Product Management Intern', 'Product Design Intern',
                       'Manufacturing Engineering Intern', 'Mechanical Design Engineer',
                       'Wireless Power Magnetics Architect', 'Technical Program Management',
@@ -218,9 +218,12 @@ class SoftBlockTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertTrue(jsearch.title_blocked(title, self.rules))
 
-    def test_bulk_policy_reopens_analog_design_without_generic_gpu_software(self):
-        self.assertFalse(jsearch.title_blocked('Analog IC Design Engineer, Intern', self.rules))
-        self.assertTrue(jsearch.title_blocked('GPU Fleet Software Development Engineer', self.rules))
+    def test_the_older_block_is_not_softened(self):
+        """Analog and software were the user's own earlier choices, and a
+        hardware word never argued them back in."""
+        for title in ('Analog IC Design Engineer, Intern', 'GPU Fleet Software Development Engineer'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.title_blocked(title, self.rules))
 
     def test_principal_is_a_level(self):
         self.assertTrue(jsearch.excluded('Principal Digital Verification Engineer', self.rules))
@@ -258,10 +261,10 @@ class AuditedWrongCatchTests(unittest.TestCase):
                 self.assertFalse(jsearch.title_blocked(title, self.rules))
 
     def test_what_it_was_meant_to_take_still_goes(self):
-        for title in ('Frontend Engineer, EE&P - IS&T Early Career', 'Backend Web Engineer - New College Grad 2026',
+        for title in ('Frontend Engineer, EE&P - IS&T Early Career', 'Backend Compiler Engineer - New College Grad 2026',
                       'Software Engineer, PhD, Early Career, 2026', 'GPU Software Engineer - GPU Libraries',
                       'Mechanical Engineering Internship - Summer 2027', 'Operations & Logistics Internship',
-                      'Business Operations Analyst, Processor', 'Analog Data Science Intern'):
+                      'Business Operations Analyst, Processor', 'Analog IC Design Engineer, Intern'):
             with self.subTest(title=title):
                 self.assertTrue(jsearch.title_blocked(title, self.rules))
 

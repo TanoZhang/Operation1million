@@ -1,3 +1,12 @@
+# Corrected VLSI scope - 2026-10-02 (codex)
+
+Restore e456c97 filter/scoring/ranking exactly. User wants additional names for
+the same VLSI work and still accepts related embedded work judged by JD. Remove
+d4a7986 unrelated expansion. Blanket software ban was never deployed. Add six
+one-page VLSI alias queries; 41 queries, 320 pages, old tier totals unchanged.
+Private JD audit: .local/filter-audit/vlsi-alias-audit.json.
+Validation, deployment and restoration of durable scores pending.
+
 # Adjacent engineering expansion from records - 2026-10-02 (codex)
 
 Base e456c97 / production cd3e3ca. Read live open postings, seen-job decisions

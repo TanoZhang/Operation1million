@@ -309,18 +309,12 @@ exclude_title_patterns = [
 # Whatever survives this is marked in the review queue rather than presented as
 # an ordinary result, because it got in on its description and not on its name.
 evidence_title_patterns = [
-  # Generic applications/quality roles need chip or hardware evidence; they
-  # are no longer refused solely because the title names these functions.
-  '^(?!.*\b(?:ASIC|FPGA|RTL|SoC|VLSI|silicon|wafer|UVM|SystemVerilog|Verilog|VHDL|DFT|EDA|physical\s+design|verification)\b).*\b(?:field\s+applications?\s+engineer|FAE|quality\s+engineer)\b',
   '\brf\s+engineer\b', '\brf\s*ic\b', '\b(?:microwave|antenna)\s+engineer\b',
 ]
 
 # Trade-exclusive vocabulary: languages, methodology, protocols, EDA tools and
 # fabrication. Another industry has no reason to print these words.
 strong_terms = [
-  # Adjacent circuit/board design tools, not generic words like quality.
-  '\b(?:HSPICE|Virtuoso|Altium|OrCAD|KiCad)\b',
-  '\bSPICE\s+(?:simulat|models?)',
   # Languages, methodology, coverage
   # SVA as written, not Amazon's "sva vendors" (#273).
   '\bUVM\b', '\bSystemVerilog\b', '\bVerilog\b', '\bVHDL\b',
@@ -376,10 +370,6 @@ strong_terms = [
 
 # Relevant but ordinary English. Worth a point, never proof on its own.
 common_terms = [
-  '\banalog\b', '\bmixed[-\s]signal\b', '\bPCB\b',
-  '\bprinted\s+circuit\s+boards?\b', '\bcircuits?\b',
-  '\b(?:signal|power)\s+integrity\b',
-  '\b(?:compiler|LLVM|MLIR|CUDA|ROCm)\b',
   '\bverification\b', '\bvalidation\b', '\bdigital\s+design\b', '\bhardware\b',
   '\bmicroarchitecture\b', '\barchitecture\b', '\bprocessor\b', '\bCPU\b',
   '\bGPU\b', '\bNPU\b', '\baccelerator\b', '\bsemiconductor\b', '\bchip\b',
@@ -389,12 +379,6 @@ common_terms = [
 
 # Titles that settle the question on their own, before any scoring runs.
 keep_title_patterns = [
-  # Bulk applications include neighbouring engineering disciplines; ranking
-  # still distinguishes these from core digital design/verification.
-  '\banalog\s+(?:ic\s+)?(?:(?:circuit|layout)\s+)?design(?:er)?\b',
-  '\b(?:PCB|board)\s+(?:design|layout)\b',
-  '\b(?:signal|power)\s+integrity\b',
-  '\bpower\s+electronics\s+(?:design\s+)?engineer',
   '\b(?:design|hardware|functional|low[-\s]+power)\s+verification\b',
   '\bpre[-\s]?silicon\s+verification\b', '\bformal\s+verification\b',
   '\brtl\b', '\bfpga\b', '\b(?:digital|logic)\s+(?:ic\s+)?design\b',
@@ -433,14 +417,14 @@ reject_title_patterns = [
   # and "Software and System Architect" slipped past the narrower form. A
   # board with no description scores them 0 but still lists them, so the
   # title is the only thing that can stop them.
-  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|compiler|llvm|mlir|cuda|rocm|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design|eda|3d-?ic|circuits?|sram|dram|semiconductors?)\b).*\bsoftware\b',
+  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design|eda|3d-?ic|circuits?|sram|dram|semiconductors?)\b).*\bsoftware\b',
   # Front end and back end are web words and chip words: RTL is a chip's front
   # end and physical design its back end. Measured the same day: "GPU Front-End
   # Infrastructure/Methodology" and "EDA PV Intern for Digital Backend Flow"
   # were going as web roles. A title with a chip-design word stays.
   '\bweb\s+developer\b',
-  '^(?!.*\b(?:compiler|llvm|mlir|gpu|cpu|asic|soc|chip|silicon|rtl|cad|dv|methodology|digital|design|verification|eda)\b).*\bfront.?end\b',
-  '^(?!.*\b(?:compiler|llvm|mlir|digital|physical|pd|flow|eda|asic|soc|chip|silicon|rtl|sta|timing|implementation|design|verification)\b).*\bback.?end\b',
+  '^(?!.*\b(?:gpu|cpu|asic|soc|chip|silicon|rtl|cad|dv|methodology|digital|design|verification|eda)\b).*\bfront.?end\b',
+  '^(?!.*\b(?:digital|physical|pd|flow|eda|asic|soc|chip|silicon|rtl|sta|timing|implementation|design|verification)\b).*\bback.?end\b',
   '\bfull.?stack\b',
   '\bdata\s+(?:engineer|scientist)\b', '\bdevops\b', '\bsite\s+reliability\b',
 ]
@@ -600,7 +584,6 @@ us_person_required_patterns = [
 ]
 # What the work is on. Enough, with a role below, to keep a function title.
 hardware_title_terms = [
-  '\bPCB\b', '\bboard\b', '\b(?:signal|power)\s+integrity\b',
   # "Low Power Design Engineer" (2026-09-27).
   '\blow[-\s]power\b',
   '\bchips?\b', '\bIC\b', '\b3D-?IC\b', '\bsilicon\b', '\bsemiconductors?\b',
@@ -652,7 +635,7 @@ pages = 3
 [[query]]
 query = "Silicon Intern"
 tier = "intern"
-pages = 10
+pages = 18
 [[query]]
 query = "Hardware Engineering Intern"
 tier = "intern"
@@ -673,7 +656,7 @@ pages = 12
 [[query]]
 query = "Verification New Grad"
 tier = "new_grad"
-pages = 10
+pages = 14
 [[query]]
 query = "RTL New Grad"
 tier = "new_grad"
@@ -697,7 +680,7 @@ pages = 6
 [[query]]
 query = "Hardware New Grad"
 tier = "new_grad"
-pages = 8
+pages = 12
 [[query]]
 query = "Physical Design New Grad"
 tier = "new_grad"
@@ -726,7 +709,7 @@ pages = 2
 [[query]]
 query = "Hardware Entry Level"
 tier = "early_career"
-pages = 9
+pages = 7
 [[query]]
 query = "Silicon Entry Level"
 tier = "early_career"
@@ -769,44 +752,29 @@ query = "DFT Engineer"
 tier = "A"
 pages = 6
 
-# Small adjacent-role trials, 2026-10-02; measure yield before expanding caps.
+# Equivalent VLSI role names from the record/JD audit. Filters remain as before
+# the adjacent-role expansion; these are one-page discovery trials only.
 [[query]]
-query = "Analog Design Intern"
+query = "Logic Design Intern"
 tier = "intern"
-pages = 2
+pages = 1
 [[query]]
-query = "Board Design Intern"
+query = "Formal Verification Intern"
 tier = "intern"
-pages = 2
+pages = 1
 [[query]]
-query = "Embedded Firmware Intern"
-tier = "intern"
-pages = 2
-[[query]]
-query = "Compiler Intern"
-tier = "intern"
-pages = 2
-[[query]]
-query = "Analog Design New Grad"
+query = "Design for Test New Grad"
 tier = "new_grad"
-pages = 2
+pages = 1
 [[query]]
-query = "Board Design New Grad"
+query = "Physical Implementation New Grad"
 tier = "new_grad"
-pages = 2
+pages = 1
 [[query]]
-query = "Firmware New Grad"
-tier = "new_grad"
-pages = 2
-[[query]]
-query = "Compiler New Grad"
-tier = "new_grad"
-pages = 2
-[[query]]
-query = "Field Applications Engineer Entry Level"
+query = "Static Timing Analysis Entry Level"
 tier = "early_career"
-pages = 2
+pages = 1
 [[query]]
-query = "Hardware Test Engineer Entry Level"
+query = "Silicon Validation Entry Level"
 tier = "early_career"
-pages = 2
+pages = 1

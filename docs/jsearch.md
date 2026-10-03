@@ -353,3 +353,22 @@ Hardware New Grad 12 -> 8. This is a limited allocation trial, not a proven yiel
 improvement. Historical measurements above are unchanged; current trial yield
 must come from future manifests. No paid requests during the keyword audit.
 See architecture's record-driven expansion for score/filter evidence and limits.
+
+## Corrected VLSI scope - 2026-10-02
+
+The user clarified that higher application volume means equivalent VLSI names,
+not additional disciplines. The d4a7986 compiler/analog/board/FAE/quality expansion
+is withdrawn. The briefly proposed blanket software/firmware title ban was never
+deployed and is withdrawn too. Restore filter/scoring and ranking exactly to
+e456c97: relevant embedded, firmware, driver and silicon/EDA software still pass
+through the original title/JD evidence policy; ordinary software stays excluded.
+
+Audit of actual JDs confirms silicon validation uses Embedded C/BIOS to exercise
+SoC/IP; STA describes netlists, timing closure, PnR and signoff; DFT describes
+scan/BIST/ATPG. Existing rules already recognize these jobs. Only discovery needs
+additional names: Logic Design Intern, Formal Verification Intern, Design for
+Test New Grad, Physical Implementation New Grad, Static Timing Analysis Entry
+Level, Silicon Validation Entry Level. One page each, with two pages reassigned
+within each early-career tier. 41 queries, 320 pages, original tier totals intact.
+No increase to paid budget and no manual paid collection. Relevant embedded
+postings and existing applied/skipped history must not be deleted.

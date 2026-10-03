@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: User clarification: restore pre-expansion JD-based embedded/VLSI rules; examine equivalent VLSI names only.
+Files: data/config/jsearch_queries.toml, src/jobdisco/ranking.py, tests, docs/{agent-protocol,architecture,handoff,jsearch}.md
+Base commit: 81b378a
+Status: claimed
+Next: Compare e456c97 and real JDs; remove unrelated expansion, preserve valid embedded/software exceptions.
+```
+
+```text
+Owner: codex
 Scope: Record-driven broadening of adjacent engineering title/score/query vocabulary for bulk applications.
 Files: data/config/jsearch_queries.toml, src/jobdisco/ranking.py, tests/test_review_rules.py,
        tests/{test_bulk_application_rules,test_jsearch,test_store,test_sixth_bug_hunt}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
