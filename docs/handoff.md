@@ -7,7 +7,14 @@ No old keep becomes rejected in the changed-title cohort. Not a queue increase.
 Analog/board/power-integrity and compiler software reopened; FAE/quality uses
 existing evidence path. Scoring vocabulary and related bands updated. Ten query
 trials at two pages each; daily cap 320 unchanged. Eligibility/bans unchanged.
-Full-suite validation and durable rescore/deployment pending.
+On exact d4a7986: Windows full suite 1,114 tests passes, 11 skips.
+Installed d4a7986; all 53,293 stored rows rescored under collection lock with
+durable score corrections. job-store --verify passes all 14 day manifests.
+Review ready: HTTP 200 in 0.148 seconds. Compared stable IDs: 117 new
+pending/backlog groups (13 early-career), zero prior groups removed. Pending
+396 -> 403; backlog 4,865 -> 4,975. Applied/skipped remain 27/9. Locations
+include international postings; additions are not confirmed U.S. eligibility.
+No paid requests or decisions. Private audit: .local/filter-audit/summary.md.
 
 # Virginia Commons preference block - 2026-10-02 (codex)
 

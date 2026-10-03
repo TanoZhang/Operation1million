@@ -2486,3 +2486,11 @@ scheduled-pass evidence; no paid collection during this audit.
 Scoring terms and title bands changed, so deployment requires job-store --rescore
 with durable score corrections before final queue verification. SQLite-only
 score edits would be lost on rebuild. Collection lock protects this maintenance.
+
+Deployment evidence: exact d4a7986 passes 1,114 Windows tests (11 skips);
+installed on VPS, all 53,293 rows rescored under collection lock with published
+score corrections. All 14 day manifests verify. Queue HTTP 200 in 0.148 seconds. Stable group ID
+comparison: 117 new pending/backlog groups, zero removed, including 13
+early-career groups. Pending 396 -> 403, backlog 4,865 -> 4,975, applied/skipped
+27/9 unchanged. This includes international postings and incomplete descriptions;
+not a count of confirmed U.S. applications.

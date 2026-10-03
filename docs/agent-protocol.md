@@ -10,8 +10,8 @@ Scope: Record-driven broadening of adjacent engineering title/score/query vocabu
 Files: data/config/jsearch_queries.toml, src/jobdisco/ranking.py, tests/test_review_rules.py,
        tests/{test_bulk_application_rules,test_jsearch,test_store,test_sixth_bug_hunt}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
 Base commit: e456c97
-Status: claimed
-Next: Compare live record counterfactual, preserve eligibility; verify and deploy with durable score corrections.
+Status: done -- exact d4a7986 passes 1,114 tests (11 skips), installed; durable rescore/verify complete; queue HTTP 200.
+Next: Refresh Review. 117 new pending/backlog groups (13 early-career), no prior group removed; query trials run on schedule.
 ```
 
 ```text
