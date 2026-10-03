@@ -33,11 +33,20 @@ Next: Deploy, then enable jobdisco-collect.timer without starting the service.
 
 ```text
 Owner: codex
+Scope: Reconcile user-supplied applied and closed-position statuses with the private VPS decision ledger; leave collection and JSearch configuration stopped/unchanged.
+Files: private VPS operational/application ledgers only; docs/agent-protocol.md for claim status.
+Base commit: 4e6789e
+Status: done
+Next: Private Review ledger and live queue were verified; no collector or JSearch change, and no public-code deployment is needed.
+```
+
+```text
+Owner: codex
 Scope: Audit current JSearch page yield, restore VLSI analog interns, trial ten General-tier VLSI synonyms, and close request-level publisher gaps; preserve intern, new-grad and early-career query plans.
 Files: src/jobdisco/{jsearch,applications}.py, data/config/jsearch_queries.toml, tests/{test_jsearch,test_manual_intake,test_review_rules,test_twelfth_bug_hunt}.py, docs/{agent-protocol,architecture,blocked-recruitment-domains,collection-rules,handoff,jsearch}.md
 Base commit: be17f1d
-Status: claimed
-Next: Isolate pasted-link fixtures from the production collection lock, validate the installed suite, and resume the failed scheduled pass.
+Status: halted at user request; installed 4e6789e, collector service and timer stopped, no paid pages on October 3.
+Next: Do not resume or modify JSearch unless the user explicitly asks.
 ```
 
 ```text
