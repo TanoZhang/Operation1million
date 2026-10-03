@@ -40,6 +40,20 @@ JobMesh, Advies Van Spijk and TheLadders; local hard rejection remains the
 guarantee if JSearch returns a blocked publisher despite its request setting.
 See the current claim for final validation and deployment.
 
+# Ten direct sources added - 2026-10-03 UTC (claude, not deployed)
+
+At the user's request: Anthropic, xAI, SambaNova (Greenhouse), OpenAI, d-Matrix,
+Quadric (Ashby), KLA, Applied Materials, GlobalFoundries (Workday) and Lam
+Research (Eightfold), in `data/config/schema.sql`. A capped offline run of the
+real collector (`--max-pages 2 --max-jobs 40 --no-store`) read postings from all
+ten; d-Matrix (33) and Quadric (14) completed. These boards are list-only, so the
+added load is about 330 list requests a day. The daily pass rebuilds its index
+when `data/config` changes, so the next pass picks them up without a manual
+bootstrap. Google and Meta were not added (user's choice); companies removed
+from the catalog on 2026-09-21 (Ampere, MediaTek, Infineon, ADI, TSMC and
+others) were not re-added without asking. No lookback widening was added: the
+user does not want one.
+
 # JSearch plan from the user's list - 2026-10-03 UTC (claude, not deployed)
 
 The user stopped codex's keyword changes and the VPS collection timer, and asked

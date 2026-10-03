@@ -69,6 +69,16 @@ WHERE s.enabled = 1;
 INSERT INTO companies (company_key, name)
 VALUES
     ('amd', 'Advanced Micro Devices, Inc.'),
+    ('anthropic', 'Anthropic'),
+    ('applied_materials', 'Applied Materials, Inc.'),
+    ('d_matrix', 'd-Matrix'),
+    ('globalfoundries', 'GlobalFoundries'),
+    ('kla', 'KLA Corporation'),
+    ('lam_research', 'Lam Research Corporation'),
+    ('openai', 'OpenAI'),
+    ('quadric', 'Quadric'),
+    ('sambanova', 'SambaNova Systems'),
+    ('xai', 'xAI'),
     ('altera', 'Altera Corporation'),
     ('amazon', 'Amazon.com, Inc.'),
     ('ambarella', 'Ambarella, Inc.'),
@@ -323,6 +333,107 @@ INSERT INTO company_sources (
     '{"career_domain":"careers.micron.com","pcsx_domain":"micron.com"}',
     1,
     'pending'
+),
+-- Added 2026-10-03 at the user's request; each board answered with postings that day.
+(
+    'greenhouse:anthropic',
+    'anthropic',
+    'greenhouse',
+    'anthropic',
+    'https://boards-api.greenhouse.io/v1/boards/anthropic/jobs',
+    '{"board_token":"anthropic"}',
+    1,
+    'verified'
+),
+(
+    'greenhouse:xai',
+    'xai',
+    'greenhouse',
+    'xai',
+    'https://boards-api.greenhouse.io/v1/boards/xai/jobs',
+    '{"board_token":"xai"}',
+    1,
+    'verified'
+),
+(
+    'greenhouse:sambanovasystems',
+    'sambanova',
+    'greenhouse',
+    'sambanovasystems',
+    'https://boards-api.greenhouse.io/v1/boards/sambanovasystems/jobs',
+    '{"board_token":"sambanovasystems"}',
+    1,
+    'verified'
+),
+(
+    'ashby:openai',
+    'openai',
+    'ashby',
+    'openai',
+    'https://api.ashbyhq.com/posting-api/job-board/openai?includeCompensation=false',
+    '{"job_board_name":"openai"}',
+    1,
+    'verified'
+),
+(
+    'ashby:d-matrix',
+    'd_matrix',
+    'ashby',
+    'd-matrix',
+    'https://api.ashbyhq.com/posting-api/job-board/d-matrix?includeCompensation=false',
+    '{"job_board_name":"d-matrix"}',
+    1,
+    'verified'
+),
+(
+    'ashby:quadric',
+    'quadric',
+    'ashby',
+    'quadric',
+    'https://api.ashbyhq.com/posting-api/job-board/quadric?includeCompensation=false',
+    '{"job_board_name":"quadric"}',
+    1,
+    'verified'
+),
+(
+    'workday:kla:Search',
+    'kla',
+    'workday',
+    'Search',
+    'https://kla.wd1.myworkdayjobs.com/Search',
+    '{"tenant":"kla","workday_host":"wd1","site":"Search"}',
+    1,
+    'verified'
+),
+(
+    'workday:amat:External',
+    'applied_materials',
+    'workday',
+    'External',
+    'https://amat.wd1.myworkdayjobs.com/External',
+    '{"tenant":"amat","workday_host":"wd1","site":"External"}',
+    1,
+    'verified'
+),
+(
+    'workday:globalfoundries:External',
+    'globalfoundries',
+    'workday',
+    'External',
+    'https://globalfoundries.wd1.myworkdayjobs.com/External',
+    '{"tenant":"globalfoundries","workday_host":"wd1","site":"External"}',
+    1,
+    'verified'
+),
+(
+    'eightfold:careers.lamresearch.com',
+    'lam_research',
+    'eightfold',
+    'careers.lamresearch.com',
+    'https://careers.lamresearch.com/api/pcsx/search?domain=lamresearch.com&query=&location=',
+    '{"career_domain":"careers.lamresearch.com","pcsx_domain":"lamresearch.com"}',
+    1,
+    'verified'
 ),
 (
     'workday:nxp:careers',

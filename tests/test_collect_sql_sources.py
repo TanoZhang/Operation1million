@@ -504,7 +504,15 @@ class CollectionTests(unittest.TestCase):
         con=sqlite3.connect(':memory:');sql=(CONFIG/'schema.sql').read_text(encoding='utf-8')
         con.executescript(sql);con.executescript(sql)
         keys={r[0] for r in con.execute('select company_key from companies')}
-        self.assertEqual(len(keys),35)
+        self.assertEqual(len(keys),45)
+        # Added 2026-10-03 at the user's request, on boards this collector reads.
+        added = dict(con.execute('select company_key, provider_key from company_sources where company_key in '
+                                 "('anthropic','xai','sambanova','openai','d_matrix','quadric','kla',"
+                                 "'applied_materials','globalfoundries','lam_research')"))
+        self.assertEqual(added, {'anthropic': 'greenhouse', 'xai': 'greenhouse', 'sambanova': 'greenhouse',
+                                 'openai': 'ashby', 'd_matrix': 'ashby', 'quadric': 'ashby',
+                                 'kla': 'workday', 'applied_materials': 'workday',
+                                 'globalfoundries': 'workday', 'lam_research': 'eightfold'})
         self.assertFalse(keys & {
             'ampere_computing', 'bytedance', 'mediatek', 'meta', 'tesla',
             'advantest', 'maxlinear', 'omnivision', 'infineon', 'achronix',

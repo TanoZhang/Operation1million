@@ -9,6 +9,12 @@ The active catalog contains 35 companies after removing Rambus and Ventana
 Micro. Their company rows, source rows, and JSearch fallback entries are removed.
 Historical run artifacts remain evidence of their original collection dates.
 
+On 2026-10-03, at the user's request, ten more were added, each on a board this
+collector already reads and each checked that day with a capped trial run that
+returned postings: Anthropic, xAI and SambaNova (Greenhouse); OpenAI, d-Matrix
+and Quadric (Ashby); KLA, Applied Materials and GlobalFoundries (Workday); Lam
+Research (Eightfold). Google and Meta were not added, by the user's choice.
+
 The September 16 handoff reported working direct routes for all 35 remaining
 companies. This is a route-availability result, not proof that all 35 boards
 were downloaded completely. Rivos uses a third-party Uplers company page;

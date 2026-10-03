@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: Ten direct sources at the user's request: Anthropic, xAI, OpenAI,
+       SambaNova, d-Matrix, Quadric, KLA, Applied Materials, GlobalFoundries,
+       Lam Research.
+Files: data/config/schema.sql, tests/test_collect_sql_sources.py,
+       docs/{collection-rules,handoff,agent-protocol}.md
+Base commit: b175f3a
+Status: done -- pushed to main, not deployed
+Next: Deploy; the next pass rebuilds the index and reads the new boards.
+```
+
+```text
+Owner: claude
 Scope: At the user's request (2026-10-03), the JSearch plan is the user's own
        43-query list: caps may total more than the daily budget (the guard
        stops the day at 320), deeper early-career caps, eight early-career
