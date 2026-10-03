@@ -177,6 +177,10 @@ with failure details retained. No collection or application behavior changes.
 These choices can look wrong when read in isolation. Change one only with a
 reproducer and update its evidence below.
 
+- **Application scope is VLSI.** Higher volume means equivalent names for the
+  same VLSI work. Preserve the established JD-based handling of relevant
+  embedded, firmware, driver and silicon software roles. The 2026-10-02
+  standalone compiler/adjacent-discipline expansion was explicitly withdrawn.
 - **Daily quota uses Pacific time; the billing period uses UTC. Do not unify
   them.** The daily allowance starts with the scheduled 04:38 Pacific pass. The
   30-day provider cycle must not move with daylight saving time.
@@ -2513,3 +2517,9 @@ Level, Silicon Validation Entry Level. One page each, with two pages reassigned
 within each early-career tier. 41 queries, 320 pages, original tier totals intact.
 No increase to paid budget and no manual paid collection. Relevant embedded
 postings and existing applied/skipped history must not be deleted.
+
+Restoration verified on deployed eaa6bc4: filter/scoring equals e456c97 and
+ranking is byte-identical. 1,112 tests pass (11 skips); all 53,293 rows rescored
+with durable corrections and 14 day manifests verify. Review HTTP 200; all
+5,261 original pending/backlog IDs restored with no additions or omissions,
+including 153 embedded/firmware groups. Applied/skipped IDs unchanged.

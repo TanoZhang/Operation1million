@@ -9,8 +9,8 @@ Owner: codex
 Scope: User clarification: restore pre-expansion JD-based embedded/VLSI rules; examine equivalent VLSI names only.
 Files: data/config/jsearch_queries.toml, src/jobdisco/ranking.py, tests, docs/{agent-protocol,architecture,handoff,jsearch}.md
 Base commit: 81b378a
-Status: claimed
-Next: Compare e456c97 and real JDs; remove unrelated expansion, preserve valid embedded/software exceptions.
+Status: done -- exact eaa6bc4: 1,112 tests pass (11 skips), deployed/rescored; live queue restored to all 5,261 original groups.
+Next: Refresh Review. Six VLSI synonym queries run on schedule; 153 embedded/firmware groups retained.
 ```
 
 ```text

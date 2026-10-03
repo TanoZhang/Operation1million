@@ -5,7 +5,12 @@ the same VLSI work and still accepts related embedded work judged by JD. Remove
 d4a7986 unrelated expansion. Blanket software ban was never deployed. Add six
 one-page VLSI alias queries; 41 queries, 320 pages, old tier totals unchanged.
 Private JD audit: .local/filter-audit/vlsi-alias-audit.json.
-Validation, deployment and restoration of durable scores pending.
+On exact eaa6bc4, all 1,112 tests pass (11 skips). Installed eaa6bc4 and
+rescored 53,293 rows under collection lock with durable corrections. All 14
+day manifests verify. Review HTTP 200 in 0.141s. Stable-ID comparison against
+pre-expansion baseline: 5,261 pending/backlog groups, zero missing, zero extra.
+Pending 396, backlog 4,865, including 153 embedded/firmware groups. Applied and
+skipped IDs exactly unchanged (27/9). No paid collection or application writes.
 
 # Adjacent engineering expansion from records - 2026-10-02 (codex)
 
