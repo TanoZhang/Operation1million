@@ -6,6 +6,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Record-driven broadening of adjacent engineering title/score/query vocabulary for bulk applications.
+Files: data/config/jsearch_queries.toml, src/jobdisco/ranking.py, tests/test_review_rules.py,
+       tests/{test_bulk_application_rules,test_jsearch,test_store,test_sixth_bug_hunt}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
+Base commit: e456c97
+Status: claimed
+Next: Compare live record counterfactual, preserve eligibility; verify and deploy with durable score corrections.
+```
+
+```text
+Owner: codex
 Scope: User-requested virginiacommons.com publisher block.
 Files: data/config/jsearch_queries.toml, tests/test_review_rules.py, docs/{agent-protocol,handoff,blocked-recruitment-domains}.md
 Base commit: 876f78a

@@ -1288,11 +1288,11 @@ class RelevanceScoringTests(unittest.TestCase):
         self.assertEqual(self.jsearch.rejection_reason(excerpt, self.rules), '')
 
     def test_a_title_that_names_the_work_settles_it_either_way(self):
-        # Analog mixed-signal *verification* is wanted; an analog *designer* is not.
+        # Bulk policy allows analog design as well as mixed-signal verification.
         keep = self.posting('Analog Mixed-Signal Design Verification Engineer')
-        drop = self.posting('Analog IC Designer', skills=['RTL', 'SystemVerilog'])
+        adjacent = self.posting('Analog IC Designer', skills=['RTL', 'SystemVerilog'])
         self.assertEqual(self.jsearch.rejection_reason(keep, self.rules), '')
-        self.assertEqual(self.jsearch.rejection_reason(drop, self.rules), 'title_mismatch')
+        self.assertEqual(self.jsearch.rejection_reason(adjacent, self.rules), '')
 
 
 class HardExclusionTests(unittest.TestCase):

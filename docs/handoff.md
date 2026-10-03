@@ -1,3 +1,14 @@
+# Adjacent engineering expansion from records - 2026-10-02 (codex)
+
+Base e456c97 / production cd3e3ca. Read live open postings, seen-job decisions
+and Review counts before editing vocabulary. 208 candidate records gain posting
+filter admission, including 22 early-career; 178 are excerpts, many are abroad.
+No old keep becomes rejected in the changed-title cohort. Not a queue increase.
+Analog/board/power-integrity and compiler software reopened; FAE/quality uses
+existing evidence path. Scoring vocabulary and related bands updated. Ten query
+trials at two pages each; daily cap 320 unchanged. Eligibility/bans unchanged.
+Full-suite validation and durable rescore/deployment pending.
+
 # Virginia Commons preference block - 2026-10-02 (codex)
 
 Base 876f78a. User requested virginiacommons.com exclusion; exact host and

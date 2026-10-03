@@ -80,6 +80,11 @@ CORE = re.compile(r"""\b(?:
 # bucket that says "probably worth a look", not "this is the job".
 RELATED = re.compile(r"""\b(?:
       embedded | firmware | bare[-\s]?metal | bootloader | bios | uefi | rtos
+    # Adjacent targets reopened for bulk applications, from record audit.
+    | compiler | llvm | mlir | cuda | rocm
+    | (?: pcb | board ) \s+ (?: design | layout )
+    | analog \s+ (?: ic \s+ )? (?:(?: circuit | layout ) \s+ )? design(?:er)?
+    | power \s+ electronics \s+ (?: design \s+ )? engineer
     | (?: device | kernel | graphics | display | audio | storage | network )
       \s+ drivers?
     | drivers? \s+ (?: engineer | development | software )

@@ -2445,3 +2445,44 @@ change; future scheduled collection can discover them within the existing budget
 Production read-only comparison on installed 52c1b1b (2026-10-02):
 51 open indexed rows change to keep (50 off_domain, one publisher);
 this is before Review deduplication and durable application decisions.
+
+## Record-driven adjacent engineering expansion - 2026-10-02
+
+The user now has capacity for bulk applications and asked for a record/keyword
+review after the first threshold-only change was insufficient. Read-only live
+index plus seen_jobs and Review baseline inspected at cd3e3ca (documentation
+HEAD e456c97). Existing title exclusions, rather than scores alone, removed
+analog/board design and compiler software roles. Private evidence is under
+.local/filter-audit/ (never committed).
+
+Policy changes: title keeps for analog circuit/layout design, PCB/board design,
+signal/power integrity and power electronics engineering; compiler/LLVM/MLIR
+software/front-end/back-end exceptions. These titles rank as related hardware,
+not core digital VLSI. Add circuit/board tool terms and compiler vocabulary to
+scoring. Generic field applications/FAE and quality titles use the existing
+score-evidence path; explicit core titles keep their original treatment.
+No description still follows the existing unreadable-posting policy, while
+provided prose must meet relevance. Hard employer/title, citizenship, experience
+and degree checks precede new keeps. Publisher bans and application decisions
+are unchanged. Fab/process, optical/photonics and unrelated general software
+exclusions were not opened by this change.
+
+Counterfactual on open live indexed rows whose title decisions or bands change:
+208 gain admission (205 title_mismatch, 3 off_domain); 22 are early-career related
+by title; 178 have less than 1,500 description characters. No old kept record in
+that candidate cohort becomes rejected. Count is before deduplication and
+application decisions; many locations are abroad. No claim of 208 usable U.S.
+applications. Seen-job rejections without stored payloads cannot be re-evaluated.
+Review baseline read: 396 pending, 4,865 backlog, 27 applied, 9 skipped.
+
+Ten new two-page adjacent queries (four intern, four new grad, two entry level)
+are trials, not measured coverage: analog/board, firmware/compiler, field
+applications and hardware test. Total daily caps remain 320, tier order intact.
+Reallocate Silicon Intern 20 -> 10, Verification New Grad 16 -> 10,
+Hardware New Grad 12 -> 8; this is a limited trial allocation. The historical yield table is history,
+not proof of current unused caps. Core DV/PD/general caps unchanged. Trial yield requires future
+scheduled-pass evidence; no paid collection during this audit.
+
+Scoring terms and title bands changed, so deployment requires job-store --rescore
+with durable score corrections before final queue verification. SQLite-only
+score edits would be lost on rebuild. Collection lock protects this maintenance.

@@ -277,7 +277,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_seen_rows_are_recorded_before_checkpoint_can_fail(self):
         seen = []
         self.session.get.return_value = self.response([
-            job('off-domain', job_title='Analog IC Designer')])
+            job('off-domain', job_title='Cloud Software Engineer')])
 
         def checkpoint(query, rows, detail):
             raise RuntimeError('checkpoint failed after page processing')
@@ -293,7 +293,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 35)
+        self.assertEqual(len(self.plan), 45)
         self.assertEqual(self.settings['monthly_target'], 9600)
         self.assertEqual(self.settings['daily_budget'], 320)
         # 320 a day for 30 days is exactly the month's target, and the anchor is
@@ -312,7 +312,7 @@ class DiscoveryTests(unittest.TestCase):
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'A')},
             # Re-set from measured yield on 2026-09-27 (docs/jsearch.md).
-            {'intern': 61, 'new_grad': 79, 'early_career': 26, 'A': 154})
+            {'intern': 59, 'new_grad': 77, 'early_career': 30, 'A': 154})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -325,14 +325,18 @@ class DiscoveryTests(unittest.TestCase):
             'intern': {
                 'ASIC Intern': 2, 'Design Verification Intern': 13,
                 'RTL Intern': 3, 'Digital Design Intern': 3, 'FPGA Intern': 3,
-                'SoC Intern': 3, 'Silicon Intern': 20,
+                'SoC Intern': 3, 'Silicon Intern': 10,
+                'Analog Design Intern': 2, 'Board Design Intern': 2,
+                'Embedded Firmware Intern': 2, 'Compiler Intern': 2,
                 'Hardware Engineering Intern': 9, 'Physical Design Intern': 2,
                 'DFT Intern': 3},
             'new_grad': {
-                'ASIC New Grad': 12, 'Verification New Grad': 16,
+                'ASIC New Grad': 12, 'Verification New Grad': 10,
+                'Analog Design New Grad': 2, 'Board Design New Grad': 2,
+                'Firmware New Grad': 2, 'Compiler New Grad': 2,
                 'RTL New Grad': 2, 'Digital Design New Grad': 3,
                 'FPGA New Grad': 10, 'SoC New Grad': 6, 'Silicon New Grad': 6,
-                'Hardware New Grad': 12, 'Physical Design New Grad': 10,
+                'Hardware New Grad': 8, 'Physical Design New Grad': 10,
                 'DFT New Grad': 2},
             # Measured, not guessed: "Early Career" as a search phrase returned
             # 15 postings across all seven queries and one of them survived the
@@ -342,7 +346,9 @@ class DiscoveryTests(unittest.TestCase):
             'early_career': {
                 'Design Verification Entry Level': 8, 'ASIC Entry Level': 2,
                 'FPGA Entry Level': 2, 'Digital Design Entry Level': 2,
-                'Hardware Entry Level': 9, 'Silicon Entry Level': 3},
+                'Hardware Entry Level': 9, 'Silicon Entry Level': 3,
+                'Field Applications Engineer Entry Level': 2,
+                'Hardware Test Engineer Entry Level': 2},
             'A': {
                 'Design Verification Engineer': 36, 'RTL Engineer': 18,
                 'ASIC Engineer': 22, 'Digital Design Engineer': 8,
@@ -356,9 +362,9 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_more_queries_than_credits_refused_before_transport(self):
         """The tail of an oversized plan would be unreachable every day."""
-        jsearch.validate_budget(self.plan, 35)
+        jsearch.validate_budget(self.plan, 45)
         with self.assertRaises(ValueError):
-            jsearch.validate_budget(self.plan, 34)
+            jsearch.validate_budget(self.plan, 44)
         self.session.get.assert_not_called()
 
     def test_invalid_page_allocation_rejected(self):
@@ -439,8 +445,8 @@ class DiscoveryTests(unittest.TestCase):
             job('1'), job('2', job_title='Analog IC Designer'),
             job('3', job_title='Engineer'), job('4', job_title='Senior FPGA Engineer')])
         rows, stats = self.collect([replace(self.plan[0], pages=1)])
-        self.assertEqual([r['source_job_id'] for r in rows], ['1', '3'])
-        self.assertEqual(stats['jsearch_jobs_rejected'], 2)
+        self.assertEqual([r['source_job_id'] for r in rows], ['1', '2', '3'])
+        self.assertEqual(stats['jsearch_jobs_rejected'], 1)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM companies').fetchone()[0], 1)
         # A publisher that omits the description must not turn missing data
         # into negative evidence against an otherwise reviewable RF posting.
@@ -551,7 +557,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview['queries_planned'], 35)
+        self.assertEqual(preview['queries_planned'], 45)
         self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
@@ -1448,7 +1454,7 @@ class DiscoveryTests(unittest.TestCase):
             for i in range(10)])
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
-        self.assertEqual(len(plan), 35)
+        self.assertEqual(len(plan), 45)
         # The budget is never exceeded, whatever the caps add up to.
         self.assertLessEqual(guard.credits, settings['daily_budget'])
         self.assertEqual(stats['jsearch_pages_used'], guard.credits)
@@ -1499,7 +1505,7 @@ class DiscoveryTests(unittest.TestCase):
         # rebuilds from and what the commit step refuses to publish without.
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest['jsearch_queries_planned'], 35)
+        self.assertEqual(manifest['jsearch_queries_planned'], 45)
         self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
         self.assertEqual(manifest['jsearch_failures'], 0)
         # Paid results reached the store, and every one of them carries a score.
@@ -1584,7 +1590,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_small_budgets_go_to_internships_first(self):
         settings, plan = jsearch.load_plan()
         for cap, expected in [(24, {'intern': 24}),
-                              (120, {'intern': 61, 'new_grad': 59})]:
+                              (120, {'intern': 59, 'new_grad': 61})]:
             with self.subTest(cap=cap):
                 guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
                 guard.interval = 0

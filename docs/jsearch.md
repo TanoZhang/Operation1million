@@ -341,3 +341,15 @@ bug log entry of the same date. What this does not measure: how many more
 useful listings the deeper general pages will find, since those pages were
 never bought. Re-measure after a week of runs with the new caps; the manifests
 now count listings, so that is a direct read.
+
+## Adjacent-query trials - 2026-10-02
+
+Bulk applications now include analog/board design and compiler software. Add
+ten two-page trials: analog/board/firmware/compiler intern and new-grad searches,
+plus field applications and hardware test entry-level searches. Total caps remain
+320; tiers sum to 59 intern, 77 new grad, 30 entry level and 154 general.
+Reallocate Silicon Intern 20 -> 10, Verification New Grad 16 -> 10,
+Hardware New Grad 12 -> 8. This is a limited allocation trial, not a proven yield
+improvement. Historical measurements above are unchanged; current trial yield
+must come from future manifests. No paid requests during the keyword audit.
+See architecture's record-driven expansion for score/filter evidence and limits.

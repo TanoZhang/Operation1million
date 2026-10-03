@@ -62,12 +62,12 @@ class TitleRuleTests(unittest.TestCase):
     def test_82_low_power_design(self):
         self.assertEqual(verdict('Low Power Design Engineer'), 'ok')
         self.assertEqual(verdict('Low-Power SoC Design Intern'), 'ok')
-        self.assertEqual(verdict('Power Integrity Engineer'), 'blocked')
+        self.assertEqual(verdict('Power Integrity Engineer'), 'ok')
 
     def test_83_mixed_signal_verification(self):
         self.assertEqual(verdict('Analog Mixed Signal Verification Engineer'), 'ok')
         self.assertEqual(verdict('AMS Verification Engineer'), 'ok')
-        self.assertEqual(verdict('Analog Design Engineer'), 'blocked')
+        self.assertEqual(verdict('Analog Design Engineer'), 'ok')
 
     def test_84_a_recruiter_is_not_the_trade(self):
         for title in ('Technical Recruiter - Silicon', 'Talent Acquisition Partner, ASIC'):
