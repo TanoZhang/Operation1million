@@ -40,6 +40,19 @@ JobMesh, Advies Van Spijk and TheLadders; local hard rejection remains the
 guarantee if JSearch returns a blocked publisher despite its request setting.
 See the current claim for final validation and deployment.
 
+# JSearch plan from the user's list - 2026-10-03 UTC (claude, not deployed)
+
+The user stopped codex's keyword changes and the VPS collection timer, and asked
+for their own list. The plan is 43 queries (Intern 14 / 270 pages, New Grad 14 /
+290, Entry Level 6 / 100, General 9 / 55); caps total 715 and may exceed the
+daily budget -- `load_plan` no longer refuses that, and the budget guard stops
+the day at 320 with tiers in priority order. codex's VLSI synonym trials and the
+2026-09-27 re-set are gone; request-level publisher exclusions stay, plus the
+names JSearch reports (JobMESH, JobMesh.io, Virginia Commons Apartments). The
+General backfill depth is back to 30. Deploy, then enable
+`jobdisco-collect.timer` without starting `jobdisco-collect.service`. The
+October 3 scheduled pass had failed in preflight before paid search.
+
 # Corrected VLSI scope - 2026-10-02 (codex)
 
 Restore e456c97 filter/scoring/ranking exactly. User wants additional names for

@@ -89,10 +89,11 @@ functional discovery; configured company fallback runs last. Company fallback
 alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
-The functional plan contains 51 broad queries, each with a maximum page cap.
-Internships run first (61 pages), then New Grad (79), Early Career (26), and
-General (154). Each asks for one page at a time and stops when the provider
-returns a short page, so actual use may be below its cap. The daily cap is 320
+The functional plan contains 43 broad queries, each with a maximum page cap;
+the caps total 715 and may exceed the daily cap. Internships run first, then New
+Grad, Early Career, and General. Each asks for one page at a time and stops when
+the provider returns a short page, so actual use may be below its cap, and the
+day stops at its budget whatever the caps add up to. The daily cap is 320
 page credits and the monthly operating target is 9,600 of the 10,000 quota,
 which is exactly 320 a day for thirty days.
 Each HTTP call reserves one page credit immediately before sending, including

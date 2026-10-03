@@ -1,50 +1,27 @@
 # JSearch daily discovery
 
-## October 3 scope and page review
+## The user's query plan - 2026-10-03
 
-The current plan has 51 queries and caps totaling 320 pages: Intern 12 queries /
-61 pages, New Grad 12 / 79, Early Career 8 / 26, General 19 / 154. The first
-three tiers are unchanged. Ten one-page General VLSI synonym trials take ten
-pages from six existing General caps; tier order and the 320-credit daily
-ceiling remain unchanged. No trial yield is claimed before a successful pass.
+At the user's request the plan is the user's own list of 43 queries, replacing
+the 2026-09-27 re-set and the 2026-10-02/03 trials: Intern 14 queries / 270
+pages, New Grad 14 / 290, Early Career ("Entry Level") 6 / 100, General 9 / 55.
+Caps now total 715 and may exceed the daily budget: most queries end on a short
+page far below their cap, and caps held to 320 left about half of each day's
+credits unspent (146 to 185 of 320, 2026-09-26 to 10-01). The budget guard stops
+the day at 320; tiers are served in priority order, so on a full day General --
+a sweep for a new graduate -- gets what is left, or nothing.
 
-The available production manifests used 185, 149, 146, 164, and 174 credits on
-September 27 through October 1, an average of 164 of 320. Those days ran older
-caps, so they do not measure the yield of the current 154-page General tier.
-October 2 used 65 pages in a partial pass. The October 3 scheduled pass stopped
-in offline preflight tests before paid search; it provides no query-yield sample.
-As of the local quota check after those failures, October 3 used 0 of 320.
-Accepted rows and provider IDs are not new independent listings. Reallocate caps
-only after successful current-plan passes can be compared using distinct
-listing identities, posting filter admissions, and newly reviewable groups.
-
-Available run-manifest JSearch page reservations (not a current-plan yield
-comparison; all listed manifests planned 35 queries, and September 23 has no
-downloaded manifest):
-
-| Date | Pages / 320 | Date | Pages / 320 |
-| --- | ---: | --- | ---: |
-| Sep 20 | 153 | Sep 21 | 118 |
-| Sep 22 | 129 | Sep 24 | 110 |
-| Sep 25 | 122 | Sep 26 | 183 |
-| Sep 27 | 185 | Sep 28 | 149 |
-| Sep 29 | 146 | Sep 30 | 164 |
-| Oct 01 | 174 | Oct 02 | 65 |
-
-October 1 did run: 34 of 35 old queries completed; SoC New Grad alone stopped
-on JSearch HTTP 504. October 2's old 35-query manifest reports 35 completed.
-The 41-query change was committed October 2 at 19:26 Pacific, after that day's
-scheduled pass. October 3 would have been its first scheduled run, but failed
-preflight before a paid request. The 51-query trial supersedes it after the
-preflight repair.
-
-The VLSI-scope filter now admits an explicit analog IC design/layout title, even
-when the publisher omits prose. An otherwise ambiguous analog design or layout
-title needs at least two distinct chip-design facts in its own JD. Board, PCB,
-and power-electronics titles do not use this exception. Existing employer,
-publisher, seniority, citizenship, education, and required-experience rules
-still run first. This is a narrow correction for analog IC work, not the
-withdrawn general analog/board query expansion.
+Early-career caps follow the 2026-09-19..26 yield: deepest (25-40) where a query
+hit its cap on most days with four or more new accepted postings a page; the
+queries that end on their first page keep a cap of 15, which costs nothing on a
+day they end early. Eight broad early-career phrasings are on trial at 15 pages:
+Electrical / Computer Engineering Intern, Validation Intern, Embedded Hardware
+Intern, Hardware New College Grad, Electrical Engineer New Grad, Validation New
+Grad, Hardware University Graduate. Judge them, and the deeper caps, by new
+accepted postings a page after a week. Request-level publisher exclusions gain
+the names JSearch actually reports: JobMESH, JobMesh.io, Virginia Commons
+Apartments; on 2026-10-02, the first pass with request exclusions, no blocked
+publisher came back.
 
 ## Execution order
 
@@ -71,14 +48,12 @@ SQLite `search_queries` table is not executed by this collector.
 | General | 19 |
 | Total | 51 |
 
-The daily ceiling is 320. Each broad query declares a maximum depth, and those
-caps total 320: Intern 61, New Grad 79, Early Career 26, and General 154, set
-from measured yield on 2026-09-27 (see "Query yield" below). Every
-call still asks for `num_pages=1`; a short page, empty page, repeated page,
-deadline or budget limit keeps its existing early-stop behavior. Unused credits
-from an early stop remain available to the next priority tier.
-Later queries still obey their own page caps: carry does not automatically
-increase them. A day may therefore end below 320 when results run out.
+The daily ceiling is 320. Each broad query declares a maximum depth, and since
+2026-10-03 those caps may total more than 320 (715: Intern 270, New Grad 290,
+Early Career 100, General 55). The budget guard stops the day at 320, and on a
+full day the later tiers get what is left. Every call still asks for
+`num_pages=1`; a short page, empty page, repeated page, deadline or budget limit
+keeps its existing early-stop behavior.
 
 A page is therefore the unit of both billing and loss. Four calls asking for 11
 to 18 pages once returned HTTP 504 and were charged 61 credits for nothing; the
@@ -123,8 +98,8 @@ allocation is exhausted. `cycle_start` is `2026-09-16` and periods roll every
 are counted within that window, including existing history; UTC audit day labels
 and monthly totals remain unchanged. Legacy credits without timestamps count
 conservatively in overlapping windows. Internships run first: with full pages,
-they can receive up to 61 credits before New Grad receives 79, Early Career
-26, and General 154.
+they can receive up to 270 credits before New Grad, then Early Career, then
+General, until the day's 320 are spent.
 
 `.local/jsearch_usage.sqlite` reserves one page before each request.
 Reservations survive errors, timeouts and restarts. `jsearch_pages_used` reports

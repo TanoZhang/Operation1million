@@ -5,6 +5,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: At the user's request (2026-10-03), the JSearch plan is the user's own
+       43-query list: caps may total more than the daily budget (the guard
+       stops the day at 320), deeper early-career caps, eight early-career
+       trials. Replaces the 2026-09-27 re-set and codex's 2026-10-02/03 query
+       trials; the user stopped codex's keyword work and the VPS timer.
+Files: src/jobdisco/jsearch.py, data/config/jsearch_queries.toml,
+       tests/{test_jsearch,test_bulk_application_rules}.py,
+       docs/{jsearch,collection-rules,handoff,agent-protocol}.md
+Base commit: 4e6789e
+Status: done -- pushed to main, not deployed
+Next: Deploy, then enable jobdisco-collect.timer without starting the service.
+```
+
+```text
 Owner: codex
 Scope: Audit current JSearch page yield, restore VLSI analog interns, trial ten General-tier VLSI synonyms, and close request-level publisher gaps; preserve intern, new-grad and early-career query plans.
 Files: src/jobdisco/{jsearch,applications}.py, data/config/jsearch_queries.toml, tests/{test_jsearch,test_manual_intake,test_review_rules,test_twelfth_bug_hunt}.py, docs/{agent-protocol,architecture,blocked-recruitment-domains,collection-rules,handoff,jsearch}.md

@@ -22,14 +22,12 @@ class VLSIScopeTests(unittest.TestCase):
             self.assertEqual(jsearch.rejection_reason({'title': title, 'raw': {}}, self.rules), 'title_mismatch')
         _, queries = jsearch.load_plan()
         self.assertFalse(any('compiler' in q.query.lower() for q in queries))
-        self.assertEqual(sum(q.pages for q in queries), 320)
 
-    def test_added_searches_are_equivalent_vlsi_roles(self):
-        _, queries = jsearch.load_plan()
+    def test_equivalent_vlsi_role_names_pass_the_filter(self):
+        # No longer searched (the user's 2026-10-03 query list); still kept by the filter.
         expected = {'Logic Design Intern', 'Formal Verification Intern',
                     'Design for Test New Grad', 'Physical Implementation New Grad',
                     'Static Timing Analysis Entry Level', 'Silicon Validation Entry Level'}
-        self.assertTrue(expected.issubset({q.query for q in queries}))
         for title in expected:
             with self.subTest(title=title):
                 self.assertFalse(jsearch.rejection_reason({'title': title, 'raw': {

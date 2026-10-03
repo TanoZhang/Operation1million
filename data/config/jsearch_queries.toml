@@ -43,27 +43,27 @@ exclude_job_publishers = [
   "Trabajo.org", "BeBee", "Jobsora", "Geebo", "Higher-Hire", "Nexxt",
   "Ladders", "TheLadders", "VirginiaCommons", "virginiacommons.com",
   "JobMesh", "Advies Van Spijk",
+  # The names JSearch actually reports, read from stored paid listings on
+  # 2026-10-03; how it matches a name (case, exact or contains) is undocumented.
+  "JobMESH", "JobMesh.io", "Virginia Commons Apartments",
 ]
 
-# Priority is intern -> new_grad -> early_career -> A. Daily query caps total
-# exactly 320; short and empty pages still stop a query before its cap.
+# Priority is intern -> new_grad -> early_career -> A. Since 2026-10-03 caps
+# may total more than the daily budget, at the user's request: short and empty
+# pages stop most queries far below their cap, so caps held to a 320 total left
+# about half of each day's credits unspent (146 to 185 of 320 a day, 2026-09-26
+# to 10-01). The budget guard stops the day at 320; on a full day the tiers are
+# served in priority order and General, a sweep for a new graduate, goes last.
+# The query list is the user's (2026-10-03): early-career caps follow the
+# 2026-09-19..26 yield, deepest where a query hit its cap with 4+ new accepted
+# postings a page; General keeps its earlier caps; eight broad early-career
+# phrasings are on trial.
 # A month-wide backfill uses separate deeper caps for the same four tiers.
-#
-# Caps re-set from measurement on 2026-09-27 (docs/jsearch.md, "Query yield"):
-# nine days of manifests and the index's paid listings. Most intern, entry
-# level and narrow new-grad queries run out after one or two pages, so their
-# large caps were never spent and about half of each day's 320 credits went
-# unused; the general queries hit their caps every day with results left --
-# Physical Design Engineer was capped at one page and still found the most
-# useful listings per page of any query. Caps now follow what each query has
-# returned, and "Digital Design" phrasings, which mostly return graphic and
-# web design, are held to three pages. Tier order is unchanged.
 [backfill_tier_pages]
 intern = 60
 new_grad = 50
 early_career = 40
-# Deeper than any daily cap in the tier (Design Verification Engineer: 36).
-A = 40
+A = 30
 
 [filter]
 # Relevance scoring. Terms only ever add; nothing is deducted for a term being
@@ -615,216 +615,224 @@ role_title_terms = [
 ]
 
 [[query]]
-query = "ASIC Intern"
+query = "Silicon Intern"
 tier = "intern"
-pages = 2
+pages = 40
+
 [[query]]
 query = "Design Verification Intern"
 tier = "intern"
-pages = 13
-[[query]]
-query = "RTL Intern"
-tier = "intern"
-pages = 3
-[[query]]
-query = "Digital Design Intern"
-tier = "intern"
-pages = 3
-[[query]]
-query = "FPGA Intern"
-tier = "intern"
-pages = 3
-[[query]]
-query = "SoC Intern"
-tier = "intern"
-pages = 3
-[[query]]
-query = "Silicon Intern"
-tier = "intern"
-pages = 18
+pages = 40
+
 [[query]]
 query = "Hardware Engineering Intern"
 tier = "intern"
-pages = 9
+pages = 30
+
+[[query]]
+query = "Digital Design Intern"
+tier = "intern"
+pages = 25
+
+[[query]]
+query = "ASIC Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "RTL Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "FPGA Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "SoC Intern"
+tier = "intern"
+pages = 15
+
 [[query]]
 query = "Physical Design Intern"
 tier = "intern"
-pages = 2
+pages = 10
+
 [[query]]
 query = "DFT Intern"
 tier = "intern"
-pages = 3
+pages = 5
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Electrical Engineering Intern"
+tier = "intern"
+pages = 15
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Computer Engineering Intern"
+tier = "intern"
+pages = 15
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Validation Intern"
+tier = "intern"
+pages = 15
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Embedded Hardware Intern"
+tier = "intern"
+pages = 15
 
 [[query]]
 query = "ASIC New Grad"
 tier = "new_grad"
-pages = 12
-[[query]]
-query = "Verification New Grad"
-tier = "new_grad"
-pages = 14
-[[query]]
-query = "RTL New Grad"
-tier = "new_grad"
-pages = 2
-[[query]]
-query = "Digital Design New Grad"
-tier = "new_grad"
-pages = 3
+pages = 40
+
 [[query]]
 query = "FPGA New Grad"
 tier = "new_grad"
-pages = 10
-[[query]]
-query = "SoC New Grad"
-tier = "new_grad"
-pages = 6
-[[query]]
-query = "Silicon New Grad"
-tier = "new_grad"
-pages = 6
+pages = 35
+
 [[query]]
 query = "Hardware New Grad"
 tier = "new_grad"
-pages = 12
+pages = 35
+
 [[query]]
 query = "Physical Design New Grad"
 tier = "new_grad"
-pages = 10
+pages = 30
+
+[[query]]
+query = "SoC New Grad"
+tier = "new_grad"
+pages = 25
+
+[[query]]
+query = "Verification New Grad"
+tier = "new_grad"
+pages = 25
+
+[[query]]
+query = "RTL New Grad"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Silicon New Grad"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Digital Design New Grad"
+tier = "new_grad"
+pages = 5
+
 [[query]]
 query = "DFT New Grad"
 tier = "new_grad"
-pages = 2
+pages = 5
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Hardware New College Grad"
+tier = "new_grad"
+pages = 15
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Electrical Engineer New Grad"
+tier = "new_grad"
+pages = 15
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Validation New Grad"
+tier = "new_grad"
+pages = 15
+
+# Added 2026-10-03 at the user's request, on trial.
+[[query]]
+query = "Hardware University Graduate"
+tier = "new_grad"
+pages = 15
 
 [[query]]
 query = "Design Verification Entry Level"
 tier = "early_career"
-pages = 8
+pages = 25
+
 [[query]]
 query = "ASIC Entry Level"
 tier = "early_career"
-pages = 2
-[[query]]
-query = "Digital Design Entry Level"
-tier = "early_career"
-pages = 2
+pages = 15
+
 [[query]]
 query = "FPGA Entry Level"
 tier = "early_career"
-pages = 2
+pages = 15
+
+[[query]]
+query = "Digital Design Entry Level"
+tier = "early_career"
+pages = 15
+
 [[query]]
 query = "Hardware Entry Level"
 tier = "early_career"
-pages = 7
+pages = 15
+
 [[query]]
 query = "Silicon Entry Level"
 tier = "early_career"
-pages = 3
+pages = 15
 
 [[query]]
 query = "Design Verification Engineer"
 tier = "A"
-pages = 33
+pages = 10
+
 [[query]]
 query = "RTL Engineer"
 tier = "A"
-pages = 17
+pages = 9
+
 [[query]]
 query = "ASIC Engineer"
 tier = "A"
-pages = 20
+pages = 9
+
 [[query]]
 query = "Digital Design Engineer"
 tier = "A"
 pages = 8
+
 [[query]]
 query = "FPGA Engineer"
 tier = "A"
-pages = 15
+pages = 7
+
 [[query]]
 query = "Hardware Engineer"
 tier = "A"
-pages = 13
+pages = 6
+
 [[query]]
 query = "Silicon Engineer"
 tier = "A"
-pages = 10
+pages = 4
+
 [[query]]
 query = "Physical Design Engineer"
 tier = "A"
-pages = 22
+pages = 1
+
 [[query]]
 query = "DFT Engineer"
-tier = "A"
-pages = 6
-
-# Equivalent VLSI role names from the record/JD audit. Filters remain as before
-# the adjacent-role expansion; these are one-page discovery trials only.
-[[query]]
-query = "Logic Design Intern"
-tier = "intern"
-pages = 1
-[[query]]
-query = "Formal Verification Intern"
-tier = "intern"
-pages = 1
-[[query]]
-query = "Design for Test New Grad"
-tier = "new_grad"
-pages = 1
-[[query]]
-query = "Physical Implementation New Grad"
-tier = "new_grad"
-pages = 1
-[[query]]
-query = "Static Timing Analysis Entry Level"
-tier = "early_career"
-pages = 1
-[[query]]
-query = "Silicon Validation Entry Level"
-tier = "early_career"
-pages = 1
-
-# One-page VLSI synonym trials funded only from General depth. Preserve every
-# Intern, New Grad and Early Career query and cap; compare distinct new roles
-# before allocating deeper pages to any of these names.
-[[query]]
-query = "Logic Design Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "Formal Verification Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "Design for Test Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "Physical Implementation Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "Static Timing Analysis Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "Silicon Validation Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "SoC Verification Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "CPU Design Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "Memory Design Engineer"
-tier = "A"
-pages = 1
-[[query]]
-query = "IP Verification Engineer"
 tier = "A"
 pages = 1
