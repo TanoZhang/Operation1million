@@ -181,6 +181,9 @@ reproducer and update its evidence below.
   same VLSI work. Preserve the established JD-based handling of relevant
   embedded, firmware, driver and silicon software roles. The 2026-10-02
   standalone compiler/adjacent-discipline expansion was explicitly withdrawn.
+  Explicit analog IC design/layout is also VLSI. Ambiguous analog design/layout
+  titles need two distinct chip-design facts in the posting JD; ordinary analog
+  board and power-electronics titles stay outside this exception.
 - **Daily quota uses Pacific time; the billing period uses UTC. Do not unify
   them.** The daily allowance starts with the scheduled 04:38 Pacific pass. The
   30-day provider cycle must not move with daylight saving time.

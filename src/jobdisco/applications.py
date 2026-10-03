@@ -444,8 +444,8 @@ def queue(db_path=DB, path=None, now=None):
             # here as in `rejection_reason`: its description decides it.
             if title not in titles:
                 evidence = jsearch.needs_evidence(title, rules)
-                titles[title] = (jsearch.excluded(title, rules)
-                                 or (not evidence and jsearch.title_blocked(title, rules)),
+                titles[title] = (jsearch.excluded(title, rules),
+                                 not evidence and jsearch.title_blocked(title, rules),
                                  evidence)
             return titles[title]
 
@@ -488,8 +488,8 @@ def queue(db_path=DB, path=None, now=None):
                     employers[employer] = jsearch.employer_excluded(job, rules)
                 if employers[employer]:
                     continue
-                refused, evidence = verdict(job['title'])
-                if refused:
+                refused, blocked, evidence = verdict(job['title'])
+                if refused or (blocked and not jsearch.ANALOG_CHIP_ROLE.search(job['title'])):
                     continue
                 try:
                     raw = json.loads(job.pop('raw') or '{}')
@@ -498,6 +498,12 @@ def queue(db_path=DB, path=None, now=None):
                 if not isinstance(raw, dict):
                     raw = {}
                 filter_row = {'title': job['title'], 'raw': raw}
+                if blocked:
+                    if not jsearch.analog_chip_evidence(job['title'],
+                                                        jsearch.description_text(filter_row)):
+                        continue
+                    # Stored scores may predate the new chip-layout vocabulary.
+                    job['confidence'] = max(job['confidence'], jsearch.relevance(filter_row, rules)[0])
                 reason, experience = jsearch.eligibility_rejection(filter_row, rules)
                 if reason:
                     continue

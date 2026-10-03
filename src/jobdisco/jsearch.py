@@ -558,6 +558,23 @@ def title_blocked(title, rules):
     return not (subject and subject.search(title) and role and role.search(title))
 
 
+ANALOG_CHIP_ROLE = re.compile(
+    r'\b(?:analog|mixed[-\s]?signal|AMS)\b.{0,65}\b(?:design|layout|engineer|intern)\b', re.I)
+ANALOG_CHIP_EVIDENCE = re.compile(
+    r'\b(?:ASIC|SoC|VLSI|RTL|Verilog|SystemVerilog|SRAM|DRAM|'
+    r'test\s+chips?|IC\s+layout|analog\s+IC|integrated\s+circuit|'
+    r'tape[-\s]?outs?|DRC|LVS|Cadence\s+Virtuoso)\b', re.I)
+
+
+def analog_chip_evidence(title, description):
+    """Rescue an analog role only when its JD names multiple chip-design facts."""
+    if (not ANALOG_CHIP_ROLE.search(title or '')
+            or re.search(r'\b(?:PCB|board|power\s+electronics)\b', title or '', re.I)):
+        return False
+    return len({match.group(0).casefold() for match in
+                ANALOG_CHIP_EVIDENCE.finditer(description or '')}) >= 2
+
+
 def publisher_excluded(url, raw, rules):
     """Whether the posting comes through a job site the user has blocked.
 
@@ -997,7 +1014,7 @@ def rejection_reason(row, rules, description=None, score=None):
         return '' if confidence >= rules.get('min_confidence', 25) else 'no_evidence'
     if any(re.search(p, title, re.I) for p in rules.get('keep_title_patterns', [])):
         return ''
-    if title_blocked(title, rules):
+    if title_blocked(title, rules) and not analog_chip_evidence(title, description()):
         return 'title_mismatch'
     confidence = score if score is not None else relevance(row, rules, description())[0]
     if confidence >= rules.get('min_confidence', 25):

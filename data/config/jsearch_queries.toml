@@ -318,6 +318,9 @@ strong_terms = [
   # Languages, methodology, coverage
   # SVA as written, not Amazon's "sva vendors" (#273).
   '\bUVM\b', '\bSystemVerilog\b', '\bVerilog\b', '\bVHDL\b',
+  # Analog IC layout and tapeout are chip design, not board-level analog work.
+  '\bIC\s+layout\b', '\btape[-\s]?outs?\b', '\bDRC\b', '\bLVS\b',
+  '\bCadence\s+Virtuoso\b',
   '(?<!acceleration\s\()(?-i:\bSVA\b)(?!\s+vendors?\b)',
   '\bRTL\b', '\bASIC\b', '\bFPGA\b', '\bVLSI\b',
   # Not the compliance report, "SOC 2 Type II", nor a security operations
@@ -379,6 +382,8 @@ common_terms = [
 
 # Titles that settle the question on their own, before any scoring runs.
 keep_title_patterns = [
+  # An explicit analog IC design/layout title is VLSI even when a board omits JD prose.
+  '\banalog\s+(?:IC|integrated\s+circuit)\s+(?:design|layout)\b',
   '\b(?:design|hardware|functional|low[-\s]+power)\s+verification\b',
   '\bpre[-\s]?silicon\s+verification\b', '\bformal\s+verification\b',
   '\brtl\b', '\bfpga\b', '\b(?:digital|logic)\s+(?:ic\s+)?design\b',

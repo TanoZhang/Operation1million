@@ -221,7 +221,7 @@ class SoftBlockTests(unittest.TestCase):
     def test_the_older_block_is_not_softened(self):
         """Analog and software were the user's own earlier choices, and a
         hardware word never argued them back in."""
-        for title in ('Analog IC Design Engineer, Intern', 'GPU Fleet Software Development Engineer'):
+        for title in ('Analog Board Design Engineer, Intern', 'GPU Fleet Software Development Engineer'):
             with self.subTest(title=title):
                 self.assertTrue(jsearch.title_blocked(title, self.rules))
 
@@ -264,7 +264,7 @@ class AuditedWrongCatchTests(unittest.TestCase):
         for title in ('Frontend Engineer, EE&P - IS&T Early Career', 'Backend Compiler Engineer - New College Grad 2026',
                       'Software Engineer, PhD, Early Career, 2026', 'GPU Software Engineer - GPU Libraries',
                       'Mechanical Engineering Internship - Summer 2027', 'Operations & Logistics Internship',
-                      'Business Operations Analyst, Processor', 'Analog IC Design Engineer, Intern'):
+                      'Business Operations Analyst, Processor', 'Analog Board Design Engineer, Intern'):
             with self.subTest(title=title):
                 self.assertTrue(jsearch.title_blocked(title, self.rules))
 
@@ -487,6 +487,37 @@ class QueueRulesTests(unittest.TestCase):
                 with closing(sqlite3.connect(self.db)) as db, db:
                     db.execute('UPDATE jobs SET title=?, provider_key=?', (title, provider))
                 self.assertEqual(bool(self.queue()['pending']), kept)
+
+    def test_analog_chip_work_is_not_hidden_by_the_title_block(self):
+        cases = (
+            ('Analog Design Intern', 'Design and verify SRAM test chips with Verilog simulation.', True),
+            ('Analog Layout Intern', 'Create IC layout, run DRC and LVS, and support tapeout.', True),
+            ('Analog IC Design Intern', '', True),
+            ('Analog Design Intern', 'Design analog power supplies for PCB assemblies.', False),
+            ('Analog Board Design Intern', 'Work with ASICs and Verilog test chips.', False),
+        )
+        for title, description, kept in cases:
+            with self.subTest(title=title, description=description):
+                with closing(sqlite3.connect(self.db)) as db, db:
+                    db.execute('UPDATE jobs SET title=?, raw=?',
+                               (title, json.dumps({'description': description})))
+                self.assertEqual(bool(self.queue()['pending']), kept)
+
+    def test_analog_chip_evidence_respects_other_paid_rejections(self):
+        rules = jsearch.load_plan()[0]['filter']
+        chip_text = 'Design SRAM test chips and validate Verilog simulations.'
+        for title, text, reason in (
+                ('Analog Design Intern', chip_text, ''),
+                ('Analog Layout Intern', 'IC layout with DRC, LVS and tapeout.', ''),
+                ('Analog IC Design Intern', '', ''),
+                ('Analog Board Design Intern', chip_text, 'title_mismatch'),
+                ('Analog Design Intern', 'Design board power supplies.', 'title_mismatch'),
+                ('Senior Analog Design Engineer', chip_text, 'excluded'),
+                ('Analog Layout Engineer', chip_text + ' Requires 5 years experience.',
+                 'required_experience_over_2_years')):
+            with self.subTest(title=title, text=text):
+                self.assertEqual(jsearch.rejection_reason(
+                    {'title': title, 'raw': {'description': text}}, rules), reason)
 
     def test_a_posting_located_only_abroad_is_hidden(self):
         for where, kept in (('IN, KA, Bengaluru', False), ('Hiroshima, Japan', False),

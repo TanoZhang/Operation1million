@@ -1,5 +1,28 @@
 # JSearch daily discovery
 
+## October 3 scope and page review
+
+The current plan has 41 queries and caps totaling 320 pages: Intern 12 queries /
+61 pages, New Grad 12 / 79, Early Career 8 / 26, General 9 / 154. This change
+does not alter any query, page cap, tier order, or paid request setting.
+
+The available production manifests used 185, 149, 146, 164, and 174 credits on
+September 27 through October 1, an average of 164 of 320. Those days ran older
+caps, so they do not measure the yield of the current 154-page General tier.
+October 2 used 65 pages in a partial pass. The October 3 scheduled pass stopped
+in offline preflight tests before paid search; it provides no query-yield sample.
+Accepted rows and provider IDs are not new independent listings. Reallocate caps
+only after successful current-plan passes can be compared using distinct
+listing identities, posting filter admissions, and newly reviewable groups.
+
+The VLSI-scope filter now admits an explicit analog IC design/layout title, even
+when the publisher omits prose. An otherwise ambiguous analog design or layout
+title needs at least two distinct chip-design facts in its own JD. Board, PCB,
+and power-electronics titles do not use this exception. Existing employer,
+publisher, seniority, citizenship, education, and required-experience rules
+still run first. This is a narrow correction for analog IC work, not the
+withdrawn general analog/board query expansion.
+
 ## Execution order
 
 1. Collect configured direct ATS/board sources.

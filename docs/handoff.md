@@ -1,3 +1,20 @@
+# October 3 JSearch yield and analog IC scope - 2026-10-03 (codex)
+
+The 41-query plan remains 320 capped pages: Intern 61 and Early Career 26 are
+unchanged. The most recent five comparable manifests before October 2 spent
+185, 149, 146, 164 and 174 credits; those were older caps, not evidence of
+current General-tier yield. October 3's 04:38 Pacific service failed before
+collection because nine offline pasted-job tests returned HTTP 400 on the VPS
+at eaa6bc4. The same focused suite passed locally on be17f1d.
+
+Paid seen-listing audit found ten analog-title soft rejections. Two Marvell
+internship titles were checked against official JDs: one designs SRAM test chips
+using Verilog; one performs analog IC layout, DRC/LVS and tapeout. The filter
+now admits explicitly titled analog IC design/layout, and analog design/layout
+roles with at least two JD chip-design facts. Board/PCB/power-electronics,
+seniority, experience and other hard passes stay in force. No JSearch pages or
+keywords were changed. See the current claim for validation and deployment.
+
 # Corrected VLSI scope - 2026-10-02 (codex)
 
 Restore e456c97 filter/scoring/ranking exactly. User wants additional names for
