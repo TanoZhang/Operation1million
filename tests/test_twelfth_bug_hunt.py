@@ -11,6 +11,7 @@ import json
 import tempfile
 import threading
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 from urllib.request import Request, urlopen
@@ -83,6 +84,7 @@ class Pasted(unittest.TestCase):
         fixture = self.fixture or empty()
         with patch.object(intake, 'public_url', side_effect=intake.normalized_url), \
              patch.object(intake.requests, 'Session', return_value=session), \
+             patch.object(intake, 'collection_slot', side_effect=lambda _ledger: nullcontext()), \
              patch.object(intake.collection_policy, 'STATE', Path(self.temp.name) / 'absent.sqlite'), \
              patch.object(intake.collection_policy, 'request_interval', return_value=0), \
              patch.object(collector, 'load_sources', return_value=self.sources), \

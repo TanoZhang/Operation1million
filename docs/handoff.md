@@ -5,7 +5,11 @@ unchanged. The most recent five comparable manifests before October 2 spent
 185, 149, 146, 164 and 174 credits; those were older caps, not evidence of
 current General-tier yield. October 3's 04:38 Pacific service failed before
 collection because nine offline pasted-job tests returned HTTP 400 on the VPS
-at eaa6bc4. The same focused suite passed locally on be17f1d.
+at eaa6bc4. The same focused suite passed locally on be17f1d. Reproduced
+one HTTP 400 by running its single test while holding the production collection
+lock: the fixture called `manual_intake.collection_slot`, which correctly
+refuses concurrent intake. The pasted-link fixture now bypasses only that lock
+context; production locking is unchanged.
 
 Paid seen-listing audit found ten analog-title soft rejections. Two Marvell
 internship titles were checked against official JDs: one designs SRAM test chips

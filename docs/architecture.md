@@ -2526,3 +2526,15 @@ ranking is byte-identical. 1,112 tests pass (11 skips); all 53,293 rows rescored
 with durable corrections and 14 day manifests verify. Review HTTP 200; all
 5,261 original pending/backlog IDs restored with no additions or omissions,
 including 153 embedded/firmware groups. Applied/skipped IDs unchanged.
+
+## Daily preflight pasted-link lock collision - 2026-10-03
+
+`daily-pass.sh` holds `/opt/jobdisco/collection.lock` before its offline tests.
+Nine `test_twelfth_bug_hunt.py` HTTP fixtures called the real
+`manual_intake.collection_slot` on the VPS, so the lock correctly refused
+them with HTTP 400 and the scheduled pass stopped before paid discovery.
+Reproducer: the single SmartRecruiters posting test passes alone but fails
+with HTTP 400 when run under `flock -n /opt/jobdisco/collection.lock` on Linux.
+The fixture now stubs only `collection_slot` to a no-op context; the production
+intake still refuses simultaneous collection. Preflight tests must isolate
+production locks just as they isolate public HTTP calls and durable ledgers.

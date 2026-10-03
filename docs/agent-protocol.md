@@ -7,10 +7,10 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ```text
 Owner: codex
 Scope: Audit current JSearch page yield and restore analog IC design/layout roles with explicit VLSI evidence; preserve intern and early-career query plans.
-Files: src/jobdisco/{jsearch,applications}.py, data/config/jsearch_queries.toml, tests/test_review_rules.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
+Files: src/jobdisco/{jsearch,applications}.py, data/config/jsearch_queries.toml, tests/{test_review_rules,test_twelfth_bug_hunt}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
 Base commit: be17f1d
 Status: claimed
-Next: Reproduce the missed VLSI roles, make a narrow filter change, verify the queue and scheduled pass readiness.
+Next: Isolate pasted-link fixtures from the production collection lock, validate the installed suite, and resume the failed scheduled pass.
 ```
 
 ```text
