@@ -32,16 +32,17 @@ backfill_max_pages_per_query = 200
 employment_types = ["FULLTIME", "INTERN"]
 
 # Publishers JSearch is asked not to return at all (search-v2's
-# exclude_job_publishers, comma-separated names), so their listings cost no
-# part of a page. Asked for by the user on 2026-09-27: every site blocked in
-# [filter] below, by the name JSearch reports it under. The filter still
+# exclude_job_publishers, comma-separated names). This asks the provider to
+# omit named publishers before filling a page; it does not guarantee zero
+# charged pages or zero blocked records returned. The filter still
 # checks each result, because how JSearch matches these names is not
 # documented and has not been measured. Changing this list changes the search,
 # so resumable backfill cursors start again at page one.
 exclude_job_publishers = [
   "JobLeads", "Jobrapido", "Learn4Good", "Intern Insider", "Experteer",
   "Trabajo.org", "BeBee", "Jobsora", "Geebo", "Higher-Hire", "Nexxt",
-  "Ladders", "VirginiaCommons", "virginiacommons.com",
+  "Ladders", "TheLadders", "VirginiaCommons", "virginiacommons.com",
+  "JobMesh", "Advies Van Spijk",
 ]
 
 # Priority is intern -> new_grad -> early_career -> A. Daily query caps total
@@ -723,15 +724,15 @@ pages = 3
 [[query]]
 query = "Design Verification Engineer"
 tier = "A"
-pages = 36
+pages = 33
 [[query]]
 query = "RTL Engineer"
 tier = "A"
-pages = 18
+pages = 17
 [[query]]
 query = "ASIC Engineer"
 tier = "A"
-pages = 22
+pages = 20
 [[query]]
 query = "Digital Design Engineer"
 tier = "A"
@@ -739,11 +740,11 @@ pages = 8
 [[query]]
 query = "FPGA Engineer"
 tier = "A"
-pages = 16
+pages = 15
 [[query]]
 query = "Hardware Engineer"
 tier = "A"
-pages = 14
+pages = 13
 [[query]]
 query = "Silicon Engineer"
 tier = "A"
@@ -751,7 +752,7 @@ pages = 10
 [[query]]
 query = "Physical Design Engineer"
 tier = "A"
-pages = 24
+pages = 22
 [[query]]
 query = "DFT Engineer"
 tier = "A"
@@ -782,4 +783,48 @@ pages = 1
 [[query]]
 query = "Silicon Validation Entry Level"
 tier = "early_career"
+pages = 1
+
+# One-page VLSI synonym trials funded only from General depth. Preserve every
+# Intern, New Grad and Early Career query and cap; compare distinct new roles
+# before allocating deeper pages to any of these names.
+[[query]]
+query = "Logic Design Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "Formal Verification Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "Design for Test Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "Physical Implementation Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "Static Timing Analysis Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "Silicon Validation Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "SoC Verification Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "CPU Design Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "Memory Design Engineer"
+tier = "A"
+pages = 1
+[[query]]
+query = "IP Verification Engineer"
+tier = "A"
 pages = 1

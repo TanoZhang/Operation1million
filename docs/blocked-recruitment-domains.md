@@ -125,12 +125,22 @@ apply link on an open site; `normalize_job` takes that link instead of the
 walled one. Rows already stored keep their stored link and are hidden at
 Review read time only when no open option exists in their payload.
 
-**Not requested at all.** `exclude_job_publishers` (top level of the same file)
+**Requested exclusion, then local enforcement.** `exclude_job_publishers` (top level of the same file)
 is sent as search-v2's `exclude_job_publishers` on every paid request, naming
-every blocked site. JSearch's matching of those names (exact, case, substring)
+known blocked publisher display names. JSearch's matching (exact, case, substring)
 is not documented and was not measured -- no paid request was made -- so the
 local filter still checks every result. Changing the list changes
 `search_space`, so resumable backfill cursors restart at page one once.
+
+On 2026-10-03 the request-level names were audited against the local blocks:
+JobMesh and Advies Van Spijk were missing from `exclude_job_publishers`,
+although their URLs/publisher names were already hard-rejected after retrieval.
+Both names and the TheLadders alias are now in the request parameter. The
+provider's matching remains unverified; exact blocked domains, including the
+13 evidence-backed ones without known JSearch display names, are guaranteed
+only by the local hard filter. A blocked publisher may still occur on a billed
+response page; it cannot pass that filter or appear in Review. The direct
+employer-source catalog contains no entries for these blocked publishers.
 
 ## Bulk-application policy - 2026-10-02
 

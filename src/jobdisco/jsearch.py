@@ -289,7 +289,7 @@ class Client:
         params = {'query': query.query, 'num_pages': query.pages,
                   'country': self.settings['country'], 'date_posted': self.settings['date_posted'],
                   'employment_types': ','.join(self.settings['employment_types'])}
-        # Blocked publishers are not requested at all (2026-09-27).
+        # Ask JSearch to omit known blocked publisher names; enforce locally too.
         if self.settings.get('exclude_job_publishers'):
             params['exclude_job_publishers'] = ','.join(self.settings['exclude_job_publishers'])
         if first_page > 1:
@@ -560,6 +560,9 @@ def title_blocked(title, rules):
 
 ANALOG_CHIP_ROLE = re.compile(
     r'\b(?:analog|mixed[-\s]?signal|AMS)\b.{0,65}\b(?:design|layout|engineer|intern)\b', re.I)
+ANALOG_CHIP_INTERN = re.compile(
+    r'\b(?:analog|mixed[-\s]?signal|AMS)\b.{0,65}\b(?:hardware|design|layout)\b'
+    r'.{0,35}\b(?:intern|internship)\b', re.I)
 ANALOG_CHIP_EVIDENCE = re.compile(
     r'\b(?:ASIC|SoC|VLSI|RTL|Verilog|SystemVerilog|SRAM|DRAM|'
     r'test\s+chips?|IC\s+layout|analog\s+IC|integrated\s+circuit|'
@@ -567,10 +570,12 @@ ANALOG_CHIP_EVIDENCE = re.compile(
 
 
 def analog_chip_evidence(title, description):
-    """Rescue an analog role only when its JD names multiple chip-design facts."""
+    """Rescue chip-evidenced analog roles and unreadable analog chip interns."""
     if (not ANALOG_CHIP_ROLE.search(title or '')
             or re.search(r'\b(?:PCB|board|power\s+electronics)\b', title or '', re.I)):
         return False
+    if not (description or '').strip() and ANALOG_CHIP_INTERN.search(title or ''):
+        return True
     return len({match.group(0).casefold() for match in
                 ANALOG_CHIP_EVIDENCE.finditer(description or '')}) >= 2
 
@@ -966,10 +971,11 @@ def eligibility_rejection(row, rules, requirements=None):
 def rejection_reason(row, rules, description=None, score=None):
     """Title first, then the posting's vocabulary; the unreadable is kept.
 
-    A title that names the work settles it either way, which is why an analog
-    mixed-signal *verification* role survives while an analog *designer* does
-    not. Only titles that say nothing reach the score, and only a posting whose
-    full text uses none of the trade's vocabulary is dropped there; a truncated
+    A title that names the work settles it either way. Analog design/layout
+    needs chip evidence unless its explicit IC title or an unreadable analog
+    internship settles the narrow exception. Only titles that say nothing reach
+    the score, and only a posting whose full text uses none of the trade's
+    vocabulary is dropped there; a truncated
     description is a publisher's excerpt, not silence, so it is kept.
 
     Between the two sits `needs_evidence`: a title trusted in neither

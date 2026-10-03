@@ -293,7 +293,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 41)
+        self.assertEqual(len(self.plan), 51)
         self.assertEqual(self.settings['monthly_target'], 9600)
         self.assertEqual(self.settings['daily_budget'], 320)
         # 320 a day for 30 days is exactly the month's target, and the anchor is
@@ -344,11 +344,16 @@ class DiscoveryTests(unittest.TestCase):
                 'FPGA Entry Level': 2, 'Digital Design Entry Level': 2,
                 'Hardware Entry Level': 7, 'Silicon Entry Level': 3, 'Static Timing Analysis Entry Level': 1, 'Silicon Validation Entry Level': 1},
             'A': {
-                'Design Verification Engineer': 36, 'RTL Engineer': 18,
-                'ASIC Engineer': 22, 'Digital Design Engineer': 8,
-                'FPGA Engineer': 16, 'Hardware Engineer': 14,
-                'Silicon Engineer': 10, 'Physical Design Engineer': 24,
-                'DFT Engineer': 6},
+                'Design Verification Engineer': 33, 'RTL Engineer': 17,
+                'ASIC Engineer': 20, 'Digital Design Engineer': 8,
+                'FPGA Engineer': 15, 'Hardware Engineer': 13,
+                'Silicon Engineer': 10, 'Physical Design Engineer': 22,
+                'DFT Engineer': 6, 'Logic Design Engineer': 1,
+                'Formal Verification Engineer': 1, 'Design for Test Engineer': 1,
+                'Physical Implementation Engineer': 1, 'Static Timing Analysis Engineer': 1,
+                'Silicon Validation Engineer': 1, 'SoC Verification Engineer': 1,
+                'CPU Design Engineer': 1, 'Memory Design Engineer': 1,
+                'IP Verification Engineer': 1},
         }
         actual = {tier: {q.query: q.pages for q in self.plan if q.tier == tier}
                   for tier in expected}
@@ -356,10 +361,14 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_more_queries_than_credits_refused_before_transport(self):
         """The tail of an oversized plan would be unreachable every day."""
-        jsearch.validate_budget(self.plan, 41)
+        jsearch.validate_budget(self.plan, 51)
         with self.assertRaises(ValueError):
-            jsearch.validate_budget(self.plan, 40)
+            jsearch.validate_budget(self.plan, 50)
         self.session.get.assert_not_called()
+
+    def test_explicitly_blocked_publishers_are_excluded_in_paid_request(self):
+        self.assertTrue({'JobMesh', 'Advies Van Spijk', 'TheLadders'}.issubset(
+            set(self.settings['exclude_job_publishers'])))
 
     def test_invalid_page_allocation_rejected(self):
         path = self.root / 'invalid.toml'
@@ -551,7 +560,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview['queries_planned'], 41)
+        self.assertEqual(preview['queries_planned'], 51)
         self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
@@ -1448,7 +1457,7 @@ class DiscoveryTests(unittest.TestCase):
             for i in range(10)])
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
-        self.assertEqual(len(plan), 41)
+        self.assertEqual(len(plan), 51)
         # The budget is never exceeded, whatever the caps add up to.
         self.assertLessEqual(guard.credits, settings['daily_budget'])
         self.assertEqual(stats['jsearch_pages_used'], guard.credits)
@@ -1499,7 +1508,7 @@ class DiscoveryTests(unittest.TestCase):
         # rebuilds from and what the commit step refuses to publish without.
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest['jsearch_queries_planned'], 41)
+        self.assertEqual(manifest['jsearch_queries_planned'], 51)
         self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
         self.assertEqual(manifest['jsearch_failures'], 0)
         # Paid results reached the store, and every one of them carries a score.

@@ -1,15 +1,23 @@
 # October 3 JSearch yield and analog IC scope - 2026-10-03 (codex)
 
-The 41-query plan remains 320 capped pages: Intern 61 and Early Career 26 are
-unchanged. The most recent five comparable manifests before October 2 spent
+The 51-query plan remains 320 capped pages: Intern 61, New Grad 79 and Early
+Career 26 are unchanged; General's 154 pages now include ten one-page VLSI
+synonym trials funded by reduced depth in six existing General queries. The
+most recent five comparable manifests before October 2 spent
 185, 149, 146, 164 and 174 credits; those were older caps, not evidence of
-current General-tier yield. October 3's 04:38 Pacific service failed before
+current General-tier yield. October 1's old plan did run (34/35 queries,
+174 pages); SoC New Grad alone hit HTTP 504. The 41-query plan was committed
+October 2 at 19:26 Pacific, after the scheduled pass. October 3's 04:38
+Pacific service failed before
 collection because nine offline pasted-job tests returned HTTP 400 on the VPS
 at eaa6bc4. The same focused suite passed locally on be17f1d. Reproduced
 one HTTP 400 by running its single test while holding the production collection
 lock: the fixture called `manual_intake.collection_slot`, which correctly
 refuses concurrent intake. The pasted-link fixture now bypasses only that lock
 context; production locking is unchanged.
+The next preflight exposed one more access-refusal fixture with the same lock
+collision; it is isolated too. Neither attempt spent a JSearch credit on
+October 3 (read-only budget check: 0/320). No current-plan yield exists yet.
 
 Paid seen-listing audit found ten analog-title soft rejections. Two Marvell
 internship titles were checked against official JDs: one designs SRAM test chips
@@ -17,7 +25,20 @@ using Verilog; one performs analog IC layout, DRC/LVS and tapeout. The filter
 now admits explicitly titled analog IC design/layout, and analog design/layout
 roles with at least two JD chip-design facts. Board/PCB/power-electronics,
 seniority, experience and other hard passes stay in force. No JSearch pages or
-keywords were changed. See the current claim for validation and deployment.
+keywords changed in the first deployed patch. The follow-up keeps unreadable
+analog hardware/design/layout internships, including the user's Analog
+Hardware Intern example, without opening board-titled analog roles. Marvell's
+SRAM Software Engineer Intern JD is genuinely memory-IP tooling/PPA software,
+not RTL or layout; existing rules keep it (sampled relevance 50).
+
+The user also requested broader search if historical credit use remained low.
+The five comparable old-plan days used 149-185/320; October 2's new-plan
+attempt used 65, and October 3 has not reached paid search. We are therefore
+testing ten VLSI General synonyms at one page each, not claiming they already
+raise distinct daily job count. Request-level publisher exclusions now include
+JobMesh, Advies Van Spijk and TheLadders; local hard rejection remains the
+guarantee if JSearch returns a blocked publisher despite its request setting.
+See the current claim for final validation and deployment.
 
 # Corrected VLSI scope - 2026-10-02 (codex)
 

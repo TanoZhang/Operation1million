@@ -2,18 +2,41 @@
 
 ## October 3 scope and page review
 
-The current plan has 41 queries and caps totaling 320 pages: Intern 12 queries /
-61 pages, New Grad 12 / 79, Early Career 8 / 26, General 9 / 154. This change
-does not alter any query, page cap, tier order, or paid request setting.
+The current plan has 51 queries and caps totaling 320 pages: Intern 12 queries /
+61 pages, New Grad 12 / 79, Early Career 8 / 26, General 19 / 154. The first
+three tiers are unchanged. Ten one-page General VLSI synonym trials take ten
+pages from six existing General caps; tier order and the 320-credit daily
+ceiling remain unchanged. No trial yield is claimed before a successful pass.
 
 The available production manifests used 185, 149, 146, 164, and 174 credits on
 September 27 through October 1, an average of 164 of 320. Those days ran older
 caps, so they do not measure the yield of the current 154-page General tier.
 October 2 used 65 pages in a partial pass. The October 3 scheduled pass stopped
 in offline preflight tests before paid search; it provides no query-yield sample.
+As of the local quota check after those failures, October 3 used 0 of 320.
 Accepted rows and provider IDs are not new independent listings. Reallocate caps
 only after successful current-plan passes can be compared using distinct
 listing identities, posting filter admissions, and newly reviewable groups.
+
+Available run-manifest JSearch page reservations (not a current-plan yield
+comparison; all listed manifests planned 35 queries, and September 23 has no
+downloaded manifest):
+
+| Date | Pages / 320 | Date | Pages / 320 |
+| --- | ---: | --- | ---: |
+| Sep 20 | 153 | Sep 21 | 118 |
+| Sep 22 | 129 | Sep 24 | 110 |
+| Sep 25 | 122 | Sep 26 | 183 |
+| Sep 27 | 185 | Sep 28 | 149 |
+| Sep 29 | 146 | Sep 30 | 164 |
+| Oct 01 | 174 | Oct 02 | 65 |
+
+October 1 did run: 34 of 35 old queries completed; SoC New Grad alone stopped
+on JSearch HTTP 504. October 2's old 35-query manifest reports 35 completed.
+The 41-query change was committed October 2 at 19:26 Pacific, after that day's
+scheduled pass. October 3 would have been its first scheduled run, but failed
+preflight before a paid request. The 51-query trial supersedes it after the
+preflight repair.
 
 The VLSI-scope filter now admits an explicit analog IC design/layout title, even
 when the publisher omits prose. An otherwise ambiguous analog design or layout
@@ -42,11 +65,11 @@ SQLite `search_queries` table is not executed by this collector.
 
 | Group | Queries |
 | --- | ---: |
-| Internships | 10 |
-| New Grad | 10 |
-| Early Career ("Entry Level") | 6 |
-| General | 9 |
-| Total | 35 |
+| Internships | 12 |
+| New Grad | 12 |
+| Early Career ("Entry Level") | 8 |
+| General | 19 |
+| Total | 51 |
 
 The daily ceiling is 320. Each broad query declares a maximum depth, and those
 caps total 320: Intern 61, New Grad 79, Early Career 26, and General 154, set

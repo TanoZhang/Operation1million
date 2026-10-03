@@ -1,6 +1,7 @@
 """Offline contracts for explicit imports and normal application decisions."""
 import copy
 import json
+from contextlib import nullcontext
 from pathlib import Path
 import tempfile
 import threading
@@ -111,6 +112,7 @@ class ManualTests(unittest.TestCase):
         session.get.return_value = response
         with patch.object(intake, 'public_url', side_effect=lambda url: url), \
              patch.object(intake.requests, 'Session', return_value=session), \
+             patch.object(intake, 'collection_slot', side_effect=lambda _ledger: nullcontext()), \
              patch.object(intake.collection_policy, 'STATE', Path(self.temp.name)/'absent.sqlite'), \
              patch.object(intake.collection_policy, 'request_interval', return_value=0):
             with self.assertRaises(intake.collection_policy.SourcePaused):

@@ -22,7 +22,7 @@ collection history, not the working state.
     scheduled pass (04:38 America/Los_Angeles)
       |
       +-- 35 company boards, direct          --> normalize --> store
-      +-- 35 JSearch queries, paid           --> normalize --> score/filter --> seen --> store
+      +-- 51 JSearch queries, paid           --> normalize --> score/filter --> seen --> store
                                                                           |
     review UI (127.0.0.1:8765)  <-- rank <-- open postings <---------------+
       |
@@ -182,8 +182,10 @@ reproducer and update its evidence below.
   embedded, firmware, driver and silicon software roles. The 2026-10-02
   standalone compiler/adjacent-discipline expansion was explicitly withdrawn.
   Explicit analog IC design/layout is also VLSI. Ambiguous analog design/layout
-  titles need two distinct chip-design facts in the posting JD; ordinary analog
-  board and power-electronics titles stay outside this exception.
+  titles need two distinct chip-design facts in the posting JD. Analog
+  hardware/design/layout internships with no readable JD stay visible because
+  missing prose is not negative evidence; ordinary analog board and
+  power-electronics titles stay outside this exception.
 - **Daily quota uses Pacific time; the billing period uses UTC. Do not unify
   them.** The daily allowance starts with the scheduled 04:38 Pacific pass. The
   30-day provider cycle must not move with daylight saving time.
@@ -196,15 +198,16 @@ reproducer and update its evidence below.
   offers Recommended order to restore the server ordering without rescoring.
 - **Hard rejects precede every keep and score and cannot be overturned.** Only
   titles that settle the decision belong there; ambiguous trade words do not.
-- **Evidence titles require evidence in supplied prose.** Missing prose does not
-  satisfy an evidence gate.
+- **Evidence titles require evidence when prose is supplied.** Missing prose
+  is retained because a publisher's omission is not a negative signal.
 - **Legacy credit residuals belong to their stored budget-day label.** Matching
   them to overlapping UTC dates counts one residual in two Pacific windows.
 - **Log-stamp dates are computed, never literal.** A past literal date seals and
   can stop the production pass through its preflight test suite.
 - **Blocked publishers are excluded twice: in the request and in the filter.**
-  `exclude_job_publishers` saves credits; the filter is the guarantee, because
-  JSearch's name matching is unmeasured. Do not drop either.
+  `exclude_job_publishers` asks the provider to omit known names; any credit
+  savings are unmeasured. The local filter is the guarantee that returned
+  copies are not reviewable. Do not drop either.
 - **Scores cache unchanged content, not unchanged rules.** Content changes
   recalculate; rule changes require `job-store --rescore`.
 
@@ -2538,3 +2541,23 @@ with HTTP 400 when run under `flock -n /opt/jobdisco/collection.lock` on Linux.
 The fixture now stubs only `collection_slot` to a no-op context; the production
 intake still refuses simultaneous collection. Preflight tests must isolate
 production locks just as they isolate public HTTP calls and durable ledgers.
+The access-refusal fixture in `test_manual_intake.py` had the same lock collision
+and is isolated likewise; its source-cooldown assertions remain active.
+
+## General VLSI breadth and no-description analog interns - 2026-10-03
+
+Ten one-page General-tier synonym queries cover logic design, formal and IP/SoC
+verification, DFT, physical implementation, STA, silicon validation, CPU design
+and memory design. Six existing General query caps fund the ten pages; the
+General cap remains 154 and the total 320. Intern, New Grad and Early Career
+queries/caps are untouched. This is a measured-yield trial, not evidence of ten
+new unique jobs. The specific no-description `Analog Hardware Intern` and
+`Analog Layout Intern` misses are retained by a narrow internship exception;
+with supplied prose, ambiguous analog roles still require two chip-design
+facts. PCB/board/power-electronics titles are not rescued.
+
+The JSearch publisher request list omitted JobMesh and Advies Van Spijk even
+though the local hard filter already blocked both; it now names those and
+TheLadders. JSearch's publisher-name matching has not been measured, so only
+the local URL/publisher hard rejection guarantees that returned copies never
+become reviewable. It does not guarantee zero billed pages containing one.
