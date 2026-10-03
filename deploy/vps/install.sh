@@ -116,11 +116,16 @@ clone_or_update() {
 clone_or_update "$CODE_REPO" "$ROOT/code"
 clone_or_update "$DATA_REPO" "$ROOT/data"
 # Ignore only the executable-bit change made by older installers. Refuse to
-# discard source edits or merge independent operational histories.
+# discard source edits.
 sudo -u "$SERVICE_USER" git -C "$ROOT/code" -c core.filemode=false diff --exit-code --quiet HEAD
 sudo -u "$SERVICE_USER" git -C "$ROOT/code" checkout --quiet main
 sudo -u "$SERVICE_USER" git -C "$ROOT/code" merge --ff-only --quiet origin/main
-sudo -u "$SERVICE_USER" git -C "$ROOT/data" merge --ff-only --quiet origin/main
+# The data repository has two writers, this box and the user's laptop, and a
+# fast-forward-only merge stopped the deploy once they diverged (2026-10-03).
+# Unpushed commits here are replayed onto the remote instead; a conflict still
+# stops the deploy, with nothing lost.
+sudo --preserve-env=GITHUB_TOKEN -u "$SERVICE_USER" \
+  bash -c '. "$1/code/deploy/vps/data-sync.sh" && sync_data "$1/data"' _ "$ROOT"
 
 echo "== Virtualenv =="
 if [ ! -x "$ROOT/venv/bin/python" ]; then

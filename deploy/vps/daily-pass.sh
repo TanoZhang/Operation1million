@@ -40,9 +40,21 @@ done
 
 # shellcheck source=heartbeat.sh
 . "$CODE/deploy/vps/heartbeat.sh"
+# shellcheck source=data-sync.sh
+. "$CODE/deploy/vps/data-sync.sh"
 collect_started=0
 run_clean=0
 collect_code=0
+# The user's rule (2026-10-03): the daily pass runs, paid search included,
+# every day. A failed check that does not threaten the data is reported and the
+# pass carries on; the pass then ends with code 2 so the heartbeat says so.
+# Only a full disk, both ledgers lost or an index that cannot be rebuilt still
+# stop it. Every paid page still goes through the RequestGuard and its budget.
+problems=0
+note_problem() {
+  problems=1
+  echo "WARNING: $1 -- the pass carries on, paid search included." >&2
+}
 sweep_code=0
 READY=$CODE/.local/database-ready
 
@@ -110,6 +122,12 @@ publish_state() {
   if ! git diff --cached --quiet; then
     git commit -m "Checkpoint collection $(date -u +%Y-%m-%d)"
   fi
+  # Take in what another writer pushed while the pass ran, before the READY
+  # fingerprint is taken and before the push, which a moved remote refuses.
+  if ! sync_data "$DATA"; then
+    report_history_size
+    return 1
+  fi
   if [ "$publication_failed" -eq 0 ] && [ "$run_clean" -eq 1 ]; then
     database_inputs > "$READY.tmp"
     mv "$READY.tmp" "$READY"
@@ -164,7 +182,11 @@ if [ "$available" -lt 5242880 ]; then
 fi
 
 echo '== Pull the data repository =='
-git -C "$DATA" pull --ff-only
+# Another writer (the user's laptop) commits to the data repository too. A
+# fast-forward-only pull stopped the whole pass once the two had diverged
+# (2026-10-03); now it is merged, and a merge that cannot be made is reported
+# and the pass collects anyway -- publication retries it at the end.
+sync_data "$DATA" || echo 'WARNING: collecting on an unsynchronised data repository.' >&2
 mkdir -p "$CODE/.local"
 for name in source_access.sqlite jsearch_usage.sqlite; do
   if [ ! -s "$CODE/.local/$name" ]; then
@@ -183,13 +205,20 @@ done
 # matters. The local ledger may be ahead of the published one -- a pass whose
 # push failed leaves exactly that -- but it may never be behind.
 python -m jobdisco.collection_policy "$CODE/.local/source_access.sqlite" "$DATA/operational/source_access.sqlite"
-python -m jobdisco.ledger_guard   "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite"
+if ! python -m jobdisco.ledger_guard "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite"; then
+  # The guard's own remedy: the published ledger has counted more, so it wins.
+  echo 'Restoring the local credit ledger from the published one, as the guard advises.' >&2
+  cp "$DATA/operational/jsearch_usage.sqlite" "$CODE/.local/jsearch_usage.sqlite" || true
+  python -m jobdisco.ledger_guard "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite" \
+    || note_problem 'the credit ledger still does not agree with the published one'
+fi
 
 cp "$CODE/.local/jsearch_usage.sqlite" "$CODE/.local/jsearch_usage.before.sqlite"
 cd "$CODE"
 
 echo '== Offline regression tests =='
-python -m unittest discover -s tests
+# A failing test stopped the whole pass on 2026-10-03, free boards included.
+python -m unittest discover -s tests || note_problem 'the offline tests did not all pass'
 echo '== Database =='
 inputs=$(database_inputs)
 if [ ! -f "$CODE/data/db/job_discovery.sqlite" ] || [ ! -f "$READY" ] || [ "$(cat "$READY")" != "$inputs" ]; then
@@ -204,13 +233,15 @@ if [ "$PREFLIGHT" -eq 1 ]; then
   # the suite and the index have all been exercised by the time we reach here.
   # What is left is the credential that only reveals itself at the very end of
   # a pass, ninety minutes after anyone stopped watching.
+  # A pass would carry on regardless; a preflight exists to say what is wrong.
+  if [ "$problems" -eq 1 ]; then echo 'Preflight FAILED: see the warning above.' >&2; exit 1; fi
   echo '== Preflight: can the data repository be pushed to? =='
   git -C "$DATA" push --dry-run origin main
   echo '== Preflight OK: nothing was collected, charged or written. =='
   exit 0
 fi
 
-job-collect --jsearch-only --jsearch-plan
+job-collect --jsearch-only --jsearch-plan || note_problem 'the JSearch plan preview failed'
 # A killed process must not leave a disposable index marked as synchronized.
 rm -f "$READY"
 collect_started=1
@@ -241,4 +272,8 @@ if [ "$days_until_reset" -le 3 ]; then
 fi
 if [ "$sweep_code" -ne 0 ]; then exit "$sweep_code"; fi
 run_clean=1
+if [ "$problems" -eq 1 ]; then
+  echo 'WARNING: the pass completed, but a check failed; see the warning above.' >&2
+  exit 2
+fi
 # EXIT publishes before the success heartbeat, including on collection failure.

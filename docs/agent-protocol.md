@@ -6,6 +6,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: Data repository with two writers (bug #315): every VPS writer fetches and
+       replays its unpushed commits onto origin/main before pushing; append-only
+       ledgers merge line by line. muse (laptop, GitHub API) writes only
+       job-applications/. The daily pass no longer stops on a failing test,
+       a ledger behind or a plan preview error; paid search always runs (#316).
+Files: deploy/vps/{data-sync.sh,backup-applications.sh,daily-pass.sh,install.sh},
+       tests/test_prelaunch_fixes.py, docs/{bug-tracker,handoff,agent-protocol}.md
+Base commit: 755e7d0
+Status: done -- pushed to main, not deployed
+Next: Deploy with deploy/local/deploy-vps.bat.
+```
+
+```text
+Owner: claude
 Scope: Ten direct sources at the user's request: Anthropic, xAI, OpenAI,
        SambaNova, d-Matrix, Quadric, KLA, Applied Materials, GlobalFoundries,
        Lam Research.

@@ -217,6 +217,50 @@ class ApplicationsBackupTests(unittest.TestCase):
         self.backup()
         self.assertEqual(self.ledger().read_text(encoding='utf-8'), body)
 
+    def other_writer(self, path, text):
+        """Another machine pushes to the data repository (2026-10-03: muse
+        records applications from the user's laptop while this box backs up)."""
+        other = self.root / 'other'
+        if not other.exists():
+            self.run_git(['clone', '--quiet', str(self.remote), str(other)], cwd=self.root)
+            for name, value in (('user.name', 'other'), ('user.email', 'other@example.test')):
+                self.run_git(['config', name, value], cwd=other)
+        self.run_git(['pull', '--quiet', '--rebase', 'origin', 'main'], cwd=other)
+        target = other / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open('a', encoding='utf-8') as handle:
+            handle.write(text)
+        self.run_git(['add', '-A'], cwd=other)
+        self.run_git(['commit', '--quiet', '-m', 'other writer'], cwd=other)
+        self.run_git(['push', '--quiet', 'origin', 'HEAD:main'], cwd=other)
+
+    def remote_file(self, path):
+        return subprocess.run(['git', 'show', f'main:{path}'], cwd=str(self.remote),
+                              capture_output=True, text=True).stdout
+
+    def test_a_remote_that_moved_on_is_merged_before_the_push(self):
+        """Reported 2026-10-03: the push was refused, the two sides diverged, and
+        the next deploy and the next pass both stopped on a fast-forward."""
+        self.other_writer('job-applications/history.jsonl', '{"n":1}\n')
+        self.ledger().write_text('{"url":"u","at":"t","status":"applied"}\n', encoding='utf-8')
+        result = self.backup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('applied', self.remote_file('operational/applications.ndjson'))
+        self.assertIn('"n":1', self.remote_file('job-applications/history.jsonl'))
+
+    def test_both_sides_appending_to_the_ledger_keep_every_line(self):
+        self.ledger().write_text('{"url":"a","at":"1","status":"applied"}\n', encoding='utf-8')
+        self.assertEqual(self.backup().returncode, 0)
+        self.other_writer('operational/applications.ndjson', '{"url":"b","at":"2","status":"skipped"}\n')
+        with self.ledger().open('a', encoding='utf-8') as handle:
+            handle.write('{"url":"c","at":"3","status":"applied"}\n')
+        result = self.backup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        stored = self.remote_file('operational/applications.ndjson')
+        for url in ('"a"', '"b"', '"c"'):
+            self.assertIn(url, stored)
+        self.assertNotIn('<<<<<<<', stored)
+
     def test_a_push_that_fails_says_so_and_leaves_the_commit(self):
         self.ledger().write_text('{"url":"u","at":"t","status":"skipped"}\n', encoding='utf-8')
         self.run_git(['remote', 'set-url', 'origin', str(self.root / 'gone.git')], cwd=self.data)
@@ -248,6 +292,51 @@ class BackupWiringTests(unittest.TestCase):
             with self.subTest(script=name):
                 self.assertIn('collection.lock', body)
                 self.assertIn('flock -n 9', body)
+
+
+class DataRepositorySyncWiringTests(unittest.TestCase):
+    """Every writer on the box merges what others pushed instead of stopping."""
+
+    def test_no_data_repository_step_insists_on_a_fast_forward(self):
+        for name in ('daily-pass.sh', 'install.sh', 'backup-applications.sh'):
+            body = (ROOT / 'deploy/vps' / name).read_text(encoding='utf-8')
+            with self.subTest(script=name):
+                self.assertIn('sync_data', body)
+                self.assertNotRegex(body, r'DATA"? pull --ff-only|/data"? merge --ff-only')
+
+    def test_the_pass_merges_before_it_publishes(self):
+        script = (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
+        publish = script.split('publish_state() {')[1].split('\n}\n')[0]
+        self.assertLess(publish.index('sync_data'), publish.index('git push origin main'))
+
+
+class DailyPassKeepsGoingTests(unittest.TestCase):
+    """The user's rule (2026-10-03): the daily pass runs every day, paid search
+    included. A failing test stopped the whole pass that morning."""
+
+    def script(self):
+        return (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
+
+    def test_a_failing_suite_is_reported_and_the_pass_carries_on(self):
+        self.assertIn("python -m unittest discover -s tests || note_problem", self.script())
+
+    def test_paid_search_is_never_switched_off(self):
+        script = self.script()
+        body = script.split('collect_started=1')[1].split('collect_code=$?')[0]
+        self.assertIn('--jsearch\n', body)
+        self.assertNotIn('job-collect --workers 3 --delay 1.0\n', body)
+        self.assertNotIn('paid=0', script)
+
+    def test_a_ledger_behind_is_restored_as_the_guard_advises(self):
+        body = self.script().split('if ! python -m jobdisco.ledger_guard')[1].split('\nfi\n')[0]
+        self.assertIn('cp "$DATA/operational/jsearch_usage.sqlite" "$CODE/.local/jsearch_usage.sqlite"', body)
+        self.assertIn('note_problem', body)
+
+    def test_a_pass_with_a_problem_says_so_and_a_preflight_still_fails(self):
+        script = self.script()
+        self.assertIn('exit 2', script.split('run_clean=1')[1].split('# EXIT publishes')[0])
+        preflight = script.split('if [ "$PREFLIGHT" -eq 1 ]; then')[1].split('\nfi\n')[0]
+        self.assertIn('if [ "$problems" -eq 1 ]', preflight)
 
 
 class LocalRecoveryBackupTests(unittest.TestCase):

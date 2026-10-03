@@ -16,6 +16,8 @@
 set -euo pipefail
 
 ROOT=${JOBDISCO_ROOT:-/opt/jobdisco}
+# shellcheck source=data-sync.sh
+. "$(dirname "${BASH_SOURCE[0]}")/data-sync.sh"
 DATA=$ROOT/data
 LEDGER=operational/applications.ndjson
 # The company links found for third-party listings, which the review page
@@ -66,7 +68,14 @@ fi
 # backwards -- a failed push is what leaves the ledger on one disk, and no
 # further decision may arrive for days.
 #
-# `origin/main` is the last state this machine pushed or fetched. It cannot
+# Take in what the other writer pushed first: a push onto a remote that moved
+# on is refused, and was then refused on every tick after (2026-10-03).
+if ! sync_data "$DATA"; then
+  echo 'WARNING: the application ledger was committed but could not be pushed.' >&2
+  exit 1
+fi
+
+# `origin/main` is what was just fetched. It cannot
 # claim we are behind when we are not, and a push that is already up to date is
 # a cheap no-op, so erring toward pushing is safe in both directions.
 if git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then

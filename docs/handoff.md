@@ -40,6 +40,29 @@ JobMesh, Advies Van Spijk and TheLadders; local hard rejection remains the
 guarantee if JSearch returns a blocked publisher despite its request setting.
 See the current claim for final validation and deployment.
 
+# Data repository with two writers - 2026-10-03 UTC (claude, not deployed)
+
+The laptop's assistant (muse) records applications under `job-applications/`
+through the GitHub API, committing onto the tip of `main`; this box commits the
+ledger every fifteen minutes and publishes after each pass. The box never
+fetched before pushing, so the two diverged and the deploy stopped (bug #315;
+the divergence itself was merged by hand on the VPS at f2c1e5c, and Claude
+checked on GitHub that every ledger line from both sides survived). Now every
+writer on the box sources `deploy/vps/data-sync.sh` and calls `sync_data`
+first: fetch, rebase unpushed commits onto `origin/main` with `--autostash`,
+and line-by-line merging for the append-only ledgers via `.git/info/attributes`
+(written by the helper; nothing committed to the data repository). A conflict
+is abandoned with a warning; the pass then still collects and publication
+reports it. muse must keep to `job-applications/` and never force anything.
+
+The user's rule, same day: the daily pass runs every day, paid search included
+(bug #316). A failing offline test, a credit ledger behind the published one
+(now restored from it, as `ledger_guard` advises) or a JSearch plan preview
+error is reported and the pass carries on, then exits 2 so the heartbeat
+fails; `--preflight` still fails on any of them. Paid pages still go through
+the RequestGuard and the 320-page budget. A full disk, both ledgers lost or an
+index that cannot be rebuilt still stop the pass.
+
 # Ten direct sources added - 2026-10-03 UTC (claude, not deployed)
 
 At the user's request: Anthropic, xAI, SambaNova (Greenhouse), OpenAI, d-Matrix,
