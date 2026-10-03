@@ -54,6 +54,11 @@ from the catalog on 2026-09-21 (Ampere, MediaTek, Infineon, ADI, TSMC and
 others) were not re-added without asking. No lookback widening was added: the
 user does not want one.
 
+Bug tracker #312-314 record today's fixes: the 320 cap on the sum of query caps,
+publisher names JSearch actually reports, and a Windows-only test error (an
+unclosed SQLite connection in `test_collect_sql_sources` setUps; the user's
+laptop runs the suite under Python 3.14 on Windows before every deploy).
+
 # JSearch plan from the user's list - 2026-10-03 UTC (claude, not deployed)
 
 The user stopped codex's keyword changes and the VPS collection timer, and asked

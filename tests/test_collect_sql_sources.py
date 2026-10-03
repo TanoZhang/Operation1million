@@ -58,7 +58,7 @@ class LedgerBeforeIndexTests(unittest.TestCase):
         log.start()
         self.addCleanup(log.stop)
         self.db_path = self.root / 'jobs.sqlite'
-        with sqlite3.connect(self.db_path) as db:
+        with closing(sqlite3.connect(self.db_path)) as db, db:
             db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
             db.execute("INSERT INTO companies VALUES ('sample', 'Sample Inc.')")
         store.migrate(self.db_path)
@@ -134,7 +134,7 @@ class EffectiveProviderTests(unittest.TestCase):
         log.start()
         self.addCleanup(log.stop)
         self.db_path = self.root / 'jobs.sqlite'
-        with sqlite3.connect(self.db_path) as db:
+        with closing(sqlite3.connect(self.db_path)) as db, db:
             db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
             db.execute("INSERT INTO companies VALUES ('ti', 'Texas Instruments')")
         store.migrate(self.db_path)

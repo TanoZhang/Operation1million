@@ -366,6 +366,9 @@ it a wording. Counts are queued groups.
 | 309 | intake | a pasted posting marked applied was listed after every older application | display | newest first |
 | 311 | intake | reported by the user: an RTX posting requiring U.S. citizenship reached Review. Collected RTX postings are all refused (16 of 17 in the index state citizenship; the 17th, JobLeads' copy, cut it and is refused as Raytheon), but a pasted job skipped every check | kept | pasted jobs refused for an excluded employer or stated citizenship; already pasted ones hidden; Already applied still records |
 | 310 | intake | a pasted ZipRecruiter, Indeed or other job-board link carried no publisher, so it was not marked third-party and the company link could not replace it | display | publisher named from the host |
+| 312 | jsearch plan | reported by the user: query caps had to total no more than the 320-page daily budget, and most queries end on a short page far below their cap, so 146 to 185 of 320 credits were spent a day (2026-09-26 to 10-01) | not read | caps may total more than the budget; the guard stops the day at 320, tiers in priority order (`test_query_caps_may_exceed_the_daily_budget`, red on 4e6789e) |
+| 313 | jsearch request | request-level publisher exclusions named "JobMesh" and "VirginiaCommons", but JSearch reports "JobMESH", "JobMesh.io" and "Virginia Commons Apartments" (read from stored paid listings); how it matches a name is undocumented, so those could still be returned and charged | credits | the reported names added to `exclude_job_publishers` |
+| 314 | tests | on Windows, `LedgerBeforeIndexTests` errored in cleanup: `with sqlite3.connect(...)` commits but does not close, so the temporary jobs.sqlite was still open when the directory was removed; Linux allows that, Windows does not. Shown on Linux as a ResourceWarning under Python 3.13 | test only | `closing(...)` in both setUps |
 
 ## Not bugs, recorded so they are not re-found
 
