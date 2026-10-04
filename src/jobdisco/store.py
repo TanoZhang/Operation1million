@@ -9,6 +9,8 @@ import gzip
 import hashlib
 import json
 import os
+import re
+from urllib.parse import urlsplit
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
@@ -292,6 +294,18 @@ def replaces_requisition(previous, incoming):
     Cross-provider enrichment may legitimately add an alias; a missing ID is
     not evidence that an opening changed.
     """
+    if (previous is not None and previous['provider_key'] == incoming['provider_key'] == 'jsearch'
+            and previous['company_key'] == incoming['company_key']
+            and previous['title'] == incoming['title']):
+        # Search IDs rotate even for the same LinkedIn posting. The publisher's
+        # numeric job URL, plus unchanged employer/title, anchors the opening.
+        # Do not extend this to generic reusable /careers/job addresses.
+        before, after = (urlsplit(row['url']) for row in (previous, incoming))
+        if (before.hostname == after.hostname
+                and before.hostname in {'linkedin.com', 'www.linkedin.com'}
+                and before.path.rstrip('/') == after.path.rstrip('/')
+                and re.fullmatch(r'/jobs/view/(?:[^/]*-)?[0-9]+/?', after.path)):
+            return False
     return (previous is not None
             and previous['provider_key'] == incoming['provider_key']
             and bool(previous['source_job_id']) and bool(incoming.get('source_job_id'))

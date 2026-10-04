@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Preserve first discovery for stable LinkedIn postings with rotating search IDs; suppress confirmed Workday copies by employer/title/requisition evidence; audit the latest query yield without changing the user's query plan.
+Files: src/jobdisco/{store,applications}.py, tests/test_discovery_identity.py, docs/{agent-protocol,architecture,handoff}.md
+Base commit: 8a57617
+Status: active
+Next: Reproduce both identity failures offline, fix, verify history replay and production queue; summarize read-only query measurements.
+```
+
+```text
 Owner: claude
 Scope: Data repository with two writers (bug #315): every VPS writer fetches and
        replays its unpushed commits onto origin/main before pushing; append-only

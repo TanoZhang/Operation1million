@@ -461,6 +461,24 @@ def queue(db_path=DB, path=None, now=None):
             if requisition and len(str(requisition)) >= 5:
                 direct_ids.add((parts.netloc.lower(), str(requisition)))
 
+        # Workday requisition numbers in a paid JD can identify the official
+        # listing even when its URL is LinkedIn. Require company and title too;
+        # title-only matching would silently hide different requisitions.
+        workday_postings = set()
+        for record in db.execute("SELECT company_key, title, location, source_job_id FROM jobs "
+                                 "WHERE closed_at IS NULL AND provider_key='workday'"):
+            requisition = record['source_job_id'] or ''
+            if re.fullmatch(r'JR[0-9]{5,}', requisition, re.I):
+                workday_postings.add((record['company_key'],
+                    clean_title(record['title'], record['location']).casefold(), requisition.upper()))
+
+        def copies_workday_requisition(job, raw):
+            text = jsearch.description_text({'raw': raw})
+            numbers = set(re.findall(r'\bJR[0-9]{5,}\b', text, re.I))
+            # Multiple references do not establish which opening is advertised.
+            return len(numbers) == 1 and (job['company_key'], job['title'].casefold(),
+                next(iter(numbers)).upper()) in workday_postings
+
         def copies_a_direct_posting(address):
             parts = urlsplit(address)
             host = parts.netloc.lower()
@@ -497,6 +515,8 @@ def queue(db_path=DB, path=None, now=None):
                     raw = {}
                 if not isinstance(raw, dict):
                     raw = {}
+                if job['provider_key'] == 'jsearch' and copies_workday_requisition(job, raw):
+                    continue
                 filter_row = {'title': job['title'], 'raw': raw}
                 if blocked:
                     if not jsearch.analog_chip_evidence(job['title'],

@@ -2561,3 +2561,19 @@ though the local hard filter already blocked both; it now names those and
 TheLadders. JSearch's publisher-name matching has not been measured, so only
 the local URL/publisher hard rejection guarantees that returned copies never
 become reviewable. It does not guarantee zero billed pages containing one.
+
+
+### Stable LinkedIn discovery and confirmed Workday copies - 2026-10-04 (codex)
+
+JSearch rotates search IDs for an unchanged LinkedIn numeric job URL. The
+reused-address guard treated each rotation as a replacement, resetting
+first_seen in both live collection and historical replay. Preserve the opening
+only for a stable LinkedIn job path with unchanged employer and title; generic
+addresses and actual changed openings still take the existing replacement path.
+
+Review now recognizes a paid description carrying exactly one Workday JR number
+when company and cleaned title also match an open official posting. The official
+posting owns the queue entry and its decision; same-title copies without that
+identity evidence remain separate. No title-only merging or fabricated applied
+decisions. Tests in test_discovery_identity.py reproduce both failures and guard
+ambiguous references, other employers, URL reuse and historical reconstruction.

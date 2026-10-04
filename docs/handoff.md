@@ -1,3 +1,27 @@
+# Discovery identity repair and query audit - 2026-10-04 (codex)
+
+Base 8a57617. On the installed 755e7d0, an unchanged LinkedIn posting appeared
+in September 29 durable history but had October 1 first_seen in the live index.
+The same requisition's Workday listing was already applied while its LinkedIn
+copy remained pending. Two new regression cases failed before the patch.
+
+Search ID rotation now preserves discovery for unchanged LinkedIn numeric job
+URLs with matching employer/title. Replay uses the same rule. Review prefers
+an open Workday copy only when company, cleaned title and one explicit JR
+number in the paid JD agree. Unproven same-title copies are not auto-merged.
+No eligibility/filter/query changes or new paid collection.
+
+Windows: 1,132 tests pass, 13 skips; focused store/review/identity/description
+suite: 234 pass on 8a57617 plus this patch. Deployment and durable correction
+verification will be recorded after installation.
+
+Latest completed search is October 3: 43/43 queries, 49/320 credits, 273 raw,
+68 accepted appearances, 41 run-unique increments; 29 accepted URLs absent
+from retained earlier logs, not 29 proven eligible new openings. Eight added
+queries use eight pages for four unique increments. Forty queries ended on a
+short first page. No query failed. October 4 has not run yet at audit time.
+Private detailed report: .local/query-audit-2026-10-03.md. Query plan unchanged.
+
 # October 3 JSearch yield and analog IC scope - 2026-10-03 (codex)
 
 The 51-query plan remains 320 capped pages: Intern 61, New Grad 79 and Early
