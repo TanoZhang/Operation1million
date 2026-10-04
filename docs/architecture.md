@@ -2577,3 +2577,18 @@ posting owns the queue entry and its decision; same-title copies without that
 identity evidence remain separate. No title-only merging or fabricated applied
 decisions. Tests in test_discovery_identity.py reproduce both failures and guard
 ambiguous references, other employers, URL reuse and historical reconstruction.
+
+
+### search-v2 cursors, not numeric pages - 2026-10-04 (codex)
+
+A real guarded request returned five jobs AND a next cursor. The client discarded
+that cursor and stopped early; it also sent unsupported ordinal page parameters.
+The offline fixture even contained an unused next_cursor field, so it repeated
+the wrong assumption. The revised fixture speaks the actual data.cursor schema;
+regressions cover short-but-continuing pages, full terminal pages, opaque tokens,
+restart recovery, missing-token no-spend behavior and repeated-token loops.
+Backfill tokens are local operational state in RequestGuard, separate from page
+counters, persisted atomically; obsolete numeric checkpoint namespaces no longer
+suppress work. No budget, query, lookback or eligibility expansion accompanies
+this repair. Explicit reviewed official-link mappings also suppress paid copies
+when the target still has the same company/title; application history is untouched.

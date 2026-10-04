@@ -12,17 +12,22 @@ def _has_cursors(db):
 
 def restore_cursors(ledger, baseline):
     """Discard unpublished progress without refunding credits or cooldowns."""
-    rows = []
+    rows, tokens = [], []
     if Path(baseline).exists():
         with closing(sqlite3.connect(baseline)) as db:
             if _has_cursors(db):
                 rows = db.execute('SELECT * FROM backfill_cursor').fetchall()
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_tokens'").fetchone():
+                tokens = db.execute('SELECT * FROM backfill_tokens').fetchall()
     if not Path(ledger).exists():
         return
     with closing(sqlite3.connect(ledger)) as db, db:
         if _has_cursors(db):
             db.execute('DELETE FROM backfill_cursor')
             db.executemany('INSERT INTO backfill_cursor VALUES (?, ?, ?, ?, ?)', rows)
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_tokens'").fetchone():
+            db.execute('DELETE FROM backfill_tokens')
+            db.executemany('INSERT INTO backfill_tokens VALUES (?, ?, ?)', tokens)
 
 
 def main():

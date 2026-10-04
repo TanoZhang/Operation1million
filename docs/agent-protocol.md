@@ -7,10 +7,10 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ```text
 Owner: codex
 Scope: Preserve first discovery for stable LinkedIn postings with rotating search IDs; suppress confirmed Workday copies by employer/title/requisition evidence; audit the latest query yield without changing the user's query plan.
-Files: src/jobdisco/{store,applications}.py, tests/test_discovery_identity.py, docs/{agent-protocol,architecture,handoff}.md
+Files: src/jobdisco/{store,applications,jsearch,jsearch_access,workflow_state}.py, tests/{test_discovery_identity,test_jsearch,test_jsearch_plan_bugs,test_workflow_state}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
 Base commit: 8a57617
 Status: active
-Next: Reproduce both identity failures offline, fix, verify history replay and production queue; summarize read-only query measurements.
+Next: Identity patch 57c2381 installed. One guarded paid probe proves search-v2 returns a cursor with five jobs; fix incorrect page-number/short-page termination, then verify duplicate consolidation and query yield.
 ```
 
 ```text

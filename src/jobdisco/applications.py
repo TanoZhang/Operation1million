@@ -454,9 +454,17 @@ def queue(db_path=DB, path=None, now=None):
         # address, so AMD's ".../jobs/88075?lang=en-us" and ".../jobs/88075"
         # were two groups for one requisition (live queue, 2026-09-27).
         direct_addresses, direct_ids = set(), set()
-        for address, requisition in db.execute(
-                "SELECT url, source_job_id FROM jobs WHERE closed_at IS NULL AND provider_key != 'jsearch'"):
+        direct_openings = {}
+        confirmed_links = read_links(links_path(path))
+        for address, requisition, company, title, place, provider in db.execute(
+                "SELECT url, source_job_id, company_key, title, location, provider_key FROM jobs "
+                "WHERE closed_at IS NULL AND provider_key != 'jsearch'"):
             parts = urlsplit(address)
+            # A confirmed link can suppress a copy only while the immutable
+            # Workday ID in that link still identifies its current opening.
+            if provider == 'workday' and requisition and parts.path.rstrip('/').endswith('_' + str(requisition)):
+                direct_openings[(parts.netloc.lower(), parts.path.rstrip('/'))] = (
+                    company, clean_title(title, place).casefold())
             direct_addresses.add((parts.netloc.lower(), parts.path.rstrip('/')))
             if requisition and len(str(requisition)) >= 5:
                 direct_ids.add((parts.netloc.lower(), str(requisition)))
@@ -515,8 +523,12 @@ def queue(db_path=DB, path=None, now=None):
                     raw = {}
                 if not isinstance(raw, dict):
                     raw = {}
-                if job['provider_key'] == 'jsearch' and copies_workday_requisition(job, raw):
-                    continue
+                if job['provider_key'] == 'jsearch':
+                    official = urlsplit(confirmed_links.get(job['url'], ''))
+                    linked = direct_openings.get((official.netloc.lower(), official.path.rstrip('/')))
+                    if (linked == (job['company_key'], job['title'].casefold())
+                            or copies_workday_requisition(job, raw)):
+                        continue
                 filter_row = {'title': job['title'], 'raw': raw}
                 if blocked:
                     if not jsearch.analog_chip_evidence(job['title'],

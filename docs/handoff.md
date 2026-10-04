@@ -1,3 +1,27 @@
+# search-v2 pagination repair - 2026-10-04 (codex)
+
+The earlier query audit's claim of exhausted results was wrong: the client
+sent numeric page parameters to search-v2 and stopped when fewer than ten jobs
+arrived. The official API specifies data.cursor. A guarded live probe returned
+five Design Verification Intern jobs with a cursor; following it returned three
+more distinct links and another cursor. Two diagnostic credits total, both in
+RequestGuard. October 4 morning used 48 credits, leaving 270 after the probes.
+
+Implement actual cursor pagination, opaque backfill-token persistence, versioned
+checkpoint keys, retry/token-loop protection and paired publication rollback.
+Queries, caps, daily 320 budget, 3-day window and eligibility rules unchanged.
+Windows full suite 1,139 tests passes (13 skips); focused rollback and identity
+checks also pass. Prior fixture that assumed ten jobs implied another page was
+updated to provide the actual response cursor. No claim of full search coverage
+can be made from the former 48/49-page runs. A bounded supplemental collection
+and final production verification remain next.
+
+57c2381 is installed. Durable history repair corrected 76 LinkedIn first_seen
+values, with all 13 retained manifests verifying. Four user-requested copies of
+the NVIDIA memory-management opening were linked to its canonical Workday URL;
+the new queue patch recognizes those explicit mappings only while the immutable
+Workday URL ID, current company and title agree. Applied decisions/dates unchanged.
+
 # Discovery identity repair and query audit - 2026-10-04 (codex)
 
 Base 8a57617. On the installed 755e7d0, an unchanged LinkedIn posting appeared

@@ -250,14 +250,23 @@ class DiscoveryTests(unittest.TestCase):
 
     def response(self, jobs=(), status=200):
         response = Mock(status_code=status, headers={})
-        response.json.return_value = {'status': 'OK', 'data': {'jobs': list(jobs), 'next_cursor': 'unused'}}
+        response.json.return_value = {'status': 'OK', 'data': {
+            'jobs': list(jobs), 'cursor': '__next__' if len(jobs) >= 10 else None}}
+        def payload():
+            result = response.json.return_value
+            if result.get('data', {}).get('cursor') != '__next__':
+                return result
+            params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
+            return dict(result, data=dict(result['data'],
+                        cursor=str(int(params.get('cursor', ['1'])[0]) + 1)))
+        response.json.side_effect = payload
         return response
 
     def per_query(self, *responses):
         """One response per query.
 
-        Every call asks for a single page, and a page holding fewer than ten
-        jobs ends its query, so a one-job response is exactly one call.
+        Every call asks for a single page. These one-job fixtures return a
+        null cursor, so each is exactly one call.
         """
         return list(responses)
 
@@ -363,7 +372,7 @@ class DiscoveryTests(unittest.TestCase):
 
         def full_page(url, **kw):
             params = parse_qs(urlsplit(url).query)
-            tag = params['query'][0] + params.get('page', ['1'])[0]
+            tag = params['query'][0] + params.get('cursor', ['1'])[0]
             return self.response([job(f'{tag}-{i}') for i in range(10)])
         self.session.get.side_effect = full_page
         queries = [jsearch.Query('RTL Design Engineer', 4, 'A'),
@@ -813,7 +822,7 @@ class DiscoveryTests(unittest.TestCase):
         client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
         # Distinct jobs per page, so only the budget can end this query.
         self.session.get.side_effect = lambda url, **kw: self.response(
-            [job(f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}') for i in range(10)])
+            [job(f'{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}-{i}') for i in range(10)])
         _, stats = jsearch.collect([jsearch.Query('RTL Design Engineer', 200, 'A')],
                                    client, self.settings, {}, self.persist)
         # Four pages, not two hundred, and not the cycle's whole remainder.
@@ -946,7 +955,7 @@ class DiscoveryTests(unittest.TestCase):
                              cycle_start='2026-09-16', cycle_days=30, run_limit=2)
         client = jsearch.Client(SEARCH, self.settings, guard, session=self.session)
         self.session.get.side_effect = lambda url, **kw: self.response(
-            [job(f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}') for i in range(10)])
+            [job(f'{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}-{i}') for i in range(10)])
         _, stats = jsearch.collect([jsearch.Query('RTL Design Engineer', 200, 'A')],
                                    client, self.settings, {}, self.persist)
         self.assertEqual(stats['jsearch_failures'], 0)
@@ -1117,7 +1126,7 @@ class DiscoveryTests(unittest.TestCase):
         clock = {'now': datetime.fromisoformat('2026-10-15T23:59:59+00:00').timestamp()}
         query = jsearch.Query('RTL Design Engineer', 40, 'A')
         self.guard.interval = 0
-        self.guard.advance(self.cursor(query), 5, period='2026-09-16')
+        self.guard.advance(self.cursor(query), 5, period='2026-09-16', token='5')
 
         def answered_after_midnight(url, **kwargs):
             clock['now'] += 2
@@ -1202,7 +1211,7 @@ class DiscoveryTests(unittest.TestCase):
                                  backfill=True)
         self.assertEqual([r['source_job_id'] for r in rows], ['recovered'])
         params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
-        self.assertEqual(params['page'], ['2'])
+        self.assertEqual(params['cursor'], ['2'])
 
     def test_a_query_with_nothing_at_all_settles_on_its_first_page(self):
         """An empty first page is a genuine empty result set, not a hiccup."""
@@ -1222,7 +1231,7 @@ class DiscoveryTests(unittest.TestCase):
 
         def dispatch(url, **kwargs):
             asked = parse_qs(urlsplit(url).query)
-            page = int(asked.get('page', ['1'])[0])
+            page = int(asked.get('cursor', ['1'])[0])
             pages.setdefault(asked['query'][0], []).append(page)
             # Full pages for a while, so nothing exhausts within one day.
             return self.response([job(f'p{page}-{i}') for i in range(10)])
@@ -1442,7 +1451,7 @@ class DiscoveryTests(unittest.TestCase):
         # and scoring a full one costs about twenty milliseconds.
         self.session.get.side_effect = lambda url, **kw: self.response([
             job(f'{parse_qs(urlsplit(url).query)["query"][0]}'
-                f'-{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}',
+                f'-{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}-{i}',
                 job_description='RTL design and verification.')
             for i in range(10)])
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
@@ -1479,7 +1488,7 @@ class DiscoveryTests(unittest.TestCase):
         board.run.return_value = ('complete', '')
         self.session.get.side_effect = lambda url, **kw: self.response([
             job(f'{parse_qs(urlsplit(url).query)["query"][0]}-'
-                f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}-{i}',
+                f'{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}-{i}',
                 job_description='RTL design and verification.') for i in range(10)])
         configs = {'discovery_queries.toml': {},
                    'sources_search.toml': {'search': {'jsearch': SEARCH}}}
@@ -1800,18 +1809,67 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(len(list((store.LOG / 'runs').glob('*.ndjson.gz'))), 1)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)
 
-    def test_paging_advances_and_stops_on_a_short_page(self):
-        """Depth is discovered: full pages advance, a short page ends it."""
+    def test_backfill_restores_opaque_cursor_after_client_restart(self):
+        query = jsearch.Query('RTL Design Engineer', 1, 'A')
+        first = self.response([job('first')])
+        first.json.return_value['data']['cursor'] = 'opaque-resume+/='
+        self.session.get.return_value = first
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(self.guard.resume_token(self.cursor(query)), 'opaque-resume+/=')
+        self.client = jsearch.Client(SEARCH, self.settings, self.guard, session=self.session)
+        self.session.get.return_value = self.response([job('second')])
+        jsearch.collect([replace(query, pages=3)], self.client, self.settings, {}, self.persist, backfill=True)
+        params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
+        self.assertEqual(params['cursor'], ['opaque-resume+/='])
+        self.assertEqual(self.guard.credits, 2)
+
+    def test_repeated_cursor_does_not_buy_the_same_page_forever(self):
+        responses = [self.response([job(str(i))]) for i in range(2)]
+        for response in responses:
+            response.json.return_value['data']['cursor'] = 'same-token'
+        self.session.get.side_effect = responses
+        query = jsearch.Query('RTL Design Engineer', 40, 'A')
+        jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
+        self.assertEqual(self.guard.credits, 2)
+        self.assertFalse(self.guard.resume_page(self.cursor(query))[1])
+
+    def test_numeric_page_without_cursor_refuses_before_spending(self):
+        with self.assertRaises(jsearch.SearchFailure):
+            self.client.fetch_page(jsearch.Query('RTL Design Engineer', 40, 'A'), 3)
+        self.assertEqual(self.guard.credits, 0)
+
+    def test_short_page_with_cursor_continues_and_uses_opaque_token(self):
+        first = self.response([job('first')])
+        first.json.return_value = {'status': 'OK', 'data': {'jobs': [job('first')], 'cursor': 'opaque+/='}}
+        second = self.response([job('second')])
+        second.json.return_value = {'status': 'OK', 'data': {'jobs': [job('second')], 'cursor': None}}
+        self.session.get.side_effect = [first, second]
+        _, stats = self.collect([jsearch.Query('RTL Design Engineer', 40, 'A')])
+        self.assertEqual(stats['jsearch_jobs_raw'], 2)
+        asked = [parse_qs(urlsplit(c.args[0]).query) for c in self.session.get.call_args_list]
+        self.assertEqual(asked[1]['cursor'], ['opaque+/='])
+        self.assertTrue(all('page' not in a for a in asked))
+        self.assertEqual(self.guard.credits, 2)
+
+    def test_full_page_without_cursor_is_terminal(self):
+        response = self.response([job(str(i)) for i in range(10)])
+        response.json.return_value = {'status': 'OK', 'data': {'jobs': [job(str(i)) for i in range(10)], 'cursor': None}}
+        self.session.get.return_value = response
+        self.collect([jsearch.Query('RTL Design Engineer', 40, 'A')])
+        self.assertEqual(self.guard.credits, 1)
+
+    def test_paging_follows_cursors_until_terminal_response(self):
+        """The fake service supplies next cursors until its terminal response."""
         full = [self.response([job(f'{page}-{i}') for i in range(10)]) for page in range(3)]
         self.session.get.side_effect = full + [self.response([job('last')])]
         _, stats = self.collect([jsearch.Query('RTL Design Engineer', 40, 'A')])
         asked = [parse_qs(urlsplit(c.args[0]).query) for c in self.session.get.call_args_list]
         self.assertEqual([a['num_pages'] for a in asked], [['1']] * 4)
-        self.assertEqual([a.get('page', ['1'])[0] for a in asked], ['1', '2', '3', '4'])
+        self.assertEqual([a.get('cursor', ['1'])[0] for a in asked], ['1', '2', '3', '4'])
         self.assertEqual(stats['jsearch_jobs_raw'], 31)
         self.assertEqual(self.guard.credits, 4)
 
-    def test_runaway_guard_stops_a_provider_that_never_runs_short(self):
+    def test_runaway_guard_stops_a_provider_whose_cursors_never_end(self):
         """A cursor that never ends must not spend the day on one query."""
         self.session.get.side_effect = [
             self.response([job(f'{page}-{i}') for i in range(10)]) for page in range(99)]
@@ -1826,7 +1884,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(stats['jsearch_pages_used'], 1)
         self.assertEqual(self.guard.credits, 1)
 
-    def test_a_short_first_page_stays_one_call(self):
+    def test_a_terminal_first_page_stays_one_call(self):
         self.session.get.return_value = self.response([job()])
         self.collect([jsearch.Query('DFT Engineer', 40, 'B')])
         self.assertEqual(self.session.get.call_count, 1)
@@ -1841,14 +1899,14 @@ class DiscoveryTests(unittest.TestCase):
         """
         self.session.get.side_effect = lambda url, **kw: self.response(
             [job(f'{parse_qs(urlsplit(url).query)["query"][0]}-'
-                 f'{parse_qs(urlsplit(url).query).get("page", ["1"])[0]}')]
-            if parse_qs(urlsplit(url).query).get('page', ['1'])[0] != '1'
+                 f'{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}')]
+            if parse_qs(urlsplit(url).query).get('cursor', ['1'])[0] != '1'
             else [job(f'{parse_qs(urlsplit(url).query)["query"][0]}-{i}') for i in range(10)])
         self.collect([jsearch.Query('first intern', 40, 'intern'),
                       jsearch.Query('second intern', 40, 'intern'),
                       jsearch.Query('only new grad', 40, 'new_grad')])
         asked = [(parse_qs(urlsplit(c.args[0]).query)['query'][0],
-                  parse_qs(urlsplit(c.args[0]).query).get('page', ['1'])[0])
+                  parse_qs(urlsplit(c.args[0]).query).get('cursor', ['1'])[0])
                  for c in self.session.get.call_args_list]
         self.assertEqual(asked, [('first intern', '1'), ('second intern', '1'),
                                  ('first intern', '2'), ('second intern', '2'),

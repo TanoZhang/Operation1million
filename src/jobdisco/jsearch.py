@@ -120,7 +120,7 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
     validate_budget(queries, config['daily_budget'])
-    # Caps may sum past the daily budget. Most queries stop on a short page far
+    # Caps may sum past the daily budget. Many queries reach their final cursor far
     # below theirs, so caps held to the budget left about half of it unspent; the
     # guard stops a day at its budget, and tier order decides who is left out.
     config['daily_pages_cap'] = sum(q.pages for q in queries)
@@ -249,6 +249,8 @@ class Client:
         self.search, self.settings, self.guard = search, settings, guard
         self.timeout = timeout
         self.session = session or requests.Session()
+        self.page_cursors = {}
+        self.cursor_loops = set()
 
     def close(self):
         self.session.close()
@@ -256,11 +258,19 @@ class Client:
     def fetch_page(self, query, page):
         """Retrieve one page as (items, exhausted).
 
-        A short page is the end-of-results signal; the provider states no total,
-        so it is the only one. See `load_plan` for why a call asks for one page.
+        search-v2 may return fewer than ten jobs with more pages available.
+        Only the opaque response cursor identifies the next page; ordinal page
+        numbers are local progress counters, never API request parameters.
         """
         items = self.fetch_batch(replace(query, pages=1), first_page=page)
-        return items, len(items) < PAGE_SIZE
+        token = self.page_cursors.get((query.key, page + 1))
+        repeated = token and any(key == query.key and number <= page and value == token
+                                 for (key, number), value in self.page_cursors.items())
+        if repeated:
+            self.cursor_loops.add(query.key)
+        else:
+            self.cursor_loops.discard(query.key)
+        return items, not token or bool(repeated)
 
     def fetch(self, query):
         """Page through a whole query, for callers that want it in one piece."""
@@ -291,7 +301,10 @@ class Client:
         if self.settings.get('exclude_job_publishers'):
             params['exclude_job_publishers'] = ','.join(self.settings['exclude_job_publishers'])
         if first_page > 1:
-            params['page'] = first_page
+            token = self.page_cursors.get((query.key, first_page))
+            if not token:
+                raise SearchFailure('Missing search-v2 cursor; cannot request an ordinal page')
+            params['cursor'] = token
         url = urlunsplit(endpoint._replace(query=urlencode(params), fragment=''))
         response = None
         try:
@@ -311,6 +324,10 @@ class Client:
             data = payload.get('data')
             if not isinstance(data, dict) or not isinstance(data.get('jobs'), list):
                 raise SearchFailure('Expected search-v2 data.jobs list')
+            token = data.get('cursor')
+            if token is not None and not isinstance(token, str):
+                raise SearchFailure('Invalid search-v2 cursor')
+            self.page_cursors[(query.key, first_page + 1)] = token or None
             return data['jobs']
         except AccountPaused as exc:
             raise SearchFailure(str(exc), stop=True) from None
@@ -1068,7 +1085,8 @@ def search_space(settings):
     # set, so a plan without it keeps its cursors.
     if settings.get('exclude_job_publishers'):
         shape += '|' + ','.join(sorted(name.casefold() for name in settings['exclude_job_publishers']))
-    return hashlib.sha256(shape.encode()).hexdigest()[:8]
+    # Numeric-page checkpoints (including false exhausted flags) are obsolete.
+    return hashlib.sha256(('cursor-v2|' + shape).encode()).hexdigest()[:8]
 
 
 def tier_rank(tier):
@@ -1142,6 +1160,14 @@ def collect(queries, client, settings, companies, persist, backfill=False,
         cursor = query.key + ':' + space
         start, finished = (client.guard.resume_page(cursor, period=sweep_period)
                            if backfill else (1, False))
+        if backfill and start > 1 and not finished:
+            token = client.guard.resume_token(cursor, period=sweep_period)
+            if token:
+                client.page_cursors[(query.key, start)] = token
+            else:
+                # Old numeric checkpoints cannot locate a search-v2 page.
+                # Restart safely rather than silently asking page one as N.
+                start = 1
         state[query.key] = {
             'query': query, 'cursor': cursor, 'rows': [], 'seen': [], 'page': start,
             'previous': None, 'done': finished,
@@ -1286,6 +1312,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                         break
                     continue
                 asked = entry['page']
+                cursor_looping = query.key in client.cursor_loops
                 identities = page_identity(items)
                 looping = identities is not None and identities == entry['previous']
                 entry['previous'] = identities
@@ -1310,8 +1337,8 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # the query for this run only, and the next day asks the same
                     # page again -- one repeated page costs a credit, a silently
                     # skipped query costs everything after it. A page that came
-                    # back short but not empty, and a first page with nothing on
-                    # it at all, are both genuine ends.
+                    # without a next cursor and with rows, or an empty first
+                    # page without a next cursor, are genuine ends.
                     # A last page carrying a record that could not be read is
                     # held open, like the empty page above: settling it would
                     # retire the query for the cycle with that posting lost,
@@ -1321,20 +1348,21 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # the query there for as long as the record stays broken.
                     held = (not looping and exhausted
                             and detail['malformed'] > malformed_before)
-                    settled = (not looping and not held
+                    settled = (not looping and not cursor_looping and not held
                                and (exhausted and (bool(items) or asked == 1)))
                     # An unsettled empty page is the one page that must not be
                     # stepped over: nothing was persisted from it, so the cursor
                     # stays where it is and the next day asks for it again.
-                    resume = (entry['page'] if not looping and not held and (items or settled)
+                    resume = (entry['page'] if not looping and not cursor_looping and not held and (items or settled)
                               else asked)
                     client.guard.advance(entry['cursor'], resume, exhausted=settled,
-                                         period=sweep_period)
+                                         period=sweep_period,
+                                         token=client.page_cursors.get((query.key, resume)))
                 if exhausted or looping:
                     if detail['status'] != 'failed':
                         stats['jsearch_queries_completed'] += 1
                         detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
-                        if looping:
+                        if looping or cursor_looping:
                             detail['reason'] = 'Provider repeated a page; stopped advancing'
                     entry['done'] = True
                     active.remove(query)

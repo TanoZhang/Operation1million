@@ -113,3 +113,27 @@ class DiscoveryIdentityTests(unittest.TestCase):
         self.save(self.row('search-a', description='ASIC verification JR1234567 or JR7654321'), 2)
         self.assertEqual(len(applications.queue(self.path, self.ledger,
                             datetime(2026, 10, 3, tzinfo=timezone.utc))['pending']), 2)
+
+    def test_explicit_official_link_consolidates_copy_without_jr_number(self):
+        official = 'https://sample.wd5.myworkdayjobs.com/job/ASIC_JR1234567'
+        paid = self.row('search-a', 'https://example.test/third-party/12345')
+        self.save(self.row('JR1234567', official, 'workday'), 1)
+        now = datetime(2026, 10, 3, tzinfo=timezone.utc)
+        original = applications.queue(self.path, self.ledger, now)['pending'][0]
+        applications.append_decision(self.ledger, original, 'applied')
+        self.save(paid, 2)
+        applications.append_link(applications.links_path(self.ledger), paid['url'], official)
+        state = applications.queue(self.path, self.ledger, now)
+        self.assertEqual(state['pending'] + state['backlog'], [])
+        self.assertEqual(len(state['applied']), 1)
+
+    def test_explicit_link_to_different_title_does_not_hide_copy(self):
+        official = 'https://sample.wd5.myworkdayjobs.com/job/ASIC_JR1234567'
+        direct = self.row('JR1234567', official, 'workday')
+        direct['title'] = 'Physical Design Engineer'
+        self.save(direct, 1)
+        paid = self.row('search-a')
+        self.save(paid, 2)
+        applications.append_link(applications.links_path(self.ledger), paid['url'], official)
+        self.assertEqual(len(applications.queue(self.path, self.ledger,
+                            datetime(2026, 10, 3, tzinfo=timezone.utc))['pending']), 2)

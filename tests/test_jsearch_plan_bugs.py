@@ -42,9 +42,9 @@ class PaidRunTests(unittest.TestCase):
         self.session = Mock()
         self.client = jsearch.Client(SEARCH, self.settings, self.guard, session=self.session)
 
-    def response(self, jobs=(), status=200):
+    def response(self, jobs=(), status=200, cursor=None):
         response = Mock(status_code=status, headers={})
-        response.json.return_value = {'status': 'OK', 'data': {'jobs': list(jobs)}}
+        response.json.return_value = {'status': 'OK', 'data': {'jobs': list(jobs), 'cursor': cursor}}
         return response
 
     def collect(self, queries):
@@ -63,7 +63,7 @@ class PaidRunTests(unittest.TestCase):
         """On 2026-09-24 fifteen of 35 queries stopped for the day at their
         first HTTP 504 and lost every page after it."""
         full = [job(f'{n}') for n in range(10)]
-        self.session.get.side_effect = [self.response(full), self.response(status=504),
+        self.session.get.side_effect = [self.response(full, cursor="retry-second"), self.response(status=504),
                                         self.response(full[:3])]
         rows, stats = self.collect([jsearch.Query('RTL Design Engineer', 5, 'A')])
         self.assertEqual(self.session.get.call_count, 3)

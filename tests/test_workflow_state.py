@@ -17,15 +17,17 @@ class WorkflowStateTests(unittest.TestCase):
             ledger = Path(folder) / 'usage.sqlite'
             baseline = Path(folder) / 'before.sqlite'
             guard = RequestGuard(ledger)
-            guard.advance('existing', 4)
+            guard.advance('existing', 4, token='published-token')
             shutil.copyfile(ledger, baseline)
-            guard.advance('existing', 9, exhausted=True)
-            guard.advance('new', 2, exhausted=True)
+            guard.advance('existing', 9, exhausted=True, token='unpublished-token')
+            guard.advance('new', 2, exhausted=True, token='new-token')
             guard.get(Mock(), 'https://example.test')
             guard.pause(900)
             restore_cursors(ledger, baseline)
             self.assertEqual(guard.resume_page('existing'), (4, False))
+            self.assertEqual(guard.resume_token('existing'), 'published-token')
             self.assertEqual(guard.resume_page('new'), (1, False))
+            self.assertIsNone(guard.resume_token('new'))
             self.assertEqual(guard.used(), 1)
             with closing(sqlite3.connect(ledger)) as db:
                 self.assertEqual(db.execute('SELECT COUNT(*) FROM credit_events').fetchone()[0], 1)
@@ -35,11 +37,12 @@ class WorkflowStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             ledger = Path(folder) / 'usage.sqlite'
             guard = RequestGuard(ledger)
-            guard.advance('new', 8)
+            guard.advance('new', 8, token='unpublished')
             guard.baseline(100)
             restore_cursors(ledger, Path(folder) / 'missing.sqlite')
             self.assertEqual(guard.resume_page('new'), (1, False))
             self.assertEqual(guard.balance()['period_used'], 100)
+            self.assertIsNone(guard.resume_token('new'))
 
     def test_manual_sweep_requires_paid_opt_in(self):
         workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/collect-backup.yml').read_text()

@@ -109,6 +109,9 @@ class RequestGuard:
                               period TEXT NOT NULL, query_key TEXT NOT NULL,
                               page INTEGER NOT NULL, exhausted INTEGER NOT NULL DEFAULT 0,
                               updated_at REAL NOT NULL, PRIMARY KEY(period, query_key))''')
+            db.execute('CREATE TABLE IF NOT EXISTS backfill_tokens ('
+                       'period TEXT NOT NULL, query_key TEXT NOT NULL, token TEXT, '
+                       'PRIMARY KEY(period, query_key))')
             # Existing one-page reservations have no date. Charge them to the
             # first known billing period rather than silently erasing usage.
             if not db.execute('SELECT 1 FROM credit_usage LIMIT 1').fetchone():
@@ -230,13 +233,24 @@ class RequestGuard:
                              (period, query_key)).fetchone()
         return (row[0], bool(row[1])) if row else (1, False)
 
-    def advance(self, query_key, page, exhausted=False, period=None):
+    def resume_token(self, query_key, period=None):
+        """Opaque provider cursor paired atomically with the ordinal checkpoint."""
+        period = period or self.period()[0]
+        with connect(self.path) as db:
+            row = db.execute('SELECT token FROM backfill_tokens WHERE period=? AND query_key=?',
+                             (period, query_key)).fetchone()
+        return row[0] if row else None
+
+    def advance(self, query_key, page, exhausted=False, period=None, token=None):
         period = period or self.period()[0]
         with connect(self.path, timeout=120) as db:
             db.execute('INSERT INTO backfill_cursor VALUES (?, ?, ?, ?, ?) '
                        'ON CONFLICT(period, query_key) DO UPDATE SET '
                        'page=excluded.page, exhausted=excluded.exhausted, updated_at=excluded.updated_at',
                        (period, query_key, page, int(exhausted), time.time()))
+            db.execute('INSERT INTO backfill_tokens VALUES (?, ?, ?) '
+                       'ON CONFLICT(period, query_key) DO UPDATE SET token=excluded.token',
+                       (period, query_key, token))
 
     def balance(self):
         """What is spent and what is left, right now, from durable state."""

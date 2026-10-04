@@ -52,7 +52,7 @@ The daily ceiling is 320. Each broad query declares a maximum depth, and since
 2026-10-03 those caps may total more than 320 (715: Intern 270, New Grad 290,
 Early Career 100, General 55). The budget guard stops the day at 320, and on a
 full day the later tiers get what is left. Every call still asks for
-`num_pages=1`; a short page, empty page, repeated page, deadline or budget limit
+`num_pages=1`; no next cursor, a repeated page/cursor, deadline or budget limit
 keeps its existing early-stop behavior.
 
 A page is therefore the unit of both billing and loss. Four calls asking for 11
@@ -393,3 +393,22 @@ Level, Silicon Validation Entry Level. One page each, with two pages reassigned
 within each early-career tier. 41 queries, 320 pages, original tier totals intact.
 No increase to paid budget and no manual paid collection. Relevant embedded
 postings and existing applied/skipped history must not be deleted.
+
+
+## search-v2 pagination correction (2026-10-04)
+
+The provider's [OpenAPI specification](https://openwebninja.s3.us-east-1.amazonaws.com/portal/openapi/jsearch.yaml)
+and [documentation](https://www.openwebninja.com/api/jsearch) define
+`data.cursor`, passed as the next request's `cursor`. `page` is not a v2
+pagination parameter. Five returned jobs can have another page: a one-credit
+production probe of Design Verification Intern on October 4 proved this.
+The former `len(jobs) < 10` stop and ordinal API page parameter under-collected
+results; October 3's 49 and October 4's 48 pages are not evidence of exhaustion.
+
+The client follows opaque cursors, still one guarded credit per request.
+Backfill saves the token and ordinal checkpoint in one transaction after rows
+are durable, and versions the search fingerprint so old falsely exhausted
+numeric cursors cannot suppress new searches. Repeated cursors stop the run
+without marking the backfill permanently exhausted. Daily queries, filters,
+3-day window, priority tiers, authored caps and 320-credit daily limit remain
+unchanged. Caps are maxima, not a reason to buy nonexistent/repeated pages.
