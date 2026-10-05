@@ -14,12 +14,12 @@ class VLSIScopeTests(unittest.TestCase):
                 self.assertFalse(jsearch.rejection_reason(row, self.rules))
         row = {'title': 'Embedded Software Engineer',
                'raw': {'description': 'Cloud web commerce services and user accounts. ' * 100}}
-        self.assertEqual(jsearch.rejection_reason(row, self.rules), 'off_domain')
+        self.assertEqual(jsearch.rejection_reason(row, self.rules), 'no_vlsi_evidence')
 
     def test_standalone_software_and_compiler_expansion_is_removed(self):
         for title in ('Compiler Software Engineer', 'Software Engineer - Compiler LLVM',
                       'Full Stack Software Engineer'):
-            self.assertEqual(jsearch.rejection_reason({'title': title, 'raw': {}}, self.rules), 'title_mismatch')
+            self.assertEqual(jsearch.rejection_reason({'title': title, 'raw': {}}, self.rules), 'missing_software_jd')
         _, queries = jsearch.load_plan()
         self.assertFalse(any('compiler' in q.query.lower() for q in queries))
 

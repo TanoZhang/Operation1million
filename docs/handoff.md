@@ -1,3 +1,31 @@
+# Software JD evidence gate - 2026-10-05 (codex)
+
+The user reported a software systems validation false positive and clarified
+that every title containing software must have VLSI evidence in its JD before
+automatic admission. The real stored posting passed at score 25 from four
+generic terms. Current metadata extraction could also mistake list paths for
+JD prose. A shared gate now checks current description/qualification fields in
+paid discovery and Review, before title keeps or confidence can admit software.
+Missing JD is withheld separately from readable off-domain text. Generic
+software titles can qualify with actual chip evidence; other hard and title
+blocks remain. A second real PCB automation example showed tape-out is not
+sufficient evidence on its own. Application decisions and manual intake remain
+unchanged. Ranking and the 170-query / 400-credit / ten-page plan are unchanged.
+
+Private evidence stays in ignored .local/software-validation-audit/. Baseline
+Review: 2,008 pending, 4,311 backlog, 235 applied, 12 skipped groups. Of 35
+pending software groups, 20 lack actual JD and nine have no qualifying VLSI
+prose. Of 93 backlog software groups, 81 lack JD and eight lack evidence.
+These are an audit of old visible groups, not the final queue delta: genuine
+chip work previously blocked by generic software titles can newly qualify.
+The 6,110-row raw software cohort also includes non-US postings.
+
+Offline validation on d130962 plus this patch: the full suite ran 1,135 tests
+with 13 environment skips and no failures. After the final PCB and application-
+history cases, all 66 focused tests pass. Initial policy tests failed before
+the fix; the real reported posting now returns no_vlsi_evidence. Deployment
+and live queue verification follow separately.
+
 # Ten-page nationwide trials - 2026-10-05 (codex)
 
 The user asked how the three-page trials performed and requested ten pages

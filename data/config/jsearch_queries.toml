@@ -407,23 +407,8 @@ reject_title_patterns = [
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
   '\bcivil\s+engineer\b', '\bnurse\b', '\baccountant\b',
 
-  # Software roles at hardware companies -- but "software" is not by itself a
-  # reason to drop a posting. Embedded, firmware, drivers and silicon bring-up
-  # software are adjacent targets, and rejecting on the word alone removed 231
-  # such titles from the live store, `Embedded Software Engineer` among them.
-  # The lookahead lets any title that also names low-level work fall through to
-  # scoring instead; it is not a keep, so a cloud posting that happens to say
-  # "hardware" is still dropped by the score. Benchmarking, ML performance and
-  # web work name nothing of the sort and are still rejected here.
-  # EDA, circuit and memory software joined the list on 2026-09-22, when the
-  # block first reached direct boards and took "Software Engineer (Integrity
-  # 3D-IC Infra)" and "SRAM Software Engineer Intern" with it.
-  # Since 2026-09-23 the word itself, not only "software engineer|developer":
-  # "Software Engineering Intern", "Software QA Engineer - New College Grad"
-  # and "Software and System Architect" slipped past the narrower form. A
-  # board with no description scores them 0 but still lists them, so the
-  # title is the only thing that can stop them.
-  '^(?!.*\b(?:embedded|firmware|driver|drivers|bare[-\s]?metal|bootloader|bios|uefi|rtos|kernel|rtl|asic|fpga|soc|silicon|verification|validation|emulation|bring[-\s]?up|hardware|co-?design|eda|3d-?ic|circuits?|sram|dram|semiconductors?)\b).*\bsoftware\b',
+  # All software titles now require actual VLSI JD evidence in the shared
+  # software_jd_rejection gate, before title keeps or scores (2026-10-05).
   # Front end and back end are web words and chip words: RTL is a chip's front
   # end and physical design its back end. Measured the same day: "GPU Front-End
   # Infrastructure/Methodology" and "EDA PV Intern for Digital Backend Flow"

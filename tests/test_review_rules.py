@@ -118,13 +118,13 @@ class FilterPolicyTests(unittest.TestCase):
         for title in ('Embedded Software Engineer', 'Firmware Software Engineer',
                       'Device Driver Software Engineer', 'SoC Software Engineer',
                       'Silicon Validation Software Engineer', 'FPGA Software Engineer',
-                      'Hardware Software Co-Design Engineer'):
+                      'Hardware Software Co-Design Engineer', 'Software Engineer',
+                      'Software Engineer, Machine Learning', 'Software Development Engineer II'):
             with self.subTest(title=title):
                 row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
                 self.assertEqual(jsearch.rejection_reason(row, self.rules), '')
-        # Nothing in these names the hardware underneath, so they still go.
-        for title in ('Software Engineer', 'Software Engineer, Machine Learning',
-                      'Full Stack Software Engineer', 'Software Development Engineer II'):
+        # Explicitly unrelated functions retain their separate title block.
+        for title in ('Full Stack Software Engineer',):
             with self.subTest(title=title):
                 row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
                 self.assertEqual(jsearch.rejection_reason(row, self.rules), 'title_mismatch')
@@ -193,7 +193,8 @@ class SoftBlockTests(unittest.TestCase):
                       'Wireless Power Magnetics Architect', 'Technical Program Management',
                       'Project Management Apprenticeship', 'Business Operations Analyst'):
             with self.subTest(title=title):
-                self.assertTrue(jsearch.title_blocked(title, self.rules))
+                self.assertTrue(jsearch.title_blocked(title, self.rules)
+                                or jsearch.software_jd_rejection({'title': title, 'raw': {}}))
 
     def test_a_title_that_names_the_trade_is_scored_instead(self):
         for title in ('Low Power Verification Engineer', 'Power-aware RTL Design Engineer',
@@ -223,7 +224,8 @@ class SoftBlockTests(unittest.TestCase):
         hardware word never argued them back in."""
         for title in ('Analog Board Design Engineer, Intern', 'GPU Fleet Software Development Engineer'):
             with self.subTest(title=title):
-                self.assertTrue(jsearch.title_blocked(title, self.rules))
+                self.assertTrue(jsearch.title_blocked(title, self.rules)
+                                or jsearch.software_jd_rejection({'title': title, 'raw': {}}))
 
     def test_principal_is_a_level(self):
         self.assertTrue(jsearch.excluded('Principal Digital Verification Engineer', self.rules))
@@ -266,7 +268,8 @@ class AuditedWrongCatchTests(unittest.TestCase):
                       'Mechanical Engineering Internship - Summer 2027', 'Operations & Logistics Internship',
                       'Business Operations Analyst, Processor', 'Analog Board Design Engineer, Intern'):
             with self.subTest(title=title):
-                self.assertTrue(jsearch.title_blocked(title, self.rules))
+                self.assertTrue(jsearch.title_blocked(title, self.rules)
+                                or jsearch.software_jd_rejection({'title': title, 'raw': {}}))
 
     def test_a_posting_hiring_up_to_principal_is_not_a_principal_posting(self):
         for title in ('SoC RTL Design Engineer (Up to Principal Level)',
@@ -292,8 +295,7 @@ class AuditedWrongCatchTests(unittest.TestCase):
                       'Optical Module Software/Firmware Intern',
                       'Hardware Design Engineer, Optical Validation'):
             with self.subTest(title=title):
-                self.assertTrue(jsearch.excluded(title, self.rules)
-                                or jsearch.title_blocked(title, self.rules))
+                self.assertTrue(jsearch.rejection_reason({'title': title, 'raw': {}}, self.rules))
         for title in ('Embedded Software Engineer', 'SRAM Software Engineer Intern',
                       'Hardware/Software Co-Design Engineer',
                       'Energy-Efficient Accelerator Architect Intern',
@@ -473,6 +475,34 @@ class QueueRulesTests(unittest.TestCase):
 
     def queue(self):
         return applications.queue(self.db, self.ledger)
+
+    def test_all_software_titles_need_current_jd_evidence_in_review(self):
+        for provider in ('jsearch', 'workday'):
+            for title in ('Software Systems Validation Intern', 'ASIC Software Engineer',
+                          'Software Engineer'):
+                for raw, kept in (({}, False), ({'description':
+                        'Validate embedded robotics hardware and simulation.'}, False),
+                        ({'description': 'Develop RTL simulation and ASIC verification tools.'}, True)):
+                    with self.subTest(provider=provider, title=title, kept=kept):
+                        with closing(sqlite3.connect(self.db)) as db, db:
+                            db.execute('UPDATE jobs SET title=?, provider_key=?, raw=?, relevance=?',
+                                       (title, provider, json.dumps(raw), 0 if kept else 100))
+                        # Neither a stale high nor low score decides JD evidence.
+                        self.assertEqual(bool(self.queue()['pending']), kept)
+
+    def test_software_gate_preserves_recorded_application(self):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET title=?, raw=?', ('Software Engineer', json.dumps({
+                'description': 'Develop RTL verification tools.'})))
+        group = self.queue()['pending'][0]
+        applications.append_decision(self.ledger, group, 'applied')
+        recorded = self.ledger.read_bytes()
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET raw='{}'")
+        state = self.queue()
+        self.assertEqual(state['pending'], [])
+        self.assertEqual(len(state['applied']), 1)
+        self.assertEqual(self.ledger.read_bytes(), recorded)
 
     def test_the_soft_block_reaches_direct_boards_in_the_queue(self):
         """Direct postings never went through the soft block: it ran only on

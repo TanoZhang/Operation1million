@@ -746,6 +746,8 @@ def queue(db_path=DB, path=None, now=None):
                 reason, experience = jsearch.eligibility_rejection(filter_row, rules)
                 if reason:
                     continue
+                if jsearch.software_jd_rejection(filter_row):
+                    continue
                 if jsearch.publisher_excluded(job['url'], raw, rules):
                     continue
                 # Located only abroad, at the user's request on 2026-09-22. Per
@@ -774,7 +776,7 @@ def queue(db_path=DB, path=None, now=None):
                 # A row scored under rules that hard-rejected these titles still
                 # holds a zero, so they stay hidden until the next pass rescores
                 # them; `job-store --rescore` does it in one go.
-                if evidence and job['confidence'] < minimum:
+                if evidence and not jsearch.SOFTWARE_TITLE.search(job['title']) and job['confidence'] < minimum:
                     if jsearch.description_text({'raw': raw}):
                         continue
                 key = decision_key(job)

@@ -6,6 +6,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Reproduce the reported Zipline software-validation false positive;
+       user clarified all software titles must have VLSI JD evidence before
+       automatic admission, including generic and chip-named software titles.
+Files: src/operation1million/{jsearch,applications}.py,
+       data/config/jsearch_queries.toml, tests/{test_software_validation,test_review_rules,
+       test_bulk_application_rules}.py, docs/{agent-protocol,architecture,handoff}.md;
+       ignored .local/software-validation-audit/ private evidence only.
+Base commit: d130962
+Status: active
+Next: Capture the real stored posting, prove failing discovery/Review cases,
+      measure affected live records and preserve genuine chip roles.
+```
+
+```text
+Owner: codex
 Scope: User-requested increase of all current three-page nationwide trials
        to ten pages per query, retaining the 400-credit daily ceiling.
 Files: data/config/jsearch_queries.toml, tests/test_jsearch.py,

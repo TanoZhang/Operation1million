@@ -141,7 +141,11 @@ reproducer and update its evidence below.
   same VLSI work. Preserve the established JD-based handling of relevant
   embedded, firmware, driver and silicon software roles. The 2026-10-02
   standalone compiler/adjacent-discipline expansion was explicitly withdrawn.
-  Explicit analog IC design/layout is also VLSI. Ambiguous analog design/layout
+  Since the user clarification on 2026-10-05, every software title requires
+  current VLSI JD evidence before automatic admission, including ASIC/FPGA
+  titles. Generic software titles can qualify through the same evidence;
+  missing software JD is held out until evidence exists. Other title and hard
+  rejection rules remain. Explicit analog IC design/layout is also VLSI. Ambiguous analog design/layout
   titles need two distinct chip-design facts in the posting JD. Analog
   hardware/design/layout internships with no readable JD stay visible because
   missing prose is not negative evidence; ordinary analog board and
@@ -2572,3 +2576,30 @@ cache was replayed. Preview does not write the message cache.
 Validation: 53 Gmail/outcome tests and 32 Review payload/cache tests pass offline.
 Git Bash was used for the env-file test on Windows; the default WSL launcher
 failed previously. No mailbox changes, production measurements or deployment.
+
+
+## Software titles require actual VLSI JD evidence - 2026-10-05
+
+A reported software systems validation internship passed with confidence 25
+from generic validation/hardware/embedded/simulation words against minimum 20.
+Its stored JD concerned robotics systems, not chip design or verification.
+The software title exception and explicit ASIC/FPGA keeps could bypass real
+JD verification; Review separately admitted such titles with stale high scores.
+Seven synthetic policy cases and a shared Review regression cover the repair;
+initial policy tests produced 17 failing subcases before implementation. A
+further real board-automation JD used tape-out, proving that phrase alone also
+cannot establish chip work; its synthetic regression failed before tightening.
+
+`jsearch.software_jd_rejection` now gates paid discovery and Review, independent
+of confidence. Only current description/qualification/skills fields supply
+evidence, never list paths, departments, titles, discovery queries or inherited
+JSearch provenance. Generic hardware/embedded/validation, Silicon Valley, SOC 2,
+board CAD and tape-out alone do not qualify. Explicit chip vocabulary in the
+JD can admit a generic Software Engineer title. Missing prose returns a distinct
+reason from readable off-domain prose. Both withhold automatic admission, not
+delete records. Manual intake and append-only application history are unchanged.
+
+The private audit used 6,110 open software-title records, including non-US
+locations; these counts are not Review group counts. Existing ranking values
+and scoring vocabulary are unchanged; the gate never trusts a stored score.
+The search budget, queries, pagination and scheduling are unchanged.

@@ -810,6 +810,44 @@ def description_text(row, structured=False):
     return WHITESPACE.sub(' ', TAGS.sub(' ', joined)).strip()
 
 
+SOFTWARE_TITLE = re.compile(r'\bsoftware\b', re.I)
+# Deliberately exclude generic hardware, embedded, validation, CPU/GPU and
+# silicon (including Silicon Valley). Ranking vocabulary is not JD evidence.
+SOFTWARE_VLSI_EVIDENCE = re.compile(
+    r'\b(?:ASIC|FPGA|VLSI|RTL|Verilog|SystemVerilog|VHDL|UVM|'
+    r'ATPG|SRAM|DRAM|Cadence\s+Virtuoso|Synopsys\s+Design\s+Compiler|'
+    r'pre[-\s]?silicon|post[-\s]?silicon|'
+    r'(?:chip|silicon|SoC|integrated\s+circuit)\s+(?:design|verification|validation|'
+    r'debug|bring[-\s]?up)|physical\s+design|static\s+timing\s+analysis)\b', re.I)
+# Real prose fields observed in the stored provider payloads. A catalog path,
+# department, title, or superseded paid payload must never stand in for a JD.
+SOFTWARE_JD_FIELDS = frozenset({
+    'description', 'job_description', 'descriptionHtml', 'descriptionPlain',
+    'descriptionTeaser', 'description_short', 'content', 'job_highlights',
+    'qualifications', 'basic_qualifications', 'preferred_qualifications',
+    'requirements', 'responsibilities', 'skills', 'required_skills',
+    'ExternalQualificationsStr', 'ExternalResponsibilitiesStr', 'ShortDescriptionStr',
+})
+
+
+def software_jd_rejection(row):
+    """Shared automatic-admission gate; returns a reason or an empty string.
+
+    Every software title needs chip-specific evidence in current JD prose,
+    including explicit ASIC/FPGA titles. Missing prose waits for evidence;
+    neither an old score nor title/search metadata can supply it.
+    """
+    if not SOFTWARE_TITLE.search(row.get('title') or ''):
+        return ''
+    raw = row.get('raw')
+    raw = raw if isinstance(raw, dict) else {}
+    prose = description_text({'raw': {key: value for key, value in raw.items()
+                                     if key in SOFTWARE_JD_FIELDS}}, structured=True)
+    if not prose:
+        return 'missing_software_jd'
+    return '' if SOFTWARE_VLSI_EVIDENCE.search(prose) else 'no_vlsi_evidence'
+
+
 def experience_debug(row, text=None):
     from .experience import evaluate
     return evaluate(row.get('title'),
@@ -984,7 +1022,10 @@ def eligibility_rejection(row, rules, requirements=None):
 
 
 def rejection_reason(row, rules, description=None, score=None):
-    """Title first, then the posting's vocabulary; the unreadable is kept.
+    """Hard rejects, software JD evidence, then existing title/score policy.
+
+    Software titles require current chip-specific JD evidence even when the
+    title names ASIC/FPGA. Missing software prose is held, not auto-admitted.
 
     A title that names the work settles it either way. Analog design/layout
     needs chip evidence unless its explicit IC title or an unreadable analog
@@ -1024,6 +1065,11 @@ def rejection_reason(row, rules, description=None, score=None):
     reason, _ = eligibility_rejection(row, rules)
     if reason:
         return reason
+    reason = software_jd_rejection(row)
+    if reason:
+        return reason
+    if SOFTWARE_TITLE.search(title) and not title_blocked(title, rules):
+        return ''
     # Before the keeps, not after: the point of an evidence title is that its
     # name is not trusted, and a title that also happens to match a keep would
     # otherwise skip the check it exists for. A posting that really is the trade
