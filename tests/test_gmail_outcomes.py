@@ -206,6 +206,17 @@ class MatchTests(unittest.TestCase):
         self.assertEqual(gmail.company_names('Advanced Micro Devices, Inc.'), {'advanced micro devices', 'advancedmicrodevices', 'amd'})
         self.assertEqual(gmail.company_names('Amazon.com, Inc.'), {'amazon', 'aws'})
         self.assertEqual(gmail.company_names('General Motors'), {'general motors', 'generalmotors'})
+        # Not "on", which matched "Update on your Application" (first real run).
+        self.assertEqual(gmail.company_names('ON Semiconductor'), {'on semiconductor', 'onsemiconductor', 'onsemi'})
+
+    def test_one_employer_spelled_three_ways_is_one_company(self):
+        groups = [group('a', 'Marvell Technology, Inc.', 'Design For Test Intern, MS - Summer 2027'),
+                  group('b', 'Marvell Technology', 'Physical Design Engineer Intern, MS - Summer 2027'),
+                  group('c', 'Marvell', 'AMS Validation Intern, BS - Summer 2027')]
+        rejection = message('Marvell | Design for Test Intern, BS - Summer 2027', sender='<marvell@myworkday.com>')
+        # Not the MS position; but Marvell, so listed with all three.
+        self.assertEqual(gmail.match(groups, rejection), [])
+        self.assertEqual(self.ids(gmail.match(groups, rejection, company_only=True)), ['a', 'b', 'c'])
 
 
 class DecideTests(unittest.TestCase):

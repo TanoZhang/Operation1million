@@ -310,15 +310,26 @@ TAIL = {'inc', 'incorporated', 'corp', 'corporation', 'llc', 'ltd', 'limited', '
 ALIASES = {'advanced micro devices': ['amd'], 'international business machines': ['ibm'],
            'taiwan semiconductor manufacturing': ['tsmc'], 'hewlett packard enterprise': ['hpe'],
            'amazon': ['amazon', 'aws'], 'meta platforms': ['meta'], 'alphabet': ['google'],
-           'texas instruments': ['texas instruments']}
+           'texas instruments': ['texas instruments'], 'on semiconductor': ['onsemi']}
+
+
+def company_key(company):
+    """One name per employer however the ledger spells it: "Marvell
+    Technology, Inc.", "Marvell Technology" and "Marvell" are all marvell.
+    A name the tail-stripping would shrink below three letters keeps its
+    words: "ON Semiconductor" is not "on", which matched "Update on your
+    Application" from another firm (first real run)."""
+    full = applications.employer_name(company)
+    words = full.split()
+    while len(words) > 1 and words[-1] in TAIL:
+        words.pop()
+    name = ' '.join(words)
+    return name if len(name) >= 3 else full
 
 
 def company_names(company):
     """The ways an email names a company: 'Micron Technology, Inc.' -> micron."""
-    words = applications.employer_name(company).split()
-    while len(words) > 1 and words[-1] in TAIL:
-        words.pop()
-    name = ' '.join(words)
+    name = company_key(company)
     names = {name} if name else set()
     # Workday writes from generalmotors@ and blueorigin@myworkday.com.
     if ' ' in name and len(name.replace(' ', '')) >= 6:
@@ -326,7 +337,7 @@ def company_names(company):
     for full, short in ALIASES.items():
         if name.startswith(full):
             names.update(short)
-    return {item for item in names if len(item) >= 2}
+    return {item for item in names if len(item) >= 3}
 
 
 def _has(name, text):
@@ -363,7 +374,7 @@ def match(groups, message, company_only=False):
     if not named:
         named = {name for name in by_company if len(name) >= 4 and _has(name, body)}
     candidates = {id(group): group for name in named for group in by_company[name]}
-    companies = {applications.employer_name(group.get('company')) for group in candidates.values()}
+    companies = {company_key(group.get('company')) for group in candidates.values()}
     if len(companies) != 1:
         return []
     candidates = list(candidates.values())
@@ -653,7 +664,9 @@ def _save(path, value):
     os.replace(temporary, path)
 
 
-def run(db, ledger, address, password, directory=None, capture=None):
+def run(db, ledger, address, password, directory=None, capture=None, preview=False):
+    """One pass. With `preview`, everything is read and decided and nothing is
+    written or starred: the returned summary carries what would have been."""
     directory = Path(directory or gmail_dir())
     groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger)['applied']
     if not groups:
@@ -673,6 +686,14 @@ def run(db, ledger, address, password, directory=None, capture=None):
     _save(cache_path, cache)
     outcomes = applications.outcomes_path(ledger)
     writes, unsorted, stars = decide(groups, list(cache.values()), last_events(outcomes))
+    if preview:
+        by_id = {group['id']: group for group in groups}
+        return {'preview': True, 'applied': len(groups), 'checked': len(cache),
+                'marks': [{'outcome': verdict, 'company': by_id[group_id]['company'],
+                           'title': by_id[group_id]['title'], 'email': cache[message_id]['subject'],
+                           'from': cache[message_id]['from'], 'at': cache[message_id]['at']}
+                          for group_id, verdict, message_id in writes],
+                'list': unsorted, 'stars': [cache[message_id]['subject'] for message_id in stars]}
     for group_id, verdict, message_id in writes:
         applications.append_outcome(outcomes, group_id, verdict, by='gmail', message=message_id)
     # Settled since, by hand or by a later email: not worth showing again.
@@ -706,6 +727,8 @@ def main():
     parser.add_argument('--db', type=Path, default=DB)
     parser.add_argument('--ledger', type=Path, default=None)
     parser.add_argument('--capture', type=Path, help='Write the first raw IMAP responses here (private).')
+    parser.add_argument('--preview', action='store_true',
+                        help='Read and decide, write no marks and star nothing; print what would happen.')
     args = parser.parse_args()
     local_config.load_credentials()
     address, password = os.environ.get('GMAIL_ADDRESS', ''), os.environ.get('GMAIL_APP_PASSWORD', '')
@@ -715,13 +738,24 @@ def main():
     capture = [] if args.capture else None
     try:
         summary = run(args.db, args.ledger or applications.ledger_path(), address,
-                      password.replace(' ', ''), capture=capture)
+                      password.replace(' ', ''), capture=capture, preview=args.preview)
     except (imaplib.IMAP4.error, OSError, RuntimeError) as exc:
         # A refused login names no secret; say which kind of failure it was.
         print(f'Gmail check failed: {type(exc).__name__}: {exc}', file=sys.stderr)
         return 1
     if args.capture:
         args.capture.write_text('\n\n'.join(capture or []), encoding='utf-8')
+    if args.preview:
+        print(f"Preview: {summary['applied']} applied positions, {summary['checked']} emails read")
+        print('\nWould mark:')
+        for mark in summary['marks']:
+            print(f"  {mark['outcome'].upper():9} {mark['company']} | {mark['title']}\n"
+                  f"            {mark['at'][:10]} {mark['from']} | {mark['email']}")
+        print('\nWould list for a look:')
+        for item in summary['list']:
+            print(f"  {item['outcome']:9} {item['at'][:10]} {item['company'] or '-'} | {item['subject']}")
+        print('\nWould star:', *summary['stars'], sep='\n  ')
+        return 0
     print(json.dumps(summary))
     return 0
 
