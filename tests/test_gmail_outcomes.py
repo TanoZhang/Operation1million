@@ -8,6 +8,9 @@ from email.message import EmailMessage
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+from datetime import datetime, timezone, timedelta
+import json
 
 from operation1million import applications, gmail_outcomes as gmail
 
@@ -176,9 +179,9 @@ class MatchTests(unittest.TestCase):
         self.assertEqual(self.ids(gmail.match(self.groups, message(
             'Your NVIDIA application', 'Regarding the ASIC Design Intern position'))), ['n1'])
 
-    def test_one_title_in_several_places_is_one_role(self):
+    def test_one_title_without_shared_identity_is_ambiguous(self):
         found = gmail.match(self.groups, message('Cisco', 'your application for ASIC Verification Intern - San Jose'))
-        self.assertEqual(self.ids(found), ['c1', 'c2'])
+        self.assertEqual(found, [])
 
     def test_an_email_long_before_the_application_is_about_something_else(self):
         old = message('Your Micron application', at='2026-07-01T00:00:00+00:00')
@@ -259,12 +262,12 @@ class DecideTests(unittest.TestCase):
         # An invitation from a company never applied to is listed, not starred.
         self.assertEqual(stars, [])
 
-    def test_only_the_first_pass_per_position_is_starred(self):
+    def test_each_pass_per_position_is_starred(self):
         messages = [message('Micron assessment', outcome='passed', mid='a', at='2026-10-01T00:00:00+00:00'),
                     message('Micron interview', outcome='passed', mid='b', at='2026-10-04T00:00:00+00:00'),
                     message('Micron update', outcome='declined', mid='c', at='2026-10-08T00:00:00+00:00')]
         writes, _, stars = gmail.decide(self.groups, messages, {})
-        self.assertEqual(stars, ['a'])
+        self.assertEqual(stars, ['a', 'b'])
         # The second round changed nothing; the later rejection did.
         self.assertEqual(writes, [('m1', 'declined', 'c')])
 
@@ -357,6 +360,90 @@ class EvaluationSetTests(unittest.TestCase):
         wrong = [(want, gmail.classify(subject, body), subject) for want, subject, body in EVALUATION
                  if gmail.classify(subject, body) != want]
         self.assertEqual(wrong, [])
+
+
+class GmailRegressionTests(unittest.TestCase):
+    def test_body_naming_another_role_cannot_mark_the_only_application(self):
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern', req='JR1111')]
+        mail = message('NVIDIA Application Update',
+                       'We will not move forward with Software Engineer, JR9999.', outcome='declined')
+        self.assertEqual(gmail.decide(groups, [mail], {})[0], [])
+
+    def test_wrong_requisition_overrides_a_matching_title(self):
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern', req='JR1111')]
+        self.assertEqual(gmail.match(groups, message('NVIDIA ASIC Design Intern JR9999')), [])
+
+    def test_identical_titles_with_different_requisitions_are_ambiguous(self):
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern', req='JR1111'),
+                  group('n2', 'NVIDIA', 'ASIC Design Intern', req='JR2222')]
+        self.assertEqual(gmail.match(groups, message('NVIDIA ASIC Design Intern')), [])
+        self.assertEqual([g['id'] for g in gmail.match(groups, message('NVIDIA ASIC Design Intern JR2222'))], ['n2'])
+
+    def test_explicit_requisition_can_match_a_shortened_title(self):
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern - Summer 2027', req='JR1111')]
+        self.assertEqual(gmail.match(groups, message('NVIDIA update for JR1111')), groups)
+
+    def test_two_explicit_requisitions_need_review(self):
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern', req='JR1111'),
+                  group('n2', 'NVIDIA', 'ASIC Design Intern', req='JR2222')]
+        self.assertEqual(gmail.match(groups, message('NVIDIA JR1111 and JR2222')), [])
+
+    def test_settlement_uses_email_time_not_replay_time(self):
+        item = {'at': '2026-10-05T00:00:00+00:00'}
+        cache = {'old': {'at': '2026-10-01T00:00:00+00:00'},
+                 'new': {'at': '2026-10-06T00:00:00+00:00'}}
+        event = {'by': 'gmail', 'outcome': 'declined', 'message': 'old',
+                 'at': '2026-10-07T00:00:00+00:00'}
+        self.assertFalse(gmail._settled(item, event, cache))
+        self.assertTrue(gmail._settled(item, dict(event, message='new'), cache))
+        self.assertTrue(gmail._settled(item, {'outcome': '', 'at': event['at']}, cache))
+
+    def test_two_courtesies_do_not_reject_a_confirmation(self):
+        self.assertIsNone(gmail.classify('Application received',
+            'Thank you for applying. We received a large number of applications. We wish you the best.'))
+
+    def test_each_pass_round_is_starred(self):
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern')]
+        mails = [message('NVIDIA', outcome='passed', mid='round1'),
+                 message('NVIDIA', outcome='passed', mid='round2', at='2026-10-02T00:00:00+00:00')]
+        writes, _, stars = gmail.decide(groups, mails, {'n1': {'outcome': 'passed', 'by': 'gmail'}})
+        self.assertEqual(writes, [])
+        self.assertEqual(stars, ['round1', 'round2'])
+
+    def run_with_mail(self, directory, mails, current=None, preview=False):
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern')]
+        with patch.object(gmail.applications, 'queue', return_value={'applied': groups}), \
+             patch.object(gmail.manual_intake, 'augment_queue', side_effect=lambda q, l: q), \
+             patch.object(gmail, 'fetch', return_value=mails), \
+             patch.object(gmail, 'last_events', return_value=current or {}), \
+             patch.object(gmail.applications, 'append_outcome'), \
+             patch.object(gmail, 'star', side_effect=lambda a, p, ids: ids) as star:
+            result = gmail.run('unused', Path(directory) / 'ledger.ndjson', 'dummy', 'dummy',
+                               directory=directory, preview=preview)
+            return result, star.call_args_list
+
+    def test_new_unclear_reply_is_not_hidden_by_an_old_decline(self):
+        now = datetime.now(timezone.utc)
+        mail = message('NVIDIA feedback', 'The hiring manager is discussing your interview feedback.',
+                       at=now.isoformat())
+        with tempfile.TemporaryDirectory() as folder:
+            result, _ = self.run_with_mail(folder, [mail],
+                {'n1': {'outcome': 'declined', 'by': 'gmail', 'message': 'old',
+                        'at': (now - timedelta(days=1)).isoformat()}})
+            self.assertEqual(result['unsorted'], 1)
+
+    def test_preview_does_not_write_mail_cache(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.run_with_mail(folder, [message('NVIDIA', 'Please schedule an interview.')], preview=True)
+            self.assertEqual(list(Path(folder).iterdir()), [])
+
+    def test_previously_starred_message_is_not_restarred(self):
+        with tempfile.TemporaryDirectory() as folder:
+            gmail._save(Path(folder) / 'starred.json', ['round1'])
+            mails = [message('NVIDIA', 'Please schedule an interview.', mid='round1'),
+                     message('NVIDIA', 'Please schedule your interview.', mid='round2')]
+            _, calls = self.run_with_mail(folder, mails)
+            self.assertEqual(calls[0].args[2], ['round2'])
 
 
 if __name__ == '__main__':

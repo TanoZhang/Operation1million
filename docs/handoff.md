@@ -1,3 +1,19 @@
+# Gmail outcome fixes and every-round stars - 2026-10-05 (codex)
+
+User keeps Passed/Declined and wants each Passed round's email highlighted.
+Eight new regressions failed before changes on b4923c1. Fix ambiguous role
+matching (including body-only roles and mismatched requisitions), same-title
+cross-application writes, weak rejection courtesies, and new unclear replies
+hidden by older outcomes. Every Passed round is starred once per message;
+already-starred IDs remain remembered so user-unstarred mail stays unstarred.
+Preview now leaves the mail cache untouched. No additional stored status.
+
+Offline: 53 Gmail/outcome tests and 32 Review payload/cache tests pass on
+b4923c1 plus this patch. The Windows env-file test passes with Git Bash rather
+than the default WSL launcher. No live mail or durable application history was
+changed; existing historical wrong marks were not automatically rewritten.
+Push is separate from deployment; no VPS installation or Gmail run performed.
+
 # Retire abandoned autofill - 2026-10-04 (codex)
 
 At the user's request, remove application-autofill, the answer_bank module,

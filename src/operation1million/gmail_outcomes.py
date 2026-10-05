@@ -283,7 +283,7 @@ def classify(subject, body):
     plain = [line for line in lowered if not _DECLINE_HEDGES.search(line)]
     hits = set().union(*(_found(_DECLINED, line) for line in plain)) if plain else set()
     patterned = any(pattern.search(line) for line in plain for pattern in DECLINED_PATTERNS)
-    declined = patterned or bool(hits - DECLINED_WEAK) or len(hits) >= 2
+    declined = patterned or bool(hits - DECLINED_WEAK)
     if passed and declined:
         return 'unclear'
     if passed:
@@ -294,7 +294,7 @@ def classify(subject, body):
         return None
     mentioned = any(_PASSED_WEAK.search(line) and not _HEDGES.search(line) and not _DESCRIPTIVE.search(line)
                     for line in lowered)
-    return 'unclear' if mentioned else None
+    return 'unclear' if mentioned or len(hits) >= 2 else None
 
 
 _PASSED, _PASSED_WEAK, _DECLINED = _phrases(PASSED), _phrases(PASSED_WEAK), _phrases(DECLINED)
@@ -381,21 +381,32 @@ def match(groups, message, company_only=False):
     if company_only:
         return candidates
     text = head + ' ' + _words(message['text'])
-    if len(candidates) == 1:
-        only = candidates[0]
-        if _has(_words(only.get('title')), text) or not _names_a_role(message):
-            return candidates
-        return []
-    by_id = [group for group in candidates
-             if any(len(str(job.get('source_job_id') or '')) >= 4
-                    and _has(_words(job['source_job_id']), text) for job in group.get('jobs', ()))]
-    if by_id:
+    ids = {id(group): {_words(job['source_job_id']) for job in group.get('jobs', ())
+                      if len(str(job.get('source_job_id') or '')) >= 4}
+           for group in candidates}
+    # Explicit requisition labels are evidence against a title/company fallback.
+    explicit = {_words(value) for value in re.findall(
+        r'\b(?:JR\d{4,}|R\d{5,})\b', message['subject'] + ' ' + message['text'], re.I)}
+    explicit.update(_words(value) for value in re.findall(
+        r'\b(?:requisition|job|req)(?:\s+(?:id|number|no\.?))?\s*[:#]\s*([a-z0-9-]{4,})',
+        message['subject'] + ' ' + message['text'], re.I))
+    by_id = [group for group in candidates if any(_has(value, text) for value in ids[id(group)])]
+    if explicit:
+        # Multiple requisitions in a thread cannot safely select one application.
+        if len(explicit) != 1:
+            return []
+        by_id = [group for group in candidates if explicit <= ids[id(group)]]
         return by_id
+    if by_id:
+        # Return multiple copies only with a shared, actually mentioned identifier.
+        shared = set.intersection(*(ids[id(group)] for group in by_id))
+        return by_id if any(_has(value, text) for value in shared) else []
     by_title = [group for group in candidates if len(_words(group.get('title'))) >= 6
                 and _has(_words(group.get('title')), text)]
-    # One title advertised in several places is one role to the employer.
-    if by_title and len({_words(group['title']) for group in by_title}) == 1:
+    if len(by_title) == 1:
         return by_title
+    if len(candidates) == 1 and not _names_a_role(message):
+        return candidates
     return []
 
 
@@ -404,9 +415,9 @@ ROLE_WORDS = re.compile(r'\b(?:intern|internship|co-?op|engineer|engineering|dev
 
 
 def _names_a_role(message):
-    """Whether the subject names a role, as "Your application to 2027 Summer
+    """Whether the subject or body names a role, as "Your application to 2027 Summer
     Intern - Digital Product" does and "Your IBM Application Status" does not."""
-    return bool(ROLE_WORDS.search(_plain(message.get('subject'))))
+    return bool(ROLE_WORDS.search(_plain(message.get('subject')) + ' ' + _plain(message.get('text'))))
 
 
 def _later(when, days):
@@ -445,7 +456,7 @@ def decide(groups, messages, current):
     read oldest first, so the latest word wins: an interview and then a
     rejection ends Declined.
     """
-    wanted, unsorted, stars, passed_before, seen_senders = {}, [], [], set(), set()
+    wanted, unsorted, stars, seen_senders = {}, [], [], set()
     for message in sorted(messages, key=lambda item: item['at']):
         verdict = message.get('outcome')
         sender = _sender(message)
@@ -469,13 +480,11 @@ def decide(groups, messages, current):
             if verdict == 'passed' and (guess or _sender(message) in seen_senders):
                 stars.append(message['id'])
             continue
-        if verdict == 'passed' and not all(group['id'] in passed_before for group in found):
+        if verdict == 'passed':
             stars.append(message['id'])
         for group in found:
             # A second round after a pass changes nothing; a rejection after
             # it does, since the latest word wins.
-            if verdict == 'passed':
-                passed_before.add(group['id'])
             wanted[group['id']] = (verdict, message['id'])
     writes = []
     for group_id, (verdict, message_id) in wanted.items():
@@ -664,6 +673,19 @@ def _save(path, value):
     os.replace(temporary, path)
 
 
+def _settled(item, event, cache):
+    """Only a decision after this reply can settle it; replay time is not mail time."""
+    if not event:
+        return False
+    if event.get('by') == 'gmail':
+        decision_at = (cache.get(event.get('message')) or {}).get('at')
+        if not decision_at or not event.get('outcome'):
+            return False
+    else:
+        decision_at = event.get('at')
+    return bool(decision_at and decision_at >= item['at'])
+
+
 def run(db, ledger, address, password, directory=None, capture=None, preview=False):
     """One pass. With `preview`, everything is read and decided and nothing is
     written or starred: the returned summary carries what would have been."""
@@ -683,7 +705,6 @@ def run(db, ledger, address, password, directory=None, capture=None, preview=Fal
     for message in cache.values():
         if 'text' in message:
             message['outcome'] = classify(message['subject'], message['text'])
-    _save(cache_path, cache)
     outcomes = applications.outcomes_path(ledger)
     writes, unsorted, stars = decide(groups, list(cache.values()), last_events(outcomes))
     if preview:
@@ -694,16 +715,17 @@ def run(db, ledger, address, password, directory=None, capture=None, preview=Fal
                            'from': cache[message_id]['from'], 'at': cache[message_id]['at']}
                           for group_id, verdict, message_id in writes],
                 'list': unsorted, 'stars': [cache[message_id]['subject'] for message_id in stars]}
+    _save(cache_path, cache)
     for group_id, verdict, message_id in writes:
         applications.append_outcome(outcomes, group_id, verdict, by='gmail', message=message_id)
     # Settled since, by hand or by a later email: not worth showing again.
     marked = last_events(outcomes)
     recent = (datetime.now(timezone.utc) - timedelta(days=21)).isoformat()
     unsorted = [item for item in unsorted if item['at'] >= recent and not (
-        item['groups'] and all((marked.get(group) or {}).get('outcome') for group in item['groups']))]
+        item['groups'] and all(_settled(item, marked.get(group), cache) for group in item['groups']))]
     _save(directory / 'unsorted.json', unsorted)
-    # The first Passed reply per position, and every one not tied to a
-    # position: an invitation is worth finding; a second round is not news.
+    # Every Passed round is news; persist message IDs so user-unstarred mail
+    # is never automatically starred again.
     starred_path = directory / 'starred.json'
     starred = set(_load(starred_path, []))
     to_star = [message_id for message_id in stars if message_id not in starred]

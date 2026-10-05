@@ -2552,3 +2552,23 @@ counters, persisted atomically; obsolete numeric checkpoint namespaces no longer
 suppress work. No budget, query, lookback or eligibility expansion accompanies
 this repair. Explicit reviewed official-link mappings also suppress paid copies
 when the target still has the same company/title; application history is untouched.
+
+## Gmail outcome identity and round notifications - 2026-10-05
+
+Eight offline regressions failed on b4923c1 before this patch: body-only role
+conflicts, contradictory requisitions, identical titles with distinct IDs,
+weak courtesies rejecting confirmations, later Passed rounds not starred,
+older outcomes hiding newer unclear replies, preview writing a cache, and a
+previously starred first round suppressing notification of the next round.
+
+Match explicit requisitions before title/company fallback; contradictory or
+multiple explicit IDs remain for review. A title alone must match one group.
+Weak rejection courtesies do not establish Declined. Passed and Declined remain
+the only stored outcomes; unclear replies do not write an outcome. Every Passed
+round is eligible for a star, once per Gmail message ID; manually removed stars
+are not restored. Settlement uses the decisive email's timestamp, not when the
+cache was replayed. Preview does not write the message cache.
+
+Validation: 53 Gmail/outcome tests and 32 Review payload/cache tests pass offline.
+Git Bash was used for the env-file test on Windows; the default WSL launcher
+failed previously. No mailbox changes, production measurements or deployment.

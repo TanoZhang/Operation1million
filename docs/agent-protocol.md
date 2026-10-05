@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: User-requested Gmail matching/classification fixes and star every Passed round once; retain Passed/Declined outcomes and manual overrides.
+Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py, docs/{agent-protocol,architecture,application-review,handoff}.md
+Base commit: b4923c1
+Status: done -- eight regressions red before fix; 85 focused offline tests pass.
+Next: Commit/push; deploy separately. No live mailbox writes or historical outcome repair.
+```
+
+```text
 Owner: claude
 Scope: At the user's request (2026-10-05): rename everything named operation1million to
        operation1million -- package, imports, OPERATION1MILLION_* variables, systemd
