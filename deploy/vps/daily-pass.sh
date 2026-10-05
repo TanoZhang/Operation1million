@@ -85,7 +85,13 @@ publish_state() {
     # from the truncated log. That would shrink the live database and not only
     # the backup, because `seen` and `closed` events are UPDATE statements: a
     # posting whose job line was pruned is not recreated by them, it is gone.
-    python -m jobdisco.prune --store "$DATA" --keep "${JOBDISCO_KEEP_DAYS:-14}"
+    #
+    # That rebuild happens anyway, on every change to data/config, so the open
+    # postings a pruned day alone describes are first written into today's log
+    # from this index (#318). If that fails, nothing is pruned.
+    python -m jobdisco.prune --store "$DATA" --keep "${JOBDISCO_KEEP_DAYS:-14}" \
+      --db "$CODE/data/db/job_discovery.sqlite" \
+      || note_problem 'the log was not pruned; open postings could not be carried forward'
     git add -A runs manifests source_state.json
   else
     publication_failed=1

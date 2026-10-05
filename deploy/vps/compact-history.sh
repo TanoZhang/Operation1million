@@ -73,7 +73,10 @@ cleanup() {
 }
 trap cleanup EXIT
 git worktree add --quiet --detach "$staging/tree" HEAD
-python -m jobdisco.prune --store "$staging/tree" --keep "$KEEP"
+# Open postings a dropped day alone describes are carried into the staged
+# tree's log first, from the live index (#318); without one, nothing is pruned.
+python -m jobdisco.prune --store "$staging/tree" --keep "$KEEP" \
+  --db "$ROOT/code/data/db/job_discovery.sqlite"
 
 echo '== Replace the history with one commit =='
 git -C "$staging/tree" add -A

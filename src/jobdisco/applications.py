@@ -124,6 +124,148 @@ def scoped_identity(job):
     return (*_scope(job), requisition)
 
 
+def _plain(value):
+    return ' '.join(re.sub(r'[\W_]+', ' ', str(value or '')).casefold().split())
+
+
+def employer_name(value):
+    """An employer's name without its legal suffix, for matching across sources.
+
+    A paid listing's employer outside the catalog is keyed by a hash of the
+    name as the publisher wrote it, so "NIKSUN" and "NIKSUN, Inc." were two
+    employers, and "Marvell Technology" on LinkedIn was not Marvell's board.
+    """
+    words = _plain(value).split()
+    while words and words[-1] in {'inc', 'incorporated', 'corp', 'corporation', 'llc',
+                                  'ltd', 'limited', 'co', 'company', 'plc'}:
+        words.pop()
+    return ' '.join(words)
+
+
+VAGUE_PLACES = {'', 'us', 'usa', 'united states', 'united states of america', 'remote'}
+# Workday's summary of a posting in several places, "3 Locations".
+MANY_PLACES = re.compile(r'^\d+ locations$')
+
+
+def _city(place):
+    return _plain(str(place or '').split(',')[0])
+
+
+def unify_copies(recent, backlog, decided):
+    """Fold the same job found on several sites into one group, in place.
+
+    Asked for on 2026-10-04: a posting found on the company's site, LinkedIn
+    and two job boards was four entries, and an application made through one
+    left the other three asking to be applied for. A paid listing joins the
+    company's own posting when the employer and the cleaned title agree and
+    exactly one open company posting carries that title -- or, where the
+    company lists the title once per city, exactly one in the listing's city.
+    Two named places that differ keep them apart.
+    Anything less certain stays apart: showing a job twice is recoverable,
+    hiding a different requisition behind one decision is not. Paid listings
+    with no company posting join each other on employer, title and city.
+
+    Every listing stays in the group, so no link is lost, and a decision on
+    any of them covers the group. Returns the keys of merged groups a
+    decision already covers, which are not open for review.
+    """
+    tables = (recent, backlog)
+    direct = {}
+    for table in tables:
+        for key, group in table.items():
+            for job in group['jobs']:
+                if job.get('provider_key') != 'jsearch':
+                    direct.setdefault((employer_name(job.get('company')), _plain(job['title'])),
+                                      {})[key] = group
+
+    def where(key):
+        return recent if key in recent else backlog
+
+    def target_for(key, group):
+        if any(job.get('provider_key') != 'jsearch' for job in group['jobs']):
+            return None
+        job = group['jobs'][0]
+        found = direct.get((employer_name(job.get('company')), _plain(job['title'])), {})
+        cities = {_city(item.get('location')) for item in group['jobs']} - VAGUE_PLACES
+
+        def same_place(target):
+            places = [_plain(item.get('location')) for item in target['jobs']]
+            if all(_city(place) in VAGUE_PLACES or MANY_PLACES.match(place) for place in places):
+                return True
+            return any(city in place for place in places for city in cities)
+
+        if len(found) > 1:
+            # One title per city: only the listing's city can say which.
+            found = {other: target for other, target in found.items()
+                     if cities and same_place(target)}
+        elif cities:
+            # Both name a place and they differ: another requisition, perhaps.
+            found = {other: target for other, target in found.items() if same_place(target)}
+        return next(iter(found)) if len(found) == 1 else None
+
+    merged = set()
+
+    def fold(key, into):
+        merged.add(into)
+        merged.discard(key)
+        source, destination = where(key), where(into)
+        group = source.pop(key)
+        if source is recent and destination is backlog:
+            # The whole group is recent when any listing is, as for a
+            # requisition that gained a location (see the backlog merge).
+            recent[into] = backlog.pop(into)
+            destination = recent
+        target = destination[into]
+        target['jobs'].extend(group['jobs'])
+        target['confidence'] = max(target['confidence'], group['confidence'])
+        target['internship_experience'] = (target['internship_experience']
+                                           or group['internship_experience'])
+        target['flagged'] = target['flagged'] or group['flagged']
+
+    for table in tables:
+        for key, group in list(table.items()):
+            if key in table:
+                into = target_for(key, group)
+                if into is not None and into != key:
+                    fold(key, into)
+    paid = {}
+    for table in tables:
+        for key, group in list(table.items()):
+            if key not in table or any(job.get('provider_key') != 'jsearch' for job in group['jobs']):
+                continue
+            job = group['jobs'][0]
+            into = paid.setdefault((employer_name(job.get('company')), _plain(job['title']),
+                                    _city(job.get('location'))), key)
+            if into != key:
+                fold(key, into)
+    # A listing that names no city ("US", or nothing) is the same job as the
+    # one listing of it that does, and is left apart when there are several.
+    titled = {}
+    for table in tables:
+        for key, group in table.items():
+            job = group['jobs'][0]
+            titled.setdefault((employer_name(job.get('company')), _plain(job['title'])), []).append(key)
+    for keys in titled.values():
+        if len(keys) != 2:
+            continue
+        for key, other in (keys, keys[::-1]):
+            group = where(key).get(key)
+            if (group is None or other not in recent and other not in backlog
+                    or any(job.get('provider_key') != 'jsearch' for job in group['jobs'])
+                    or {_city(job.get('location')) for job in group['jobs']} - VAGUE_PLACES):
+                continue
+            fold(key, other)
+            break
+
+    def ruled(job):
+        return (decided(job) or {}).get('status', 'pending') != 'pending'
+
+    # Only a group this built: a requisition's own listings keep their own
+    # decisions, as an old URL-only one covers just its listing.
+    return {key for table in tables for key, group in table.items()
+            if key in merged and any(ruled(job) for job in group['jobs'])}
+
+
 def listing_signature(job):
     """Company, title and place of a paid listing, for spotting the same job twice.
 
@@ -619,6 +761,7 @@ def queue(db_path=DB, path=None, now=None):
                 # listing's score, so an older listing of the same requisition
                 # that scored higher could not lift it.
                 groups[key]['confidence'] = max(groups[key]['confidence'], older['confidence'])
+        covered = unify_copies(groups, backlog, decision_for)
         for url, event in url_states.items():
             if event['status'] == 'pending':
                 continue
@@ -651,6 +794,9 @@ def queue(db_path=DB, path=None, now=None):
         """Groups nobody has ruled on, with any already-ruled listing removed."""
         out = []
         for key, group in source.items():
+            if key in covered:
+                # A copy of it was applied for or skipped (`unify_copies`).
+                continue
             group['jobs'] = [job for job in group['jobs']
                              if (decision_for(job) or {}).get('status', 'pending') == 'pending']
             if group['jobs']:

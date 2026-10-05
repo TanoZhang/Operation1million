@@ -77,10 +77,19 @@ class DiscoveryIdentityTests(unittest.TestCase):
         self.assertEqual(len(state['applied']), 1)
 
     def test_same_title_without_requisition_evidence_is_not_hidden(self):
+        # Since 2026-10-04 (#319) the copy joins the company posting's entry
+        # instead of standing apart; it is listed there, not hidden.
         self.save(self.row('JR1234567', 'https://sample.wd5.myworkdayjobs.com/job/ASIC_JR1234567', 'workday'), 1)
         self.save(self.row('search-a', description='ASIC verification SystemVerilog UVM'), 2)
-        self.assertEqual(len(applications.queue(self.path, self.ledger,
-                            datetime(2026, 10, 3, tzinfo=timezone.utc))['pending']), 2)
+        self.assert_one_entry_listing_both()
+
+    def assert_one_entry_listing_both(self):
+        pending = applications.queue(self.path, self.ledger,
+                                     datetime(2026, 10, 3, tzinfo=timezone.utc))['pending']
+        self.assertEqual(len(pending), 1)
+        self.assertEqual({job['url'] for job in pending[0]['jobs']},
+                         {'https://sample.wd5.myworkdayjobs.com/job/ASIC_JR1234567',
+                          'https://www.linkedin.com/jobs/view/asic-engineer-1234567890'})
 
     def test_replay_recovers_earliest_discovery_from_old_rotating_ids(self):
         self.save(self.row('search-a'), 1)
@@ -111,8 +120,9 @@ class DiscoveryIdentityTests(unittest.TestCase):
     def test_multiple_requisition_references_are_ambiguous(self):
         self.save(self.row('JR1234567', 'https://sample.wd5.myworkdayjobs.com/job/ASIC_JR1234567', 'workday'), 1)
         self.save(self.row('search-a', description='ASIC verification JR1234567 or JR7654321'), 2)
-        self.assertEqual(len(applications.queue(self.path, self.ledger,
-                            datetime(2026, 10, 3, tzinfo=timezone.utc))['pending']), 2)
+        # Ambiguous references hide nothing; the shared title still makes it
+        # one entry with both listings (#319).
+        self.assert_one_entry_listing_both()
 
     def test_explicit_official_link_consolidates_copy_without_jr_number(self):
         official = 'https://sample.wd5.myworkdayjobs.com/job/ASIC_JR1234567'

@@ -5,6 +5,23 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: At the user's request (2026-10-04): two AGENTS.md invariants from the
+       search-v2 cursor bug; hunt for bugs of the same class (collection that
+       silently reads less than it should, fixtures that encode an assumption).
+       Then, at the user's request, one entry per job across sources (#319).
+       Codex is out until 20:33; small edits in its files, each noted here:
+       store.py (MONOTONIC_NEWEST_FIRST only, #317), applications.py
+       (unify_copies and its call, #319).
+Files: AGENTS.md, docs/{agent-protocol,bug-tracker}.md, src/jobdisco/{store,prune,applications}.py,
+       deploy/vps/daily-pass.sh, tests/{test_store,test_prune,test_unify_copies}.py
+Base commit: c3923f6
+Status: done locally -- not committed, not deployed (the user asked to hold the deploy)
+Next: User decides on commit/push; WSL suite before pushing; restoring the
+      2,136 postings already lost (#318) from the data repository's history.
+```
+
+```text
 Owner: codex
 Scope: Preserve first discovery for stable LinkedIn postings with rotating search IDs; suppress confirmed Workday copies by employer/title/requisition evidence; audit the latest query yield without changing the user's query plan.
 Files: src/jobdisco/{store,applications,jsearch,jsearch_access,workflow_state}.py, tests/{test_discovery_identity,test_jsearch,test_jsearch_plan_bugs,test_workflow_state}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md

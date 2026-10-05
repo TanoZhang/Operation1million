@@ -19,6 +19,8 @@ Claude and Codex both work in this repo and follow the same rules. Detail lives 
 - `first_seen` is when we first saw a posting, not when it was published.
 - Hard rejects run before keeps and scores, and nothing overrides them. A word with an ordinary semiconductor meaning is not a hard reject by itself.
 - Don't bypass access challenges, run two collectors at once, rewrite sealed logs, or bypass the 25% closure fuse. Read `docs/collection-rules.md` before collection work.
+- Page by the provider's own continuation field (search-v2: `data.cursor`). A short page is not the end of the results, and an unspent budget is not proof a search was exhausted.
+- A paid or external API's test fixture is a captured real response, not our idea of one. A fixture written from an assumption passes with the bug it should catch (`docs/architecture.md`, "search-v2 cursors").
 - A push doesn't deploy. `deploy/vps/install.sh` does (or `deploy/local/deploy-vps.bat`) and prints the installed commit.
 
 ## Public repo

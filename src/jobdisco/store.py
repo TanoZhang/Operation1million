@@ -26,7 +26,14 @@ LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass')
 # Boards whose listing is strictly newest-first, verified by sampling offsets
 # across the whole result set. Only these may stop paginating early; a board
 # that merely trends newest-first would silently drop postings.
-MONOTONIC_NEWEST_FIRST = {'eightfold'}
+#
+# None, since 2026-10-04 (#317). Eightfold was here, but Micron's search
+# answers `"sortBy": "hot"`: its first page opened with eight promoted
+# postings from June to September and then that day's. The incremental pass
+# stopped at the first older one, so from 2026-09-28 each daily pass read one
+# page, kept two postings, called the board complete -- and, being incremental,
+# never closed anything. Micron, Qualcomm and Lam Research are read in full.
+MONOTONIC_NEWEST_FIRST = set()
 # How far behind its watermark an incremental pass on a newest-first board still
 # reads, and how old its last full pass may be before the next pass is a full
 # one. The overlap catches a posting that reached the index after its stated

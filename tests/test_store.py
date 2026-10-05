@@ -108,17 +108,28 @@ class StoreTests(unittest.TestCase):
             store.plan(SOURCE, {'ashby:matx': {'last_success_at': None, 'etag': 'W/"x"'}}),
             ('full', None))
 
+    def test_eightfold_is_not_read_as_newest_first(self):
+        """#317, from a captured response: Micron's first page, 2026-10-04.
+
+        The posting dates in the order the search returned them under
+        `"sortBy": "hot"` (job content left out; the order is the evidence).
+        """
+        captured = ['2026-09-24', '2026-09-23', '2026-09-23', '2026-09-04', '2026-09-02',
+                    '2026-08-12', '2026-07-23', '2026-06-22', '2026-10-04', '2026-10-04']
+        self.assertNotEqual(captured, sorted(captured, reverse=True))
+        self.assertNotIn('eightfold', store.MONOTONIC_NEWEST_FIRST)
+
     def test_strategy_follows_what_the_board_supports(self):
         done = {'last_success_at': '2026-09-16T00:00:00+00:00'}
         self.assertEqual(store.plan(SOURCE, {'ashby:matx': dict(done, etag='W/"x"')}),
                          ('conditional', 'W/"x"'))
         eightfold = replace(SOURCE, source_id='ef:q', provider_key='eightfold')
-        # A newest-first board reads incrementally only while its last full
-        # pass is recent; with none on record it is read in full (B51).
+        # Eightfold ranks its search "hot", not newest first (#317), so even
+        # after a recent full pass it is read in full.
         recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
         self.assertEqual(store.plan(eightfold, {'ef:q': done})[0], 'full')
         self.assertEqual(store.plan(eightfold, {'ef:q': dict(done, last_full_at=recent)})[0],
-                         'since')
+                         'full')
         sitemap = replace(SOURCE, source_id='rn', provider_key='renesas_careers')
         self.assertEqual(store.plan(sitemap, {'rn': done})[0], 'lastmod')
         # An unrecognised board is read in full rather than guessed at.
@@ -1520,6 +1531,10 @@ class IncrementalReconciliationTests(unittest.TestCase):
 
     def test_an_incremental_pass_reads_back_a_week_and_a_stale_one_reads_everything(self):
         """A posting can reach the index after its stated date, or be edited under it."""
+        # The mechanism, for a board that is newest first; none is today (#317).
+        monotonic = patch.object(store, 'MONOTONIC_NEWEST_FIRST', {'eightfold'})
+        monotonic.start()
+        self.addCleanup(monotonic.stop)
         success = self.ago(0)
         strategy, watermark = store.plan(self.eightfold, {'ef:q': {
             'last_success_at': success, 'last_full_at': self.ago(1), 'last_status': 'complete'}})

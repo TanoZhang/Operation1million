@@ -1,5 +1,6 @@
 """The log is a rolling backup, and pruning it must not take anything else."""
 from pathlib import Path
+import gzip
 import json
 import tempfile
 import unittest
@@ -18,7 +19,7 @@ class PruneTests(unittest.TestCase):
 
     def day(self, stamp, shard=None):
         name = f'{stamp}-{shard}' if shard else stamp
-        (self.store / 'runs' / f'{name}.ndjson.gz').write_bytes(b'x')
+        (self.store / 'runs' / f'{name}.ndjson.gz').write_bytes(gzip.compress(b''))
         (self.store / 'manifests' / f'{name}.json').write_text('{}', encoding='utf-8')
 
     def names(self, folder):
@@ -97,7 +98,7 @@ class PrunedStoreStillVerifies(unittest.TestCase):
             (store / 'runs').mkdir()
             (store / 'manifests').mkdir()
             for stamp in ('2026-08-01', '2026-09-05', '2026-09-18', '2026-09-19'):
-                (store / 'runs' / f'{stamp}.ndjson.gz').write_bytes(b'x')
+                (store / 'runs' / f'{stamp}.ndjson.gz').write_bytes(gzip.compress(b''))
                 (store / 'manifests' / f'{stamp}.json').write_text(
                     json.dumps({'day': stamp}), encoding='utf-8')
             prune.prune(store, keep_days=14, today='2026-09-19')
@@ -109,3 +110,91 @@ class PrunedStoreStillVerifies(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CarryForwardTests(unittest.TestCase):
+    """#318: a rebuild from the window must still hold every open posting."""
+
+    def setUp(self):
+        from contextlib import closing
+        import sqlite3
+        from unittest.mock import patch
+        from jobdisco import store
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.log = self.root / 'store'
+        patcher = patch.object(store, 'LOG', self.log)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.db_path = self.root / 'jobs.sqlite'
+        with closing(sqlite3.connect(self.db_path)) as db:
+            db.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            db.commit()
+        store.migrate(self.db_path)
+        self.store = store
+
+    def posting(self, db, url, first_seen, closed_at=None):
+        db.execute('INSERT INTO jobs (url, company_key, provider_key, title, first_seen, last_seen, '
+                   'closed_at, raw) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                   (url, 'micron', 'eightfold', 'Intern - DRAM Design Engineer', first_seen,
+                    first_seen, closed_at, '{}'))
+
+    def test_an_open_posting_from_a_pruned_day_survives_a_rebuild_with_its_first_seen(self):
+        from contextlib import closing
+        store = self.store
+        old, today = '2026-09-01T11:00:00+00:00', store.now()
+        with closing(store.connect(self.db_path)) as db:
+            self.posting(db, 'https://careers.micron.com/careers/job/1', old)
+            self.posting(db, 'https://careers.micron.com/careers/job/2', old,
+                         closed_at='2026-09-02T11:00:00+00:00')
+            self.posting(db, 'https://careers.micron.com/careers/job/3', today)
+            db.commit()
+            store.append_log(db, ['https://careers.micron.com/careers/job/1',
+                                  'https://careers.micron.com/careers/job/2'], [], old,
+                             allow_sealed=True)
+            store.append_log(db, ['https://careers.micron.com/careers/job/3'], [], today)
+        result = prune.prune(self.log, keep_days=14, db_path=self.db_path)
+        self.assertEqual(result['removed_days'], ['2026-09-01'])
+        self.assertEqual(result['carried'], 1)
+        rebuilt = self.root / 'rebuilt.sqlite'
+        store.bootstrap(rebuilt)
+        with closing(store.connect(rebuilt)) as db:
+            rows = dict(db.execute('SELECT url, first_seen FROM jobs').fetchall())
+        self.assertEqual(rows, {'https://careers.micron.com/careers/job/1': old,
+                                'https://careers.micron.com/careers/job/3': today})
+
+    def test_postings_are_carried_into_the_store_being_pruned(self):
+        """History compaction prunes a staged copy, not the store JOBDISCO_STORE names."""
+        from contextlib import closing
+        import shutil
+        store = self.store
+        old = '2026-09-01T11:00:00+00:00'
+        with closing(store.connect(self.db_path)) as db:
+            self.posting(db, 'https://careers.micron.com/careers/job/1', old)
+            db.commit()
+            store.append_log(db, ['https://careers.micron.com/careers/job/1'], [], old,
+                             allow_sealed=True)
+            store.append_log(db, [], [], store.now(), seen_urls=['https://careers.micron.com/careers/job/1'])
+        staged = self.root / 'staged'
+        shutil.copytree(self.log, staged)
+        before = sorted(p.name for p in (self.log / 'runs').iterdir())
+        result = prune.prune(staged, keep_days=14, db_path=self.db_path)
+        self.assertEqual(result['carried'], 1)
+        self.assertEqual(sorted(p.name for p in (self.log / 'runs').iterdir()), before)
+        self.assertIn('https://careers.micron.com/careers/job/1',
+                      prune.job_urls((staged / 'runs').glob('*.ndjson.gz')))
+
+    def test_without_an_index_nothing_is_pruned(self):
+        from contextlib import closing
+        store = self.store
+        old = '2026-09-01T11:00:00+00:00'
+        with closing(store.connect(self.db_path)) as db:
+            self.posting(db, 'https://careers.micron.com/careers/job/1', old)
+            db.commit()
+            store.append_log(db, ['https://careers.micron.com/careers/job/1'], [], old,
+                             allow_sealed=True)
+            store.append_log(db, [], [], store.now(), seen_urls=['https://careers.micron.com/careers/job/1'])
+        with self.assertRaises(FileNotFoundError):
+            prune.prune(self.log, keep_days=14, db_path=self.root / 'absent.sqlite')
+        self.assertTrue((self.log / 'runs' / '2026-09-01.ndjson.gz').exists())
