@@ -102,6 +102,7 @@ async function main() {
   dom.window.close();
   await checkLoadingTimeout();
   await checkPreparingMessage();
+  await checkBatches();
   console.log('Review checkbox and download interactions OK');
 }
 main().catch(error => {console.error(error); dom.window.close(); process.exitCode = 1;});
@@ -135,4 +136,44 @@ async function checkPreparingMessage() {
     assert.equal(view.document.getElementById('list').textContent,
       'Preparing the job queue. This page will update automatically.');
   } finally {preparing.window.close();}
+}
+
+async function checkBatches() {
+  // 2026-10-04: a long list is downloaded 250 at a time, in the order shown.
+  const page = new JSDOM(fs.readFileSync(path.join(assets, 'index.html'), 'utf8'),
+    {url:'http://localhost:8765', runScripts:'outside-only'});
+  const view = page.window;
+  const many = {pending: Array.from({length: 600}, (_, i) => group('g' + String(i).padStart(3, '0'))),
+    backlog: [], applied: [], skipped: [], token: 'fixture'};
+  let ids, name;
+  view.URL.createObjectURL = () => 'blob:fixture';
+  view.URL.revokeObjectURL = () => {};
+  view.HTMLAnchorElement.prototype.click = function () {name = this.download;};
+  view.fetch = async (url, options) => {
+    if (url === '/api/export/download') {
+      ids = JSON.parse(options.body).ids;
+      return {ok: true, blob: async () => new view.Blob(['fixture'])};
+    }
+    return {ok: true, json: async () => url === '/api/queue' ? many : {description: ''}};
+  };
+  try {
+    view.eval(fs.readFileSync(path.join(assets, 'app.js'), 'utf8'));
+    await new Promise(resolve => setTimeout(resolve, 15));
+    const batch = view.document.getElementById('batch');
+    assert.deepEqual([...batch.options].slice(1).map(o => o.textContent), ['1–250', '251–500', '501–600']);
+    view.document.getElementById('sort').value = 'oldest';
+    view.document.getElementById('sort').dispatchEvent(new view.Event('change'));
+    const order = [...view.document.querySelectorAll('.job-check')].map(box => box.dataset.groupId);
+    batch.value = '1';
+    batch.dispatchEvent(new view.Event('change'));
+    assert.match(view.document.getElementById('download-selected').textContent, /\(250\)/);
+    view.document.getElementById('download-selected').click();
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(ids.length, 250);
+    assert.equal(name, 'review-batch-2-251-500.xlsx');
+    assert.equal(new Set(ids).has(order[0]), false);
+    // A selection changed by hand is no longer the batch.
+    view.document.getElementById('clear-selection').click();
+    assert.equal(batch.value, '');
+  } finally {page.window.close();}
 }

@@ -9,10 +9,37 @@ let sortMode = 'fit-desc';
 try { sortMode = localStorage.getItem(SORT_KEY) || sortMode; } catch { /* no storage */ }
 const checkedJobs = new Set();
 let downloading = false;
+// Asked for on 2026-10-04: a list of 2,000 is submitted in batches of 200-300.
+// A batch is a slice of the list on screen, in its order; picking one selects
+// exactly it, and the download is named after it.
+const BATCH = 250;
+let batchName = '';
+function batchOptions(total) {
+  const select = $('#batch');
+  const count = Math.ceil(total / BATCH);
+  const chosen = select.value;
+  const options = ['<option value="">of 250&hellip;</option>'];
+  for (let i = 0; i < count; i++) {
+    const first = i * BATCH + 1, last = Math.min(total, (i + 1) * BATCH);
+    options.push(`<option value="${i}">${first}&ndash;${last}</option>`);
+  }
+  select.innerHTML = options.join('');
+  select.value = chosen !== '' && Number(chosen) < count ? chosen : '';
+  select.disabled = total === 0;
+}
 function updateSelection() {
   const valid = new Set(allGroups().map(group => group.id));
   for (const id of checkedJobs) if (!valid.has(id)) checkedJobs.delete(id);
   const matches = filtered();
+  batchOptions(matches.length);
+  if ($('#batch').value !== '') {
+    const index = Number($('#batch').value);
+    const members = matches.slice(index * BATCH, (index + 1) * BATCH);
+    // Still the batch only while the selection is exactly it.
+    if (members.length !== checkedJobs.size || !members.every(group => checkedJobs.has(group.id))) {
+      $('#batch').value = ''; batchName = '';
+    }
+  }
   const count = matches.filter(group => checkedJobs.has(group.id)).length;
   $('#select-matching').checked = matches.length > 0 && count === matches.length;
   $('#select-matching').indeterminate = count > 0 && count < matches.length;
@@ -442,6 +469,18 @@ $('#select-matching').onchange = event => {
   render();
 };
 $('#clear-selection').onclick = () => {checkedJobs.clear(); render();};
+$('#batch').onchange = event => {
+  checkedJobs.clear();
+  batchName = '';
+  if (event.target.value !== '') {
+    const index = Number(event.target.value);
+    const members = filtered().slice(index * BATCH, (index + 1) * BATCH);
+    members.forEach(group => checkedJobs.add(group.id));
+    const first = index * BATCH + 1;
+    batchName = `review-batch-${index + 1}-${first}-${first + members.length - 1}.xlsx`;
+  }
+  render();
+};
 async function downloadWorkbook(ids) {
   if (!loaded || downloading || !ids.length) return;
   downloading = true; $('#export').disabled = true; updateSelection();
@@ -452,7 +491,7 @@ async function downloadWorkbook(ids) {
     if (!response.ok) throw new Error((await response.json()).error || 'Download failed');
     const url = URL.createObjectURL(await response.blob());
     const anchor = document.createElement('a');
-    anchor.href = url; anchor.download = 'selected-positions.xlsx';
+    anchor.href = url; anchor.download = batchName || 'selected-positions.xlsx';
     document.body.append(anchor); anchor.click(); anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     error(''); $('#saved').textContent = `Downloaded ${ids.length} positions at ${clock()}`;

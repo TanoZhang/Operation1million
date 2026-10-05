@@ -58,12 +58,22 @@ exclude_job_publishers = [
 # 2026-09-19..26 yield, deepest where a query hit its cap with 4+ new accepted
 # postings a page; General keeps its earlier caps; eight broad early-career
 # phrasings are on trial.
+# Loosened 2026-10-04 at the user's request, from the first pass that followed
+# search-v2 cursors (147 credits): 35 queries ran out of results in 1-9 pages
+# and 8 stopped at their cap. Those 8 go to 40 (SoC Intern: 17 kept in 15
+# pages), 30 (the Electrical Engineering pair, 5-8 kept in 15) or 25 (General,
+# which had caps of 1-9); General queries within two pages of their cap go to
+# 20. Earlier runs stopped on short pages and do not measure depth.
+# Then, the same day: General goes to 40 throughout. It runs last, so it takes
+# whatever the early-career tiers leave of the 320 rather than leaving it
+# unspent; the guard still ends the day at 320. Four co-op phrasings join the
+# intern tier (a co-op is an internship to the filters; none was searched).
 # A month-wide backfill uses separate deeper caps for the same four tiers.
 [backfill_tier_pages]
 intern = 60
 new_grad = 50
 early_career = 40
-A = 30
+A = 60
 
 [filter]
 # Relevance scoring. Terms only ever add; nothing is deducted for a term being
@@ -652,7 +662,7 @@ pages = 15
 [[query]]
 query = "SoC Intern"
 tier = "intern"
-pages = 15
+pages = 40
 
 [[query]]
 query = "Physical Design Intern"
@@ -668,7 +678,7 @@ pages = 5
 [[query]]
 query = "Electrical Engineering Intern"
 tier = "intern"
-pages = 15
+pages = 30
 
 # Added 2026-10-03 at the user's request, on trial.
 [[query]]
@@ -685,6 +695,26 @@ pages = 15
 # Added 2026-10-03 at the user's request, on trial.
 [[query]]
 query = "Embedded Hardware Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "Hardware Engineering Co-op"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "Electrical Engineering Co-op"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "Computer Engineering Co-op"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "ASIC Co-op"
 tier = "intern"
 pages = 15
 
@@ -748,7 +778,7 @@ pages = 15
 [[query]]
 query = "Electrical Engineer New Grad"
 tier = "new_grad"
-pages = 15
+pages = 30
 
 # Added 2026-10-03 at the user's request, on trial.
 [[query]]
@@ -795,44 +825,44 @@ pages = 15
 [[query]]
 query = "Design Verification Engineer"
 tier = "A"
-pages = 10
+pages = 40
 
 [[query]]
 query = "RTL Engineer"
 tier = "A"
-pages = 9
+pages = 40
 
 [[query]]
 query = "ASIC Engineer"
 tier = "A"
-pages = 9
+pages = 40
 
 [[query]]
 query = "Digital Design Engineer"
 tier = "A"
-pages = 8
+pages = 40
 
 [[query]]
 query = "FPGA Engineer"
 tier = "A"
-pages = 7
+pages = 40
 
 [[query]]
 query = "Hardware Engineer"
 tier = "A"
-pages = 6
+pages = 40
 
 [[query]]
 query = "Silicon Engineer"
 tier = "A"
-pages = 4
+pages = 40
 
 [[query]]
 query = "Physical Design Engineer"
 tier = "A"
-pages = 1
+pages = 40
 
 [[query]]
 query = "DFT Engineer"
 tier = "A"
-pages = 1
+pages = 40
