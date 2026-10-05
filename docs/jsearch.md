@@ -1,6 +1,23 @@
 # JSearch daily discovery
 
-## The user's query plan - 2026-10-03
+## Current title-synonym trials - 2026-10-04
+
+The user approved fifteen additional title queries at three daily pages each,
+added to Claude's 47-query plan without changing any existing query or cap.
+Intern gains Hardware Verification, ASIC Design, Silicon Validation, Hardware
+Validation, IC Design, Logic Design, Pre-Silicon Verification and Emulation;
+Co-op gains Design Verification, Validation, FPGA and RTL. New Grad gains
+Hardware Verification, ASIC Design and Silicon Validation.
+
+The current plan has 62 queries: Intern/Co-op 30 (406 capped pages), New Grad
+17 (314), Entry Level 6 (100), General 9 (360). Caps total 1,180; the daily
+RequestGuard limit remains 320. The trials add at most 45 daily pages, subject
+to provider cursors and the shared budget. Backfill retains separate tier caps.
+No paid run was triggered by this configuration change. Measure incremental
+coverage against the original queries and direct sources; manifest jobs_unique
+is order-dependent run attribution, not exclusive or historical novelty.
+
+## Historical query plan - 2026-10-03
 
 At the user's request the plan is the user's own list of 43 queries, replacing
 the 2026-09-27 re-set and the 2026-10-02/03 trials: Intern 14 queries / 270
@@ -42,15 +59,15 @@ SQLite `search_queries` table is not executed by this collector.
 
 | Group | Queries |
 | --- | ---: |
-| Internships | 12 |
-| New Grad | 12 |
-| Early Career ("Entry Level") | 8 |
-| General | 19 |
-| Total | 51 |
+| Internships / Co-op | 30 |
+| New Grad | 17 |
+| Early Career ("Entry Level") | 6 |
+| General | 9 |
+| Total | 62 |
 
 The daily ceiling is 320. Each broad query declares a maximum depth, and since
-2026-10-03 those caps may total more than 320 (715: Intern 270, New Grad 290,
-Early Career 100, General 55). The budget guard stops the day at 320, and on a
+2026-10-03 those caps may total more than 320 (1,180: Intern/Co-op 406, New Grad 314,
+Early Career 100, General 360). The budget guard stops the day at 320, and on a
 full day the later tiers get what is left. Every call still asks for
 `num_pages=1`; no next cursor, a repeated page/cursor, deadline or budget limit
 keeps its existing early-stop behavior.

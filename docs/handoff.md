@@ -1,3 +1,21 @@
+# Three-page title-synonym trials - 2026-10-04 (codex)
+
+User approved the fifteen proposed title queries at three daily pages each,
+merged on top of Claude's 1215ea4 through base 3451171. Existing 47 queries
+and caps are unchanged, including four co-op terms and General at 40 pages.
+The new plan has 62 queries, capped at 1,180 pages in aggregate; RequestGuard
+still limits the day to 320 credits. Intern/Co-op gains twelve terms and New
+Grad three, costing at most 45 extra daily pages within the shared allowance.
+Backfill retains separate tier depths. No filter, collector, Review or paid
+request changes. This merge does not deploy or trigger collection.
+
+Validation: direct comparison against base 3451171 confirms all original
+queries, tiers and caps unchanged and exactly fifteen additions at three pages.
+Existing plan and budget tests updated for the new catalog; all 113 offline
+JSearch, plan-boundary and bulk-application tests pass on 3451171 plus this
+patch. The user reconfirmed that per-query caps are independent depth ceilings,
+not reserved slices; 320 is the aggregate actual-credit emergency brake.
+
 # search-v2 pagination repair - 2026-10-04 (codex)
 
 The earlier query audit's claim of exhausted results was wrong: the client

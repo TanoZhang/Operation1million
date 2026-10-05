@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Add the user's fifteen title-synonym trials at three pages each on top of Claude's merged caps and co-op plan.
+Files: data/config/jsearch_queries.toml, tests/test_jsearch.py, docs/{agent-protocol,handoff,jsearch}.md
+Base commit: 3451171
+Status: done -- 113 offline tests pass; all 47 existing queries and caps preserved.
+Next: Push the merged 62-query plan; deployment and paid collection are separate.
+```
+
+```text
 Owner: claude
 Scope: At the user's request (2026-10-04): two AGENTS.md invariants from the
        search-v2 cursor bug; hunt for bugs of the same class (collection that

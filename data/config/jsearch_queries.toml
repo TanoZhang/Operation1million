@@ -718,6 +718,67 @@ query = "ASIC Co-op"
 tier = "intern"
 pages = 15
 
+# Title-synonym trials requested 2026-10-04: three daily pages each.
+[[query]]
+query = "Hardware Verification Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "ASIC Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Validation Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Hardware Validation Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "IC Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Logic Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Pre-Silicon Verification Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Emulation Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Design Verification Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Validation Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "FPGA Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "RTL Co-op"
+tier = "intern"
+pages = 3
+
 [[query]]
 query = "ASIC New Grad"
 tier = "new_grad"
@@ -791,6 +852,22 @@ pages = 15
 query = "Hardware University Graduate"
 tier = "new_grad"
 pages = 15
+
+# Title-synonym trials requested 2026-10-04: three daily pages each.
+[[query]]
+query = "Hardware Verification New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "ASIC Design New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Silicon Validation New Grad"
+tier = "new_grad"
+pages = 3
 
 [[query]]
 query = "Design Verification Entry Level"
