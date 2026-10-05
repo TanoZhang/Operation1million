@@ -17,8 +17,13 @@ the ten-page change does not itself trigger another paid pass.
 
 Validation on 34260e6 plus this patch: all 117 JSearch/budget/pagination tests
 pass offline. Parsed-config comparison confirms exactly 123 page-cap changes
-and no other semantic changes. Deployment follows; the next scheduled pass
-is October 6 at 04:38 Pacific.
+and no other semantic changes. Installed 855898b with install.sh; three catalog
+and offline preview checks also pass on that exact commit. Live plan: 170
+queries, no three-page caps, 124 ten-page caps (123 raised trials plus the
+pre-existing Physical Design Intern), 2,365 capped pages and daily ceiling 400.
+Review root returns HTTP 200; collector timer is active and service idle.
+Usage remains 201; next scheduled pass is October 6 at 04:38 Pacific.
+This follow-up records deployment only; installed application is 855898b.
 
 # Nationwide search expansion and 400-credit day - 2026-10-05 (codex)
 

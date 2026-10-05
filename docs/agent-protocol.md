@@ -11,8 +11,9 @@ Scope: User-requested increase of all current three-page nationwide trials
 Files: data/config/jsearch_queries.toml, tests/test_jsearch.py,
        docs/{agent-protocol,handoff,jsearch,collection-rules}.md
 Base commit: 34260e6
-Status: active -- 117 focused offline tests pass; exactly 123 cap changes.
-Next: Deploy and verify the next scheduled pass reads the ten-page caps.
+Status: done -- 855898b installed; 117 focused offline tests pass.
+Next: October 6 04:38 Pacific scheduled pass uses ten-page trials;
+      daily ceiling remains 400 and no extra paid pass was started.
 ```
 
 ```text
