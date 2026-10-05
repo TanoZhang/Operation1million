@@ -145,6 +145,16 @@ HEDGES = (
     'tips', 'prepare for', 'how to', 'blog', 'webinar', 'unsubscribe', 'job alert',
     'similar jobs', 'recommended', 'jobs you', 'privacy', 'do not reply',
 )
+# A description of the process names interviews and assessments without
+# offering one: "Step 2 - Assessments: our assessments test problem-solving"
+# (an Optiver confirmation the user forwarded, 2026-10-05). Only a vague
+# mention is set aside for this; a plain invitation phrase still counts.
+DESCRIPTIVE = (
+    'step 1', 'step 2', 'step 3', 'step 4', 'step 5', 'stage 1', 'stage 2', 'stage 3',
+    'what to expect', 'learn more', 'designed to', 'can vary', 'may vary', 'a series of',
+    'our assessments', 'our interviews', 'our interview', 'candidate journey', 'knowledge hub',
+    'prepare you', 'get ready', 'faq', 'video', 'blog', 'culture', 'internship program',
+)
 NEGATIONS = (' not ', "n't ", 'unfortunately', 'unable', 'no longer', ' cannot ', 'regret')
 CONFIRMATION = (
     'thank you for applying', 'thanks for applying', 'thank you for your application',
@@ -189,7 +199,7 @@ def classify(subject, body):
     if any(phrase in whole for phrase in CONFIRMATION):
         return None
     mentioned = any(word in line for line in lowered for word in PASSED_WEAK
-                    if not any(hedge in line for hedge in HEDGES))
+                    if not any(hedge in line for hedge in HEDGES + DESCRIPTIVE))
     return 'unclear' if mentioned else None
 
 

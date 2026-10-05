@@ -51,7 +51,44 @@ CONFIRMATIONS = [
 ]
 
 
+# The shape of an Optiver confirmation the user forwarded on 2026-10-05: it
+# describes the interview process and offers none.
+OPTIVER = '''Hi there,
+
+Exciting news! Your application has been received. As you get ready to embark on your candidate
+journey, we'd like to share some information to help prepare you for the interview process.
+
+Below, you'll find a knowledge hub that outlines important information from a typical day at Optiver
+to our vibrant company culture, what to expect during the interview process and highlights from our
+internship program.
+
+Discover our interview process
+
+Step 1 - Application: Submit your job application and information on our website.
+
+Step 2 - Assessments: Our assessments test various skills, including problem-solving and critical thinking.
+
+Step 3 - Interviews: A series of conversations where we will further assess your skills and give you
+the opportunity to learn more about the role.
+
+Our interview process is designed to be engaging and thorough. This process can vary by role.
+
+To learn more about our interview process, visit our campus FAQ page.
+
+Preview YouTube video Meet Rens, Graduate Derivatives Trader
+'''
+
+
 class ClassifyTests(unittest.TestCase):
+    def test_a_description_of_the_process_is_not_an_invitation(self):
+        subject = 'Prepare for your application process with Optiver'
+        self.assertIsNone(gmail.classify(subject, OPTIVER))
+        # Not even without the line that says it is a confirmation.
+        self.assertIsNone(gmail.classify(subject, OPTIVER.replace('Your application has been received. ', '')))
+        # While a real invitation from the same firm still is one.
+        self.assertEqual(gmail.classify('Optiver - Next steps', 'You have been invited to complete our '
+                                        'online assessment. Please complete it within 7 days.'), 'passed')
+
     def test_rejections_are_declined(self):
         for subject, body in DECLINES:
             self.assertEqual(gmail.classify(subject, body), 'declined', subject + ' / ' + body)

@@ -16,7 +16,9 @@ Base commit: 63e98a1
 Status: active -- marks renamed Passed / Declined; adding the Gmail reader
         (src/jobdisco/gmail_outcomes.py, deploy/vps/jobdisco-gmail.*,
         install.sh, local_config.py) at the user's request.
-Next: Deploy, user adds a Gmail app password, verify a live run on the VPS.
+        Installed 1080d2b (install.sh run twice: the first run executes the old
+        script); jobdisco-gmail.timer active, idle until GMAIL_* are filled in.
+Next: User adds a Gmail app password to /etc/jobdisco/env; verify a live run.
 ```
 
 ```text
