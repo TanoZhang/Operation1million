@@ -103,8 +103,10 @@ valid: the request guard stops that run, and a backfill resumes the shallowest
 query cursors first so repeated bounded runs rotate through the plan.
 
 Requests use `/jsearch/search-v2`, `country=us`, `date_posted=3days`, and
-`employment_types=FULLTIME,INTERN`. Queries contain positive functional phrases;
-there are no city/state expansions or negative search terms.
+`employment_types=FULLTIME,INTERN`. Queries contain positive functional phrases
+and no negative search terms. Since 2026-10-04, at the user's request, twenty
+are state splits ("SoC Intern in Texas"), a trial: the same query asked state by
+state reaches postings a national query's bounded result set leaves out.
 
 The quota is 10,000 page credits per billing period. The operating target is
 `floor(10000 * 0.96) = 9600`; the configured daily ceiling is 320. On a 31-day

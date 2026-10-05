@@ -779,6 +779,87 @@ query = "RTL Co-op"
 tier = "intern"
 pages = 3
 
+# State splits, 2026-10-04 at the user's request (trial, three pages each).
+# Google Jobs returns a bounded result set per query, so the same query
+# asked state by state reaches postings the national one does not. The
+# four best early-career queries of the first cursor pass, in the five
+# states with the most chip work. Measure new unique postings per credit
+# before widening; repeats of national results are the expected cost.
+[[query]]
+query = "SoC Intern in California"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "SoC Intern in Texas"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "SoC Intern in Massachusetts"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "SoC Intern in Oregon"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "SoC Intern in Arizona"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Intern in California"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Intern in Texas"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Intern in Massachusetts"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Intern in Oregon"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Intern in Arizona"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Hardware Engineering Intern in California"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Hardware Engineering Intern in Texas"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Hardware Engineering Intern in Massachusetts"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Hardware Engineering Intern in Oregon"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Hardware Engineering Intern in Arizona"
+tier = "intern"
+pages = 3
+
 [[query]]
 query = "ASIC New Grad"
 tier = "new_grad"
@@ -866,6 +947,32 @@ pages = 3
 
 [[query]]
 query = "Silicon Validation New Grad"
+tier = "new_grad"
+pages = 3
+
+# State splits (see the intern tier).
+[[query]]
+query = "Hardware New Grad in California"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Hardware New Grad in Texas"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Hardware New Grad in Massachusetts"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Hardware New Grad in Oregon"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Hardware New Grad in Arizona"
 tier = "new_grad"
 pages = 3
 
