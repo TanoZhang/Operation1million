@@ -174,5 +174,36 @@ class OutcomePageTests(unittest.TestCase):
             self.assertIn('operational/application_outcomes.ndjson', text, script)
 
 
+
+class EnvFileTests(unittest.TestCase):
+    """The secrets file is read as data (2026-10-05): a password pasted with
+    spaces ran a fragment of itself as a command and stopped the installer."""
+
+    def test_values_are_taken_literally_and_never_run(self):
+        import shutil
+        import subprocess
+        bash = shutil.which('bash')
+        if not bash:
+            self.skipTest('bash is not available')
+        with tempfile.TemporaryDirectory() as folder:
+            env = Path(folder) / 'env'
+            marker = Path(folder) / 'ran'
+            env.write_bytes(('# comment\nGMAIL_APP_PASSWORD=abcd efgh touch ' + marker.as_posix() + '\r\n'
+                             'QUOTED="a b"\nEMPTY=\n  SPACED=x\n').encode())
+            script = (ROOT / 'deploy/vps/env-file.sh').as_posix()
+            out = subprocess.run([bash, '-c', f'set -euo pipefail; . "{script}"; load_env_file "{env.as_posix()}"; '
+                                  'printf "%s|%s|%s|%s" "$GMAIL_APP_PASSWORD" "$QUOTED" "$EMPTY" "$SPACED"'],
+                                 capture_output=True, text=True)
+            self.assertEqual(out.returncode, 0, out.stderr)
+            self.assertEqual(out.stdout, f'abcd efgh touch {marker.as_posix()}|a b||x')
+            self.assertFalse(marker.exists())
+
+    def test_neither_script_sources_the_file_any_more(self):
+        for name in ('install.sh', 'daily-pass.sh'):
+            text = (ROOT / 'deploy/vps' / name).read_text(encoding='utf-8')
+            self.assertIn('load_env_file "$ENV_FILE"', text, name)
+            self.assertNotIn('. "$ENV_FILE"', text, name)
+
+
 if __name__ == '__main__':
     unittest.main()

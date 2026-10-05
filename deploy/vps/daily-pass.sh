@@ -18,12 +18,10 @@ if ! flock -n 9; then
 fi
 
 ENV_FILE=${OPERATION1MILLION_ENV_FILE:-/etc/operation1million/env}
-if [ -r "$ENV_FILE" ]; then
-  set -a
-  # shellcheck source=/dev/null
-  . "$ENV_FILE"
-  set +a
-fi
+# Read as data, not run: see env-file.sh.
+# shellcheck source=env-file.sh
+. "$CODE/deploy/vps/env-file.sh"
+load_env_file "$ENV_FILE"
 PREFLIGHT=0
 for argument in "$@"; do
   case "$argument" in

@@ -88,10 +88,10 @@ done
 chown root:"$SERVICE_USER" "$ENV_FILE"
 chmod 640 "$ENV_FILE"
 
-# shellcheck source=/dev/null
-set +u
-. "$ENV_FILE"
-set -u
+# Read as data, not run: see env-file.sh.
+# shellcheck source=env-file.sh
+. "$(dirname "${BASH_SOURCE[0]}")/env-file.sh"
+load_env_file "$ENV_FILE"
 missing=()
 [ -n "${GITHUB_TOKEN:-}" ] || missing+=(GITHUB_TOKEN)
 [ -n "${JSEARCH_API_KEY:-}" ] || missing+=(JSEARCH_API_KEY)
