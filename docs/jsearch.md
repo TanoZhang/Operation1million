@@ -1,6 +1,33 @@
 # JSearch daily discovery
 
-## Current title-synonym trials - 2026-10-04
+## Current nationwide expansion - 2026-10-05
+
+At the user's request, the daily budget is 400 credits and all twenty state
+splits are removed. The 62 existing nationwide queries retain their exact
+text, tier and cap. Add 108 nationwide VLSI title trials at three pages each:
+48 Intern/Co-op, 28 New Grad, 16 Entry Level/Junior and 16 General.
+
+Coverage includes RTL/ASIC/SoC/FPGA design and verification, formal verification,
+DFT/design-for-test, physical implementation, STA/timing/place-and-route,
+CPU/GPU/IP verification, memory/SRAM, analog and mixed-signal IC design/layout,
+and post-silicon validation. Engineer I and Graduate Engineer names supplement
+New Grad. These are discovery trials, not measured gains in relevant jobs;
+existing JD-based eligibility and hard rejects still decide what is retained.
+
+There are 170 queries, with independent caps totaling 1,504 pages. The 400-credit
+Pacific daily guard and 9,600-credit UTC cycle target bind actual spending.
+The monthly quota remains 10,000. The search window stays 3days; the existing
+last-three-days month-wide backfill and its separate tier depths are unchanged.
+For the current cycle, reset is October 16 at 00:00 UTC (October 15 at 17:00
+America/Los_Angeles); the automatic sweep dates are October 13-15 UTC.
+Raising a daily ceiling does not guarantee all remaining credits will be spent.
+
+Evaluate new accepted URLs against all original queries and retained history.
+Manifest jobs_unique is order-dependent attribution, not historical novelty.
+On October 5, the withdrawn state trial spent 22 credits and returned 37 rows,
+8 accepted appearances and 6 distinct accepted URLs, all previously observed.
+
+## Historical title-synonym trials - 2026-10-04
 
 The user approved fifteen additional title queries at three daily pages each,
 added to Claude's 47-query plan without changing any existing query or cap.
@@ -9,9 +36,9 @@ Validation, IC Design, Logic Design, Pre-Silicon Verification and Emulation;
 Co-op gains Design Verification, Validation, FPGA and RTL. New Grad gains
 Hardware Verification, ASIC Design and Silicon Validation.
 
-The current plan has 62 queries: Intern/Co-op 30 (406 capped pages), New Grad
+That revision had 62 queries: Intern/Co-op 30 (406 capped pages), New Grad
 17 (314), Entry Level 6 (100), General 9 (360). Caps total 1,180; the daily
-RequestGuard limit remains 320. The trials add at most 45 daily pages, subject
+RequestGuard limit was 320. The trials added at most 45 daily pages, subject
 to provider cursors and the shared budget. Backfill retains separate tier caps.
 No paid run was triggered by this configuration change. Measure incremental
 coverage against the original queries and direct sources; manifest jobs_unique
@@ -59,42 +86,38 @@ SQLite `search_queries` table is not executed by this collector.
 
 | Group | Queries |
 | --- | ---: |
-| Internships / Co-op | 30 |
-| New Grad | 17 |
-| Early Career ("Entry Level") | 6 |
-| General | 9 |
-| Total | 62 |
+| Internships / Co-op | 78 |
+| New Grad | 45 |
+| Early Career ("Entry Level") | 22 |
+| General | 25 |
+| Total | 170 |
 
-The daily ceiling is 320. Each broad query declares a maximum depth, and since
-2026-10-03 those caps may total more than 320 (1,180: Intern/Co-op 406, New Grad 314,
-Early Career 100, General 360). The budget guard stops the day at 320, and on a
-full day the later tiers get what is left. Every call still asks for
-`num_pages=1`; no next cursor, a repeated page/cursor, deadline or budget limit
-keeps its existing early-stop behavior.
+The daily ceiling is 400. Each query declares an independent maximum depth:
+Intern/Co-op 550 capped pages, New Grad 398, Entry Level 148 and General 408.
+The caps total 1,504; they are not credit reservations. The budget guard stops
+the day at 400 and the later tiers get what is left. Every call asks for
+`num_pages=1`; missing continuation, a repeated page/cursor, deadline or budget
+limit ends paging. A short page with a next cursor still continues.
 
 A page is therefore the unit of both billing and loss. Four calls asking for 11
 to 18 pages once returned HTTP 504 and were charged 61 credits for nothing; the
 same failure now costs one credit.
 
-`max_pages_per_query` is the ceiling no tier's depth may exceed. It stops a
-provider whose pages never run short -- or that repeats a page instead of
-advancing -- from spending the whole day on one query.
+`max_pages_per_query` is the ceiling no authored daily query cap may exceed.
+It bounds unusually deep results along with the page/cursor loop guard.
 
-The priority order is Intern, New Grad, Early Career, then General. Queries are
-broad role families; CPU, GPU, NPU, SRAM, ATPG and narrow verification variants
-do not receive separate recurring budget. Existing local title filtering and
-relevance scoring classify the broader results after retrieval.
+The priority order is Intern/Co-op, New Grad, Early Career, then General.
+The October 5 expansion explicitly adds narrow VLSI title variants alongside
+the original broad role families. Shared JD filtering decides eligibility.
 
 Within a tier every query takes one page per round. Spending the budget depth
 first would leave the tail of the plan unreached every day, always the same
 queries.
 
-A page is asked for once. An empty one ends the query for that run but is not
-taken as the end of the results -- a provider having a bad minute returns one
-too -- so a sweep's cursor neither settles on it nor steps past it, and the
-next day asks for that page again. Reading a page twice costs a credit;
-skipping one loses whatever was on it. A page that came back short but not
-empty, and a first page with nothing on it at all, are genuine ends.
+Pagination follows `data.cursor`, never a numeric page or a short-page guess.
+A backfill stores the ordinal checkpoint together with the opaque token and
+resumes that query in the same cycle. Budget and runtime stops do not mean a
+query was exhausted. See the cursor repair evidence below.
 
 The plan is rejected before collection if it holds more queries than its
 configured daily budget has credits, because the tail could then never reach a
@@ -104,21 +127,17 @@ query cursors first so repeated bounded runs rotate through the plan.
 
 Requests use `/jsearch/search-v2`, `country=us`, `date_posted=3days`, and
 `employment_types=FULLTIME,INTERN`. Queries contain positive functional phrases
-and no negative search terms. Since 2026-10-04, at the user's request, twenty
-are state splits ("SoC Intern in Texas"), a trial: the same query asked state by
-state reaches postings a national query's bounded result set leaves out.
+and no negative search terms. The twenty October 4 state splits were withdrawn
+on October 5; all current queries are nationwide.
 
 The quota is 10,000 page credits per billing period. The operating target is
-`floor(10000 * 0.96) = 9600`; the configured daily ceiling is 320. On a 31-day
-period the monthly guard may stop collection before the daily
-allocation is exhausted. `cycle_start` is `2026-09-16` and periods roll every
-30 days from that verified UTC anchor. The daily budget resets at 04:38
-`America/Los_Angeles`, following daylight saving time. Timestamped reservations
-are counted within that window, including existing history; UTC audit day labels
-and monthly totals remain unchanged. Legacy credits without timestamps count
-conservatively in overlapping windows. Internships run first: with full pages,
-they can receive up to 270 credits before New Grad, then Early Career, then
-General, until the day's 320 are spent.
+`floor(10000 * 0.96) = 9600`; the configured daily ceiling is 400. At sustained
+400-credit use the monthly guard can stop the cycle before its last day.
+`cycle_start` is `2026-09-16` and periods roll every 30 UTC dates from that
+anchor. The daily budget resets at 04:38 `America/Los_Angeles`, following
+daylight saving time. Timestamped reservations are counted within that window,
+including existing history. Legacy credit residuals belong to their stored
+budget-day labels. Daily and monthly clocks remain separate.
 
 `.local/jsearch_usage.sqlite` reserves one page before each request.
 Reservations survive errors, timeouts and restarts. `jsearch_pages_used` reports
@@ -141,7 +160,7 @@ Never delete the ledger to bypass a ceiling or cooldown.
 "Pull one week" means a temporary `week` search window, not seven repeated
 daily searches and not a permanent edit to the configured `3days` default.
 For a one-keyword test, default to one page and one reserved credit. Do not
-expand to all 35 keywords or retry paid failures without a new instruction.
+expand to the whole catalog or retry paid failures without a new instruction.
 
 ```powershell
 # One keyword, last week, at most one page/credit. Paid when executed.
@@ -149,9 +168,9 @@ expand to all 35 keywords or retry paid failures without a new instruction.
 
 # Add --jsearch-plan to preview the same command without any API call.
 
-# All 35 functional queries over one week, bounded by an explicit budget.
+# All configured functional queries over one week, bounded by an explicit budget.
 # Direct sources and company fallbacks are skipped by --jsearch-only.
-.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --date-posted week --jsearch-budget 320
+.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --date-posted week --jsearch-budget 400
 ```
 
 ## Backfill sweep

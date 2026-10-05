@@ -208,7 +208,7 @@ class DiscoveryTests(unittest.TestCase):
         params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
         self.assertEqual(params['date_posted'], ['week'])
         self.assertEqual(params['num_pages'], ['1'])
-        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 320)
+        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 400)
         manifest = json.loads((output / 'manifest.json').read_text())
         self.assertEqual(manifest['jsearch_pages_used'], 1)
         self.assertEqual(manifest['jsearch_queries'][0]['date_posted'], 'week')
@@ -302,31 +302,31 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 82)
+        self.assertEqual(len(self.plan), 170)
         self.assertEqual(self.settings['monthly_target'], 9600)
-        self.assertEqual(self.settings['daily_budget'], 320)
-        # 320 a day for 30 days is exactly the month's target, and the anchor is
-        # the day the provider resets, not the day after.
-        self.assertEqual(self.settings['daily_budget'] * 30, self.settings['monthly_target'])
+        self.assertEqual(self.settings['daily_budget'], 400)
+        # Daily pacing may exceed a uniform monthly slice; the independent
+        # monthly guard still binds at 9,600 credits.
+        self.assertGreater(self.settings['daily_budget'] * 30, self.settings['monthly_target'])
         # A 30-day cycle, not a day of the month: a calendar anchor would drift
         # against the provider every time a period crosses a short month.
         self.assertEqual(self.settings['cycle_start'], '2026-09-16')
         self.assertEqual(self.settings['cycle_days'], 30)
         self.assertEqual(self.settings['backfill_max_pages_per_query'], 200)
-        # Caps are generous on purpose (2026-10-03): most queries stop on a short
-        # page long before them, and the daily budget, not their sum, bounds a day.
+        # Caps are independent ceilings; provider cursors and the actual daily
+        # credit budget, not the sum of caps, bound a pass.
         worst = sum(q.pages for q in self.plan)
         self.assertGreater(worst, self.settings['daily_budget'])
         self.assertEqual(self.settings['daily_pages_cap'], worst)
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'A')},
-            {'intern': 451, 'new_grad': 329, 'early_career': 100, 'A': 360})
+            {'intern': 550, 'new_grad': 398, 'early_career': 148, 'A': 408})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
 
-    def test_catalog_is_the_four_broad_query_families(self):
+    def test_catalog_preserves_nationwide_queries_and_bounds_new_trials(self):
         # The user's list, 2026-10-03: caps may total more than the daily budget.
         # Loosened 2026-10-04 from the first cursor-following pass; co-ops added,
         # General at 40 so it takes what the early-career tiers leave.
@@ -337,18 +337,29 @@ class DiscoveryTests(unittest.TestCase):
         # User-approved title trials; preserve every pre-existing query and cap.
         expected['intern'].update({'Hardware Verification Intern': 3, 'ASIC Design Intern': 3, 'Silicon Validation Intern': 3, 'Hardware Validation Intern': 3, 'IC Design Intern': 3, 'Logic Design Intern': 3, 'Pre-Silicon Verification Intern': 3, 'Emulation Intern': 3, 'Design Verification Co-op': 3, 'Validation Co-op': 3, 'FPGA Co-op': 3, 'RTL Co-op': 3})
         expected['new_grad'].update({'Hardware Verification New Grad': 3, 'ASIC Design New Grad': 3, 'Silicon Validation New Grad': 3})
-        # State splits, 2026-10-04 (trial).
-        expected['intern'].update({'SoC Intern in California': 3, 'SoC Intern in Texas': 3, 'SoC Intern in Massachusetts': 3, 'SoC Intern in Oregon': 3, 'SoC Intern in Arizona': 3, 'Silicon Intern in California': 3, 'Silicon Intern in Texas': 3, 'Silicon Intern in Massachusetts': 3, 'Silicon Intern in Oregon': 3, 'Silicon Intern in Arizona': 3, 'Hardware Engineering Intern in California': 3, 'Hardware Engineering Intern in Texas': 3, 'Hardware Engineering Intern in Massachusetts': 3, 'Hardware Engineering Intern in Oregon': 3, 'Hardware Engineering Intern in Arizona': 3})
-        expected['new_grad'].update({'Hardware New Grad in California': 3, 'Hardware New Grad in Texas': 3, 'Hardware New Grad in Massachusetts': 3, 'Hardware New Grad in Oregon': 3, 'Hardware New Grad in Arizona': 3})
-        actual = {tier: {q.query: q.pages for q in self.plan if q.tier == tier}
-                  for tier in expected}
-        self.assertEqual(actual, expected)
+        # The state trial is withdrawn. Retain all 62 nationwide queries,
+        # with 108 new three-page trials in the same priority tiers.
+        original = {text: (tier, pages) for tier, queries in expected.items()
+                    for text, pages in queries.items()}
+        actual = {q.query: (q.tier, q.pages) for q in self.plan}
+        self.assertEqual({text: actual[text] for text in original}, original)
+        added = {text: details for text, details in actual.items() if text not in original}
+        self.assertEqual(len(added), 108)
+        self.assertTrue(all(pages == 3 for tier, pages in added.values()))
+        self.assertEqual({tier: sum(value[0] == tier for value in added.values())
+                          for tier in expected},
+                         {'intern': 48, 'new_grad': 28, 'early_career': 16, 'A': 16})
+        self.assertFalse(any(re.search(r' in (California|Texas|Massachusetts|Oregon|Arizona)$', text)
+                             for text in actual))
+        self.assertTrue({'Formal Verification Intern', 'Design for Test New Grad',
+                         'Static Timing Analysis Entry Level', 'Analog IC Design Co-op',
+                         'CPU Verification Engineer', 'SRAM Design Intern'} <= added.keys())
 
     def test_more_queries_than_credits_refused_before_transport(self):
         """The tail of an oversized plan would be unreachable every day."""
-        jsearch.validate_budget(self.plan, 82)
+        jsearch.validate_budget(self.plan, len(self.plan))
         with self.assertRaises(ValueError):
-            jsearch.validate_budget(self.plan, 81)
+            jsearch.validate_budget(self.plan, len(self.plan) - 1)
         self.session.get.assert_not_called()
 
     def test_explicitly_blocked_publishers_are_excluded_in_paid_request(self):
@@ -567,7 +578,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview["queries_planned"], 82)
+        self.assertEqual(preview["queries_planned"], 170)
         self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
@@ -1449,7 +1460,7 @@ class DiscoveryTests(unittest.TestCase):
                              cycle_start=settings['cycle_start'],
                              cycle_days=settings['cycle_days'],
                              run_limit=settings['daily_budget'])
-        # The politeness floor is a live-traffic rule; 320 waits would be 80
+        # The politeness floor is a live-traffic rule; 400 waits would be 100
         # seconds of a test suite that sends nothing.
         guard.interval = 0
         client = jsearch.Client(SEARCH, settings, guard, session=self.session)
@@ -1464,7 +1475,7 @@ class DiscoveryTests(unittest.TestCase):
             for i in range(10)])
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
-        self.assertEqual(len(plan), 82)
+        self.assertEqual(len(plan), 170)
         # The budget is never exceeded, whatever the caps add up to.
         self.assertLessEqual(guard.credits, settings['daily_budget'])
         self.assertEqual(stats['jsearch_pages_used'], guard.credits)
@@ -1520,7 +1531,7 @@ class DiscoveryTests(unittest.TestCase):
         # rebuilds from and what the commit step refuses to publish without.
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest["jsearch_queries_planned"], 82)
+        self.assertEqual(manifest["jsearch_queries_planned"], 170)
         self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
         self.assertEqual(manifest['jsearch_failures'], 0)
         # Paid results reached the store, and every one of them carries a score.
@@ -1605,7 +1616,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_small_budgets_go_to_internships_first(self):
         settings, plan = jsearch.load_plan()
         for cap, expected in [(24, {'intern': 24}),
-                              (475, {'intern': 451, 'new_grad': 24})]:
+                              (574, {'intern': 550, 'new_grad': 24})]:
             with self.subTest(cap=cap):
                 guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
                 guard.interval = 0
@@ -1628,7 +1639,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual({q.tier: q.pages for q in deep},
                          {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 60})
         # These are depth ceilings, not an allocation; the sweep guard bounds spend.
-        self.assertEqual(sum(q.pages for q in deep), 4580)
+        self.assertEqual(sum(q.pages for q in deep), 9310)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.

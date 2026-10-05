@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: User-requested 400-credit daily budget, remove all state-split searches,
+       expand nationwide VLSI title coverage, validate and deploy the scheduled plan.
+Files: data/config/jsearch_queries.toml, tests/test_jsearch.py,
+       docs/{agent-protocol,handoff,jsearch,collection-rules}.md
+Base commit: f399d6d
+Status: active -- 1,128 offline tests accounted for, 13 environment skips;
+        all 62 nationwide queries/caps and filters preserved.
+Next: Commit, push and deploy; verify the installed plan and next timer.
+```
+
+```text
+Owner: codex
 Scope: User-requested Gmail matching/classification fixes and star every Passed round once; retain Passed/Declined outcomes and manual overrides.
 Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py, docs/{agent-protocol,architecture,application-review,handoff}.md
 Base commit: b4923c1

@@ -1,3 +1,26 @@
+# Nationwide search expansion and 400-credit day - 2026-10-05 (codex)
+
+The user requested a daily budget of 400, removal of state splits, and much
+broader keyword discovery before the billing cycle expires. Remove all twenty
+state queries; preserve all 62 nationwide queries with their exact tiers/caps.
+Add 108 nationwide VLSI title trials at three daily pages each: 48 Intern/Co-op,
+28 New Grad, 16 Entry Level/Junior and 16 General. Total: 170 queries, with
+independent caps of 1,504 pages (550 / 398 / 148 / 408 by priority tier).
+
+Keep the 9,600-credit cycle target, 10,000 quota, 3days window, all filters,
+04:38 Pacific reset and 30-day UTC cycle unchanged. The existing final-three-
+days month-wide backfill remains in place. Current cycle reset: October 16 at
+00:00 UTC (October 15 at 17:00 Pacific); automatic sweep dates October 13-15.
+New query yield is unmeasured; a higher cap does not guarantee full spend.
+
+Offline validation on f399d6d plus this patch: 1,128 tests accounted for,
+13 environment skips. Of 117 JSearch tests, two old catalog/depth expectations
+were updated after the first run and passed on rerun; the other 115 passed.
+The remaining 1,011-test suite passes. Exact UTF-8 parsed-config comparison
+confirms only daily_budget and query rows changed; all filters are identical.
+Deployment and live configuration verification follow these checks. No manual
+paid collection is requested or started as part of this change.
+
 # Gmail outcome fixes and every-round stars - 2026-10-05 (codex)
 
 User keeps Passed/Declined and wants each Passed round's email highlighted.

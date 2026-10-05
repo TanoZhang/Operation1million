@@ -95,17 +95,19 @@ functional discovery; configured company fallback runs last. Company fallback
 alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
-The functional plan contains 43 broad queries, each with a maximum page cap;
-the caps total 715 and may exceed the daily cap. Internships run first, then New
-Grad, Early Career, and General. Each asks for one page at a time and stops when
-the provider returns a short page, so actual use may be below its cap, and the
-day stops at its budget whatever the caps add up to. The daily cap is 320
-page credits and the monthly operating target is 9,600 of the 10,000 quota,
-which is exactly 320 a day for thirty days.
-Each HTTP call reserves one page credit immediately before sending, including
-failures. A full page may advance within the query's runaway guard; a short page
-ends that query. Preserve `.local/jsearch_usage.sqlite` across runners and
-configure the actual billing anchor.
+As of 2026-10-05, the user-authorized functional plan has 170 nationwide
+queries, with independent caps totaling 1,504 pages. All twenty state splits
+are removed. Intern/Co-op runs first, then New Grad, Early Career and General;
+each tier pages round-robin. Follow the provider's `data.cursor`: a short page
+with a next cursor continues, and budget/deadline stops do not prove exhaustion.
+
+The daily cap is 400 page credits. The cycle operating target remains 9,600
+of the 10,000 quota, independently enforced by RequestGuard. Every HTTP call
+reserves its credit before sending, including failures. The daily window resets
+at 04:38 America/Los_Angeles; the 30-day billing cycle counts UTC dates from
+2026-09-16. Preserve `.local/jsearch_usage.sqlite` across runners. The existing
+month-wide backfill runs during the cycle's last three days under its separate
+run/cycle limits; it is not held to the daily pacing slice.
 
 ## Daily incremental discovery
 

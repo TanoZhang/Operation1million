@@ -1,10 +1,10 @@
 # Nationwide daily plan. Each broad query has its own maximum depth, asks for
-# one page at a time, and stops early when the provider runs short.
+# one page at a time, and follows the provider cursor until it ends or a guard stops it.
 version = 1
 monthly_quota = 10000
 target_utilization = 0.96
 operating_days = 30
-daily_budget = 320
+daily_budget = 400
 # The plan renews every 30 days from this date, not on a day of the month.
 cycle_start = "2026-09-16"
 cycle_days = 30
@@ -48,26 +48,15 @@ exclude_job_publishers = [
   "JobMESH", "JobMesh.io", "Virginia Commons Apartments",
 ]
 
-# Priority is intern -> new_grad -> early_career -> A. Since 2026-10-03 caps
-# may total more than the daily budget, at the user's request: short and empty
-# pages stop most queries far below their cap, so caps held to a 320 total left
-# about half of each day's credits unspent (146 to 185 of 320 a day, 2026-09-26
-# to 10-01). The budget guard stops the day at 320; on a full day the tiers are
-# served in priority order and General, a sweep for a new graduate, goes last.
-# The query list is the user's (2026-10-03): early-career caps follow the
-# 2026-09-19..26 yield, deepest where a query hit its cap with 4+ new accepted
-# postings a page; General keeps its earlier caps; eight broad early-career
-# phrasings are on trial.
-# Loosened 2026-10-04 at the user's request, from the first pass that followed
-# search-v2 cursors (147 credits): 35 queries ran out of results in 1-9 pages
-# and 8 stopped at their cap. Those 8 go to 40 (SoC Intern: 17 kept in 15
-# pages), 30 (the Electrical Engineering pair, 5-8 kept in 15) or 25 (General,
-# which had caps of 1-9); General queries within two pages of their cap go to
-# 20. Earlier runs stopped on short pages and do not measure depth.
-# Then, the same day: General goes to 40 throughout. It runs last, so it takes
-# whatever the early-career tiers leave of the 320 rather than leaving it
-# unspent; the guard still ends the day at 320. Four co-op phrasings join the
-# intern tier (a co-op is an internship to the filters; none was searched).
+# Priority: intern/co-op -> new_grad -> early_career -> General (A).
+# On 2026-10-05 the user raised the daily limit to 400, removed all twenty
+# state splits, and requested much broader nationwide VLSI title coverage.
+# Preserve the 62 nationwide queries and their caps; add 108 trials at three
+# pages each. Caps total 1,504, not reserved credits. RequestGuard limits actual
+# spend to 400 per Pacific budget day and 9,600 per UTC billing cycle.
+# Search terms discover candidates; the existing JD filters decide eligibility.
+# Every query gets one page per round within its tier. A missing next cursor,
+# repeated page/cursor or another guard ends paging; short pages can continue.
 # A month-wide backfill uses separate deeper caps for the same four tiers.
 [backfill_tier_pages]
 intern = 60
@@ -779,84 +768,245 @@ query = "RTL Co-op"
 tier = "intern"
 pages = 3
 
-# State splits, 2026-10-04 at the user's request (trial, three pages each).
-# Google Jobs returns a bounded result set per query, so the same query
-# asked state by state reaches postings the national one does not. The
-# four best early-career queries of the first cursor pass, in the five
-# states with the most chip work. Measure new unique postings per credit
-# before widening; repeats of national results are the expected cost.
+
+# Nationwide VLSI breadth trials, 2026-10-05: three pages per query.
 [[query]]
-query = "SoC Intern in California"
+query = "VLSI Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "SoC Intern in Texas"
+query = "RTL Design Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "SoC Intern in Massachusetts"
+query = "ASIC Verification Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "SoC Intern in Oregon"
+query = "SoC Design Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "SoC Intern in Arizona"
+query = "SoC Verification Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Silicon Intern in California"
+query = "FPGA Design Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Silicon Intern in Texas"
+query = "FPGA Verification Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Silicon Intern in Massachusetts"
+query = "Formal Verification Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Silicon Intern in Oregon"
+query = "Design for Test Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Silicon Intern in Arizona"
+query = "DFT Design Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Hardware Engineering Intern in California"
+query = "Physical Implementation Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Hardware Engineering Intern in Texas"
+query = "Static Timing Analysis Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Hardware Engineering Intern in Massachusetts"
+query = "Timing Engineer Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Hardware Engineering Intern in Oregon"
+query = "Place and Route Intern"
 tier = "intern"
 pages = 3
 
 [[query]]
-query = "Hardware Engineering Intern in Arizona"
+query = "CPU Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "CPU Verification Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "GPU Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "GPU Verification Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "IP Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "IP Verification Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Memory Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "SRAM Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Analog IC Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Mixed Signal IC Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Analog Layout Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Custom Layout Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Post Silicon Validation Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Design Verification Internship"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Digital IC Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Design Intern"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "VLSI Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "ASIC Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "ASIC Verification Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "SoC Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "SoC Verification Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "RTL Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "FPGA Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Physical Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "DFT Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Formal Verification Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Silicon Validation Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Hardware Validation Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Analog IC Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Analog Layout Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Mixed Signal IC Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Digital Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "Memory Design Co-op"
+tier = "intern"
+pages = 3
+
+[[query]]
+query = "CPU Verification Co-op"
 tier = "intern"
 pages = 3
 
@@ -950,29 +1100,145 @@ query = "Silicon Validation New Grad"
 tier = "new_grad"
 pages = 3
 
-# State splits (see the intern tier).
+
+# Nationwide VLSI breadth trials, 2026-10-05: three pages per query.
 [[query]]
-query = "Hardware New Grad in California"
+query = "VLSI New Grad"
 tier = "new_grad"
 pages = 3
 
 [[query]]
-query = "Hardware New Grad in Texas"
+query = "RTL Design New Grad"
 tier = "new_grad"
 pages = 3
 
 [[query]]
-query = "Hardware New Grad in Massachusetts"
+query = "ASIC Verification New Grad"
 tier = "new_grad"
 pages = 3
 
 [[query]]
-query = "Hardware New Grad in Oregon"
+query = "SoC Design New Grad"
 tier = "new_grad"
 pages = 3
 
 [[query]]
-query = "Hardware New Grad in Arizona"
+query = "SoC Verification New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "FPGA Design New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Formal Verification New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Design for Test New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Physical Implementation New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Static Timing Analysis New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Timing Engineer New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Place and Route New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "CPU Design New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "CPU Verification New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "GPU Verification New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "IP Verification New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Memory Design New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Analog IC Design New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Mixed Signal IC Design New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Analog Layout New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Custom Layout New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Post Silicon Validation New Grad"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "ASIC Design Engineer I"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Design Verification Engineer I"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Physical Design Engineer I"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "ASIC Graduate Engineer"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "FPGA Graduate Engineer"
+tier = "new_grad"
+pages = 3
+
+[[query]]
+query = "Silicon Design New Grad"
 tier = "new_grad"
 pages = 3
 
@@ -1005,6 +1271,88 @@ pages = 15
 query = "Silicon Entry Level"
 tier = "early_career"
 pages = 15
+
+
+# Nationwide VLSI breadth trials, 2026-10-05: three pages per query.
+[[query]]
+query = "VLSI Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "RTL Design Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "ASIC Verification Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "SoC Design Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "SoC Verification Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Formal Verification Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Design for Test Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Physical Design Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Static Timing Analysis Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Silicon Validation Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "CPU Verification Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Memory Design Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Analog IC Design Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Analog Layout Entry Level"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Junior RTL Design Engineer"
+tier = "early_career"
+pages = 3
+
+[[query]]
+query = "Junior Design Verification Engineer"
+tier = "early_career"
+pages = 3
 
 [[query]]
 query = "Design Verification Engineer"
@@ -1050,3 +1398,84 @@ pages = 40
 query = "DFT Engineer"
 tier = "A"
 pages = 40
+
+# Nationwide VLSI breadth trials, 2026-10-05: three pages per query.
+[[query]]
+query = "Formal Verification Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Design for Test Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Physical Implementation Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Static Timing Analysis Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Place and Route Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "CPU Design Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "CPU Verification Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "GPU Verification Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "IP Verification Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Memory Design Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "SRAM Design Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Analog IC Design Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Mixed Signal IC Design Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Analog Layout Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Custom Layout Engineer"
+tier = "A"
+pages = 3
+
+[[query]]
+query = "Post Silicon Validation Engineer"
+tier = "A"
+pages = 3
