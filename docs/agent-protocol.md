@@ -11,9 +11,10 @@ Scope: User-requested 400-credit daily budget, remove all state-split searches,
 Files: data/config/jsearch_queries.toml, tests/test_jsearch.py,
        docs/{agent-protocol,handoff,jsearch,collection-rules}.md
 Base commit: f399d6d
-Status: active -- 1,128 offline tests accounted for, 13 environment skips;
-        all 62 nationwide queries/caps and filters preserved.
-Next: Commit, push and deploy; verify the installed plan and next timer.
+Status: done -- e30c79c installed; 1,128 offline tests accounted for, 13 skips;
+        live plan is 170 queries / 400 daily credits, no state splits.
+Next: Scheduled October 6 04:38 Pacific pass measures the expanded plan.
+      No extra paid collection was started; today remains at 201 credits.
 ```
 
 ```text

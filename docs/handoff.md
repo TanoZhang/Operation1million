@@ -18,8 +18,15 @@ Offline validation on f399d6d plus this patch: 1,128 tests accounted for,
 were updated after the first run and passed on rerun; the other 115 passed.
 The remaining 1,011-test suite passes. Exact UTF-8 parsed-config comparison
 confirms only daily_budget and query rows changed; all filters are identical.
-Deployment and live configuration verification follow these checks. No manual
-paid collection is requested or started as part of this change.
+Deployed e30c79c with install.sh. Four catalog/budget/preview checks also pass
+on that exact commit. Live loaded configuration confirms 170 queries, 400 daily
+credits, 9,600 monthly target, 3days window and zero state splits. Collector
+timer and Review are active; Review root returns HTTP 200. Next scheduled pass:
+October 6 at 04:38 Pacific. Collector service is idle and today's usage remains
+201 credits (199 left under the new ceiling); no extra paid run was started.
+The installation also includes the previously merged f399d6d Gmail fixes;
+no manual Gmail run or historical outcome repair was performed.
+This follow-up changes documentation only; deployed application is e30c79c.
 
 # Gmail outcome fixes and every-round stars - 2026-10-05 (codex)
 
