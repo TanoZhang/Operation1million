@@ -103,6 +103,7 @@ async function main() {
   await checkLoadingTimeout();
   await checkPreparingMessage();
   await checkBatches();
+  await checkOutcomes();
   console.log('Review checkbox and download interactions OK');
 }
 main().catch(error => {console.error(error); dom.window.close(); process.exitCode = 1;});
@@ -175,5 +176,46 @@ async function checkBatches() {
     // A selection changed by hand is no longer the batch.
     view.document.getElementById('clear-selection').click();
     assert.equal(batch.value, '');
+  } finally {page.window.close();}
+}
+
+async function checkOutcomes() {
+  // 2026-10-05: an applied position is marked Interview or Rejected; an
+  // interview is highlighted in the list.
+  const page = new JSDOM(fs.readFileSync(path.join(assets, 'index.html'), 'utf8'),
+    {url:'http://localhost:8765', runScripts:'outside-only'});
+  const view = page.window;
+  const done = {pending: [], backlog: [], skipped: [], token: 'fixture',
+    applied: [{...group('x'), at: '2026-10-01T18:00:00Z'}, {...group('y'), at: '2026-09-30T18:00:00Z', outcome: 'rejected'}]};
+  const sent = [];
+  view.fetch = async (url, options) => {
+    if (url === '/api/outcome') {
+      const body = JSON.parse(options.body);
+      sent.push(body);
+      return {ok: true, json: async () => ({...body, at: '2026-10-05T00:00:00Z'})};
+    }
+    return {ok: true, json: async () => url === '/api/queue' ? done : {description: ''}};
+  };
+  try {
+    view.eval(fs.readFileSync(path.join(assets, 'app.js'), 'utf8'));
+    await new Promise(resolve => setTimeout(resolve, 15));
+    view.document.querySelector('[data-tab=applied]').click();
+    const cards = () => [...view.document.querySelectorAll('.job')];
+    assert.match(cards()[1].className, /outcome-rejected/);
+    assert.equal(cards()[1].querySelector('.outcome').textContent, 'Rejected');
+    assert.equal(view.document.getElementById('outcome-clear'), null);
+    view.document.getElementById('outcome-interview').click();
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.deepEqual(sent.at(-1), {id: 'x', outcome: 'interview'});
+    assert.match(cards()[0].className, /outcome-interview/);
+    assert.equal(view.document.querySelector('#detail .outcome').textContent, 'Interview');
+    // Clicking the marked one again clears it.
+    view.document.getElementById('outcome-interview').click();
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.deepEqual(sent.at(-1), {id: 'x', outcome: ''});
+    assert.doesNotMatch(cards()[0].className, /outcome/);
+    // Not offered outside the Applied tab.
+    view.document.querySelector('[data-tab=skipped]').click();
+    assert.equal(view.document.getElementById('outcome-interview'), null);
   } finally {page.window.close();}
 }

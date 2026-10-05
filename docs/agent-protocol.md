@@ -5,6 +5,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: At the user's request (2026-10-05): mark an applied position Interview
+       or Rejected in Review; interviews are highlighted. Kept beside the
+       ledger in operational/application_outcomes.ndjson, append-only.
+Files: src/jobdisco/{applications,review,manual_intake}.py, review_static/*,
+       deploy/vps/{backup-applications,daily-pass,data-sync}.sh,
+       tests/test_application_outcomes.py, docs/{agent-protocol,application-review}.md
+Base commit: 63e98a1
+Status: done -- 1,085 offline tests pass (13 POSIX skips); pushed, not deployed.
+Next: Deploy with deploy/local/deploy-vps.bat; Ctrl+F5 Review.
+```
+
+```text
 Owner: codex
 Scope: Delete the abandoned autofill component and local copies, without an archive; inspect but leave Muse's private job-applications records unchanged per user clarification.
 Files: application-autofill/, src/jobdisco/answer_bank.py, autofill/answer-bank tests and docs, packaging/deploy references; obsolete ignored local autofill copies.

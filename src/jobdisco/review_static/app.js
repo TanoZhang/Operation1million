@@ -95,8 +95,12 @@ const internChip = group => group.internship_experience
 const appliedDate = group => group.at
   ? `Applied ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}`
   : 'Applied date unavailable';
+// Interview or Rejected, recorded on the Applied tab (2026-10-05).
+const OUTCOME_LABELS = {interview: 'Interview', rejected: 'Rejected'};
+const outcomeChip = group => OUTCOME_LABELS[group.outcome]
+  ? ` <span class="outcome outcome-${group.outcome}">${OUTCOME_LABELS[group.outcome]}</span>` : '';
 const topBadge = group => tab === 'applied'
-  ? `<span class="applied-date">${escapeText(appliedDate(group))}</span>` : chips(group);
+  ? `<span class="applied-date">${escapeText(appliedDate(group))}</span>${outcomeChip(group)}` : chips(group);
 // All three, the same in the list and in the detail.
 const chips = group => `${bandChip(group)}${flagChip(group)}${internChip(group)}${group.jobs.some(thirdParty) ? '<span class="third-party-warning">Third-party site</span>' : ''}`;
 const $ = selector => document.querySelector(selector);
@@ -161,6 +165,22 @@ async function setCompanyLink(url, remove) {
     error('');
     render();
   } catch (err) { error(err.message); }
+}
+// The position stays applied; only the mark beside it changes.
+async function setOutcome(id, outcome) {
+  if (busy) return;
+  busy = true;
+  lockActions(true);
+  try {
+    const written = await post('/api/outcome', {id, outcome});
+    const group = state.applied.find(item => item.id === id);
+    if (group && written.outcome) { group.outcome = written.outcome; group.outcome_at = written.at; }
+    else if (group) { delete group.outcome; delete group.outcome_at; }
+    $('#saved').textContent = `Saved locally at ${clock()}`;
+    error('');
+    render();
+  } catch (err) { error(err.message); }
+  finally { busy = false; lockActions(false); }
 }
 function error(message) { $('#error').textContent = message; $('#error').hidden = !message; }
 async function api(path, options) {
@@ -330,7 +350,8 @@ function render() {
       $('#list').append(divider);
     }
     const button = document.createElement('button');
-    button.className = 'job' + (group.id === selected ? ' selected' : '');
+    button.className = 'job' + (group.id === selected ? ' selected' : '')
+      + (tab === 'applied' && OUTCOME_LABELS[group.outcome] ? ` outcome-${group.outcome}` : '');
     button.setAttribute('aria-pressed', group.id === selected);
     const locations = [...new Set(group.jobs.map(job => job.location).filter(Boolean))];
     button.innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${listings(group.jobs.length)}</div>`;
@@ -373,7 +394,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : (tab === 'applied' ? `<button id="outcome-interview" class="${group.outcome === 'interview' ? 'primary' : ''}">Interview</button><button id="outcome-rejected" class="${group.outcome === 'rejected' ? 'primary' : ''}">Rejected</button>${group.outcome ? '<button id="outcome-clear">Clear outcome</button>' : ''}` : '') + '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';
@@ -390,6 +411,9 @@ async function renderDetail(group) {
   });
   if ($('#skip')) $('#skip').onclick = () => { skipTarget = group.id; $('#reason').value = ''; $('#skip-dialog').showModal(); $('#reason').focus(); };
   if ($('#reopen')) $('#reopen').onclick = () => decide('pending');
+  if ($('#outcome-interview')) $('#outcome-interview').onclick = () => setOutcome(group.id, group.outcome === 'interview' ? '' : 'interview');
+  if ($('#outcome-rejected')) $('#outcome-rejected').onclick = () => setOutcome(group.id, group.outcome === 'rejected' ? '' : 'rejected');
+  if ($('#outcome-clear')) $('#outcome-clear').onclick = () => setOutcome(group.id, '');
   const key = `${first.url}\u0000${group.id}`;
   if (described.key === key) { $('#description').textContent = described.text; return; }
   try {

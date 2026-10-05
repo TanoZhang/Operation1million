@@ -24,6 +24,8 @@ LEDGER=operational/applications.ndjson
 # keeps beside the ledger (2026-10-02). Nothing regenerates them either.
 LINKS=operational/listing_links.ndjson
 MANUAL=operational/manual_jobs.ndjson
+# Interview / Rejected marks on applied positions (2026-10-05).
+OUTCOMES=operational/application_outcomes.ndjson
 
 cd "$DATA"
 
@@ -38,7 +40,7 @@ if ! flock -n 9; then
 fi
 
 files=()
-for name in "$LEDGER" "$LINKS" "$MANUAL"; do
+for name in "$LEDGER" "$LINKS" "$MANUAL" "$OUTCOMES"; do
   if [ -f "$name" ]; then files+=("$name"); fi
 done
 if [ "${#files[@]}" -eq 0 ]; then

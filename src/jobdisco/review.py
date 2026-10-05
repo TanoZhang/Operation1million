@@ -33,7 +33,7 @@ from .paths import DB
 # it here; leaving it out shows as undefined rather than as stale data.
 GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
-                'early_career')
+                'early_career', 'outcome', 'outcome_at')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
               'posted_before', 'publisher', 'employer_site', 'official_link', 'third_party_site')
 STATUSES = ('pending', 'backlog', 'applied', 'skipped')
@@ -106,6 +106,7 @@ def make_server(db, ledger, port=8765, export_path=None):
     token = secrets.token_urlsafe(32)
     export_path = export_path or export.DEFAULT_PATH
     links = applications.links_path(ledger)
+    outcomes = applications.outcomes_path(ledger)
     assets = Path(__file__).with_name('review_static')
     # One decision at a time, now that requests are served in parallel. Reading
     # the queue and appending to the ledger is a read-modify-write, and the
@@ -173,13 +174,14 @@ def make_server(db, ledger, port=8765, export_path=None):
         """
         key = queue_key()
         with building:
-            signature = snapshot.signature(key, fingerprint(links))
+            signature = snapshot.signature(key, [fingerprint(links), fingerprint(outcomes)])
             if cached['key'] != key:
                 restored = snapshot.load(signature) if cached['state'] is None else None
                 cached['state'] = restored if restored is not None else manual_intake.augment_queue(applications.queue(db, ledger), ledger)
                 cached['key'] = key
             if queue_key() == key:
                 applications.attach_links(cached['state'], applications.read_links(links))
+                applications.attach_outcomes(cached['state'], applications.read_outcomes(outcomes))
                 snapshot.save(signature, cached['state'])
             return cached['state']
 
@@ -284,7 +286,8 @@ def make_server(db, ledger, port=8765, export_path=None):
         def do_POST(self):
             routes = {'/api/decision': self.decide, '/api/export': self.export,
                       '/api/export/download': self.export,
-                      '/api/link': self.link, '/api/manual': self.manual}
+                      '/api/link': self.link, '/api/manual': self.manual,
+                      '/api/outcome': self.outcome}
             if self.path not in routes:
                 return self.send({'error': 'Not found'}, 404)
             if self.headers.get('X-Review-Token') != token:
@@ -413,6 +416,24 @@ def make_server(db, ledger, port=8765, export_path=None):
                             job['official_link'] = written['link']
                         else:
                             job.pop('official_link', None)
+            self.send(written)
+
+        def outcome(self):
+            """Interview or Rejected for an applied position (2026-10-05).
+
+            Recorded beside the ledger and set on the cached queue in place.
+            The ledger itself is untouched: the position stays applied.
+            """
+            data = self.read_json(10000)
+            with writing:
+                state = current_queue()
+                status, group = find_group(state, data.get('id'))
+                if status != 'applied':
+                    return self.send({'error': 'Only an applied position has an outcome. Refresh the page.'}, 409)
+                written = applications.append_outcome(outcomes, group['id'], data.get('outcome'))
+                with building:
+                    applications.attach_outcomes(
+                        {'applied': [group]}, {group['id']: written} if written['outcome'] else {})
             self.send(written)
 
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)

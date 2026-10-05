@@ -437,4 +437,5 @@ def augment_queue(state, ledger):
     for name in ('applied', 'skipped'):
         state[name].sort(key=lambda group: group.get('at') or '', reverse=True)
     applications.attach_links(state, applications.read_links(applications.links_path(ledger)))
+    applications.attach_outcomes(state, applications.read_outcomes(applications.outcomes_path(ledger)))
     return state

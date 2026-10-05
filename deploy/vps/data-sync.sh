@@ -26,7 +26,8 @@ data_merge_attributes() {
   file="$dir/.git/info/attributes"
   mkdir -p "$dir/.git/info"
   for pattern in 'operational/applications.ndjson' 'operational/listing_links.ndjson' \
-                 'operational/manual_jobs.ndjson' 'job-applications/*.jsonl'; do
+                 'operational/manual_jobs.ndjson' 'operational/application_outcomes.ndjson' \
+                 'job-applications/*.jsonl'; do
     grep -qxF "$pattern merge=union" "$file" 2>/dev/null || echo "$pattern merge=union" >> "$file"
   done
 }

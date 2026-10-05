@@ -71,6 +71,67 @@ def append_link(path, url, link):
     return event
 
 
+OUTCOMES = ('interview', 'rejected')
+
+
+def outcomes_path(ledger):
+    """What came of an application -- an interview or a rejection -- asked for
+    on 2026-10-05. Beside the ledger and backed up with it."""
+    return Path(ledger).with_name('application_outcomes.ndjson')
+
+
+def read_outcomes(path):
+    """The latest outcome recorded for each position, by group id.
+
+    Append-only; a later record replaces an earlier one, and an empty outcome
+    clears it. A damaged line is skipped, as with the company links.
+    """
+    outcomes = {}
+    path = Path(path)
+    if not path.exists():
+        return outcomes
+    with path.open(encoding='utf-8-sig') as handle:
+        for line in handle:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if not (isinstance(event, dict) and isinstance(event.get('id'), str)
+                    and event.get('outcome') in (*OUTCOMES, '')):
+                continue
+            if event['outcome']:
+                outcomes[event['id']] = event
+            else:
+                outcomes.pop(event['id'], None)
+    return outcomes
+
+
+def append_outcome(path, group_id, outcome):
+    """Record an interview or a rejection for a position; '' clears it."""
+    if not isinstance(group_id, str) or not group_id:
+        raise ValueError('Name the position the outcome is for')
+    if outcome not in (*OUTCOMES, ''):
+        raise ValueError('Choose Interview or Rejected')
+    event = {'id': group_id, 'outcome': outcome, 'at': datetime.now(timezone.utc).isoformat()}
+    path = Path(path)
+    with locked(path):
+        _append_line(path, event)
+    return event
+
+
+def attach_outcomes(state, outcomes):
+    """Give each applied position its recorded outcome, in place. Only applied
+    ones: a position moved back to review shows none until applied again."""
+    for status in ('pending', 'backlog', 'applied', 'skipped'):
+        for group in state.get(status, ()):
+            event = outcomes.get(group['id']) if status == 'applied' else None
+            if event:
+                group['outcome'], group['outcome_at'] = event['outcome'], event['at']
+            else:
+                group.pop('outcome', None)
+                group.pop('outcome_at', None)
+
+
 def _append_line(path, event):
     """Add one record to an append-only file, on disk before this returns."""
     with path.open('ab') as handle:
@@ -835,6 +896,7 @@ def queue(db_path=DB, path=None, now=None):
     for status in ('applied', 'skipped'):
         result[status].sort(key=lambda group: group['at'], reverse=True)
     attach_links(result, read_links(links_path(path)))
+    attach_outcomes(result, read_outcomes(outcomes_path(path)))
     return result
 
 

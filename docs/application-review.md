@@ -234,3 +234,15 @@ date comes from the application ledger, not the posting's publication date.
 Queue GETs time out after 25 seconds with a visible message and retry every
 10 seconds; initial server warm-up returns Preparing/503 rather than waiting
 behind the cold build. Writes are not automatically retried.
+
+## Interview or Rejected (2026-10-05)
+
+On the Applied tab, a position can be marked **Interview** or **Rejected**.
+Clicking the marked button again, or **Clear outcome**, removes the mark.
+An interview turns the card yellow, and a rejected position is greyed out.
+The position stays applied: the decision ledger is not touched. Marks are
+kept in `operational/application_outcomes.ndjson`, next to the ledger. That
+file is append-only like the company links, and the latest mark for a
+position wins. It is backed up and merged line by line with the ledger.
+Moving a position back to review hides its mark until it is applied again.
+Nothing here reads or labels email.

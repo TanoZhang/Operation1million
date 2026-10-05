@@ -121,7 +121,7 @@ publish_state() {
   fi
   for name in operational/source_access.sqlite operational/jsearch_usage.sqlite \
               operational/applications.ndjson operational/listing_links.ndjson \
-              operational/manual_jobs.ndjson \
+              operational/manual_jobs.ndjson operational/application_outcomes.ndjson \
               operational/seen_jobs.ndjson.gz; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
