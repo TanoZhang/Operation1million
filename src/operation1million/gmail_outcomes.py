@@ -114,7 +114,7 @@ PASSED = (
     'select an interview time', 'choose an interview time', 'skills assessment',
     'selected you for', 'look forward to meeting you', 'look forward to speaking with you',
     'look forward to talking with you', 'are you free', 'are you available', 'would you be available',
-    'when are you free', 'when are you available', 'when would you be available', 'invited you to', 'like to invite',
+    'when are you free', 'when are you available', 'when would you be available', 'like to invite',
     'would like to schedule', "we'd like to schedule", 'like to set up', 'like to speak with you',
     'like to talk with you', 'like to chat with you', 'like to meet with you', 'like to connect with you',
     'schedule an interview', 'schedule your interview', 'schedule a time', 'schedule a call',
@@ -150,7 +150,10 @@ PASSED = (
     'extend you an offer', 'like to offer you',
 )
 # Mentioned, but not plainly an invitation: listed for the user, never dropped.
-PASSED_WEAK = ('interview', 'assessment', 'next step', 'next stage', 'speak with', 'chat with',
+# "IMC has invited you to the ... Candidate Portal" (the first real run):
+# a portal is not an interview, but it is worth a look.
+PASSED_WEAK = ('invited you to', 'invited you', 'interview', 'assessment', 'next step', 'next stage',
+               'speak with', 'chat with',
                'meet with', 'call with', 'recruiter', 'hiring manager', 'availability')
 
 # A sentence about what may happen is not an invitation. "If your background
@@ -158,6 +161,10 @@ PASSED_WEAK = ('interview', 'assessment', 'next step', 'next stage', 'speak with
 # confirmation. A bare "if" is not enough to say so: "If none of these times
 # work, share your availability" is an invitation all the same.
 HEDGES = (
+    # What a confirmation says may come next, not an invitation: "If you are
+    # applying to a role that requires coding skills, you may receive an
+    # invitation to take a coding assessment" (General Motors, first real run).
+    'may receive', 'will receive', 'might receive', 'if you are applying', 'if your role', 'requires coding',
     'talent community', 'talent network', 'join our', 'newsletter', 'event', 'webinar', 'hackathon',
     'registration confirmation', 'security alert', 'new jobs', 'job opportunities', 'new roles',
     'coaching', 'claim your', 'for free', 'free trial', 'sign up', 'limited time', 'discount', '% off',
@@ -189,6 +196,9 @@ DESCRIPTIVE = (
 )
 DECLINE_HEDGES = (' if ', 'whether', 'in the event', 'should we', 'should you', 'regardless',
                   'either way', 'one way or')
+# An invitation to a portal is not one to interview, though it is worth a
+# look: these cancel a plain invitation phrase, not a vague mention.
+PORTAL = ('candidate portal', 'portal', 'create an account', 'create your account')
 NEGATION = re.compile(r"\b(?:not|cannot|unable|unfortunately|regret|no longer)\b|n't\b")
 CONFIRMATION = (
     'thank you for applying', 'thanks for applying', 'thank you for your application',
@@ -268,8 +278,8 @@ def classify(subject, body):
     """
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
-    passed = any(_PASSED.search(line) and not _HEDGES.search(line) and not NEGATION.search(line)
-                 for line in lowered)
+    passed = any(_PASSED.search(line) and not _HEDGES.search(line) and not _PORTAL.search(line)
+                 and not NEGATION.search(line) for line in lowered)
     plain = [line for line in lowered if not _DECLINE_HEDGES.search(line)]
     hits = set().union(*(_found(_DECLINED, line) for line in plain)) if plain else set()
     patterned = any(pattern.search(line) for line in plain for pattern in DECLINED_PATTERNS)
@@ -289,7 +299,7 @@ def classify(subject, body):
 
 _PASSED, _PASSED_WEAK, _DECLINED = _phrases(PASSED), _phrases(PASSED_WEAK), _phrases(DECLINED)
 _HEDGES, _DECLINE_HEDGES = _phrases(HEDGES), _phrases(DECLINE_HEDGES)
-_DESCRIPTIVE, _CONFIRMATION = _phrases(DESCRIPTIVE), _phrases(CONFIRMATION)
+_DESCRIPTIVE, _CONFIRMATION, _PORTAL = _phrases(DESCRIPTIVE), _phrases(CONFIRMATION), _phrases(PORTAL)
 
 
 # ---------------------------------------------------------------- matching --
@@ -310,6 +320,9 @@ def company_names(company):
         words.pop()
     name = ' '.join(words)
     names = {name} if name else set()
+    # Workday writes from generalmotors@ and blueorigin@myworkday.com.
+    if ' ' in name and len(name.replace(' ', '')) >= 6:
+        names.add(name.replace(' ', ''))
     for full, short in ALIASES.items():
         if name.startswith(full):
             names.update(short)
@@ -329,13 +342,19 @@ def match(groups, message, company_only=False):
 
     The sender and subject name the company; where one company has several
     applications, a requisition id or the full title in the email picks one.
-    An email from before the application is about something else.
+    With one application there, an email naming some other role is not
+    about it: General Motors' confirmation of a role missing from the ledger
+    was read as about the one GM application (first real run).
+
+    A decision can be recorded weeks after the application -- Muse's were
+    reconciled in bulk -- so an email is set aside only when it is more than
+    45 days older than the decision.
     """
     head = _words(message['from'] + ' ' + message['subject'])
     body = _words(message['text'][:4000])
     when = message['at']
     eligible = [group for group in groups
-                if not group.get('at') or group['at'] <= (_later(when, days=1))]
+                if not group.get('at') or _later(when, days=45) >= group['at']]
     by_company = {}
     for group in eligible:
         for name in company_names(group.get('company')):
@@ -348,9 +367,14 @@ def match(groups, message, company_only=False):
     if len(companies) != 1:
         return []
     candidates = list(candidates.values())
-    if len(candidates) == 1 or company_only:
+    if company_only:
         return candidates
     text = head + ' ' + _words(message['text'])
+    if len(candidates) == 1:
+        only = candidates[0]
+        if _has(_words(only.get('title')), text) or not _names_a_role(message):
+            return candidates
+        return []
     by_id = [group for group in candidates
              if any(len(str(job.get('source_job_id') or '')) >= 4
                     and _has(_words(job['source_job_id']), text) for job in group.get('jobs', ()))]
@@ -364,12 +388,42 @@ def match(groups, message, company_only=False):
     return []
 
 
+ROLE_WORDS = re.compile(r'\b(?:intern|internship|co-?op|engineer|engineering|developer|designer|'
+                        r'scientist|analyst|technician|graduate|associate)\b')
+
+
+def _names_a_role(message):
+    """Whether the subject names a role, as "Your application to 2027 Summer
+    Intern - Digital Product" does and "Your IBM Application Status" does not."""
+    return bool(ROLE_WORDS.search(_plain(message.get('subject'))))
+
+
 def _later(when, days):
     try:
         moment = datetime.fromisoformat(when)
     except (TypeError, ValueError):
         return '9999'
     return (moment + timedelta(days=days)).isoformat()
+
+
+# Applicant-tracking and mail services that send for many employers: the
+# sender's domain says nothing about which.
+SHARED_SENDERS = {'myworkday', 'workday', 'greenhouse', 'greenhouse-mail', 'lever', 'hire', 'ashbyhq',
+                  'smartrecruiters', 'successfactors', 'icims', 'jobvite', 'taleo', 'oraclecloud',
+                  'eightfold', 'candidate', 'linkedin', 'indeed', 'handshake', 'joinhandshake', 'gmail',
+                  'outlook', 'yahoo', 'hotmail', 'paradox', 'hirevue', 'hackerrank', 'codesignal',
+                  'avature', 'phenom', 'ukg', 'ultipro', 'adp', 'bamboohr', 'workable', 'recruitee'}
+
+
+def _sender(message):
+    """The employer a sender's domain names, or '' for a shared service:
+    no-reply@optiver.com and no-reply@optiver.us are both optiver."""
+    address = parseaddr(message.get('from') or '')[1].lower()
+    labels = address.rpartition('@')[2].split('.')
+    if len(labels) < 2:
+        return ''
+    label = labels[-2] if labels[-2] not in {'co', 'com'} or len(labels) < 3 else labels[-3]
+    return '' if label in SHARED_SENDERS else label
 
 
 def decide(groups, messages, current):
@@ -380,10 +434,13 @@ def decide(groups, messages, current):
     read oldest first, so the latest word wins: an interview and then a
     rejection ends Declined.
     """
-    wanted, unsorted, stars, passed_before = {}, [], [], set()
+    wanted, unsorted, stars, passed_before, seen_senders = {}, [], [], set(), set()
     for message in sorted(messages, key=lambda item: item['at']):
         verdict = message.get('outcome')
+        sender = _sender(message)
         if verdict is None:
+            if sender:
+                seen_senders.add(sender)
             continue
         found = match(groups, message)
         if verdict == 'unclear' or not found:
@@ -394,9 +451,11 @@ def decide(groups, messages, current):
                              'subject': message['subject'], 'outcome': verdict,
                              'company': guess[0]['company'] if guess else '',
                              'groups': [group['id'] for group in guess]})
-            # Starred only when it names a company applied to: a recruiter's
-            # cold "are you available?" is not news.
-            if verdict == 'passed' and guess:
+            # Starred when it names a company applied to, or one that wrote
+            # before -- Optiver's assessment came after Optiver's confirmation,
+            # with no Optiver row in the ledger. A recruiter's cold "are you
+            # available?" from nowhere is not news.
+            if verdict == 'passed' and (guess or _sender(message) in seen_senders):
                 stars.append(message['id'])
             continue
         if verdict == 'passed' and not all(group['id'] in passed_before for group in found):
@@ -599,14 +658,18 @@ def run(db, ledger, address, password, directory=None, capture=None):
     groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger)['applied']
     if not groups:
         return {'applied': 0, 'checked': 0, 'written': 0, 'unsorted': 0}
-    since = min(datetime.fromisoformat(group['at']) for group in groups if group.get('at')) - timedelta(days=1)
+    # Decisions can be recorded weeks after applying; read from well before.
+    since = min(datetime.fromisoformat(group['at']) for group in groups if group.get('at')) - timedelta(days=45)
     cache_path = directory / 'messages.json'
     cache = _load(cache_path, {})
-    for message in fetch(address, password, since, set(cache), capture):
-        message['outcome'] = classify(message['subject'], message['text'])
-        # Only what may become a mark is kept; the rest is remembered as seen.
-        cache[message['id']] = message if message['outcome'] else {
-            'id': message['id'], 'at': message['at'], 'outcome': None}
+    known = {key for key, message in cache.items() if 'text' in message}
+    for message in fetch(address, password, since, known, capture):
+        cache[message['id']] = message
+    # Every email is classified on every run, so a rule fixed today also
+    # re-reads what arrived last week.
+    for message in cache.values():
+        if 'text' in message:
+            message['outcome'] = classify(message['subject'], message['text'])
     _save(cache_path, cache)
     outcomes = applications.outcomes_path(ledger)
     writes, unsorted, stars = decide(groups, list(cache.values()), last_events(outcomes))

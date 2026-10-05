@@ -132,6 +132,15 @@ class ClassifyTests(unittest.TestCase):
                    'aligned to the job requirements.\n\nSincerely,\nRecruiting')
         self.assertEqual(gmail.classify('Your IBM Application', wrapped), 'declined')
 
+    def test_what_a_confirmation_says_may_come_next_is_not_an_invitation(self):
+        # General Motors and IMC, first real run.
+        gm = ('Your application is in! If you are applying to a role that requires coding skills, you may '
+              'receive an invitation to take a coding assessment. You will receive a separate email within 24 '
+              'hours providing further instructions to complete the coding assessment.')
+        self.assertIsNone(gmail.classify('Your application to 2027 Summer Intern is in!', gm))
+        imc = 'IMC has invited you to the candidate portal for the Graduate Hardware Engineer position.'
+        self.assertEqual(gmail.classify('IMC has invited you to the Candidate Portal', imc), 'unclear')
+
     def test_courtesies_alone_are_not_a_rejection(self):
         self.assertIsNone(gmail.classify('Good luck', 'Best of luck on your exams!'))
 
@@ -171,14 +180,32 @@ class MatchTests(unittest.TestCase):
         found = gmail.match(self.groups, message('Cisco', 'your application for ASIC Verification Intern - San Jose'))
         self.assertEqual(self.ids(found), ['c1', 'c2'])
 
-    def test_an_email_older_than_the_application_is_about_something_else(self):
-        old = message('Your Micron application', at='2026-09-01T00:00:00+00:00')
+    def test_an_email_long_before_the_application_is_about_something_else(self):
+        old = message('Your Micron application', at='2026-07-01T00:00:00+00:00')
         self.assertEqual(gmail.match(self.groups, old), [])
+        # Decisions are often recorded weeks after applying (Muse's were
+        # reconciled in bulk): an email a few weeks earlier still counts.
+        weeks = message('Your Micron application', at='2026-09-01T00:00:00+00:00')
+        self.assertEqual(self.ids(gmail.match(self.groups, weeks)), ['m1'])
+
+    def test_the_one_application_there_is_not_matched_to_an_email_about_another_role(self):
+        # General Motors, first real run: the ledger held one GM role, the
+        # email confirmed a different one.
+        groups = [group('g1', 'General Motors', 'Software Verification Engineer, AV Platform (Early Career)')]
+        other = message('Your application to 2027 Summer Intern - Digital Product: Embedded and Systems is in!',
+                         sender='<generalmotors@myworkday.com>')
+        self.assertEqual(gmail.match(groups, other), [])
+        same = message('Your application to Software Verification Engineer, AV Platform (Early Career) is in!',
+                       sender='<generalmotors@myworkday.com>')
+        self.assertEqual(self.ids(gmail.match(groups, same)), ['g1'])
+        status = message('Your General Motors Application Status', sender='<generalmotors@myworkday.com>')
+        self.assertEqual(self.ids(gmail.match(groups, status)), ['g1'])
 
     def test_company_names(self):
         self.assertEqual(gmail.company_names('Micron Technology, Inc.'), {'micron'})
-        self.assertEqual(gmail.company_names('Advanced Micro Devices, Inc.'), {'advanced micro devices', 'amd'})
+        self.assertEqual(gmail.company_names('Advanced Micro Devices, Inc.'), {'advanced micro devices', 'advancedmicrodevices', 'amd'})
         self.assertEqual(gmail.company_names('Amazon.com, Inc.'), {'amazon', 'aws'})
+        self.assertEqual(gmail.company_names('General Motors'), {'general motors', 'generalmotors'})
 
 
 class DecideTests(unittest.TestCase):
@@ -194,6 +221,21 @@ class DecideTests(unittest.TestCase):
         again, _, _ = gmail.decide(self.groups, messages, {'m1': {'outcome': 'declined', 'by': 'gmail'},
                                                             'a1': {'outcome': ''}})
         self.assertEqual(again, [])
+
+    def test_an_invitation_from_a_company_that_wrote_before_is_starred(self):
+        # Optiver, first real run: confirmation, then an assessment, and no
+        # Optiver row in the ledger.
+        messages = [message('Prepare for your application', sender='<no-reply@optiver.us>', mid='c',
+                            at='2026-10-01T00:00:00+00:00'),
+                    message('Invitation for assessments', sender='<no-reply@optiver.com>', outcome='passed',
+                            mid='o', at='2026-10-05T00:00:00+00:00'),
+                    message('Are you available?', sender='<someone@coldrecruiter.io>', outcome='passed', mid='r')]
+        _, unsorted, stars = gmail.decide(self.groups, messages, {})
+        self.assertEqual(stars, ['o'])
+        self.assertEqual(sorted(item['id'] for item in unsorted), ['o', 'r'])
+        # A shared applicant-tracking domain says nothing about the employer.
+        self.assertEqual(gmail._sender({'from': 'X <x@myworkday.com>'}), '')
+        self.assertEqual(gmail._sender({'from': 'X <x@careers.micron.com>'}), 'micron')
 
     def test_what_cannot_be_settled_is_listed(self):
         messages = [message('Your NVIDIA application', outcome='declined', mid='x'),
