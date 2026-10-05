@@ -80,15 +80,41 @@ DECLINED_WEAK = {
     'large number of applications', 'many qualified', 'after careful consideration',
     'after careful review', 'difficult decision', 'tough decision', 'has been closed',
     'have closed', 'been cancelled', 'been canceled', 'put on hold', 'other qualified',
-    'apply for future', 'apply to future',
+    'apply for future', 'apply to future', 'keep your resume on file',
+    'keep your information on file', 'keep your details on file', 'apply for other', 'apply to other',
 }
+
+# The shapes a rejection takes, beyond fixed phrases. Fixed phrases caught 63 of
+# 89 real rejections (DiogoRibeiro7/Job-Rejection-Analysis, MIT); the misses
+# were wordings like these: "it isn't a match", "we do not feel that it is a
+# good match", "this role was recently filled", "this position has been
+# cancelled", "not able to further consider", "no longer interviewing",
+# "we have selected another applicant".
+DECLINED_PATTERNS = tuple(re.compile(pattern) for pattern in (
+    r"(?:\bnot|n't|\bno)\b[^.;]{0,50}\b(?:match|fit|align|aligned|suited|suitable)\b",
+    r"\b(?:move|moving|proceed|proceeding|go|going)(?: forward)? with (?:other|others|another)\b",
+    r"\bmore closely (?:match|matches|matched|meet|meets|align|aligns|aligned|fit|fits)\b",
+    r"\b(?:position|role|requisition|opening|job|posting|program)\b[^.;]{0,30}\b(?:has|have|was|were|is|had)\b"
+    r"(?: been| now)?(?: recently)?(?: officially)? (?:filled|cancel+ed|closed|withdrawn|put on hold|on hold|at capacity)",
+    r"(?:\bnot|n't|unable to|\bno longer)\b(?: be)?(?: able to)?(?: further)? (?:consider|considering|move|moving|"
+    r"proceed|proceeding|progress|progressing|advance|advancing|pursue|pursuing|interview|interviewing)\b"
+    r"(?! (?:in|over|by) )",
+    r"\b(?:selected|chosen|hired|identified|offered the (?:position|role) to)\b(?: an?)? (?:another|other|different|"
+    r"more qualified|stronger)\b[^.;]{0,20}\b(?:candidate|candidates|applicant|applicants|individual|person)\b",
+    r"\bdecided (?:not to|to not)\b(?! (?:apply|continue|withdraw))",
+    r"\bmoving ahead with other\b|\bnot (?:be )?moving ahead\b",
+))
 
 PASSED = (
     # An interview, asked for.
     'invite you to interview', 'invite you to an interview', 'invite you for an interview',
     'invite you to a', 'invite you to participate', 'invite you to complete', 'invite you to take',
     'invite you to the next', 'invite you to schedule', 'invitation to interview',
-    'interview invitation', 'invited to interview', 'invited you to', 'like to invite',
+    'interview invitation', 'invited to interview', 'interview request', 'interview availability',
+    'select an interview time', 'choose an interview time', 'skills assessment',
+    'selected you for', 'look forward to meeting you', 'look forward to speaking with you',
+    'look forward to talking with you', 'are you free', 'are you available', 'would you be available',
+    'when are you free', 'when are you available', 'when would you be available', 'invited you to', 'like to invite',
     'would like to schedule', "we'd like to schedule", 'like to set up', 'like to speak with you',
     'like to talk with you', 'like to chat with you', 'like to meet with you', 'like to connect with you',
     'schedule an interview', 'schedule your interview', 'schedule a time', 'schedule a call',
@@ -132,6 +158,12 @@ PASSED_WEAK = ('interview', 'assessment', 'next step', 'next stage', 'speak with
 # confirmation. A bare "if" is not enough to say so: "If none of these times
 # work, share your availability" is an invitation all the same.
 HEDGES = (
+    'talent community', 'talent network', 'join our', 'newsletter', 'event', 'webinar', 'hackathon',
+    'registration confirmation', 'security alert', 'new jobs', 'job opportunities', 'new roles',
+    'coaching', 'claim your', 'for free', 'free trial', 'sign up', 'limited time', 'discount', '% off',
+    'subscribe',
+    'career fair', 'info session', 'information session', 'mock interview', 'interview prep',
+    'practice interview', 'interview tips',
     'if your', 'if you are selected', 'are selected', 'be selected', 'is selected',
     'should you', 'should your', 'if we ', 'if there', 'if our', 'if you meet', 'if you match',
     'if you qualify', 'if you pass', 'if successful', 'successful candidates', 'if you move',
@@ -155,7 +187,9 @@ DESCRIPTIVE = (
     'our assessments', 'our interviews', 'our interview', 'candidate journey', 'knowledge hub',
     'prepare you', 'get ready', 'faq', 'video', 'blog', 'culture', 'internship program',
 )
-NEGATIONS = (' not ', "n't ", 'unfortunately', 'unable', 'no longer', ' cannot ', 'regret')
+DECLINE_HEDGES = (' if ', 'whether', 'in the event', 'should we', 'should you', 'regardless',
+                  'either way', 'one way or')
+NEGATION = re.compile(r"\b(?:not|cannot|unable|unfortunately|regret|no longer)\b|n't\b")
 CONFIRMATION = (
     'thank you for applying', 'thanks for applying', 'thank you for your application',
     'thanks for your application', 'received your application', 'application received',
@@ -171,8 +205,58 @@ def _plain(text):
     return ' '.join(text.casefold().split())
 
 
+def _unwrap(text):
+    """Join lines a mailer wrapped at ~72 columns back into their sentence.
+
+    Split at every line break, "we regret to inform you that" and "we cannot
+    extend you an invitation" were two sentences, and a real rejection read
+    as a mention of an interview. A line long enough to have been wrapped and
+    not ending in punctuation continues on the next one.
+    """
+    joined = []
+    for line in str(text).replace('\r\n', '\n').replace('\r', '\n').split('\n'):
+        line = line.strip()
+        if (line and joined and joined[-1] and len(joined[-1]) >= 40
+                and not re.search(r'[.!?:;]["\')\]]?$', joined[-1])):
+            joined[-1] += ' ' + line
+        else:
+            joined.append(line)
+    return '\n'.join(joined)
+
+
 def _sentences(text):
-    return [' ' + part.strip() + ' ' for part in re.split(r'(?<=[.!?])\s+|\n+|\s{2,}', text) if part.strip()]
+    return [' ' + part.strip() + ' ' for part in re.split(r'(?<=[.!?])\s+|\n+|\s{3,}', _unwrap(text))
+            if part.strip()]
+
+
+def _phrases(phrases):
+    """One pattern for a list of phrases, each matched as whole words.
+
+    Plain substring tests found "our interview" inside "your interview" and
+    would find "event" inside "prevent": a phrase must start and end at a
+    word boundary wherever it starts or ends with a letter or digit.
+    """
+    parts = []
+    for phrase in sorted({phrase.strip() for phrase in phrases}, key=len, reverse=True):
+        part = re.escape(phrase)
+        if phrase[:1].isalnum():
+            part = r'(?<![a-z0-9])' + part
+        if phrase[-1:].isalnum():
+            part += r'(?![a-z0-9])'
+        parts.append(part)
+    return re.compile('|'.join(parts))
+
+
+_OVERLAPPING = {}
+
+
+def _found(pattern, line):
+    """Every phrase present, overlapping ones included: in "we regret to
+    inform you" a plain scan takes "we regret" and never sees "regret to
+    inform" starting inside it."""
+    if pattern not in _OVERLAPPING:
+        _OVERLAPPING[pattern] = re.compile('(?=(' + pattern.pattern + '))')
+    return {match.group(1) for match in _OVERLAPPING[pattern].finditer(line)}
 
 
 def classify(subject, body):
@@ -184,23 +268,28 @@ def classify(subject, body):
     """
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
-    passed = any(phrase in line for line in lowered for phrase in PASSED
-                 if not any(hedge in line for hedge in HEDGES)
-                 and not any(word in line for word in NEGATIONS))
-    hits = {phrase for line in lowered for phrase in DECLINED if phrase in line}
-    declined = bool(hits - DECLINED_WEAK) or len(hits) >= 2
+    passed = any(_PASSED.search(line) and not _HEDGES.search(line) and not NEGATION.search(line)
+                 for line in lowered)
+    plain = [line for line in lowered if not _DECLINE_HEDGES.search(line)]
+    hits = set().union(*(_found(_DECLINED, line) for line in plain)) if plain else set()
+    patterned = any(pattern.search(line) for line in plain for pattern in DECLINED_PATTERNS)
+    declined = patterned or bool(hits - DECLINED_WEAK) or len(hits) >= 2
     if passed and declined:
         return 'unclear'
     if passed:
         return 'passed'
     if declined:
         return 'declined'
-    whole = ' '.join(lowered)
-    if any(phrase in whole for phrase in CONFIRMATION):
+    if any(_CONFIRMATION.search(line) for line in lowered):
         return None
-    mentioned = any(word in line for line in lowered for word in PASSED_WEAK
-                    if not any(hedge in line for hedge in HEDGES + DESCRIPTIVE))
+    mentioned = any(_PASSED_WEAK.search(line) and not _HEDGES.search(line) and not _DESCRIPTIVE.search(line)
+                    for line in lowered)
     return 'unclear' if mentioned else None
+
+
+_PASSED, _PASSED_WEAK, _DECLINED = _phrases(PASSED), _phrases(PASSED_WEAK), _phrases(DECLINED)
+_HEDGES, _DECLINE_HEDGES = _phrases(HEDGES), _phrases(DECLINE_HEDGES)
+_DESCRIPTIVE, _CONFIRMATION = _phrases(DESCRIPTIVE), _phrases(CONFIRMATION)
 
 
 # ---------------------------------------------------------------- matching --
@@ -235,7 +324,7 @@ def _words(text):
     return ' '.join(re.sub(r'[^a-z0-9]+', ' ', _plain(text)).split())
 
 
-def match(groups, message):
+def match(groups, message, company_only=False):
     """The applied groups an email is about, or [] when it is not plain which.
 
     The sender and subject name the company; where one company has several
@@ -259,7 +348,7 @@ def match(groups, message):
     if len(companies) != 1:
         return []
     candidates = list(candidates.values())
-    if len(candidates) == 1:
+    if len(candidates) == 1 or company_only:
         return candidates
     text = head + ' ' + _words(message['text'])
     by_id = [group for group in candidates
@@ -291,20 +380,32 @@ def decide(groups, messages, current):
     read oldest first, so the latest word wins: an interview and then a
     rejection ends Declined.
     """
-    wanted, unsorted = {}, []
+    wanted, unsorted, stars, passed_before = {}, [], [], set()
     for message in sorted(messages, key=lambda item: item['at']):
         verdict = message.get('outcome')
         if verdict is None:
             continue
         found = match(groups, message)
         if verdict == 'unclear' or not found:
-            guess = found
+            guess = found or match(groups, message, company_only=True)
+            if not guess and verdict != 'passed':
+                continue
             unsorted.append({'id': message['id'], 'at': message['at'], 'from': message['from'],
                              'subject': message['subject'], 'outcome': verdict,
                              'company': guess[0]['company'] if guess else '',
                              'groups': [group['id'] for group in guess]})
+            # Starred only when it names a company applied to: a recruiter's
+            # cold "are you available?" is not news.
+            if verdict == 'passed' and guess:
+                stars.append(message['id'])
             continue
+        if verdict == 'passed' and not all(group['id'] in passed_before for group in found):
+            stars.append(message['id'])
         for group in found:
+            # A second round after a pass changes nothing; a rejection after
+            # it does, since the latest word wins.
+            if verdict == 'passed':
+                passed_before.add(group['id'])
             wanted[group['id']] = (verdict, message['id'])
     writes = []
     for group_id, (verdict, message_id) in wanted.items():
@@ -314,7 +415,7 @@ def decide(groups, messages, current):
         if last and last.get('outcome') == verdict:
             continue
         writes.append((group_id, verdict, message_id))
-    return writes, unsorted
+    return writes, unsorted, stars
 
 
 # -------------------------------------------------------------------- mail --
@@ -508,7 +609,7 @@ def run(db, ledger, address, password, directory=None, capture=None):
             'id': message['id'], 'at': message['at'], 'outcome': None}
     _save(cache_path, cache)
     outcomes = applications.outcomes_path(ledger)
-    writes, unsorted = decide(groups, list(cache.values()), last_events(outcomes))
+    writes, unsorted, stars = decide(groups, list(cache.values()), last_events(outcomes))
     for group_id, verdict, message_id in writes:
         applications.append_outcome(outcomes, group_id, verdict, by='gmail', message=message_id)
     # Settled since, by hand or by a later email: not worth showing again.
@@ -517,11 +618,11 @@ def run(db, ledger, address, password, directory=None, capture=None):
     unsorted = [item for item in unsorted if item['at'] >= recent and not (
         item['groups'] and all((marked.get(group) or {}).get('outcome') for group in item['groups']))]
     _save(directory / 'unsorted.json', unsorted)
-    # Every Passed reply, matched or not: an invitation is worth finding.
+    # The first Passed reply per position, and every one not tied to a
+    # position: an invitation is worth finding; a second round is not news.
     starred_path = directory / 'starred.json'
     starred = set(_load(starred_path, []))
-    to_star = [message['id'] for message in cache.values()
-               if message.get('outcome') == 'passed' and message['id'] not in starred]
+    to_star = [message_id for message_id in stars if message_id not in starred]
     newly = star(address, password, to_star)
     _save(starred_path, sorted(starred | set(newly)))
     summary = {'at': datetime.now(timezone.utc).isoformat(), 'applied': len(groups),

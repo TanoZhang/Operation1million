@@ -237,6 +237,11 @@ behind the cold build. Writes are not automatically retried.
 
 ## Passed or Declined (2026-10-05)
 
+The Applied tab lists **Passed** first, then **Declined**, then **Waiting for
+a reply**, each under its own heading with a select-all box. The **Show**
+menu narrows the tab to one of them. The status is printed large above the
+company, with "from Gmail" when the mailbox set it.
+
 On the Applied tab, a position can be marked **Passed** or **Declined**.
 Clicking the marked button again, or **Clear outcome**, removes the mark.
 A passed position turns the card yellow, and a declined position is greyed out.
@@ -252,7 +257,8 @@ Moving a position back to review hides its mark until it is applied again.
 every thirty minutes. It reads the mailbox over IMAP with a Gmail app password
 (`GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `/etc/jobdisco/env`). The folder is
 read with `BODY.PEEK`, so nothing is marked read. The one change it makes is
-to star each reply it reads as Passed (Gmail's star is IMAP `\Flagged`), once:
+to star the first reply per position it reads as Passed (Gmail's star is IMAP
+`\Flagged`), once:
 `starred.json` remembers it, so a reply the user unstars stays unstarred. A
 blank password turns the check off.
 
@@ -263,7 +269,19 @@ Each reply is read sentence by sentence:
   negated nor about what happens *if* the applicant is selected.
 - **Declined**: a plain rejection phrase. Courtesies such as "unfortunately"
   or "best of luck" count only when two of them appear together.
-- An application confirmation is nothing, however often it says "interview".
+- An application confirmation is nothing, however often it says "interview",
+  and so is a description of the process ("Step 2 - Assessments").
+
+Phrases match whole words only, overlapping phrases are all seen, and lines a
+mailer wrapped at 72 columns are joined back into their sentences. Each of
+those was a real miss. The rules are held to a fixed evaluation set in
+`tests/test_gmail_outcomes.py`. On 2026-10-05 they were also measured on 89
+real rejections published under MIT by DiogoRibeiro7/Job-Rejection-Analysis:
+80 of the 81 with a body read Declined, and the 81st is a confirmation.
+
+A second round (another assessment, another interview) after Passed changes
+nothing, and only the first Passed reply for a position is starred. A
+rejection after it turns the position Declined, because the latest reply wins.
 
 A reply is matched to one applied position by the company, in the sender or
 subject first. Where several applications went to one company, a requisition

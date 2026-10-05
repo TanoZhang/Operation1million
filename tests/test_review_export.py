@@ -185,7 +185,9 @@ class PageContractTests(unittest.TestCase):
         self.page = (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8')
 
     def test_every_sort_in_the_menu_is_one_the_script_knows(self):
-        values = re.findall(r'<option value="([^"]+)"', self.page)
+        # The sort menu's own options; the Applied tab's Show menu has others.
+        menu = re.search(r'<select id="sort">(.*?)</select>', self.page).group(1)
+        values = re.findall(r'<option value="([^"]+)"', menu)
         self.assertEqual(set(values), {'fit-desc', 'fit-desc-oldest', 'fit-asc', 'newest', 'oldest',
                                        'recommended'})
         for value in values:

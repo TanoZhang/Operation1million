@@ -180,13 +180,14 @@ async function checkBatches() {
 }
 
 async function checkOutcomes() {
-  // 2026-10-05: an applied position is marked Passed or Declined; a
-  // passed one is highlighted in the list.
+  // 2026-10-05: the Applied tab in Passed, Declined and Waiting sections, a
+  // menu to show one, and the status in large type above the company.
   const page = new JSDOM(fs.readFileSync(path.join(assets, 'index.html'), 'utf8'),
     {url:'http://localhost:8765', runScripts:'outside-only'});
   const view = page.window;
   const done = {pending: [], backlog: [], skipped: [], token: 'fixture',
-    applied: [{...group('x'), at: '2026-10-01T18:00:00Z'}, {...group('y'), at: '2026-09-30T18:00:00Z', outcome: 'declined'}]};
+    applied: [{...group('x'), at: '2026-10-01T18:00:00Z'},
+              {...group('y'), at: '2026-09-30T18:00:00Z', outcome: 'declined', outcome_by: 'gmail'}]};
   const sent = [];
   view.fetch = async (url, options) => {
     if (url === '/api/outcome') {
@@ -199,21 +200,36 @@ async function checkOutcomes() {
   try {
     view.eval(fs.readFileSync(path.join(assets, 'app.js'), 'utf8'));
     await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(view.document.querySelector('.outcome-control').hidden, true);
     view.document.querySelector('[data-tab=applied]').click();
+    assert.equal(view.document.querySelector('.outcome-control').hidden, false);
     const cards = () => [...view.document.querySelectorAll('.job')];
-    assert.match(cards()[1].className, /outcome-declined/);
-    assert.equal(cards()[1].querySelector('.outcome').textContent, 'Declined');
-    assert.equal(view.document.getElementById('outcome-clear'), null);
+    const sections = () => [...view.document.querySelectorAll('.list-divider')].map(item => item.textContent.trim());
+    assert.deepEqual(sections(), ['Declined · 1', 'Waiting for a reply · 1']);
+    assert.match(cards()[0].className, /outcome-declined/);
+    assert.match(cards()[0].querySelector('.status-badge').textContent, /^DECLINED from Gmail/);
+    assert.equal(cards()[1].querySelector('.status-badge'), null);
+    // Pick the waiting one and mark it Passed: it moves to the top section.
+    cards()[1].click();
     view.document.getElementById('outcome-passed').click();
     await new Promise(resolve => setTimeout(resolve, 15));
     assert.deepEqual(sent.at(-1), {id: 'x', outcome: 'passed'});
+    assert.deepEqual(sections(), ['Passed · 1', 'Declined · 1']);
     assert.match(cards()[0].className, /outcome-passed/);
-    assert.equal(view.document.querySelector('#detail .outcome').textContent, 'Passed');
+    assert.equal(view.document.querySelector('#detail .status-badge').textContent, 'PASSED');
+    // The menu shows one section.
+    const menu = view.document.getElementById('outcome-filter');
+    menu.value = 'passed';
+    menu.dispatchEvent(new view.Event('change'));
+    assert.equal(cards().length, 1);
+    assert.deepEqual(sections(), ['Passed · 1']);
+    menu.value = '';
+    menu.dispatchEvent(new view.Event('change'));
     // Clicking the marked one again clears it.
     view.document.getElementById('outcome-passed').click();
     await new Promise(resolve => setTimeout(resolve, 15));
     assert.deepEqual(sent.at(-1), {id: 'x', outcome: ''});
-    assert.doesNotMatch(cards()[0].className, /outcome/);
+    assert.deepEqual(sections(), ['Declined · 1', 'Waiting for a reply · 1']);
     // Not offered outside the Applied tab.
     view.document.querySelector('[data-tab=skipped]').click();
     assert.equal(view.document.getElementById('outcome-passed'), null);

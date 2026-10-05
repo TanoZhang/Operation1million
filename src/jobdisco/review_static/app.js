@@ -97,8 +97,6 @@ const appliedDate = group => group.at
   : 'Applied date unavailable';
 // Passed or Declined, recorded on the Applied tab (2026-10-05).
 const OUTCOME_LABELS = {passed: 'Passed', declined: 'Declined'};
-const outcomeChip = group => OUTCOME_LABELS[group.outcome]
-  ? ` <span class="outcome outcome-${group.outcome}"${group.outcome_by === 'gmail' ? ' title="Read from Gmail"' : ''}>${OUTCOME_LABELS[group.outcome]}${group.outcome_by === 'gmail' ? ' &middot; Gmail' : ''}</span>` : '';
 // Replies the Gmail check could not tie to one position or read plainly.
 let gmailItems = [];
 const GUESS_LABELS = {passed: 'looks passed', declined: 'looks declined', unclear: 'may be an invitation'};
@@ -117,8 +115,10 @@ function renderGmail() {
     if (first && state.applied.some(group => group.id === first)) { selected = first; render(); }
   });
 }
+const statusBadge = group => OUTCOME_LABELS[group.outcome]
+  ? `<div class="status-badge status-${group.outcome}">${OUTCOME_LABELS[group.outcome].toUpperCase()}${group.outcome_by === 'gmail' ? ' <span>from Gmail</span>' : ''}</div>` : '';
 const topBadge = group => tab === 'applied'
-  ? `<span class="applied-date">${escapeText(appliedDate(group))}</span>${outcomeChip(group)}` : chips(group);
+  ? `${statusBadge(group)}<span class="applied-date">${escapeText(appliedDate(group))}</span>` : chips(group);
 // All three, the same in the list and in the detail.
 const chips = group => `${bandChip(group)}${flagChip(group)}${internChip(group)}${group.jobs.some(thirdParty) ? '<span class="third-party-warning">Third-party site</span>' : ''}`;
 const $ = selector => document.querySelector(selector);
@@ -282,7 +282,12 @@ function sorted(groups) {
 // Which section each listed group was placed in, for the dividers.
 let sectionOf = new Map();
 const SECTION_NAMES = {recent: 'New in the last 72 hours', backlog: 'Backlog',
-                       less: 'Low relevance'};
+                       less: 'Low relevance', passed: 'Passed', declined: 'Declined',
+                       waiting: 'Waiting for a reply'};
+// Asked for on 2026-10-05: the Applied tab in three sections, Passed first,
+// and a menu to show one of them.
+let outcomeFilter = '';
+const outcomeOf = group => OUTCOME_LABELS[group.outcome] ? group.outcome : 'waiting';
 // Asked for on 2026-09-22: one list to work down -- what is new, then the
 // backlog. Since 2026-09-24 what is barely related, new or old, is on a tab of
 // its own and nowhere else, and Remaining does not count it. The server says
@@ -306,6 +311,10 @@ function filtered() {
     sections = [['backlog', state.backlog.filter(experienced)]];
   } else if (tab === 'less') {
     sections = [['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]];
+  } else if (tab === 'applied') {
+    sections = ['passed', 'declined', 'waiting']
+      .filter(name => !outcomeFilter || name === outcomeFilter)
+      .map(name => [name, state.applied.filter(group => outcomeOf(group) === name)]);
   } else {
     sections = [[null, state[tab]]];
   }
@@ -338,6 +347,7 @@ function render() {
   const groups = filtered();
   const appliedMode = tab === 'applied';
   renderGmail();
+  $('.outcome-control').hidden = !appliedMode;
   $('#manual-form button[type=submit]:not(#manual-applied)').textContent = appliedMode ? 'Add to Applied' : 'Add job and score';
   $('#manual-applied').hidden = appliedMode;
   updateSelection();
@@ -499,6 +509,7 @@ document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () =>
   render();
 });
 $('#refresh').onclick = refresh;
+$('#outcome-filter').onchange = event => { outcomeFilter = event.target.value; visibleLimit = PAGE; render(); };
 // The list on screen -- this tab, this search, this order -- into the one
 // Browser download: selected positions, or the current filtered list.
 async function exportView() {

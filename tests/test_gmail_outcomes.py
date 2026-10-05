@@ -110,9 +110,27 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(both, 'unclear')
 
     def test_a_vague_mention_is_listed_rather_than_dropped(self):
+        self.assertEqual(gmail.classify('Quick update', 'The hiring manager is still going through feedback '
+                                        'from your interview.'), 'unclear')
         self.assertEqual(gmail.classify('Quick question', 'Are you free to talk with our hiring manager this week?'),
-                         'unclear')
+                         'passed')
         self.assertIsNone(gmail.classify('Your weekly digest', 'Ten new semiconductor stories.'))
+
+    def test_words_inside_other_words_do_not_count(self):
+        # "your interview" contains "our interview", a descriptive phrase.
+        self.assertEqual(gmail.classify('Update', 'The hiring manager is still going through feedback '
+                                        'from your interview.'), 'unclear')
+
+    def test_overlapping_phrases_are_all_seen(self):
+        # "we regret" (a courtesy) and "regret to inform" (a rejection) overlap.
+        self.assertEqual(gmail.classify('Update', 'We regret to inform you that we cannot extend you an '
+                                        'invitation to interview for this role.'), 'declined')
+
+    def test_a_wrapped_plain_text_email_is_read_as_sentences(self):
+        wrapped = ('Thank you for your application. After carefully examining your application, we regret\n'
+                   'to inform you that IBM is pursuing other candidates whose expertise is more closely\n'
+                   'aligned to the job requirements.\n\nSincerely,\nRecruiting')
+        self.assertEqual(gmail.classify('Your IBM Application', wrapped), 'declined')
 
     def test_courtesies_alone_are_not_a_rejection(self):
         self.assertIsNone(gmail.classify('Good luck', 'Best of luck on your exams!'))
@@ -170,10 +188,10 @@ class DecideTests(unittest.TestCase):
         messages = [message('Micron interview', outcome='passed', mid='a', at='2026-10-01T00:00:00+00:00'),
                     message('Micron update', outcome='declined', mid='b', at='2026-10-03T00:00:00+00:00'),
                     message('AMD', outcome='passed', mid='c')]
-        writes, unsorted = gmail.decide(self.groups, messages, {'a1': {'id': 'a1', 'outcome': ''}})
+        writes, unsorted, stars = gmail.decide(self.groups, messages, {'a1': {'id': 'a1', 'outcome': ''}})
         self.assertEqual(writes, [('m1', 'declined', 'b')])
         self.assertEqual(unsorted, [])
-        again, _ = gmail.decide(self.groups, messages, {'m1': {'outcome': 'declined', 'by': 'gmail'},
+        again, _, _ = gmail.decide(self.groups, messages, {'m1': {'outcome': 'declined', 'by': 'gmail'},
                                                             'a1': {'outcome': ''}})
         self.assertEqual(again, [])
 
@@ -181,10 +199,21 @@ class DecideTests(unittest.TestCase):
         messages = [message('Your NVIDIA application', outcome='declined', mid='x'),
                     message('Micron chat?', outcome='unclear', mid='y'),
                     message('Some startup', outcome='passed', mid='z')]
-        writes, unsorted = gmail.decide(self.groups, messages, {})
+        writes, unsorted, stars = gmail.decide(self.groups, messages, {})
         self.assertEqual(writes, [])
         self.assertEqual([(item['id'], item['groups']) for item in unsorted],
-                         [('x', []), ('y', ['m1']), ('z', [])])
+                         [('x', ['n1', 'n2']), ('y', ['m1']), ('z', [])])
+        # An invitation from a company never applied to is listed, not starred.
+        self.assertEqual(stars, [])
+
+    def test_only_the_first_pass_per_position_is_starred(self):
+        messages = [message('Micron assessment', outcome='passed', mid='a', at='2026-10-01T00:00:00+00:00'),
+                    message('Micron interview', outcome='passed', mid='b', at='2026-10-04T00:00:00+00:00'),
+                    message('Micron update', outcome='declined', mid='c', at='2026-10-08T00:00:00+00:00')]
+        writes, _, stars = gmail.decide(self.groups, messages, {})
+        self.assertEqual(stars, ['a'])
+        # The second round changed nothing; the later rejection did.
+        self.assertEqual(writes, [('m1', 'declined', 'c')])
 
 
 class ParseAndStoreTests(unittest.TestCase):
@@ -214,6 +243,67 @@ class ParseAndStoreTests(unittest.TestCase):
             gmail._save(Path(folder) / 'unsorted.json', [{'at': '1'}, {'at': '3'}, {'at': '2'}])
             self.assertEqual([item['at'] for item in gmail.read_unsorted(folder)], ['3', '2', '1'])
             self.assertEqual(gmail.read_unsorted(Path(folder) / 'missing'), [])
+
+
+# A fixed evaluation set, kept so a rule change cannot quietly undo a fix.
+# Sample emails adapted from the tests of amimrjo/Job-Application-Tracker,
+# the templates of fnuAshutosh/job-email-classifier and phrases of
+# Adr1an04/erga-mcp (all MIT), plus hard cases written to break the rules.
+# The rules were also measured on 89 real rejections published by
+# DiogoRibeiro7/Job-Rejection-Analysis (MIT): 80 of the 81 with a body read
+# Declined, the 81st being a confirmation (2026-10-05). That set holds a
+# stranger's mail and is not copied here.
+EVALUATION = [
+    # amimrjo
+    (None, 'Your application to Acme Corp', 'Thank you for applying to the Software Engineer position at Acme Corp. We have received your application and will be in touch.'),
+    (None, 'Quick chat about a role?', "Hi, I came across your profile on LinkedIn and think you'd be a great fit for our Backend Engineer role. Would you be open to a quick chat this week?"),
+    ('passed', 'Interview invitation - Beta Inc', 'We would like to schedule an interview for the position of Data Analyst. Please use this Calendly link to pick a time.'),
+    ('declined', 'Update on your application', 'Thank you for your interest in Gamma LLC. After careful consideration, we have decided to move forward with other candidates for this role.'),
+    ('passed', 'Your offer from Delta Co', 'We are pleased to offer you the position of Product Manager. Please find the attached offer letter.'),
+    (None, 'This week in tech', 'Here is your weekly roundup of tech news and industry trends.'),
+    (None, 'New jobs posted from Grainger Businesses', 'Thank you for joining the Grainger Businesses talent community! Joining our talent community will allow us to notify you directly when roles aligned to your interests are posted.'),
+    (None, 'New job opportunities at Texas Instruments', 'Hello, We have new job opportunities that might interest you. Check them out: Network Engineer, AI Solutions Engineer. See all opportunities.'),
+    ('passed', 'New job opportunities at Acme -- plus your interview invitation', "We have new job opportunities you might like. Separately: we'd like to schedule an interview for the position of Backend Engineer."),
+    (None, 'Opportunity', "We have an opportunity we'd love to discuss with you regarding a role."),
+    (None, 'Application received', 'Thank you for applying. We have received your application.'),
+    # fnuAshutosh templates
+    ('passed', 'Interview', 'We are pleased to invite you for an interview for the RTL Engineer position at Acme. The interview is scheduled for Oct 9.'),
+    ('passed', 'Interview invitation', 'Acme would like to schedule an interview with you for the RTL role. Please confirm your availability for Oct 9.'),
+    ('passed', 'Invite', 'You are invited to interview at Acme for a DV position. The interview will be conducted on Oct 9.'),
+    ('passed', 'Great news', 'Great news! Acme has selected you for the RTL interview. We look forward to meeting you on Oct 9.'),
+    ('declined', 'Decision', 'We appreciate your application for RTL at Acme, but we have chosen another candidate.'),
+    ('declined', 'Decision', 'We have reviewed your application for RTL and regret to inform you that we will not be proceeding.'),
+    (None, 'Application submitted', 'Acme has confirmed receipt of your application for RTL.'),
+    (None, 'Submitted', 'Your application for RTL at Acme has been successfully submitted and is under review.'),
+    (None, 'Resume help', 'We can help improve your resume for just $99. Get professional writing today!'),
+    (None, 'Coaching', 'Urgent: Claim your FREE job interview coaching session now!'),
+    (None, 'Profile', 'SPECIAL OFFER: Get your LinkedIn profile optimized by experts. Limited time only!'),
+    # Hard confirmations
+    (None, 'Thank you for applying', 'Thank you for applying. Please note we do not offer visa sponsorship for this role. We will review your application and contact you if there is a fit.'),
+    (None, 'Application received', 'We received your application. If we are not able to move forward with your application, we will notify you by email.'),
+    (None, 'Application received', 'Thanks for applying! If you are not selected for this role, we will keep your resume on file for future openings.'),
+    (None, 'Your application', 'Your application has been received. Candidates who are selected will be invited to complete an online assessment.'),
+    (None, 'Prepare for your application process with Optiver', 'Exciting news! Your application has been received. Step 2 - Assessments: Our assessments test various skills. Step 3 - Interviews: A series of conversations.'),
+    (None, 'Mock interview', 'Book a mock interview with an ex-FAANG engineer. Practice interview questions today.'),
+    (None, 'Join us', 'You are invited to our virtual career fair on Oct 10! Register for the event.'),
+    (None, 'Hackathon', 'You are invited to participate in our annual hackathon.'),
+    (None, 'Withdrawn', "We are sorry that you have decided not to continue with your application."),
+    # Hard invitations
+    ('passed', 'Next steps', 'Thank you for applying! We were impressed by your background and would like to invite you to a 30 minute phone screen. If none of the times work, please share your availability.'),
+    ('passed', 'Assessment', 'As a next step, please complete the HackerRank assessment within 7 days.'),
+    ('passed', 'Re: application', 'Are you available Tuesday or Wednesday afternoon for a call with the hiring manager? Please share your availability.'),
+    ('passed', 'Rescheduling', 'Unfortunately the interviewer is out on Tuesday. Please select a time that works for you.'),
+    ('passed', 'Micron Digital Interview', 'You have been invited to complete a HireVue digital interview for the Memory Design Intern role.'),
+    ('passed', 'Next round', "Congratulations, you've advanced to the next round of our process."),
+    ('passed', 'Interview request', 'Interview request: please select an interview time from the link below.'),
+]
+
+
+class EvaluationSetTests(unittest.TestCase):
+    def test_every_case(self):
+        wrong = [(want, gmail.classify(subject, body), subject) for want, subject, body in EVALUATION
+                 if gmail.classify(subject, body) != want]
+        self.assertEqual(wrong, [])
 
 
 if __name__ == '__main__':
