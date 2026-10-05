@@ -737,6 +737,12 @@ def queue(db_path=DB, path=None, now=None):
                             or copies_workday_requisition(job, raw)):
                         continue
                 filter_row = {'title': job['title'], 'raw': raw}
+                # Generic software titles now reach this point too. Refuse
+                # missing/off-domain JD before parsing experience across that
+                # much larger cohort. Every surviving row still faces all
+                # hard requirements below; this is only an earlier rejection.
+                if jsearch.software_jd_rejection(filter_row):
+                    continue
                 if blocked:
                     if not jsearch.analog_chip_evidence(job['title'],
                                                         jsearch.description_text(filter_row)):
@@ -745,8 +751,6 @@ def queue(db_path=DB, path=None, now=None):
                     job['confidence'] = max(job['confidence'], jsearch.relevance(filter_row, rules)[0])
                 reason, experience = jsearch.eligibility_rejection(filter_row, rules)
                 if reason:
-                    continue
-                if jsearch.software_jd_rejection(filter_row):
                     continue
                 if jsearch.publisher_excluded(job['url'], raw, rules):
                     continue

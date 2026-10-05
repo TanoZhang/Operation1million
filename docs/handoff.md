@@ -23,8 +23,12 @@ The 6,110-row raw software cohort also includes non-US postings.
 Offline validation on d130962 plus this patch: the full suite ran 1,135 tests
 with 13 environment skips and no failures. After the final PCB and application-
 history cases, all 66 focused tests pass. Initial policy tests failed before
-the fix; the real reported posting now returns no_vlsi_evidence. Deployment
-and live queue verification follow separately.
+the fix; the real reported posting now returns no_vlsi_evidence. Installed
+3fe2c8f using install.sh; the same 66 focused tests pass on that exact commit.
+Production recheck confirms the reported posting is refused, 170 queries and
+400 daily credits remain loaded, and Review root returns HTTP 200. Rescored
+all 57,080 stored records under the collection lock; October 5 log verification
+returns ok. Collector is idle and its timer active. Final queue check follows.
 
 # Ten-page nationwide trials - 2026-10-05 (codex)
 

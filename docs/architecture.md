@@ -2603,3 +2603,10 @@ The private audit used 6,110 open software-title records, including non-US
 locations; these counts are not Review group counts. Existing ranking values
 and scoring vocabulary are unchanged; the gate never trusts a stored score.
 The search budget, queries, pagination and scheduling are unchanged.
+
+The first live build after removing the generic software title block spent over
+eight CPU minutes rebuilding Review while the index was also refreshed. Review
+now applies the cheap negative software-JD gate before experience extraction,
+so unrelated and missing-JD software need not pay for that parser. Every row
+that survives still faces all hard requirements; eligibility results are
+unchanged. Discovery retains its reason-precedence order.
