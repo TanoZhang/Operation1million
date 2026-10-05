@@ -1,3 +1,26 @@
+# Retire abandoned autofill - 2026-10-04 (codex)
+
+At the user's request, remove application-autofill, the answer_bank module,
+job-answers entry point and component-specific tests/docs. Update deployment's
+staging allowlist and keep its general source/private-file regression tests.
+Historical handoff and bug records remain historical evidence, not active
+instructions. The existing ignore rule still protects any stale personal seed.
+
+The user clarified: delete autofill without archiving; inspect job-applications
+just in case and leave it alone if sound. Its existing private profile was more
+complete than the old local copy. All tentative private changes were undone;
+the private repository is clean. Old disk-based autofill data and temporary
+migration archives were deleted. No application records or private facts were
+committed to public code. Browser extension storage was not accessed; source
+removal does not uninstall a registered browser extension.
+
+Base: 003d067 plus this removal. Full offline suite: 1,075 tests, 13 skips;
+its sole failure was the retired extension staging expectation loaded before
+the test update. Both updated general deployment staging tests pass on rerun;
+all other tests passed. Editable package installation succeeds and job-answers
+is absent from installed entry points and Scripts. Private Git diff is empty.
+The user will deploy; no VPS deployment or paid collection was started.
+
 # Three-page title-synonym trials - 2026-10-04 (codex)
 
 User approved the fifteen proposed title queries at three daily pages each,

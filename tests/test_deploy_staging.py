@@ -8,8 +8,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class DeployAutofillTests(unittest.TestCase):
-    def test_staging_includes_new_extension_code_and_excludes_private_answers(self):
+class DeployStagingTests(unittest.TestCase):
+    def test_staging_includes_new_code_and_excludes_private_answers(self):
         if not shutil.which('git'):
             self.skipTest('Git is required')
         script = (ROOT / 'deploy/local/deploy-vps.bat').read_text()
@@ -22,7 +22,7 @@ class DeployAutofillTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 return result.stdout
             git('init', '-q')
-            directories = {'src', 'tests', 'docs', 'data/config', 'deploy', 'application-autofill'}
+            directories = {'src', 'tests', 'docs', 'data/config', 'deploy'}
             for item in paths:
                 target = root / item
                 if item in directories:
@@ -33,9 +33,9 @@ class DeployAutofillTests(unittest.TestCase):
                     target.write_text('fixture\n')
             (root / '.gitignore').write_text((ROOT / '.gitignore').read_text())
             (root / '.gitattributes').write_text((ROOT / '.gitattributes').read_text())
-            files = {'application-autofill/extension/portable-memory.js': 'code\n',
-                     'application-autofill/data-files.py': 'code\n',
-                     'application-autofill/schema/memory.schema.json': '{}\n',
+            files = {'src/jobdisco/new_module.py': 'code\n',
+                     'tests/test_new_module.py': 'code\n',
+                     'docs/new-module.md': '{}\n',
                      'application-autofill/extension/local-profile.json': '{}\n',
                      '.local/autofill/data/profile.json': '{}\n'}
             for name, value in files.items():
@@ -50,9 +50,9 @@ class DeployAutofillTests(unittest.TestCase):
             for name in list(files)[3:]:
                 self.assertNotIn(name, staged)
 
-    def test_autofill_and_documentation_have_explicit_lf_endings(self):
+    def test_source_and_documentation_have_explicit_lf_endings(self):
         result = subprocess.run(['git', 'check-attr', 'eol', '--',
-                                 'application-autofill/extension/profile.js', 'docs/handoff.md'],
+                                 'src/jobdisco/review_static/app.js', 'docs/handoff.md'],
                                 cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(all(line.endswith(': lf') for line in result.stdout.splitlines()), result.stdout)

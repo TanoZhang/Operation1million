@@ -1,8 +1,0 @@
-:root { color-scheme: light dark; font: 16px system-ui, sans-serif; }
-body { margin: 0; } main { max-width: 760px; padding: 32px; margin: auto; }
-label, .question { display: grid; gap: 6px; margin: 16px 0; }
-input, select, button { font: inherit; padding: 9px; }
-.preference { display: flex; align-items: center; }
-.question { padding: 16px; border: 1px solid #888; border-radius: 8px; }
-.question p { margin: 0; overflow-wrap: anywhere; }
-button { cursor: pointer; } #status { min-height: 24px; }

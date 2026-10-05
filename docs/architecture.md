@@ -73,48 +73,12 @@ Current patch status and measurements: newest section of [handoff](handoff.md).
 | `review.py` | The loopback HTTP server. Binds `127.0.0.1` only, checks the Host header so an SSH tunnel still works, and requires a token for writes. `slim()` projects the queue down to what the page renders. |
 | `review_static/` | The page. `app.js` reads only the fields `review.GROUP_FIELDS` and `JOB_FIELDS` send; a contract test enforces that. |
 
-### Local personal answer preparation
+### Private personal and application records
 
-`answer_bank.py` owns a separate workstation-only autofill knowledge store:
-canonical fields and one answer per field, exact built-in aliases, scoped
-observed questions and confirmed bindings. Its authoritative `.local/autofill/
-answers.json` is atomically saved under a lock; `answers.sqlite` is a derived
-view refreshed after writes and can be rebuilt. This is not application decision
-state, does not write the VPS ledger, and is never read by job-index rebuilds.
-The ATS-independent Chrome/Edge extension under `application-autofill/extension`
-is injected into the active HTTPS tab only after a user action. It imports an
-ignored local profile seed once, then owns its working copy in private browser
-storage. It needs no local server, startup entry or background process. Safe
-answers are filled when the popup opens; review-policy answers remain behind a
-separate question-and-answer checklist that fills only selected rows. While
-installed on that page, the content script
-stores final nonempty values from trusted blur/change events, never keystrokes.
-The browser owns one answer bank; learned mappings carry explicit global, site,
-or position reuse scope. Global reuse requires an exact normalized question,
-control kind and option set and remains review-only. It never submits or
-overwrites an existing value. Sensitive identifiers, consent
-controls, checkboxes, files and unsupported custom comboboxes remain manual.
-Platform adapters extend this scanner rather than introducing separate extensions.
-The 0.5.0 framework adds `ats-adapters.js` for Workday/Greenhouse/Lever metadata
-and `answer-engine.js` for pure known-answer assessment. `profile.html` and its
-script own browser-local basic-question setup, confirmed unknown-question
-mapping and explicit local-seed import. At the user's request, the automatic-fill
-preference now permits every known compatible answer, including stored review
-answers; disabling it restores the checklist. Site/position scope and complete
-question meaning still apply. Owned accessible single-choice listboxes are filled
-sequentially, using real exact options and post-click verification; other custom
-widgets remain manual. Degree, major, school and graduation fields are separate,
-and contextual answers require the per-position work route. Details and research
-sources are in [the autofill framework contract](autofill-framework.md).
-Position-restricted bindings withhold answers unless the caller supplies the
-matching position ID; passing no context cannot silently reuse a prior cycle.
-Version 0.6.0 adds `portable-memory.js`: schema-versioned lossless profile exports,
-conflict-preserving imports and private change history. The settings tab owns a
-user-selected output file and serializes updates while open, without a background
-process. Pending captures are exported as observations; external files require
-explicit confirmed import. Browser storage remains the runtime authority and
-Python/VPS state is not synchronized by this feature. See `docs/autofill-memory.md`.
-See `docs/answer-bank.md` for matching, storage, backup and extension contracts.
+The abandoned autofill extension and local answer-bank CLI were removed at the
+user's request on 2026-10-04. Muse's existing working records remain in the
+private data repository under job-applications/, unchanged. The collector does
+not consume these profiles. See [private records](private-application-records.md).
 
 ### Operations
 
@@ -163,14 +127,10 @@ omitting it caused independent workbook readers to warn and substitute defaults.
 The regression was red before the style addition. Neither checkbox selection
 nor download changes the application decision ledger.
 
-Deployment's new-file allowlist must include `application-autofill`. On
-`b8123d3`, tracked pages referenced a new module that remained untracked because
-`deploy-vps.bat` staged only its older directory list. Tests passed against the
-local files while the release omitted them. An isolated Git staging regression
-now verifies new extension code/scripts/schema are included and ignored personal
-profiles are excluded. Source/documentation text has explicit LF attributes;
-batch files retain CRLF. Successful unittest output is buffered during deployment,
-with failure details retained. No collection or application behavior changes.
+Deployment's new-file allowlist covers maintained source, tests and docs. The
+retired autofill directory is no longer included. The isolated Git staging test
+checks new maintained files are staged while private local profiles remain
+ignored. Source/documentation text has LF attributes; batch files retain CRLF.
 
 ## Protected decisions
 

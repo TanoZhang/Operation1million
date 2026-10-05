@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Delete the abandoned autofill component and local copies, without an archive; inspect but leave Muse's private job-applications records unchanged per user clarification.
+Files: application-autofill/, src/jobdisco/answer_bank.py, autofill/answer-bank tests and docs, packaging/deploy references; obsolete ignored local autofill copies.
+Base commit: 003d067 (public), 0dc63ad (private)
+Status: done -- obsolete component and local data removed, no archive; private repository unchanged. Full suite checked; updated deployment tests pass.
+Next: Push public code; the user deploys separately.
+```
+
+```text
+Owner: codex
 Scope: Add the user's fifteen title-synonym trials at three pages each on top of Claude's merged caps and co-op plan.
 Files: data/config/jsearch_queries.toml, tests/test_jsearch.py, docs/{agent-protocol,handoff,jsearch}.md
 Base commit: 3451171
