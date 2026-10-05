@@ -16,9 +16,10 @@ Scope: At the user's request (2026-10-04): two AGENTS.md invariants from the
 Files: AGENTS.md, docs/{agent-protocol,bug-tracker}.md, src/jobdisco/{store,prune,applications}.py,
        deploy/vps/daily-pass.sh, tests/{test_store,test_prune,test_unify_copies}.py
 Base commit: c3923f6
-Status: done locally -- not committed, not deployed (the user asked to hold the deploy)
-Next: User decides on commit/push; WSL suite before pushing; restoring the
-      2,136 postings already lost (#318) from the data repository's history.
+Status: done -- 31687ba and 1215ea4 pushed and installed. 6,476 open postings
+        restored on the VPS (data commit 1a52b6b); Muse's applications
+        reconciled. 1215ea4: looser JSearch caps, co-op queries, Review batches.
+Next: Measure the next pass's credit use and yield under the new caps.
 ```
 
 ```text
