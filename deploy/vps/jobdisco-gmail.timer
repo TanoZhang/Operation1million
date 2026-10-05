@@ -1,0 +1,11 @@
+[Unit]
+Description=Read Gmail replies to applications every thirty minutes
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=30min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

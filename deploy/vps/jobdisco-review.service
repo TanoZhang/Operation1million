@@ -16,6 +16,8 @@ Group=jobdisco
 # was rejecting at the same moment.
 WorkingDirectory=/opt/jobdisco/code
 Environment=JOBDISCO_STORE=/opt/jobdisco/data
+# Read only: the Gmail replies the timer could not settle.
+Environment=JOBDISCO_GMAIL_DIR=/opt/jobdisco/gmail
 Environment=PYTHONPATH=/opt/jobdisco/code/src
 # The export goes to its own folder: the checkout is read-only here
 # (ProtectSystem=strict), and the default under it failed with Errno 30.

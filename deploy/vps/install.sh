@@ -66,6 +66,10 @@ if [ ! -f "$ENV_FILE" ]; then
 #                   read and write. One permission set covers every repository
 #                   a fine-grained token selects, so this carries write on the
 #                   code repository too; the pass only ever reads that one.
+# GMAIL_ADDRESS     The Gmail account applications are sent from, and
+# GMAIL_APP_PASSWORD a Gmail app password for it (Google Account > Security >
+#                   App passwords). Read-only IMAP for Passed / Declined marks;
+#                   blank turns the Gmail check off.
 # HEALTHCHECK_URL   Healthchecks.io ping URL for the production check. Leaving
 #                   this blank silences the heartbeat, which is what a
 #                   diagnostic machine should do -- but on the production box a
@@ -73,8 +77,14 @@ if [ ! -f "$ENV_FILE" ]; then
 JSEARCH_API_KEY=
 GITHUB_TOKEN=
 HEALTHCHECK_URL=
+GMAIL_ADDRESS=
+GMAIL_APP_PASSWORD=
 TEMPLATE
 fi
+# Added 2026-10-05 to env files written before then; values are never touched.
+for name in GMAIL_ADDRESS GMAIL_APP_PASSWORD; do
+  grep -q "^$name=" "$ENV_FILE" || echo "$name=" >> "$ENV_FILE"
+done
 chown root:"$SERVICE_USER" "$ENV_FILE"
 chmod 640 "$ENV_FILE"
 
@@ -146,6 +156,10 @@ install -m 644 "$ROOT/code/deploy/vps/jobdisco-collect.timer" /etc/systemd/syste
 install -m 644 "$ROOT/code/deploy/vps/jobdisco-review.service" /etc/systemd/system/
 install -m 644 "$ROOT/code/deploy/vps/jobdisco-backup.service" /etc/systemd/system/
 install -m 644 "$ROOT/code/deploy/vps/jobdisco-backup.timer" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/jobdisco-gmail.service" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/jobdisco-gmail.timer" /etc/systemd/system/
+# Private: email subjects and text. Outside both repositories.
+install -d -m 700 -o "$SERVICE_USER" -g "$SERVICE_USER" "$ROOT/gmail"
 systemctl daemon-reload
 systemctl enable --now jobdisco-collect.timer
 # Restarted, not merely enabled: the running process holds the modules it
@@ -154,6 +168,7 @@ systemctl enable --now jobdisco-collect.timer
 systemctl enable jobdisco-review.service
 systemctl restart jobdisco-review.service
 systemctl enable --now jobdisco-backup.timer
+systemctl enable --now jobdisco-gmail.timer
 
 echo
 # Printed because an update that changed nothing used to look exactly like one

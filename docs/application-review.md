@@ -245,4 +245,39 @@ kept in `operational/application_outcomes.ndjson`, next to the ledger. That
 file is append-only like the company links, and the latest mark for a
 position wins. It is backed up and merged line by line with the ledger.
 Moving a position back to review hides its mark until it is applied again.
-Nothing here reads or labels email.
+
+### From Gmail
+
+`jobdisco-gmail.timer` runs `python -m jobdisco.gmail_outcomes` on the VPS
+every thirty minutes. It reads the mailbox over IMAP with a Gmail app password
+(`GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `/etc/jobdisco/env`). The folder is
+read with `BODY.PEEK`, so nothing is marked read. The one change it makes is
+to star each reply it reads as Passed (Gmail's star is IMAP `\Flagged`), once:
+`starred.json` remembers it, so a reply the user unstars stays unstarred. A
+blank password turns the check off.
+
+Each reply is read sentence by sentence:
+
+- **Passed**: an interview, screen, scheduling link, assessment (HackerRank,
+  CodeSignal, HireVue and others) or offer, in a sentence that is neither
+  negated nor about what happens *if* the applicant is selected.
+- **Declined**: a plain rejection phrase. Courtesies such as "unfortunately"
+  or "best of luck" count only when two of them appear together.
+- An application confirmation is nothing, however often it says "interview".
+
+A reply is matched to one applied position by the company, in the sender or
+subject first. Where several applications went to one company, a requisition
+ID or the full title in the email decides. One title in several locations
+counts as one role. A reply from before the application is about something
+else. The latest reply wins, so an interview and then a rejection ends as
+Declined. Marks made from Gmail say "Gmail" on the chip. A mark set or cleared
+by hand is never overridden.
+
+Whatever this cannot settle goes in **Gmail: replies need a look** on the
+Applied tab rather than being dropped. That covers both sides being present
+(passed and declined), a vague mention of an interview, or an email naming no
+single position. Clicking an item opens the position when one was guessed.
+Items leave the list once those positions have a mark, or after 21 days.
+
+The private working files (message cache, the unsettled list, the last run's
+summary) live in `/opt/jobdisco/gmail`, mode 700, outside both repositories.

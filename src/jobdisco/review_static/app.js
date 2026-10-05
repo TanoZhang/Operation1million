@@ -98,7 +98,25 @@ const appliedDate = group => group.at
 // Passed or Declined, recorded on the Applied tab (2026-10-05).
 const OUTCOME_LABELS = {passed: 'Passed', declined: 'Declined'};
 const outcomeChip = group => OUTCOME_LABELS[group.outcome]
-  ? ` <span class="outcome outcome-${group.outcome}">${OUTCOME_LABELS[group.outcome]}</span>` : '';
+  ? ` <span class="outcome outcome-${group.outcome}"${group.outcome_by === 'gmail' ? ' title="Read from Gmail"' : ''}>${OUTCOME_LABELS[group.outcome]}${group.outcome_by === 'gmail' ? ' &middot; Gmail' : ''}</span>` : '';
+// Replies the Gmail check could not tie to one position or read plainly.
+let gmailItems = [];
+const GUESS_LABELS = {passed: 'looks passed', declined: 'looks declined', unclear: 'may be an invitation'};
+async function loadGmail() {
+  try { gmailItems = (await api('/api/gmail')).items || []; } catch (err) { gmailItems = []; }
+  renderGmail();
+}
+function renderGmail() {
+  const box = $('#gmail-unsorted');
+  if (!box) return;
+  box.hidden = tab !== 'applied' || !gmailItems.length;
+  box.querySelector('summary').textContent = `Gmail: ${gmailItems.length} ${gmailItems.length === 1 ? 'reply needs' : 'replies need'} a look`;
+  box.querySelector('ul').innerHTML = gmailItems.map(item => `<li data-groups="${escapeText((item.groups || []).join(' '))}"><span class="outcome outcome-${item.outcome === 'declined' ? 'declined' : 'passed'}">${escapeText(GUESS_LABELS[item.outcome] || item.outcome)}</span> <strong>${escapeText(item.company || 'Company not matched')}</strong> &middot; ${escapeText(item.subject || '')} <span class="muted">&middot; ${escapeText(item.from || '')} &middot; ${escapeText(asDate(item.at).toLocaleDateString())}</span></li>`).join('');
+  box.querySelectorAll('li').forEach(row => row.onclick = () => {
+    const first = row.dataset.groups.split(' ').filter(Boolean)[0];
+    if (first && state.applied.some(group => group.id === first)) { selected = first; render(); }
+  });
+}
 const topBadge = group => tab === 'applied'
   ? `<span class="applied-date">${escapeText(appliedDate(group))}</span>${outcomeChip(group)}` : chips(group);
 // All three, the same in the list and in the detail.
@@ -209,6 +227,7 @@ async function refresh() {
     if (version !== queueVersion) return;
     described = {key: null, text: null};
     state = next; loaded = true; error(''); render();
+    loadGmail();
   } catch (err) {
     if (version !== queueVersion) return;
     if (err.status === 503) {
@@ -318,6 +337,7 @@ function render() {
   $('#less-count').textContent = state.pending.length + state.backlog.length - open.length;
   const groups = filtered();
   const appliedMode = tab === 'applied';
+  renderGmail();
   $('#manual-form button[type=submit]:not(#manual-applied)').textContent = appliedMode ? 'Add to Applied' : 'Add job and score';
   $('#manual-applied').hidden = appliedMode;
   updateSelection();

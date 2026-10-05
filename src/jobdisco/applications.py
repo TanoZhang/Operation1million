@@ -106,13 +106,16 @@ def read_outcomes(path):
     return outcomes
 
 
-def append_outcome(path, group_id, outcome):
-    """Record passed or declined for a position; '' clears it."""
+def append_outcome(path, group_id, outcome, by='', message=''):
+    """Record passed or declined for a position; '' clears it. `by` is
+    'gmail' for a mark read from the mailbox, empty for one made by hand."""
     if not isinstance(group_id, str) or not group_id:
         raise ValueError('Name the position the outcome is for')
     if outcome not in (*OUTCOMES, ''):
         raise ValueError('Choose Passed or Declined')
     event = {'id': group_id, 'outcome': outcome, 'at': datetime.now(timezone.utc).isoformat()}
+    if by:
+        event.update(by=by, message=message)
     path = Path(path)
     with locked(path):
         _append_line(path, event)
@@ -127,9 +130,10 @@ def attach_outcomes(state, outcomes):
             event = outcomes.get(group['id']) if status == 'applied' else None
             if event:
                 group['outcome'], group['outcome_at'] = event['outcome'], event['at']
+                group['outcome_by'] = event.get('by', '')
             else:
-                group.pop('outcome', None)
-                group.pop('outcome_at', None)
+                for name in ('outcome', 'outcome_at', 'outcome_by'):
+                    group.pop(name, None)
 
 
 def _append_line(path, event):

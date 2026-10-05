@@ -13,8 +13,10 @@ Files: src/jobdisco/{applications,review,manual_intake}.py, review_static/*,
        deploy/vps/{backup-applications,daily-pass,data-sync}.sh,
        tests/test_application_outcomes.py, docs/{agent-protocol,application-review}.md
 Base commit: 63e98a1
-Status: done -- 1,085 offline tests pass (13 POSIX skips); pushed, not deployed.
-Next: Deploy with deploy/local/deploy-vps.bat; Ctrl+F5 Review.
+Status: active -- marks renamed Passed / Declined; adding the Gmail reader
+        (src/jobdisco/gmail_outcomes.py, deploy/vps/jobdisco-gmail.*,
+        install.sh, local_config.py) at the user's request.
+Next: Deploy, user adds a Gmail app password, verify a live run on the VPS.
 ```
 
 ```text

@@ -1,0 +1,556 @@
+"""Mark applied positions Passed or Declined from the replies in Gmail.
+
+Asked for on 2026-10-05: the user would rather not click Passed or Declined
+by hand except where this misses. It reads the mailbox over IMAP with a Gmail
+app password (GMAIL_ADDRESS, GMAIL_APP_PASSWORD). It never marks a message
+read; the one change it makes is to star each reply it reads as Passed, once,
+so one the user unstars stays unstarred.
+
+An email becomes a mark only when its wording is plain and it names one
+position. A hand-made mark is never overridden. Everything this cannot settle
+-- a reply that might be an invitation, or one that could be about any of
+forty Micron applications -- is listed for the user on the Applied tab
+rather than dropped: a missed interview costs more than a minute of reading.
+
+The phrase lists began from the ones open job trackers on GitHub use
+(SaahithV6/job-application-pipeline, alfa546/Auto-Apply-AI,
+ethos71/forget-the-thunderdome, VinayD2028/job-search-automation). Those
+match a phrase anywhere in the email, and "interview" anywhere is also in
+every confirmation that says "we will contact you to schedule an interview".
+So this reads sentence by sentence, and an invitation phrase counts only in
+a sentence that is neither conditional nor negated.
+"""
+import argparse
+from datetime import datetime, timedelta, timezone
+import email
+from email.header import decode_header, make_header
+from email.utils import parseaddr, parsedate_to_datetime
+import imaplib
+import json
+import os
+from pathlib import Path
+import re
+import sys
+
+from bs4 import BeautifulSoup
+
+from . import applications, local_config, manual_intake
+from .paths import DB, ROOT
+
+# ---------------------------------------------------------------- phrases --
+
+DECLINED = (
+    'unfortunately', 'regret to inform', 'we regret', 'with regret',
+    'not moving forward', 'not be moving forward', 'not to move forward', 'not move forward',
+    "won't be moving", "won't move forward", 'will not move',
+    'decided not to move forward', 'will not be moving forward', 'unable to move forward',
+    'move forward with other', 'moving forward with other', 'proceed with other',
+    'other candidates', 'another candidate', 'other applicants', 'other qualified',
+    'candidates whose', 'candidate whose', 'more closely match', 'more closely aligned',
+    'better match', 'stronger match', 'better aligned', 'more aligned with',
+    'pursue other', 'pursuing other', 'decided to pursue', 'go in a different direction',
+    'going in a different direction', 'decided to go with', 'decided to move on',
+    'not been selected', 'not selected', 'were not selected', 'not chosen',
+    'not shortlisted', 'not been shortlisted',
+    'no longer under consideration', 'no longer being considered', 'no longer considering',
+    'not proceed', 'not be proceeding', 'decided not to proceed', 'not be progressing',
+    'not progress your application', 'not to progress', 'not advancing', 'not be advancing',
+    'not advance', 'unable to offer', 'not able to offer', 'unable to extend',
+    'not the right fit', 'not a fit', 'not a match', 'not a good fit',
+    'position has been filled', 'role has been filled', 'filled the position',
+    'filled the role', 'has been filled', 'have filled', 'position is no longer available',
+    'role is no longer available', 'no longer accepting', 'has been closed',
+    'have closed', 'been cancelled', 'been canceled', 'put on hold',
+    'your application was not', 'application was unsuccessful', 'unsuccessful',
+    'not successful', 'decided to pass', 'will not be extending',
+    'keep your resume on file', 'keep your information on file', 'keep your details on file',
+    'apply for other', 'apply to other', 'apply for future', 'apply to future',
+    'future opportunities', 'future openings', 'best of luck', 'wish you the best',
+    'wish you success', 'wish you luck', 'success in your job search',
+    'success in your search', 'not in a position to', 'difficult decision',
+    'tough decision', 'highly competitive', 'large number of applications',
+    'many qualified', 'after careful consideration', 'after careful review',
+)
+# Some of these are courtesies a rejection is padded with and an invitation
+# can use too ("best of luck on Thursday!"). Alone they say nothing.
+DECLINED_WEAK = {
+    'unfortunately', 'we regret', 'with regret',
+    'best of luck', 'wish you the best', 'wish you success', 'wish you luck',
+    'future opportunities', 'future openings', 'highly competitive',
+    'large number of applications', 'many qualified', 'after careful consideration',
+    'after careful review', 'difficult decision', 'tough decision', 'has been closed',
+    'have closed', 'been cancelled', 'been canceled', 'put on hold', 'other qualified',
+    'apply for future', 'apply to future',
+}
+
+PASSED = (
+    # An interview, asked for.
+    'invite you to interview', 'invite you to an interview', 'invite you for an interview',
+    'invite you to a', 'invite you to participate', 'invite you to complete', 'invite you to take',
+    'invite you to the next', 'invite you to schedule', 'invitation to interview',
+    'interview invitation', 'invited to interview', 'invited you to', 'like to invite',
+    'would like to schedule', "we'd like to schedule", 'like to set up', 'like to speak with you',
+    'like to talk with you', 'like to chat with you', 'like to meet with you', 'like to connect with you',
+    'schedule an interview', 'schedule your interview', 'schedule a time', 'schedule a call',
+    'schedule a phone', 'schedule a video', 'schedule a meeting', 'schedule time',
+    'set up a time', 'set up a call', 'set up an interview', 'book a time', 'book your interview',
+    'book an interview', 'pick a time', 'select a time', 'choose a time', 'choose a slot',
+    'select a slot', 'select your preferred', 'your availability', 'share your availability',
+    'provide your availability', 'availability for', 'available times', 'times that work',
+    'time that works', 'scheduling link', 'self-schedule', 'calendly.com', 'goodtime.io',
+    'paradox.ai', 'interview has been scheduled', 'interview is scheduled', 'interview is confirmed',
+    'interview confirmation', 'confirm your interview', 'interview details',
+    'phone screen', 'phone interview', 'video interview', 'virtual interview', 'zoom interview',
+    'teams interview', 'technical interview', 'technical screen', 'recruiter screen',
+    'recruiter call', 'screening call', 'hiring manager interview', 'panel interview',
+    'onsite interview', 'on-site interview', 'final round', 'next round', 'super day', 'superday',
+    # Moved on, said outright.
+    'move you forward', 'moving you forward', 'move forward with your application',
+    'move forward with your candidacy', 'moving forward with your application',
+    'moving forward with your candidacy', 'selected to move forward', 'selected for an interview',
+    'selected for the next', 'selected to interview', 'shortlisted', 'advance to the next',
+    'advanced to the next', 'advancing to the next', 'proceed to the next', 'progress to the next',
+    'progressed to the next', 'moved to the next',
+    # An assessment.
+    'online assessment', 'coding assessment', 'technical assessment', 'coding challenge',
+    'coding test', 'technical test', 'online test', 'take-home', 'take home assignment',
+    'complete the assessment', 'complete an assessment', 'complete this assessment',
+    'assessment invitation', 'assessment link', 'video assessment',
+    'one-way video', 'recorded interview', 'digital interview', 'hackerrank', 'hackerank',
+    'codesignal', 'codility', 'hirevue', 'karat', 'pymetrics', 'harver', 'mettl', 'testgorilla',
+    'modern hire', 'coderpad', 'spark hire', 'sparkhire', 'imocha', 'glider.ai',
+    # An offer is further along still.
+    'pleased to offer', 'offer letter', 'offer of employment', 'extend an offer',
+    'extend you an offer', 'like to offer you',
+)
+# Mentioned, but not plainly an invitation: listed for the user, never dropped.
+PASSED_WEAK = ('interview', 'assessment', 'next step', 'next stage', 'speak with', 'chat with',
+               'meet with', 'call with', 'recruiter', 'hiring manager', 'availability')
+
+# A sentence about what may happen is not an invitation. "If your background
+# matches, we will contact you to schedule an interview" is in nearly every
+# confirmation. A bare "if" is not enough to say so: "If none of these times
+# work, share your availability" is an invitation all the same.
+HEDGES = (
+    'if your', 'if you are selected', 'are selected', 'be selected', 'is selected',
+    'should you', 'should your', 'if we ', 'if there', 'if our', 'if you meet', 'if you match',
+    'if you qualify', 'if you pass', 'if successful', 'successful candidates', 'if you move',
+    'if you advance', 'next steps if', 'qualifications match', 'experience matches',
+    ' might ', 'whether', 'in the event', 'will be in touch',
+    'will contact', 'will reach out', 'be contacted', 'reach out to you', 'get back to you',
+    'selected candidates', 'qualified candidates', 'candidates who', 'applicants who',
+    'those selected', 'if selected', 'we will review', 'will be reviewed', 'under review',
+    'reviewing your', 'review your application', 'review your resume', 'interview process may',
+    'typical', 'our process', 'hiring process', 'recruiting process', 'interview process',
+    'tips', 'prepare for', 'how to', 'blog', 'webinar', 'unsubscribe', 'job alert',
+    'similar jobs', 'recommended', 'jobs you', 'privacy', 'do not reply',
+)
+NEGATIONS = (' not ', "n't ", 'unfortunately', 'unable', 'no longer', ' cannot ', 'regret')
+CONFIRMATION = (
+    'thank you for applying', 'thanks for applying', 'thank you for your application',
+    'thanks for your application', 'received your application', 'application received',
+    'application has been received', 'application was received', 'application was submitted',
+    'application has been submitted', 'successfully submitted', 'successfully applied',
+    'we have received', 'confirming your application', 'application confirmation',
+    'thank you for your interest',
+)
+
+
+def _plain(text):
+    text = str(text or '').replace('’', "'").replace('‘', "'").replace('\xa0', ' ')
+    return ' '.join(text.casefold().split())
+
+
+def _sentences(text):
+    return [' ' + part.strip() + ' ' for part in re.split(r'(?<=[.!?])\s+|\n+|\s{2,}', text) if part.strip()]
+
+
+def classify(subject, body):
+    """'passed', 'declined', 'unclear' (look at it) or None (nothing to do).
+
+    Order matters, and it leans toward not losing an invitation: a plain
+    invitation is Passed even in an email that also says "unfortunately",
+    unless the same email is also a plain rejection, which is unclear.
+    """
+    lines = _sentences(str(subject or '') + '\n' + str(body or ''))
+    lowered = [' ' + _plain(line) + ' ' for line in lines]
+    passed = any(phrase in line for line in lowered for phrase in PASSED
+                 if not any(hedge in line for hedge in HEDGES)
+                 and not any(word in line for word in NEGATIONS))
+    hits = {phrase for line in lowered for phrase in DECLINED if phrase in line}
+    declined = bool(hits - DECLINED_WEAK) or len(hits) >= 2
+    if passed and declined:
+        return 'unclear'
+    if passed:
+        return 'passed'
+    if declined:
+        return 'declined'
+    whole = ' '.join(lowered)
+    if any(phrase in whole for phrase in CONFIRMATION):
+        return None
+    mentioned = any(word in line for line in lowered for word in PASSED_WEAK
+                    if not any(hedge in line for hedge in HEDGES))
+    return 'unclear' if mentioned else None
+
+
+# ---------------------------------------------------------------- matching --
+
+TAIL = {'inc', 'incorporated', 'corp', 'corporation', 'llc', 'ltd', 'limited', 'co', 'company',
+        'plc', 'com', 'ai', 'io', 'technology', 'technologies', 'systems', 'group', 'holdings',
+        'international', 'labs', 'semiconductor', 'semiconductors', 'usa', 'us', 'america'}
+ALIASES = {'advanced micro devices': ['amd'], 'international business machines': ['ibm'],
+           'taiwan semiconductor manufacturing': ['tsmc'], 'hewlett packard enterprise': ['hpe'],
+           'amazon': ['amazon', 'aws'], 'meta platforms': ['meta'], 'alphabet': ['google'],
+           'texas instruments': ['texas instruments']}
+
+
+def company_names(company):
+    """The ways an email names a company: 'Micron Technology, Inc.' -> micron."""
+    words = applications.employer_name(company).split()
+    while len(words) > 1 and words[-1] in TAIL:
+        words.pop()
+    name = ' '.join(words)
+    names = {name} if name else set()
+    for full, short in ALIASES.items():
+        if name.startswith(full):
+            names.update(short)
+    return {item for item in names if len(item) >= 2}
+
+
+def _has(name, text):
+    return re.search(r'(?<![a-z0-9])' + re.escape(name) + r'(?![a-z0-9])', text) is not None
+
+
+def _words(text):
+    return ' '.join(re.sub(r'[^a-z0-9]+', ' ', _plain(text)).split())
+
+
+def match(groups, message):
+    """The applied groups an email is about, or [] when it is not plain which.
+
+    The sender and subject name the company; where one company has several
+    applications, a requisition id or the full title in the email picks one.
+    An email from before the application is about something else.
+    """
+    head = _words(message['from'] + ' ' + message['subject'])
+    body = _words(message['text'][:4000])
+    when = message['at']
+    eligible = [group for group in groups
+                if not group.get('at') or group['at'] <= (_later(when, days=1))]
+    by_company = {}
+    for group in eligible:
+        for name in company_names(group.get('company')):
+            by_company.setdefault(name, []).append(group)
+    named = {name for name in by_company if _has(name, head)}
+    if not named:
+        named = {name for name in by_company if len(name) >= 4 and _has(name, body)}
+    candidates = {id(group): group for name in named for group in by_company[name]}
+    companies = {applications.employer_name(group.get('company')) for group in candidates.values()}
+    if len(companies) != 1:
+        return []
+    candidates = list(candidates.values())
+    if len(candidates) == 1:
+        return candidates
+    text = head + ' ' + _words(message['text'])
+    by_id = [group for group in candidates
+             if any(len(str(job.get('source_job_id') or '')) >= 4
+                    and _has(_words(job['source_job_id']), text) for job in group.get('jobs', ()))]
+    if by_id:
+        return by_id
+    by_title = [group for group in candidates if len(_words(group.get('title'))) >= 6
+                and _has(_words(group.get('title')), text)]
+    # One title advertised in several places is one role to the employer.
+    if by_title and len({_words(group['title']) for group in by_title}) == 1:
+        return by_title
+    return []
+
+
+def _later(when, days):
+    try:
+        moment = datetime.fromisoformat(when)
+    except (TypeError, ValueError):
+        return '9999'
+    return (moment + timedelta(days=days)).isoformat()
+
+
+def decide(groups, messages, current):
+    """Outcomes to write, and the emails to show the user.
+
+    `current` is the last outcome event per group. A group whose last mark
+    was made by hand is left alone, cleared by hand included. Emails are
+    read oldest first, so the latest word wins: an interview and then a
+    rejection ends Declined.
+    """
+    wanted, unsorted = {}, []
+    for message in sorted(messages, key=lambda item: item['at']):
+        verdict = message.get('outcome')
+        if verdict is None:
+            continue
+        found = match(groups, message)
+        if verdict == 'unclear' or not found:
+            guess = found
+            unsorted.append({'id': message['id'], 'at': message['at'], 'from': message['from'],
+                             'subject': message['subject'], 'outcome': verdict,
+                             'company': guess[0]['company'] if guess else '',
+                             'groups': [group['id'] for group in guess]})
+            continue
+        for group in found:
+            wanted[group['id']] = (verdict, message['id'])
+    writes = []
+    for group_id, (verdict, message_id) in wanted.items():
+        last = current.get(group_id)
+        if last and last.get('by') != 'gmail':
+            continue
+        if last and last.get('outcome') == verdict:
+            continue
+        writes.append((group_id, verdict, message_id))
+    return writes, unsorted
+
+
+# -------------------------------------------------------------------- mail --
+
+QUERY = ('-in:sent -in:chats -from:jobalerts-noreply@linkedin.com -from:jobs-listings@linkedin.com '
+         '(application OR applying OR applied OR candidacy OR candidate OR interview OR assessment '
+         'OR position OR role OR opportunity OR unfortunately OR "next steps" OR hackerrank '
+         'OR codesignal OR hirevue OR codility OR karat OR offer)')
+
+
+def gmail_dir():
+    return Path(os.environ.get('JOBDISCO_GMAIL_DIR', ROOT / '.local/gmail'))
+
+
+def _header(value):
+    try:
+        return str(make_header(decode_header(value or '')))
+    except (ValueError, LookupError):
+        return str(value or '')
+
+
+def _text(part):
+    payload = part.get_payload(decode=True) or b''
+    charset = part.get_content_charset() or 'utf-8'
+    try:
+        return payload.decode(charset, errors='replace')
+    except LookupError:
+        return payload.decode('utf-8', errors='replace')
+
+
+def parse(raw, message_id):
+    """One RFC 822 message: who, when, subject and its readable text."""
+    parsed = email.message_from_bytes(raw)
+    plain, html = [], []
+    for part in parsed.walk():
+        if part.get_content_maintype() == 'multipart' or part.get_filename():
+            continue
+        if part.get_content_type() == 'text/plain':
+            plain.append(_text(part))
+        elif part.get_content_type() == 'text/html':
+            html.append(_text(part))
+    text = '\n'.join(plain)
+    if not text.strip() and html:
+        text = BeautifulSoup('\n'.join(html), 'html.parser').get_text('\n')
+    try:
+        at = parsedate_to_datetime(parsed['Date']).astimezone(timezone.utc).isoformat()
+    except (TypeError, ValueError, IndexError):
+        at = datetime.now(timezone.utc).isoformat()
+    name, address = parseaddr(_header(parsed['From']))
+    return {'id': message_id, 'at': at, 'from': f'{name} <{address}>'.strip(),
+            'subject': _header(parsed['Subject']), 'text': text[:20000]}
+
+
+def _all_mail(connection):
+    """Gmail's All Mail folder, by its flag: its name follows the account's language."""
+    status, folders = connection.list()
+    if status == 'OK':
+        for line in folders:
+            line = line.decode(errors='replace') if isinstance(line, bytes) else str(line)
+            if '\\All' in line:
+                return line.rsplit(' "/" ', 1)[-1]
+    return '"[Gmail]/All Mail"'
+
+
+def fetch(address, password, since, known, capture=None):
+    """New messages matching QUERY since `since`, by Gmail's own message id.
+
+    Read-only: the folder is opened with EXAMINE and the body is fetched
+    with BODY.PEEK, which leaves the message unread.
+    """
+    connection = imaplib.IMAP4_SSL('imap.gmail.com', timeout=60)
+    try:
+        connection.login(address, password)
+        status, _ = connection.select(_all_mail(connection), readonly=True)
+        if status != 'OK':
+            raise RuntimeError('Could not open All Mail')
+        search = f'after:{since:%Y/%m/%d} {QUERY}'
+        status, data = connection.uid('SEARCH', 'X-GM-RAW', '"' + search.replace('"', '\\"') + '"')
+        if status != 'OK':
+            raise RuntimeError('Gmail search failed')
+        uids = data[0].split() if data and data[0] else []
+        found = []
+        for start in range(0, len(uids), 50):
+            chunk = b','.join(uids[start:start + 50])
+            status, data = connection.uid('FETCH', chunk, '(X-GM-MSGID)')
+            if status != 'OK':
+                raise RuntimeError('Gmail fetch failed')
+            if capture is not None and not capture:
+                capture.append(repr(data))
+            for item in data:
+                head = item[0] if isinstance(item, tuple) else item
+                if not isinstance(head, bytes):
+                    continue
+                gm = re.search(rb'X-GM-MSGID (\d+)', head)
+                uid = re.search(rb'UID (\d+)', head)
+                if gm and uid and gm.group(1).decode() not in known:
+                    found.append((uid.group(1), gm.group(1).decode()))
+        messages = []
+        for start in range(0, len(found), 25):
+            chunk = b','.join(uid for uid, _ in found[start:start + 25])
+            status, data = connection.uid('FETCH', chunk, '(X-GM-MSGID BODY.PEEK[])')
+            if status != 'OK':
+                raise RuntimeError('Gmail fetch failed')
+            if capture is not None and len(capture) == 1:
+                capture.append(repr(data[:1])[:3000])
+            for item in data:
+                if not isinstance(item, tuple):
+                    continue
+                gm = re.search(rb'X-GM-MSGID (\d+)', item[0])
+                if gm:
+                    messages.append(parse(item[1], gm.group(1).decode()))
+        return messages
+    finally:
+        try:
+            connection.logout()
+        except (OSError, imaplib.IMAP4.error):
+            pass
+
+
+def star(address, password, message_ids):
+    """Star these messages (Gmail's star is IMAP's \\Flagged). Returns the ids
+    starred; one Gmail no longer has is skipped."""
+    if not message_ids:
+        return []
+    connection = imaplib.IMAP4_SSL('imap.gmail.com', timeout=60)
+    done = []
+    try:
+        connection.login(address, password)
+        status, _ = connection.select(_all_mail(connection))
+        if status != 'OK':
+            raise RuntimeError('Could not open All Mail')
+        for message_id in message_ids:
+            status, data = connection.uid('SEARCH', 'X-GM-MSGID', message_id)
+            uids = data[0].split() if status == 'OK' and data and data[0] else []
+            if uids and connection.uid('STORE', uids[0], '+FLAGS', '(\\Flagged)')[0] == 'OK':
+                done.append(message_id)
+        return done
+    finally:
+        try:
+            connection.logout()
+        except (OSError, imaplib.IMAP4.error):
+            pass
+
+
+# --------------------------------------------------------------------- run --
+
+def last_events(path):
+    """The last outcome event per group, hand-made or not, clears included."""
+    last = {}
+    path = Path(path)
+    if not path.exists():
+        return last
+    with path.open(encoding='utf-8-sig') as handle:
+        for line in handle:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(event, dict) and isinstance(event.get('id'), str):
+                last[event['id']] = event
+    return last
+
+
+def _load(path, default):
+    try:
+        return json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return default
+
+
+def _save(path, value):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_suffix('.tmp')
+    temporary.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8')
+    os.replace(temporary, path)
+
+
+def run(db, ledger, address, password, directory=None, capture=None):
+    directory = Path(directory or gmail_dir())
+    groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger)['applied']
+    if not groups:
+        return {'applied': 0, 'checked': 0, 'written': 0, 'unsorted': 0}
+    since = min(datetime.fromisoformat(group['at']) for group in groups if group.get('at')) - timedelta(days=1)
+    cache_path = directory / 'messages.json'
+    cache = _load(cache_path, {})
+    for message in fetch(address, password, since, set(cache), capture):
+        message['outcome'] = classify(message['subject'], message['text'])
+        # Only what may become a mark is kept; the rest is remembered as seen.
+        cache[message['id']] = message if message['outcome'] else {
+            'id': message['id'], 'at': message['at'], 'outcome': None}
+    _save(cache_path, cache)
+    outcomes = applications.outcomes_path(ledger)
+    writes, unsorted = decide(groups, list(cache.values()), last_events(outcomes))
+    for group_id, verdict, message_id in writes:
+        applications.append_outcome(outcomes, group_id, verdict, by='gmail', message=message_id)
+    # Settled since, by hand or by a later email: not worth showing again.
+    marked = last_events(outcomes)
+    recent = (datetime.now(timezone.utc) - timedelta(days=21)).isoformat()
+    unsorted = [item for item in unsorted if item['at'] >= recent and not (
+        item['groups'] and all((marked.get(group) or {}).get('outcome') for group in item['groups']))]
+    _save(directory / 'unsorted.json', unsorted)
+    # Every Passed reply, matched or not: an invitation is worth finding.
+    starred_path = directory / 'starred.json'
+    starred = set(_load(starred_path, []))
+    to_star = [message['id'] for message in cache.values()
+               if message.get('outcome') == 'passed' and message['id'] not in starred]
+    newly = star(address, password, to_star)
+    _save(starred_path, sorted(starred | set(newly)))
+    summary = {'at': datetime.now(timezone.utc).isoformat(), 'applied': len(groups),
+               'checked': len(cache), 'written': len(writes), 'unsorted': len(unsorted),
+               'starred': len(newly)}
+    _save(directory / 'last-run.json', summary)
+    return summary
+
+
+def read_unsorted(directory=None):
+    """What the last run could not settle, newest first, for the Applied tab."""
+    items = _load(Path(directory or gmail_dir()) / 'unsorted.json', [])
+    return sorted(items, key=lambda item: item.get('at', ''), reverse=True) if isinstance(items, list) else []
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    parser.add_argument('--db', type=Path, default=DB)
+    parser.add_argument('--ledger', type=Path, default=None)
+    parser.add_argument('--capture', type=Path, help='Write the first raw IMAP responses here (private).')
+    args = parser.parse_args()
+    local_config.load_credentials()
+    address, password = os.environ.get('GMAIL_ADDRESS', ''), os.environ.get('GMAIL_APP_PASSWORD', '')
+    if not address or not password:
+        print('GMAIL_ADDRESS and GMAIL_APP_PASSWORD are not set; nothing checked.')
+        return 0
+    capture = [] if args.capture else None
+    try:
+        summary = run(args.db, args.ledger or applications.ledger_path(), address,
+                      password.replace(' ', ''), capture=capture)
+    except (imaplib.IMAP4.error, OSError, RuntimeError) as exc:
+        # A refused login names no secret; say which kind of failure it was.
+        print(f'Gmail check failed: {type(exc).__name__}: {exc}', file=sys.stderr)
+        return 1
+    if args.capture:
+        args.capture.write_text('\n\n'.join(capture or []), encoding='utf-8')
+    print(json.dumps(summary))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

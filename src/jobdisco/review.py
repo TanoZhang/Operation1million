@@ -11,7 +11,7 @@ import sqlite3
 import threading
 from urllib.parse import urlsplit, parse_qs
 
-from . import applications, export, ranking, jsearch, manual_intake, collection_policy
+from . import applications, export, ranking, jsearch, manual_intake, collection_policy, gmail_outcomes
 from .queue_snapshot import QueueSnapshot
 from .job_text import display_description, readable_text
 from .paths import DB
@@ -33,7 +33,7 @@ from .paths import DB
 # it here; leaving it out shows as undefined rather than as stale data.
 GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
-                'early_career', 'outcome', 'outcome_at')
+                'early_career', 'outcome', 'outcome_at', 'outcome_by')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
               'posted_before', 'publisher', 'employer_site', 'official_link', 'third_party_site')
 STATUSES = ('pending', 'backlog', 'applied', 'skipped')
@@ -222,6 +222,9 @@ def make_server(db, ledger, port=8765, export_path=None):
                                           token=token, labels=list(ranking.LABELS)))
                 if route.path == '/api/job':
                     return self.job(parse_qs(route.query))
+                if route.path == '/api/gmail':
+                    # Replies the Gmail check could not settle (2026-10-05).
+                    return self.send({'items': gmail_outcomes.read_unsorted()})
                 if route.path in ASSETS:
                     name, mime = ASSETS[route.path]
                     return self.send((assets / name).read_bytes(), mime=mime)

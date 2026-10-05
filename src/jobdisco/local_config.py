@@ -10,5 +10,5 @@ def load_credentials():
     for line in path.read_text(encoding='utf-8-sig').splitlines():
         name, sep, value = line.partition('=')
         name = name.strip()
-        if sep and name in {'OPENAI_API_KEY', 'JSEARCH_API_KEY'} and not os.getenv(name):
+        if sep and name in {'OPENAI_API_KEY', 'JSEARCH_API_KEY', 'GMAIL_ADDRESS', 'GMAIL_APP_PASSWORD'} and not os.getenv(name):
             os.environ[name] = value.strip().strip('\"\'')

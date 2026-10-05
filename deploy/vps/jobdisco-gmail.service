@@ -1,0 +1,32 @@
+[Unit]
+Description=Mark applied positions Passed or Declined from Gmail replies
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jobdisco
+Group=jobdisco
+WorkingDirectory=/opt/jobdisco/code
+Environment=HOME=/opt/jobdisco
+Environment=JOBDISCO_STORE=/opt/jobdisco/data
+Environment=JOBDISCO_GMAIL_DIR=/opt/jobdisco/gmail
+Environment=PYTHONPATH=/opt/jobdisco/code/src
+# GMAIL_ADDRESS and GMAIL_APP_PASSWORD; blank means nothing is checked.
+EnvironmentFile=/etc/jobdisco/env
+ExecStart=/opt/jobdisco/venv/bin/python -m jobdisco.gmail_outcomes --db /opt/jobdisco/code/data/db/job_discovery.sqlite
+TimeoutStartSec=900
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jobdisco/data/operational /opt/jobdisco/code/data/db /opt/jobdisco/gmail
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
