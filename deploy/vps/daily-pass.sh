@@ -2,13 +2,13 @@
 # The VPS owns the production schedule and its persistent operational ledgers.
 set -euo pipefail
 
-ROOT=${JOBDISCO_ROOT:-/opt/jobdisco}
+ROOT=${OPERATION1MILLION_ROOT:-/opt/operation1million}
 CODE=$ROOT/code
 DATA=$ROOT/data
-export JOBDISCO_STORE=$DATA
+export OPERATION1MILLION_STORE=$DATA
 export PATH=$ROOT/venv/bin:$PATH
 export PYTHONUNBUFFERED=1
-export JOBDISCO_PYTHON=$ROOT/venv/bin/python
+export OPERATION1MILLION_PYTHON=$ROOT/venv/bin/python
 
 # Manual invocations and installer updates share the service's lock.
 exec 9>"$ROOT/collection.lock"
@@ -17,7 +17,7 @@ if ! flock -n 9; then
   exit 75
 fi
 
-ENV_FILE=${JOBDISCO_ENV_FILE:-/etc/jobdisco/env}
+ENV_FILE=${OPERATION1MILLION_ENV_FILE:-/etc/operation1million/env}
 if [ -r "$ENV_FILE" ]; then
   set -a
   # shellcheck source=/dev/null
@@ -69,8 +69,8 @@ publish_state() {
     cp "$CODE/.local/$name" "$DATA/operational/$name"
   done
   cd "$DATA"
-  git config user.name 'jobdisco-vps'
-  git config user.email 'jobdisco-vps@users.noreply.github.com'
+  git config user.name 'operation1million-vps'
+  git config user.email 'operation1million-vps@users.noreply.github.com'
   publication_failed=0
   if job-store --verify; then
     # The published log is a rolling backup, not the working state: this box
@@ -89,7 +89,7 @@ publish_state() {
     # That rebuild happens anyway, on every change to data/config, so the open
     # postings a pruned day alone describes are first written into today's log
     # from this index (#318). If that fails, nothing is pruned.
-    python -m jobdisco.prune --store "$DATA" --keep "${JOBDISCO_KEEP_DAYS:-14}" \
+    python -m operation1million.prune --store "$DATA" --keep "${OPERATION1MILLION_KEEP_DAYS:-14}" \
       --db "$CODE/data/db/job_discovery.sqlite" \
       || note_problem 'the log was not pruned; open postings could not be carried forward'
     git add -A runs manifests source_state.json
@@ -101,9 +101,9 @@ publish_state() {
     # on this machine reads, and rewinding only the copy left the next sweep
     # treating queries as finished whose results were never published.
     # Credits, credit events and cooldowns are kept in both.
-    python -m jobdisco.workflow_state "$CODE/.local/jsearch_usage.sqlite" \
+    python -m operation1million.workflow_state "$CODE/.local/jsearch_usage.sqlite" \
       "$CODE/.local/jsearch_usage.before.sqlite"
-    python -m jobdisco.workflow_state operational/jsearch_usage.sqlite \
+    python -m operation1million.workflow_state operational/jsearch_usage.sqlite \
       "$CODE/.local/jsearch_usage.before.sqlite"
   fi
   # Knowing a job has been seen before lives in the derived index, which is
@@ -115,7 +115,7 @@ publish_state() {
   # away a whole pass of collected postings to protect a convenience; staying
   # quiet would leave a stale snapshot looking like a current one, which is the
   # failure this table exists to prevent. So: keep the data, say it plainly.
-  if ! python -m jobdisco.store --export-seen; then
+  if ! python -m operation1million.store --export-seen; then
     echo 'WARNING: the seen-jobs snapshot was not refreshed; it is now stale and' >&2
     echo '         a rebuilt machine would treat old rejections as new.' >&2
   fi
@@ -155,7 +155,7 @@ report_history_size() {
   # That is a thing to do while looking at it, not at 04:38 with nobody awake,
   # so this only says when it is due. `deploy/vps/compact-history.sh` does it.
   local limit size
-  limit=${JOBDISCO_HISTORY_LIMIT_MB:-2048}
+  limit=${OPERATION1MILLION_HISTORY_LIMIT_MB:-2048}
   size=$(du -sm .git 2>/dev/null | cut -f1)
   if [ -n "$size" ] && [ "$size" -ge "$limit" ]; then
     echo "NOTE: the data repository's history is ${size} MiB against a ${limit} MiB" >&2
@@ -210,12 +210,12 @@ done
 # SQLite with nothing in it, and it passes every check but the one that
 # matters. The local ledger may be ahead of the published one -- a pass whose
 # push failed leaves exactly that -- but it may never be behind.
-python -m jobdisco.collection_policy "$CODE/.local/source_access.sqlite" "$DATA/operational/source_access.sqlite"
-if ! python -m jobdisco.ledger_guard "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite"; then
+python -m operation1million.collection_policy "$CODE/.local/source_access.sqlite" "$DATA/operational/source_access.sqlite"
+if ! python -m operation1million.ledger_guard "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite"; then
   # The guard's own remedy: the published ledger has counted more, so it wins.
   echo 'Restoring the local credit ledger from the published one, as the guard advises.' >&2
   cp "$DATA/operational/jsearch_usage.sqlite" "$CODE/.local/jsearch_usage.sqlite" || true
-  python -m jobdisco.ledger_guard "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite" \
+  python -m operation1million.ledger_guard "$CODE/.local/jsearch_usage.sqlite" "$DATA/operational/jsearch_usage.sqlite" \
     || note_problem 'the credit ledger still does not agree with the published one'
 fi
 
@@ -262,8 +262,8 @@ elif [ "$collect_code" -ne 0 ]; then
 fi
 
 days_until_reset=$(python - <<'PY'
-from jobdisco import jsearch
-from jobdisco.jsearch_access import RequestGuard
+from operation1million import jsearch
+from operation1million.jsearch_access import RequestGuard
 settings, _ = jsearch.load_plan()
 guard = RequestGuard(target_limit=settings['monthly_target'],
                      cycle_start=settings['cycle_start'], cycle_days=settings['cycle_days'])

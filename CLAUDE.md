@@ -16,7 +16,7 @@ Nothing needs to skip. On this machine (set up 2026-09-27):
 
 - The index: the private data repo is cloned at
   `../Operation1million-data`; build it with
-  `JOBDISCO_STORE=../Operation1million-data PYTHONPATH=src .venv/Scripts/python.exe -m jobdisco.store --bootstrap`.
+  `OPERATION1MILLION_STORE=../Operation1million-data PYTHONPATH=src .venv/Scripts/python.exe -m operation1million.store --bootstrap`.
 - The POSIX-only tests (flock, process groups, file modes) run in a WSL1
   distro, `Op1mTest`, with a non-root `tester` user and its own `.venv` in
   `~/op1m`. WSL2 cannot start here (virtualization is off in firmware). Pull,

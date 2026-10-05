@@ -6,7 +6,7 @@ the live queue that day.
 """
 import unittest
 
-from jobdisco.location import country, outside_us
+from operation1million.location import country, outside_us
 
 
 class CountryTests(unittest.TestCase):

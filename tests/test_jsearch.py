@@ -16,10 +16,10 @@ from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlsplit
 
 import requests
-from jobdisco import collector, jsearch, store
-from jobdisco import jsearch_access
-from jobdisco.jsearch_access import RequestGuard, QuotaExhausted
-from jobdisco.validate_sources import Source
+from operation1million import collector, jsearch, store
+from operation1million import jsearch_access
+from operation1million.jsearch_access import RequestGuard, QuotaExhausted
+from operation1million.validate_sources import Source
 
 SEARCH = {'endpoint_template': 'https://api.openwebninja.com/jsearch/search-v2',
           'connection': {'auth_header': 'X-API-Key'}}
@@ -222,8 +222,8 @@ class DiscoveryTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.settings, self.plan = jsearch.load_plan()
-        for target, value in [('jobdisco.store.LOG', self.root / 'store'),
-                              ('jobdisco.jsearch_access.time.sleep', Mock())]:
+        for target, value in [('operation1million.store.LOG', self.root / 'store'),
+                              ('operation1million.jsearch_access.time.sleep', Mock())]:
             p = patch(target, value)
             p.start()
             self.addCleanup(p.stop)
@@ -720,7 +720,7 @@ class DiscoveryTests(unittest.TestCase):
         # parsing library needs it installed on the runner, and the runner
         # installs what the package declares.
         root = Path(__file__).resolve().parents[1]
-        unit = (root / 'deploy/vps/jobdisco-collect.timer').read_text(encoding='utf-8')
+        unit = (root / 'deploy/vps/operation1million-collect.timer').read_text(encoding='utf-8')
         schedules = re.findall(r'^OnCalendar=(.+)$', unit, re.M)
         self.assertEqual(len(schedules), 1, 'exactly one pass a day')
         stamp, zone = schedules[0].rsplit(' ', 1)
@@ -787,7 +787,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_the_budget_day_and_the_timer_are_configured_from_one_place(self):
         """A boundary that drifts from the schedule is the bug coming back."""
         root = Path(__file__).resolve().parents[1]
-        unit = (root / 'deploy/vps/jobdisco-collect.timer').read_text(encoding='utf-8')
+        unit = (root / 'deploy/vps/operation1million-collect.timer').read_text(encoding='utf-8')
         stamp, zone = re.findall(r'^OnCalendar=(.+)$', unit, re.M)[0].rsplit(' ', 1)
         hour, minute = stamp.split()[-1].split(':')[:2]
         self.assertEqual(self.settings['budget_timezone'], zone)
@@ -1141,7 +1141,7 @@ class DiscoveryTests(unittest.TestCase):
             return self.response([job('late')])
 
         self.session.get.side_effect = answered_after_midnight
-        with patch('jobdisco.jsearch_access.time.time', side_effect=lambda: clock['now']):
+        with patch('operation1million.jsearch_access.time.time', side_effect=lambda: clock['now']):
             self.assertEqual(self.guard.period()[0], '2026-09-16')
             jsearch.collect([query], self.client, self.settings, {}, self.persist, backfill=True)
             self.assertEqual(self.guard.period()[0], '2026-10-16')
@@ -1162,7 +1162,7 @@ class DiscoveryTests(unittest.TestCase):
             return self.response([job(f'{clock["now"]}-{i}') for i in range(10)])
 
         self.session.get.side_effect = full_page_then_midnight
-        with patch('jobdisco.jsearch_access.time.time', side_effect=lambda: clock['now']):
+        with patch('operation1million.jsearch_access.time.time', side_effect=lambda: clock['now']):
             _, stats = jsearch.collect(queries, self.client, self.settings, {}, self.persist,
                                        backfill=True)
         self.assertEqual(self.session.get.call_count, 1)

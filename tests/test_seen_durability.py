@@ -18,7 +18,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from jobdisco import prune, store
+from operation1million import prune, store
 
 
 class SeenSnapshotTests(unittest.TestCase):

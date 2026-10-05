@@ -12,8 +12,8 @@ import sqlite3
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from jobdisco import applications, store
-from jobdisco.validate_sources import Source
+from operation1million import applications, store
+from operation1million.validate_sources import Source
 
 
 def database(path):

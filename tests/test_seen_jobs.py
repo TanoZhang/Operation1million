@@ -15,7 +15,7 @@ import sqlite3
 import tempfile
 import unittest
 
-from jobdisco import store
+from operation1million import store
 
 
 class SeenJobsTests(unittest.TestCase):

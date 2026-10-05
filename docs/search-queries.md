@@ -13,7 +13,7 @@ Credentials stay in the environment or ignored `.env.local`.
 
 ## Legacy catalog
 
-The existing SQLite `search_queries` table and `jobdisco.query_catalog` helper
+The existing SQLite `search_queries` table and `operation1million.query_catalog` helper
 are retained for compatibility with the authored schema and old migrations.
 The current collector does not execute these 18 legacy templates or multiply
 functional queries by company aliases. Editing that table does not change the

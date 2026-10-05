@@ -85,7 +85,7 @@ jobs:
       - name: Rebuild the database from the committed log
         id: rebuild
         env:
-          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
         # The runner has no database. Everything is derived: the catalog from
         # schema.sql and the migrations, the postings from the log.
         run: job-store --bootstrap --verify
@@ -94,7 +94,7 @@ jobs:
         id: collect
         continue-on-error: true
         env:
-          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
           # Scheduled runs perform paid discovery. Manual runs are free unless
           # enable_jsearch is explicitly selected in workflow_dispatch.
@@ -130,11 +130,11 @@ jobs:
         id: sweep_window
         if: ${{ steps.collect.outputs.exit_code == '0' || steps.collect.outputs.exit_code == '2' }}
         env:
-          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
-          from jobdisco import jsearch
-          from jobdisco.jsearch_access import RequestGuard
+          from operation1million import jsearch
+          from operation1million.jsearch_access import RequestGuard
           settings, _ = jsearch.load_plan()
           guard = RequestGuard(target_limit=settings['monthly_target'],
                                cycle_start=settings['cycle_start'],
@@ -155,7 +155,7 @@ jobs:
         # spend the cycle's remaining credits and throw the results away.
         if: ${{ steps.sweep_window.outputs.run == 'true' && inputs.dry_run != true && (github.event_name == 'schedule' || inputs.enable_jsearch) }}
         env:
-          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
         run: |
           echo "::notice title=Backfill::${{ steps.sweep_window.outputs.days_until_reset }} days until the cycle resets"
@@ -180,7 +180,7 @@ jobs:
       - name: Commit durable state
         env:
           # The check below reads the store being committed, not the default path.
-          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
         if: ${{ always() && steps.data_checkout.outcome == 'success' && steps.rebuild.outcome == 'success' }}
         working-directory: data-repo
         run: |
@@ -220,7 +220,7 @@ jobs:
             # repository unable to rebuild, which is worse than losing a pass.
             if ! python -c "
           import sys
-          from jobdisco import store
+          from operation1million import store
           bad = [(d, s) for d, s in store.verify() if s != 'ok']
           for d, s in bad:
               print(f'::error title=Unverified store::{d}: {s}')
@@ -228,7 +228,7 @@ jobs:
           "; then
               echo '::warning::Collected postings were not committed; the store did not verify.'
               publication_failed=1
-              python -m jobdisco.workflow_state operational/jsearch_usage.sqlite ../.local/jsearch_usage.before.sqlite
+              python -m operation1million.workflow_state operational/jsearch_usage.sqlite ../.local/jsearch_usage.before.sqlite
               if [ -f operational/jsearch_usage.sqlite ]; then
                 git add -f operational/jsearch_usage.sqlite
               fi
@@ -254,7 +254,7 @@ jobs:
       - name: Summarise
         if: ${{ always() && steps.data_checkout.outcome == 'success' }}
         env:
-          JOBDISCO_STORE: ${{ github.workspace }}/data-repo
+          OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
         run: |
           job-store --verify >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
           latest=$(find data-repo/manifests -maxdepth 1 -name '*.json' -type f 2>/dev/null | sort | tail -1)

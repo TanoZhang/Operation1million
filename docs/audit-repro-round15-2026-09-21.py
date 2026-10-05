@@ -15,8 +15,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from jobdisco import applications, jsearch, review, store
-from jobdisco.validate_sources import Source
+from operation1million import applications, jsearch, review, store
+from operation1million.validate_sources import Source
 
 SOURCE = Source('ashby:fixture', 'company_sources', 'fixture', 'Fixture', 'ashby', '', {})
 TODAY = datetime.now(timezone.utc) - timedelta(seconds=1)
@@ -30,7 +30,7 @@ def row(ident, url, provider='ashby', raw=None, posted=None):
 
 @contextmanager
 def fixture():
-    with tempfile.TemporaryDirectory(prefix='jobdisco-audit15-') as name:
+    with tempfile.TemporaryDirectory(prefix='operation1million-audit15-') as name:
         root = Path(name)
         path = root / 'index.sqlite'
         with closing(sqlite3.connect(path)) as db:

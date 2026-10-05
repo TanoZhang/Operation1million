@@ -33,5 +33,5 @@ __pycache__/
 /data/db/*
 
 # Collected data lives in the private companion repository, reached through
-# JOBDISCO_STORE. This path is only the default for a single-machine setup.
+# OPERATION1MILLION_STORE. This path is only the default for a single-machine setup.
 /data/store/

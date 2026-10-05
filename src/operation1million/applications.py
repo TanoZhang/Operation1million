@@ -17,7 +17,7 @@ from . import jsearch, location, ranking
 
 
 def ledger_path():
-    return Path(os.environ.get('JOBDISCO_STORE', DATA / 'store')) / 'operational/applications.ndjson'
+    return Path(os.environ.get('OPERATION1MILLION_STORE', DATA / 'store')) / 'operational/applications.ndjson'
 
 
 def links_path(ledger):

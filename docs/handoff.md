@@ -181,7 +181,7 @@ the day at 320 with tiers in priority order. codex's VLSI synonym trials and the
 2026-09-27 re-set are gone; request-level publisher exclusions stay, plus the
 names JSearch reports (JobMESH, JobMesh.io, Virginia Commons Apartments). The
 General backfill depth is back to 30. Deploy, then enable
-`jobdisco-collect.timer` without starting `jobdisco-collect.service`. The
+`operation1million-collect.timer` without starting `operation1million-collect.service`. The
 October 3 scheduled pass had failed in preflight before paid search.
 
 # Corrected VLSI scope - 2026-10-02 (codex)
@@ -1001,7 +1001,7 @@ this work stays on the standing Codex branch and is not deployed.
 
 # Local reusable autofill answers - 2026-09-22 UTC (codex, not deployed)
 
-Added `jobdisco.answer_bank` and the `job-answers` CLI. Canonical fields each own
+Added `operation1million.answer_bank` and the `job-answers` CLI. Canonical fields each own
 one typed answer; observed headings link to fields rather than copying values.
 New wording is recorded as pending, exact ordinary aliases can resolve, and
 confirmed mappings remain scoped to site/section/control/options. Personal
@@ -1066,7 +1066,7 @@ credit spending, VPS operations, or production lock-contention tests were run.
 
 Operational changes to review before installation: workstation backups now
 require Python locally and snapshot runtime ledgers from
-`/opt/jobdisco/code/.local` (override with `JOBDISCO_VPS_STATE`). Compaction holds
+`/opt/operation1million/code/.local` (override with `OPERATION1MILLION_VPS_STATE`). Compaction holds
 the decision lock and uses a freshly fetched explicit push lease. See
 `docs/vps-deployment.md` for the updated recovery contract.
 
@@ -1672,13 +1672,13 @@ Before starting: `git fetch origin`, then `git log HEAD..origin/main` **and**
 invisible to a check of `main` alone. Claim your area in the register in
 `docs/agent-protocol.md` before writing code.
 
-Never commit in `/opt/jobdisco/code`. It is the production checkout the
+Never commit in `/opt/operation1million/code`. It is the production checkout the
 scheduled pass runs from, and committing there once left two commits on a
 single disk and broke `install.sh`.
 
 To deploy: push to `main`, then
 
-    ssh <vps> sudo -n bash /opt/jobdisco/code/deploy/vps/install.sh
+    ssh <vps> sudo -n bash /opt/operation1million/code/deploy/vps/install.sh
 
 It prints the installed commit; if that is not what you just pushed, the update
 did not happen whatever else it said. A push alone deploys nothing.
@@ -1702,7 +1702,7 @@ Two private repositories:
 The job database is derived and gitignored. From nothing:
 
 ```
-JOBDISCO_STORE=<data repo> job-store --bootstrap
+OPERATION1MILLION_STORE=<data repo> job-store --bootstrap
 ```
 
 The rebuild uses `schema.sql`, migrations and the append-only log. It has been
@@ -1735,12 +1735,12 @@ after collection, store verification and the push have all succeeded, `/fail`
 otherwise -- and then the original exit code is restored, because a monitor that
 swallowed the failure would be worse than none. A ping that cannot be delivered
 is a warning and never fails the pass. The URL is configuration, not source: it
-lives in `/etc/jobdisco/env` at mode 640, and a test walks every tracked file to
+lives in `/etc/operation1million/env` at mode 640, and a test walks every tracked file to
 keep it out of the tree. A shell without that variable stays silent, which is
 what makes a manual diagnostic safe. Set the check to period 1 day, grace 3
 hours; a shorter grace pages you about a pass that is running normally.
 
-**Secrets are three lines** in `/etc/jobdisco/env`, root-owned and group-readable
+**Secrets are three lines** in `/etc/operation1million/env`, root-owned and group-readable
 by the service account. The GitHub token is handed to git by a credential helper
 that reads it from the environment, so it never reaches `.git/config` or a remote
 URL. One honest compromise: a fine-grained PAT applies one permission set to
@@ -2062,7 +2062,7 @@ accepted it: it was several kilobytes of valid SQLite. The invariant is
 directional and had never been written down -- the local ledger may be ahead of
 the published copy, because a pass whose push failed leaves exactly that, but it
 may never be behind, since behind means charges the provider has already counted
-have been lost. `jobdisco.ledger_guard` now compares the two before collecting
+have been lost. `operation1million.ledger_guard` now compares the two before collecting
 and refuses, naming the repair. The diagnostic that caused it was stopped in its
 test phase, before a credit was spent.
 

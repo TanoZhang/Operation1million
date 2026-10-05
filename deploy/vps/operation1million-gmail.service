@@ -1,0 +1,32 @@
+[Unit]
+Description=Mark applied positions Passed or Declined from Gmail replies
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=operation1million
+Group=operation1million
+WorkingDirectory=/opt/operation1million/code
+Environment=HOME=/opt/operation1million
+Environment=OPERATION1MILLION_STORE=/opt/operation1million/data
+Environment=OPERATION1MILLION_GMAIL_DIR=/opt/operation1million/gmail
+Environment=PYTHONPATH=/opt/operation1million/code/src
+# GMAIL_ADDRESS and GMAIL_APP_PASSWORD; blank means nothing is checked.
+EnvironmentFile=/etc/operation1million/env
+ExecStart=/opt/operation1million/venv/bin/python -m operation1million.gmail_outcomes --db /opt/operation1million/code/data/db/job_discovery.sqlite
+TimeoutStartSec=900
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/operation1million/data/operational /opt/operation1million/code/data/db /opt/operation1million/gmail
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

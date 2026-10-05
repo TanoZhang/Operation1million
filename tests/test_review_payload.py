@@ -12,7 +12,7 @@ import json
 import re
 import unittest
 
-from jobdisco import ranking, review
+from operation1million import ranking, review
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,7 +44,7 @@ class SlimTests(unittest.TestCase):
 
     def test_the_page_has_a_class_for_every_band_it_can_emit(self):
         """A chip rendered into a class that does not exist is an invisible chip."""
-        css = (ROOT / 'src/jobdisco/review_static/style.css').read_text(encoding='utf-8')
+        css = (ROOT / 'src/operation1million/review_static/style.css').read_text(encoding='utf-8')
         self.assertIn('.band{', css, 'the base chip style carries bands with no rule of their own')
         for index in range(len(ranking.LABELS)):
             self.assertTrue(f'.band-{index}' in css or '.band{' in css)
@@ -91,7 +91,7 @@ class ClientSourceContractTests(unittest.TestCase):
     """
 
     def script(self):
-        return (ROOT / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+        return (ROOT / 'src/operation1million/review_static/app.js').read_text(encoding='utf-8')
 
     def test_dates_do_not_go_through_the_utc_reading_of_a_bare_day(self):
         script = self.script()
@@ -151,7 +151,7 @@ class ClientSourceContractTests(unittest.TestCase):
         self.assertIn("$('#remaining').textContent = open.length;", render,
                       'Remaining still counts less related postings')
         self.assertIn('const open = [...state.pending, ...state.backlog].filter(related);', script)
-        self.assertIn('data-tab="less"', (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8'))
+        self.assertIn('data-tab="less"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('less_related', review.GROUP_FIELDS)
 
     def test_early_career_and_the_rest_are_two_review_tabs(self):
@@ -168,7 +168,7 @@ class ClientSourceContractTests(unittest.TestCase):
                       'Remaining stops counting one of the two review tabs')
         self.assertIn("['pending', 'early', 'backlog', 'less'].includes(tab)", script,
                       'the early career tab cannot mark a posting applied or skipped')
-        self.assertIn('data-tab="early"', (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8'))
+        self.assertIn('data-tab="early"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('early_career', review.GROUP_FIELDS)
 
     def test_the_backlog_tab_leaves_early_career_to_its_own_tab(self):
@@ -233,7 +233,7 @@ class ClientContractTests(unittest.TestCase):
     """If the page reads a field, the projection has to carry it."""
 
     def test_no_job_field_is_read_by_the_page_that_the_projection_drops(self):
-        script = (ROOT / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+        script = (ROOT / 'src/operation1million/review_static/app.js').read_text(encoding='utf-8')
         # Every `job.<name>` the page touches, however it is spelled.
         read = set(re.findall(r'\bjob\.([a-z_]+)', script))
         self.assertTrue(read, 'found no job field reads; the pattern has gone stale')
@@ -242,7 +242,7 @@ class ClientContractTests(unittest.TestCase):
                         f'which /api/queue no longer sends')
 
     def test_no_group_field_is_read_by_the_page_that_the_projection_drops(self):
-        script = (ROOT / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+        script = (ROOT / 'src/operation1million/review_static/app.js').read_text(encoding='utf-8')
         read = set(re.findall(r'\bgroup\.([a-z_]+)', script))
         self.assertTrue(read)
         self.assertTrue(read <= set(review.GROUP_FIELDS) | {'jobs'},

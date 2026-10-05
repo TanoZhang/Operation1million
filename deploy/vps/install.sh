@@ -6,13 +6,13 @@
 #   sudo bash install.sh
 #
 # The secrets are never arguments and never reach the shell history. The first
-# run writes /etc/jobdisco/env with blanks and stops; you fill it in with an
+# run writes /etc/operation1million/env with blanks and stops; you fill it in with an
 # editor on the box and run this again.
 set -euo pipefail
 
-ROOT=/opt/jobdisco
-ENV_FILE=/etc/jobdisco/env
-SERVICE_USER=jobdisco
+ROOT=/opt/operation1million
+ENV_FILE=/etc/operation1million/env
+SERVICE_USER=operation1million
 CODE_REPO=https://github.com/TanoZhang/Operation1million.git
 DATA_REPO=https://github.com/TanoZhang/Operation1million-data.git
 
@@ -55,10 +55,10 @@ if ! flock -n 9; then
 fi
 
 echo "== Secrets =="
-install -d -o root -g root -m 755 /etc/jobdisco
+install -d -o root -g root -m 755 /etc/operation1million
 if [ ! -f "$ENV_FILE" ]; then
   cat > "$ENV_FILE" <<'TEMPLATE'
-# Mode 640, root-owned, readable by the jobdisco group. These are the whole
+# Mode 640, root-owned, readable by the operation1million group. These are the whole
 # credential set the pass needs. Nothing here belongs in either repository.
 #
 # JSEARCH_API_KEY   OpenWeb Ninja API key for the fixed JSearch plan.
@@ -148,27 +148,27 @@ echo "== Entry point =="
 ln -sfn "$ROOT/code/deploy/vps/daily-pass.sh" "$ROOT/bin/daily-pass.sh"
 
 echo "== Units =="
-install -m 644 "$ROOT/code/deploy/vps/jobdisco-collect.service" /etc/systemd/system/
-install -m 644 "$ROOT/code/deploy/vps/jobdisco-collect.timer" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/operation1million-collect.service" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/operation1million-collect.timer" /etc/systemd/system/
 # The review unit too. Left out, it was installed by hand once and then never
 # updated, which is how its checkout came to be serving a filter the collector
 # had moved on from.
-install -m 644 "$ROOT/code/deploy/vps/jobdisco-review.service" /etc/systemd/system/
-install -m 644 "$ROOT/code/deploy/vps/jobdisco-backup.service" /etc/systemd/system/
-install -m 644 "$ROOT/code/deploy/vps/jobdisco-backup.timer" /etc/systemd/system/
-install -m 644 "$ROOT/code/deploy/vps/jobdisco-gmail.service" /etc/systemd/system/
-install -m 644 "$ROOT/code/deploy/vps/jobdisco-gmail.timer" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/operation1million-review.service" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/operation1million-backup.service" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/operation1million-backup.timer" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/operation1million-gmail.service" /etc/systemd/system/
+install -m 644 "$ROOT/code/deploy/vps/operation1million-gmail.timer" /etc/systemd/system/
 # Private: email subjects and text. Outside both repositories.
 install -d -m 700 -o "$SERVICE_USER" -g "$SERVICE_USER" "$ROOT/gmail"
 systemctl daemon-reload
-systemctl enable --now jobdisco-collect.timer
+systemctl enable --now operation1million-collect.timer
 # Restarted, not merely enabled: the running process holds the modules it
 # imported at start, so a review server left running after an update keeps
 # serving the code it was started with.
-systemctl enable jobdisco-review.service
-systemctl restart jobdisco-review.service
-systemctl enable --now jobdisco-backup.timer
-systemctl enable --now jobdisco-gmail.timer
+systemctl enable operation1million-review.service
+systemctl restart operation1million-review.service
+systemctl enable --now operation1million-backup.timer
+systemctl enable --now operation1million-gmail.timer
 
 echo
 # Printed because an update that changed nothing used to look exactly like one
@@ -176,7 +176,7 @@ echo
 # happen, whatever else the output said.
 echo "Installed at $(sudo -u "$SERVICE_USER" git -C "$ROOT/code" log --oneline -1)"
 echo "Next run:"
-systemctl list-timers jobdisco-collect.timer --no-pager || true
+systemctl list-timers operation1million-collect.timer --no-pager || true
 echo
 echo "The first pass builds the database from the committed log, which takes"
 echo "about 30 seconds and 639 MB. Every pass after it skips that."

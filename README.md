@@ -29,7 +29,7 @@ and leaves the rest in a review page where I mark each posting applied or skippe
 
 | Path | What |
 | --- | --- |
-| `src/jobdisco/` | collector, filters, store, review server |
+| `src/operation1million/` | collector, filters, store, review server |
 | `data/config/` | source catalog, search plan, filter rules |
 | `tests/` | offline test suite |
 | `deploy/vps/` | installer, daily pass, systemd units |
@@ -41,7 +41,7 @@ and leaves the rest in a review page where I mark each posting applied or skippe
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e .
 $env:PYTHONPATH = "src"; .\.venv\Scripts\python.exe -m unittest discover -s tests
-.\.venv\Scripts\python.exe -m jobdisco.collector --company marvell --no-store
+.\.venv\Scripts\python.exe -m operation1million.collector --company marvell --no-store
 ```
 
 Paid search stays off unless you pass `--jsearch` and set `JSEARCH_API_KEY` in

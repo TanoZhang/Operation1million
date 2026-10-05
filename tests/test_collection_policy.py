@@ -10,15 +10,15 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
 
-from jobdisco.collection_policy import SourcePolicy, retry_after_seconds
-from jobdisco.collection_policy import robots_delay as real_robots_delay
-from jobdisco.collector import Collector, Source, main
-from jobdisco.validate_sources import validate
+from operation1million.collection_policy import SourcePolicy, retry_after_seconds
+from operation1million.collection_policy import robots_delay as real_robots_delay
+from operation1million.collector import Collector, Source, main
+from operation1million.validate_sources import validate
 
 
 class CollectionPolicyTests(unittest.TestCase):
     def setUp(self):
-        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots = patch('operation1million.collection_policy.robots_delay', return_value=None)
         robots.start()
         self.addCleanup(robots.stop)
         self.temp = TemporaryDirectory()
@@ -44,7 +44,7 @@ class CollectionPolicyTests(unittest.TestCase):
     def test_429_stops_immediately_and_survives_restart(self):
         c = self.collector(replace(self.source, company_key='microsoft'))
         c.session.request.return_value = self.response(429, headers={'Retry-After': '3600'})
-        with patch('jobdisco.collection_policy.time.time', return_value=1000), patch('jobdisco.collector.time.sleep') as sleep:
+        with patch('operation1million.collection_policy.time.time', return_value=1000), patch('operation1million.collector.time.sleep') as sleep:
             status, reason = c.run()
             self.assertEqual(status, 'paused')
             self.assertIn('429', reason)
@@ -58,7 +58,7 @@ class CollectionPolicyTests(unittest.TestCase):
 
     def test_the_delay_is_the_one_given_to_this_crawler(self):
         """B65: another bot's six hundred seconds are not this crawler's."""
-        from jobdisco.collection_policy import crawl_delay
+        from operation1million.collection_policy import crawl_delay
         robots = ('User-agent: JobSourceCollector\nCrawl-delay: 2\n\n'
                   'User-agent: OtherBot\nCrawl-delay: 600\n')
         self.assertEqual(crawl_delay(robots), 2)
@@ -72,7 +72,7 @@ class CollectionPolicyTests(unittest.TestCase):
 
     def test_a_throttled_robots_request_pauses_the_source(self):
         """B66: a 429 on robots.txt was read as no delay, and the next page went out."""
-        from jobdisco import collection_policy
+        from operation1million import collection_policy
         collection_policy._ROBOTS_DELAY.pop('careers.micron.com', None)
         self.addCleanup(collection_policy._ROBOTS_DELAY.pop, 'careers.micron.com', None)
         throttled = Mock(status_code=429, headers={'Retry-After': '3600'}, text='')
@@ -82,7 +82,7 @@ class CollectionPolicyTests(unittest.TestCase):
             for n in range(10)]}})
         c.session.request.return_value = page
         # The class patches robots_delay away; this test needs the real one.
-        with patch('jobdisco.collection_policy.robots_delay', real_robots_delay),              patch.object(collection_policy.requests, 'get', return_value=throttled),              patch('jobdisco.collection_policy.time.time', return_value=1000),              patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collection_policy.robots_delay', real_robots_delay),              patch.object(collection_policy.requests, 'get', return_value=throttled),              patch('operation1million.collection_policy.time.time', return_value=1000),              patch('operation1million.collector.time.sleep'):
             status, reason = c.run()
         self.assertEqual(status, 'paused')
         self.assertIn('robots.txt HTTP 429', reason)
@@ -92,7 +92,7 @@ class CollectionPolicyTests(unittest.TestCase):
 
     def test_pacing_is_resolved_only_when_a_request_is_due(self):
         """Resolving it asks the host for robots.txt, which is itself a request."""
-        with patch('jobdisco.collection_policy.robots_delay', return_value=None) as robots:
+        with patch('operation1million.collection_policy.robots_delay', return_value=None) as robots:
             policy = SourcePolicy(self.source, 1.0, path=self.args.source_state)
             robots.assert_not_called()
             self.assertEqual(policy.interval, 2.5)
@@ -102,9 +102,9 @@ class CollectionPolicyTests(unittest.TestCase):
         """A cooldown is checked before anything reaches the host, robots.txt included."""
         c = self.collector()
         c.session.request.return_value = self.response(429)
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run()[0], 'paused')
-        with patch('jobdisco.collection_policy.request_interval') as interval:
+        with patch('operation1million.collection_policy.request_interval') as interval:
             restarted = self.collector(c.source)
             self.assertEqual(restarted.run()[0], 'paused')
             restarted.session.request.assert_not_called()
@@ -116,7 +116,7 @@ class CollectionPolicyTests(unittest.TestCase):
         self.assertEqual(c.run()[0], 'paused')
         restarted = self.collector()
         session = Mock()
-        with patch('jobdisco.validate_sources.SourcePolicy', return_value=restarted.policy):
+        with patch('operation1million.validate_sources.SourcePolicy', return_value=restarted.policy):
             result = validate(self.source, session)
         self.assertEqual(result['verdict'], 'paused')
         session.get.assert_not_called()
@@ -125,7 +125,7 @@ class CollectionPolicyTests(unittest.TestCase):
     def test_503_honors_retry_after_before_success(self):
         c = self.collector()
         c.session.request.side_effect = [self.response(503, headers={'Retry-After': '45'}), self.response()]
-        with patch('jobdisco.collector.time.sleep') as sleep:
+        with patch('operation1million.collector.time.sleep') as sleep:
             c.fetch(c.source.access_url)
         self.assertEqual(c.requests, 2)
         sleep.assert_called_once_with(45)
@@ -134,7 +134,7 @@ class CollectionPolicyTests(unittest.TestCase):
         c = self.collector()
         date = format_datetime(datetime.fromtimestamp(1120, timezone.utc), usegmt=True)
         c.session.request.return_value = self.response(503, headers={'Retry-After': date})
-        with patch('jobdisco.collection_policy.time.time', return_value=1000), patch('jobdisco.collector.time.sleep') as sleep:
+        with patch('operation1million.collection_policy.time.time', return_value=1000), patch('operation1million.collector.time.sleep') as sleep:
             self.assertEqual(c.run()[0], 'paused')
             self.assertEqual(c.requests, 1)
             sleep.assert_not_called()
@@ -142,7 +142,7 @@ class CollectionPolicyTests(unittest.TestCase):
     def test_503_retries_are_bounded_with_exponential_waits(self):
         c = self.collector()
         c.session.request.return_value = self.response(503)
-        with patch('jobdisco.collector.time.sleep') as sleep:
+        with patch('operation1million.collector.time.sleep') as sleep:
             self.assertEqual(c.run()[0], 'paused')
         self.assertEqual(c.requests, 4)
         self.assertEqual([call.args[0] for call in sleep.call_args_list], [5, 10, 20])
@@ -152,7 +152,7 @@ class CollectionPolicyTests(unittest.TestCase):
             with self.subTest(company=company):
                 c = self.collector(replace(self.source, company_key=company, provider_key=provider))
                 c.session.request.return_value = self.response()
-                with patch('jobdisco.collector.time.sleep') as sleep:
+                with patch('operation1million.collector.time.sleep') as sleep:
                     c.fetch(c.source.access_url)
                     c.fetch(c.source.access_url)
                 sleep.assert_called_once_with(expected)
@@ -163,7 +163,7 @@ class CollectionPolicyTests(unittest.TestCase):
         sitemap.content = b'<urlset><url><loc>https://jobs.example/1</loc></url><url><loc>https://jobs.example/2</loc></url></urlset>'
         blocked = self.response(headers={'content-type': 'text/html'}, text='<h1>Human Verification</h1>')
         c.session.request.side_effect = [sitemap, blocked]
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run()[0], 'paused')
         self.assertEqual(c.requests, 2)
 
@@ -183,7 +183,7 @@ class CollectionPolicyTests(unittest.TestCase):
             self.response(data={'data': {'count': 2, 'positions': [
                 {'id': '2', 'name': 'Verification Engineer', 'positionUrl': '/careers/job/2'}]}}),
         ]
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run(), ('complete', ''))
         self.assertIn('start=1', c.session.request.call_args_list[1].args[1])
         self.assertIn('num=10', c.session.request.call_args_list[1].args[1])
@@ -197,7 +197,7 @@ class CollectionPolicyTests(unittest.TestCase):
             self.response(data={'totalCount': 2, 'jobs': [{'data': {'req_id': '1', 'title': 'Engineer'}}]}),
             self.response(data={'totalCount': 2, 'jobs': [{'data': {'req_id': '2', 'title': 'Engineer'}}]}),
         ]
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run(), ('complete', ''))
         self.assertIn('page=2', c.session.request.call_args_list[1].args[1])
         self.assertEqual(c.jobs[0]['url'], 'https://careers.amd.com/careers-home/jobs/1')
@@ -206,11 +206,11 @@ class CollectionPolicyTests(unittest.TestCase):
         for options, status in [([], 'failed'), (['--jsearch-budget', '1'], 'complete'), (['--jsearch-budget', '1'], 'paused')]:
             with self.subTest(options=options, status=status):
                 argv = ['job-collect', '--output', self.temp.name, '--no-store'] + options
-                with patch('sys.argv', argv), patch('jobdisco.collector.load_credentials'), \
-                     patch('jobdisco.collector.load_sources', return_value=[self.source]), \
-                     patch('jobdisco.collector.RequestGuard') as guard, \
-                     patch('jobdisco.collector.Collector.run', return_value=(status, '')), \
-                     patch('jobdisco.collector.fallback') as fallback, patch('builtins.print'):
+                with patch('sys.argv', argv), patch('operation1million.collector.load_credentials'), \
+                     patch('operation1million.collector.load_sources', return_value=[self.source]), \
+                     patch('operation1million.collector.RequestGuard') as guard, \
+                     patch('operation1million.collector.Collector.run', return_value=(status, '')), \
+                     patch('operation1million.collector.fallback') as fallback, patch('builtins.print'):
                     guard.return_value.attempts = 0
                     main()
                     fallback.assert_not_called()

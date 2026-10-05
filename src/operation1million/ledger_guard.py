@@ -76,7 +76,7 @@ def compare(local, published, settings=None):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if len(argv) != 2:
-        print('usage: python -m jobdisco.ledger_guard <local> <published>', file=sys.stderr)
+        print('usage: python -m operation1million.ledger_guard <local> <published>', file=sys.stderr)
         return 64
     try:
         here, there, ok = compare(argv[0], argv[1])

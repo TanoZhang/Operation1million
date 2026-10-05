@@ -9,8 +9,8 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from jobdisco import jsearch, ledger_guard
-from jobdisco.jsearch_access import RequestGuard
+from operation1million import jsearch, ledger_guard
+from operation1million.jsearch_access import RequestGuard
 
 
 class BudgetDayAcrossTheCycleTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class BudgetDayAcrossTheCycleTests(unittest.TestCase):
 
     def test_a_ledger_that_lost_todays_spend_is_refused_after_the_cycle_rolls(self):
         """Zero against zero on the new cycle; sixty against zero today."""
-        at = lambda stamp: patch('jobdisco.jsearch_access.time.time',
+        at = lambda stamp: patch('operation1million.jsearch_access.time.time',
                                  return_value=datetime.fromisoformat(stamp).timestamp())
         published = self.guard('published.sqlite')
         session = Mock()
@@ -51,7 +51,7 @@ class BudgetDayAcrossTheCycleTests(unittest.TestCase):
 
     def test_a_ledger_ahead_on_both_clocks_still_passes(self):
         """The legitimate case: a pass whose push failed leaves the local copy ahead."""
-        at = lambda stamp: patch('jobdisco.jsearch_access.time.time',
+        at = lambda stamp: patch('operation1million.jsearch_access.time.time',
                                  return_value=datetime.fromisoformat(stamp).timestamp())
         session = Mock()
         session.get.return_value = Mock(status_code=200, headers={})

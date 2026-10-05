@@ -2,8 +2,8 @@
 import sqlite3
 import unittest
 from contextlib import closing
-from jobdisco.query_catalog import MIGRATION, ROOT
-from jobdisco.paths import CONFIG
+from operation1million.query_catalog import MIGRATION, ROOT
+from operation1million.paths import CONFIG
 
 
 class QueryCatalogTests(unittest.TestCase):

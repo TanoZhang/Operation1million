@@ -2,7 +2,7 @@
 
 ## Scope, source versions and verification
 
-Read all functions in `src/jobdisco/store.py`, from migration and identity
+Read all functions in `src/operation1million/store.py`, from migration and identity
 handling through logging, sharding, replay, CLI, rescoring and ranking. Five new
 root causes are B58-B62. No priorities, business-code edits, production reads,
 external collection or real page-credit spending.

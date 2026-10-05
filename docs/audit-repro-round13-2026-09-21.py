@@ -20,13 +20,13 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from jobdisco import applications, collection_policy, jsearch_access
+from operation1million import applications, collection_policy, jsearch_access
 
 BASH = (Path('C:/Program Files/Git/bin/bash.exe') if os.name == 'nt'
         else Path(shutil.which('bash')))
 PYTHON = Path(sys.executable).as_posix()
 ENV = {**os.environ, 'PYTHONPATH': str(ROOT / 'src'),
-       'JOBDISCO_PYTHON': PYTHON, 'HEALTHCHECK_URL': ''}
+       'OPERATION1MILLION_PYTHON': PYTHON, 'HEALTHCHECK_URL': ''}
 
 
 def put(path, text):
@@ -97,9 +97,9 @@ def backup(directory, extra='', real_remote=False):
               + shlex.quote((ROOT / 'deploy/local/backup-from-vps.sh').as_posix())
               + ' backup\n')
     return shell(directory, driver,
-                 JOBDISCO_VPS_DATA=(directory / 'fixture/data').as_posix(),
-                 JOBDISCO_VPS_DB=(directory / 'fixture/sqlite/job_discovery.sqlite').as_posix(),
-                 JOBDISCO_VPS='offline-fixture')
+                 OPERATION1MILLION_VPS_DATA=(directory / 'fixture/data').as_posix(),
+                 OPERATION1MILLION_VPS_DB=(directory / 'fixture/sqlite/job_discovery.sqlite').as_posix(),
+                 OPERATION1MILLION_VPS='offline-fixture')
 
 
 def pause(policy):
@@ -213,11 +213,11 @@ def repo_fixture(directory):
 def compact(directory):
     driver = '''flock() { return 0; }
 job-store() {
-  "$JOBDISCO_PYTHON" -c 'from jobdisco import store; assert all(s == "ok" for _, s in store.verify())'
+  "$OPERATION1MILLION_PYTHON" -c 'from operation1million import store; assert all(s == "ok" for _, s in store.verify())'
 }
-python() { "$JOBDISCO_PYTHON" "$@"; }
+python() { "$OPERATION1MILLION_PYTHON" "$@"; }
 source ''' + shlex.quote((ROOT / 'deploy/vps/compact-history.sh').as_posix()) + '\n'
-    return shell(directory, driver, JOBDISCO_ROOT=directory.as_posix(), JOBDISCO_KEEP_DAYS='1')
+    return shell(directory, driver, OPERATION1MILLION_ROOT=directory.as_posix(), OPERATION1MILLION_KEEP_DAYS='1')
 
 
 def b71(directory):
@@ -252,7 +252,7 @@ def b72(directory):
 
 
 def b73(directory):
-    from jobdisco import ledger_guard
+    from operation1million import ledger_guard
     data, source = fixture(directory)
     local = directory / 'code/.local'
     local.mkdir(parents=True)
@@ -282,5 +282,5 @@ def b73(directory):
 
 if __name__ == '__main__':
     for case in (b68, b69, b70, b71, b72, b73):
-        with tempfile.TemporaryDirectory(prefix='jobdisco-audit13-') as temporary:
+        with tempfile.TemporaryDirectory(prefix='operation1million-audit13-') as temporary:
             case(Path(temporary))

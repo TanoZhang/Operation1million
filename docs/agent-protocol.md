@@ -6,25 +6,41 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: At the user's request (2026-10-05): rename everything named operation1million to
+       operation1million -- package, imports, OPERATION1MILLION_* variables, systemd
+       units, VPS user/group, /opt and /etc paths, docs. Not the SQLite file
+       (job_discovery.sqlite) or the CLI command names (job-*), which never
+       carried the name. Codex worktrees (last commits 2026-09-20..23) predate
+       this and will conflict if revived.
+Files: every tracked file naming operation1million; src/operation1million -> src/operation1million;
+       deploy/vps/operation1million-* -> deploy/vps/operation1million-*
+Base commit: f1bdd40
+Status: active
+Next: Push, then migrate the VPS in place (usermod/groupmod keep the uid,
+      mv /opt and /etc, rebuild the venv, swap the units) before the 11:38 UTC pass.
+```
+
+```text
+Owner: claude
 Scope: At the user's request (2026-10-05): mark an applied position Passed
        or Declined in Review; passed ones are highlighted. Kept beside the
        ledger in operational/application_outcomes.ndjson, append-only.
-Files: src/jobdisco/{applications,review,manual_intake}.py, review_static/*,
+Files: src/operation1million/{applications,review,manual_intake}.py, review_static/*,
        deploy/vps/{backup-applications,daily-pass,data-sync}.sh,
        tests/test_application_outcomes.py, docs/{agent-protocol,application-review}.md
 Base commit: 63e98a1
 Status: active -- marks renamed Passed / Declined; adding the Gmail reader
-        (src/jobdisco/gmail_outcomes.py, deploy/vps/jobdisco-gmail.*,
+        (src/operation1million/gmail_outcomes.py, deploy/vps/operation1million-gmail.*,
         install.sh, local_config.py) at the user's request.
         Installed 1080d2b (install.sh run twice: the first run executes the old
-        script); jobdisco-gmail.timer active, idle until GMAIL_* are filled in.
-Next: User adds a Gmail app password to /etc/jobdisco/env; verify a live run.
+        script); operation1million-gmail.timer active, idle until GMAIL_* are filled in.
+Next: User adds a Gmail app password to /etc/operation1million/env; verify a live run.
 ```
 
 ```text
 Owner: codex
 Scope: Delete the abandoned autofill component and local copies, without an archive; inspect but leave Muse's private job-applications records unchanged per user clarification.
-Files: application-autofill/, src/jobdisco/answer_bank.py, autofill/answer-bank tests and docs, packaging/deploy references; obsolete ignored local autofill copies.
+Files: application-autofill/, src/operation1million/answer_bank.py, autofill/answer-bank tests and docs, packaging/deploy references; obsolete ignored local autofill copies.
 Base commit: 003d067 (public), 0dc63ad (private)
 Status: done -- obsolete component and local data removed, no archive; private repository unchanged. Full suite checked; updated deployment tests pass.
 Next: Push public code; the user deploys separately.
@@ -48,7 +64,7 @@ Scope: At the user's request (2026-10-04): two AGENTS.md invariants from the
        Codex is out until 20:33; small edits in its files, each noted here:
        store.py (MONOTONIC_NEWEST_FIRST only, #317), applications.py
        (unify_copies and its call, #319).
-Files: AGENTS.md, docs/{agent-protocol,bug-tracker}.md, src/jobdisco/{store,prune,applications}.py,
+Files: AGENTS.md, docs/{agent-protocol,bug-tracker}.md, src/operation1million/{store,prune,applications}.py,
        deploy/vps/daily-pass.sh, tests/{test_store,test_prune,test_unify_copies}.py
 Base commit: c3923f6
 Status: done -- 31687ba and 1215ea4 pushed and installed. 6,476 open postings
@@ -60,7 +76,7 @@ Next: Measure the next pass's credit use and yield under the new caps.
 ```text
 Owner: codex
 Scope: Preserve first discovery for stable LinkedIn postings with rotating search IDs; suppress confirmed Workday copies by employer/title/requisition evidence; audit the latest query yield without changing the user's query plan.
-Files: src/jobdisco/{store,applications,jsearch,jsearch_access,workflow_state}.py, tests/{test_discovery_identity,test_jsearch,test_jsearch_plan_bugs,test_workflow_state}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
+Files: src/operation1million/{store,applications,jsearch,jsearch_access,workflow_state}.py, tests/{test_discovery_identity,test_jsearch,test_jsearch_plan_bugs,test_workflow_state}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
 Base commit: 8a57617
 Status: active
 Next: Identity patch 57c2381 installed. One guarded paid probe proves search-v2 returns a cursor with five jobs; fix incorrect page-number/short-page termination, then verify duplicate consolidation and query yield.
@@ -99,12 +115,12 @@ Scope: At the user's request (2026-10-03), the JSearch plan is the user's own
        stops the day at 320), deeper early-career caps, eight early-career
        trials. Replaces the 2026-09-27 re-set and codex's 2026-10-02/03 query
        trials; the user stopped codex's keyword work and the VPS timer.
-Files: src/jobdisco/jsearch.py, data/config/jsearch_queries.toml,
+Files: src/operation1million/jsearch.py, data/config/jsearch_queries.toml,
        tests/{test_jsearch,test_bulk_application_rules}.py,
        docs/{jsearch,collection-rules,handoff,agent-protocol}.md
 Base commit: 4e6789e
 Status: done -- pushed to main, not deployed
-Next: Deploy, then enable jobdisco-collect.timer without starting the service.
+Next: Deploy, then enable operation1million-collect.timer without starting the service.
 ```
 
 ```text
@@ -119,7 +135,7 @@ Next: Private Review ledger and live queue were verified; no collector or JSearc
 ```text
 Owner: codex
 Scope: Audit current JSearch page yield, restore VLSI analog interns, trial ten General-tier VLSI synonyms, and close request-level publisher gaps; preserve intern, new-grad and early-career query plans.
-Files: src/jobdisco/{jsearch,applications}.py, data/config/jsearch_queries.toml, tests/{test_jsearch,test_manual_intake,test_review_rules,test_twelfth_bug_hunt}.py, docs/{agent-protocol,architecture,blocked-recruitment-domains,collection-rules,handoff,jsearch}.md
+Files: src/operation1million/{jsearch,applications}.py, data/config/jsearch_queries.toml, tests/{test_jsearch,test_manual_intake,test_review_rules,test_twelfth_bug_hunt}.py, docs/{agent-protocol,architecture,blocked-recruitment-domains,collection-rules,handoff,jsearch}.md
 Base commit: be17f1d
 Status: halted at user request; installed 4e6789e, collector service and timer stopped, no paid pages on October 3.
 Next: Do not resume or modify JSearch unless the user explicitly asks.
@@ -128,7 +144,7 @@ Next: Do not resume or modify JSearch unless the user explicitly asks.
 ```text
 Owner: codex
 Scope: User clarification: restore pre-expansion JD-based embedded/VLSI rules; examine equivalent VLSI names only.
-Files: data/config/jsearch_queries.toml, src/jobdisco/ranking.py, tests, docs/{agent-protocol,architecture,handoff,jsearch}.md
+Files: data/config/jsearch_queries.toml, src/operation1million/ranking.py, tests, docs/{agent-protocol,architecture,handoff,jsearch}.md
 Base commit: 81b378a
 Status: done -- exact eaa6bc4: 1,112 tests pass (11 skips), deployed/rescored; live queue restored to all 5,261 original groups.
 Next: Refresh Review. Six VLSI synonym queries run on schedule; 153 embedded/firmware groups retained.
@@ -137,7 +153,7 @@ Next: Refresh Review. Six VLSI synonym queries run on schedule; 153 embedded/fir
 ```text
 Owner: codex
 Scope: Record-driven broadening of adjacent engineering title/score/query vocabulary for bulk applications.
-Files: data/config/jsearch_queries.toml, src/jobdisco/ranking.py, tests/test_review_rules.py,
+Files: data/config/jsearch_queries.toml, src/operation1million/ranking.py, tests/test_review_rules.py,
        tests/{test_bulk_application_rules,test_jsearch,test_store,test_sixth_bug_hunt}.py, docs/{agent-protocol,architecture,handoff,jsearch}.md
 Base commit: e456c97
 Status: done -- exact d4a7986 passes 1,114 tests (11 skips), installed; durable rescore/verify complete; queue HTTP 200.
@@ -167,7 +183,7 @@ Owner:   claude
 Scope:   #311 at the user's request (2026-10-02): an RTX posting needing U.S.
          citizenship reached Review. Pasted jobs skip every filter; apply the
          employer, title and citizenship hard rejects to them.
-Files:   src/jobdisco/{manual_intake,review}.py, tests/test_twelfth_bug_hunt.py,
+Files:   src/operation1million/{manual_intake,review}.py, tests/test_twelfth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
 Base commit: de2add0
 Status:  done -- installed at fcee2bd; Review restarted, HTTP 200
@@ -177,7 +193,7 @@ Next:    Ctrl+F5 Review.
 ```text
 Owner: codex
 Scope: Persist validated derived Review queue cache to avoid full restart builds; simplify preparing message.
-Files: src/jobdisco/{review,queue_snapshot}.py, review_static/app.js, tests/test_queue_snapshot.py,
+Files: src/operation1million/{review,queue_snapshot}.py, review_static/app.js, tests/test_queue_snapshot.py,
        docs/{agent-protocol,handoff,architecture}.md
 Base commit: a9f4299
 Status: done -- 1806349 installed; private cache created, restart queue GET HTTP 200 in 0.175s.
@@ -225,7 +241,7 @@ Owner: codex
 Scope: Block JobMesh.io; add explicit user-pasted job intake and applied-link
        reconciliation. Manual records bypass discovery eligibility by user request,
        retain relevance ranking, durable provenance and conservative identity matching.
-Files: src/jobdisco/manual_intake.py, src/jobdisco/review.py, review_static/*,
+Files: src/operation1million/manual_intake.py, src/operation1million/review.py, review_static/*,
        data/config/jsearch_queries.toml, tests/test_manual_intake.py,
        deploy/vps/{backup-applications,daily-pass}.sh, tests/test_prelaunch_fixes.py,
        docs/{agent-protocol,handoff,architecture,application-review}.md
@@ -239,7 +255,7 @@ Next: Ctrl+F5. Paste a link to add/score or mark applied; confirm company link
 Owner: codex
 Scope: Make Excel button download in browser; mark third-party listings except
        LinkedIn and Handshake, consistently in Review and Excel; deploy release.
-Files: src/jobdisco/{review,export}.py, review_static/*, tests/test_review*.py,
+Files: src/operation1million/{review,export}.py, review_static/*, tests/test_review*.py,
        tests/{review-selection.cjs,test_manual_intake.py}, docs/{agent-protocol,handoff,application-review}.md
 Base commit: b8123d3 plus the completed staged patches
 Status: done -- release 085cd6f pushed and installed; live selected XLSX HTTP 200
@@ -249,7 +265,7 @@ Next: Ctrl+F5 in the browser. Live ZIP, site marker column and Normal style veri
 ```text
 Owner: codex
 Scope: Review checkbox selection and browser download of selected Excel rows.
-Files: src/jobdisco/{review,export}.py, src/jobdisco/review_static/*,
+Files: src/operation1million/{review,export}.py, src/operation1million/review_static/*,
        tests/{test_review_export.py,review-selection.cjs},
        docs/{agent-protocol,handoff,application-review,architecture}.md
 Base commit: b8123d3 plus completed staged deployment fix
@@ -303,7 +319,7 @@ Scope:   #301-310 at the user's request (2026-10-02): defects in pasted-link
          intake (Codex's b15b226, claim done), measured on live postings, each
          with a reproducer red before its fix. The user has abandoned autofill
          (submission is done through Muse): no autofill work.
-Files:   src/jobdisco/{manual_intake,ranking}.py, tests/test_twelfth_bug_hunt.py,
+Files:   src/operation1million/{manual_intake,ranking}.py, tests/test_twelfth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker,application-review}.md
 Base commit: 1b9b149
 Status:  done -- installed at fcee2bd; Review restarted, HTTP 200
@@ -330,7 +346,7 @@ Scope:   Fifth bug hunt at the user's request (2026-10-02): seventy-four
          defects, #227-300, each with a reproducer red before its fix; and
          forty behaviour-preserving structural improvements, each checked for
          identical output. Not the autofill extension.
-Files:   src/jobdisco/*, data/config/*, deploy/*, tests/*,
+Files:   src/operation1million/*, data/config/*, deploy/*, tests/*,
          docs/{agent-protocol,architecture,handoff,bug-tracker}.md
 Base commit: bcc5b04
 Status:  done -- #227-300 pushed (0b92f44); improvements 5-40 pushed on top
@@ -343,7 +359,7 @@ Owner:   claude
 Scope:   Review page, at the user's request (2026-10-01): sort by date
          (newest / oldest) and by fit then date; one key and a button that
          export the current view to one Excel file, rewritten in place.
-Files:   src/jobdisco/{review,export}.py, src/jobdisco/review_static/*,
+Files:   src/operation1million/{review,export}.py, src/operation1million/review_static/*,
          tests/test_review_export.py, docs/{agent-protocol,application-review,handoff}.md
 Base commit: 62b7ace
 Status:  done -- pushed to main, not deployed
@@ -379,9 +395,9 @@ Next: Reload extension 0.4.1 and refresh existing pages. Offline suite: 927 test
 ```text
 Owner:   claude
 Scope:   Fourth bug hunt at the user's request (2026-10-01): twenty defects in
-         src/jobdisco, #197-216, each with a reproducer red before its fix.
+         src/operation1million, #197-216, each with a reproducer red before its fix.
          Not the autofill extension (Codex's claim).
-Files:   src/jobdisco/*, data/config/*, tests/test_tenth_bug_hunt.py,
+Files:   src/operation1million/*, data/config/*, tests/test_tenth_bug_hunt.py,
          docs/{agent-protocol,architecture,handoff,bug-tracker}.md
 Base commit: 9d3e5ae
 Status:  done -- #197-216 fixed in remote main 62b7ace; not deployed
@@ -393,7 +409,7 @@ Owner:   claude
 Scope:   Third bug hunt at the user's request: twenty more defects, each with a
          reproducer red before its fix; and, as the user decided, BS/MS paths
          listed apart (comma, bullet or sentence) count as alternatives.
-Files:   src/jobdisco/*, data/config/jsearch_queries.toml, tests/*,
+Files:   src/operation1million/*, data/config/jsearch_queries.toml, tests/*,
          docs/{agent-protocol,architecture,handoff}.md
 Base commit: c0d6e3b
 Status:  done -- #1-160 fixed and pushed (docs/bug-tracker.md), plus the
@@ -406,7 +422,7 @@ Owner:   claude
 Scope:   Second bug hunt at the user's request: twenty defects found, each
          with a reproducer red before its fix (heading detection, R5,
          filters, location, ranking, store, review).
-Files:   src/jobdisco/*, tests/*, docs/{agent-protocol,architecture,handoff}.md
+Files:   src/operation1million/*, tests/*, docs/{agent-protocol,architecture,handoff}.md
 Base commit: d7be20e
 Status:  done -- forty fixed in two rounds, pushed to main, not deployed
 Next:    Deploy with deploy/vps/install.sh, then job-store --rescore.
@@ -416,7 +432,7 @@ Next:    Deploy with deploy/vps/install.sh, then job-store --rescore.
 Owner: claude
 Scope: Codex R6 (experience: a short preference sentence opens a Preferred
        section) and R7 (degree: an inline Required heading cannot end one).
-Files: src/jobdisco/{experience,degree}.py, tests/{test_experience,test_degree}.py,
+Files: src/operation1million/{experience,degree}.py, tests/{test_experience,test_degree}.py,
        docs/{architecture,handoff,agent-protocol}.md
 Base commit: fb0c18a
 Status: done -- merged to main (4a8a03f), not deployed
@@ -428,7 +444,7 @@ Owner: claude
 Scope: Experience gate misreads found from an NXP new-grad posting and a read
        of real Workday postings; block learn4good, and block JobLeads,
        Jobrapido and learn4good by publisher name as well as by domain.
-Files: src/jobdisco/experience.py, data/config/jsearch_queries.toml,
+Files: src/operation1million/experience.py, data/config/jsearch_queries.toml,
        tests/{test_experience,test_review_rules}.py,
        docs/{blocked-recruitment-domains,architecture,handoff,agent-protocol}.md
 Base commit: c10f6c2193c568ee39d2a4554641ba96d008f5f3
@@ -454,8 +470,8 @@ Next: Deploy with the claim above. Full offline suite 690 tests, 2 environment s
 Owner: claude
 Scope: Review page: To review splits into Early career (intern / NG / early
        career titles) and To review (the rest).
-Files: src/jobdisco/{ranking,applications,review}.py,
-       src/jobdisco/review_static/{app.js,index.html},
+Files: src/operation1million/{ranking,applications,review}.py,
+       src/operation1million/review_static/{app.js,index.html},
        tests/test_review_{rules,payload}.py,
        docs/{application-review,architecture,handoff,agent-protocol}.md
 Base commit: 82e8a81
@@ -467,7 +483,7 @@ Next: Push to main, then deploy with deploy/vps/install.sh.
 Owner: claude
 Scope: Review page: less related postings get their own tab; Remaining and
        the To review and Backlog tabs exclude them.
-Files: src/jobdisco/review_static/{app.js,index.html}, tests/test_review_payload.py,
+Files: src/operation1million/review_static/{app.js,index.html}, tests/test_review_payload.py,
        docs/{application-review,architecture,handoff,agent-protocol}.md
 Base commit: b6422c9
 Status: done -- pushed to main, not deployed
@@ -480,7 +496,7 @@ Scope: ATS-independent standalone Chrome/Edge autofill MVP with automatic
        final-value learning, conservative fill controls and regression tests. Never
        submit applications, accept agreements, solve challenges, or store data
        in the public repository.
-Files: src/jobdisco/answer_bank.py, application-autofill/*,
+Files: src/operation1million/answer_bank.py, application-autofill/*,
        tests/test_{answer_bank,autofill_extension,autofill_profile}.py,
        docs/{answer-bank,agent-protocol,architecture,handoff}.md
 Base commit: c10cfcb4ace8eae88b68c11fb5f7b87e3bec14da
@@ -494,7 +510,7 @@ Owner:   claude
 Scope:   Bug hunt across the package at the user's request: find, test and
          fix defects (filter rules, location, experience, ranking, store,
          review, collector). Each fix gets a reproducer red before it.
-Files:   src/jobdisco/*, data/config/jsearch_queries.toml, tests/*,
+Files:   src/operation1million/*, data/config/jsearch_queries.toml, tests/*,
          docs/{agent-protocol,architecture,handoff}.md
 Base commit: b2c9340
 Status:  done -- pushed to main, not deployed
@@ -506,7 +522,7 @@ Next:    Run deploy/vps/install.sh on the VPS (this session has no SSH
 Owner:   claude
 Scope:   Review detail shows the paid description beside qualification-only
          fields instead of hiding it; add deploy/local/open-review.bat.
-Files:   src/jobdisco/job_text.py, tests/test_review_description.py,
+Files:   src/operation1million/job_text.py, tests/test_review_description.py,
          deploy/local/open-review.bat, docs/{agent-protocol,handoff}.md
 Base commit: 78c8f8e
 Status:  done -- pushed to main, not deployed
@@ -520,7 +536,7 @@ Scope:   PhD-only wording that is really a preference (desirable, advantage,
          required section); stale teaser surviving a full-description update;
          "If selected for a role that requires..." read as a firm citizenship
          requirement.
-Files:   src/jobdisco/{degree,store,jsearch}.py, tests/{test_degree,
+Files:   src/operation1million/{degree,store,jsearch}.py, tests/{test_degree,
          test_store,test_review_rules}.py, docs/{agent-protocol,architecture,
          handoff}.md
 Base commit: 583bfd7
@@ -541,7 +557,7 @@ Next: Release cc8bd4a pushed and deployed; 639 local tests (nine skips), 178 VPS
 ```text
 Owner: codex
 Scope: Preserve nested qualification objects and arrays in Review details.
-Files: src/jobdisco/job_text.py, tests/test_review_description.py, docs/{agent-protocol,architecture,handoff}.md
+Files: src/operation1million/job_text.py, tests/test_review_description.py, docs/{agent-protocol,architecture,handoff}.md
 Base commit: c1a322e plus current working tree
 Status: done
 Next: Review nested qualification fix; new HTTP regression red before fix, all 132 focused tests green after. Not deployed.
@@ -550,7 +566,7 @@ Next: Review nested qualification fix; new HTTP regression red before fix, all 1
 ```text
 Owner: codex
 Scope: Preserve unique teasers, qualification section meaning and literal type names beside HTML entities.
-Files: src/jobdisco/{store,job_text,review}.py, tests/{test_store,test_review_description}.py, docs/{agent-protocol,architecture,handoff}.md
+Files: src/operation1million/{store,job_text,review}.py, tests/{test_store,test_review_description}.py, docs/{agent-protocol,architecture,handoff}.md
 Base commit: c1a322e plus six-fix working tree
 Status: done
 Next: Review follow-up patch. All 131 focused storage and HTTP/payload tests pass. Not deployed.
@@ -559,7 +575,7 @@ Next: Review follow-up patch. All 131 focused storage and HTTP/payload tests pas
 ```text
 Owner: codex
 Scope: Fix six post-location audit findings: stale HTML, structural dedupe, citizenship clause scope, empty descriptions, qualification display and malformed raw payloads.
-Files: src/jobdisco/{store,job_text,jsearch,applications,review}.py, tests/test_review_description.py, tests/test_review_rules.py, docs/{agent-protocol,architecture,handoff}.md
+Files: src/operation1million/{store,job_text,jsearch,applications,review}.py, tests/test_review_description.py, tests/test_review_rules.py, docs/{agent-protocol,architecture,handoff}.md
 Base commit: c1a322e
 Status: done
 Next: Review patch on c1a322e. Full offline suite: 635 discovered, 626 passed, nine environment skips. Not deployed.
@@ -568,7 +584,7 @@ Next: Review patch on c1a322e. Full offline suite: 635 discovered, 626 passed, n
 ```text
 Owner: codex
 Scope: Separate degree text preparation from qualification policy and improve documentation navigation; preserve behavior.
-Files: src/jobdisco/degree.py, docs/{agent-protocol,handoff,architecture}.md
+Files: src/operation1million/degree.py, docs/{agent-protocol,handoff,architecture}.md
 Base commit: feda989aa91d407408f2df1d21e6f5eb8f985407
 Status: done
 Next: Review structure-only refactor. All 89 focused tests pass; 38,302 local postings have identical before/after degree verdicts.
@@ -577,7 +593,7 @@ Next: Review structure-only refactor. All 89 focused tests pass; 38,302 local po
 ```text
 Owner: codex
 Scope: Normalize coding practices and withdraw export/field-removal changes following the user's lossless-only clarification.
-Files: src/jobdisco/{degree,jsearch}.py, docs/{coding-standards,agent-protocol,handoff}.md
+Files: src/operation1million/{degree,jsearch}.py, docs/{coding-standards,agent-protocol,handoff}.md
 Base commit: feda989aa91d407408f2df1d21e6f5eb8f985407
 Status: done
 Next: Continue measured lossless storage design under docs/coding-standards.md. All 89 focused tests pass; no deployment.
@@ -586,7 +602,7 @@ Next: Continue measured lossless storage design under docs/coding-standards.md. 
 ```text
 Owner: codex
 Scope: Fix PhD-only preference and structured-section boundary errors; centralize hard eligibility checks; no deployment.
-Files: src/jobdisco/{degree,jsearch,applications}.py, tests/{test_degree,test_review_rules}.py, docs/{agent-protocol,architecture,handoff}.md
+Files: src/operation1million/{degree,jsearch,applications}.py, tests/{test_degree,test_review_rules}.py, docs/{agent-protocol,architecture,handoff}.md
 Base commit: feda989aa91d407408f2df1d21e6f5eb8f985407
 Status: done
 Next: Review local patch; latest alternative-scope fix and regex reuse pass all 89 focused tests. Not deployed.
@@ -597,7 +613,7 @@ Owner:   claude
 Scope:   Review queue filters and order at the user's direction, 2026-09-22:
          screened and merged codex (B68-B84, answer bank, sort, domain lists),
          and deployed each step to the VPS.
-Files:   src/jobdisco/{applications,review,jsearch,experience,ranking,
+Files:   src/operation1million/{applications,review,jsearch,experience,ranking,
          location,degree,store,job_text}.py, review_static/, data/config/
          jsearch_queries.toml, deploy/, tests/, docs/
 Base commit: 5e78ae8
@@ -618,7 +634,7 @@ Next: Review codex domain additions. All 35 offline Review rules tests pass, cov
 ```text
 Owner: codex
 Scope: Evidence-backed recruitment domain blocklist; preserve preference blocks; no deployment.
-Files: data/config/jsearch_queries.toml, src/jobdisco/jsearch.py, tests/test_review_rules.py, docs/{blocked-recruitment-domains,agent-protocol,architecture,handoff}.md
+Files: data/config/jsearch_queries.toml, src/operation1million/jsearch.py, tests/test_review_rules.py, docs/{blocked-recruitment-domains,agent-protocol,architecture,handoff}.md
 Base commit: d9aed44 (fetched and fast-forwarded before editing)
 Status: done
 Next: Review codex evidence-backed blocklist. All 134 offline Review/filter tests pass. No deployment or production measurement.
@@ -627,7 +643,7 @@ Next: Review codex evidence-backed blocklist. All 134 offline Review/filter test
 ```text
 Owner: codex
 Scope: Review UI defaults to descending Fit with selectable original ordering; no deployment.
-Files: src/jobdisco/review_static/{app.js,index.html,style.css}, docs/{agent-protocol,architecture,handoff}.md
+Files: src/operation1million/review_static/{app.js,index.html,style.css}, docs/{agent-protocol,architecture,handoff}.md
 Base commit: ef978587e19c0ca99d670ef6bef0ea23d9cbb808 (origin/main de12047 merged before editing)
 Status: done
 Next: Review codex Fit ordering. Node behavior checks passed; full suite 584 discovered, 574 passed, 10 environment skips. Not deployed.
@@ -636,7 +652,7 @@ Next: Review codex Fit ordering. Node behavior checks passed; full suite 584 dis
 ```text
 Owner: codex
 Scope: Enforce position context for imported job-specific autofill answers; local personal data stays ignored.
-Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, docs/{answer-bank,agent-protocol,architecture,handoff}.md
+Files: src/operation1million/answer_bank.py, tests/test_answer_bank.py, docs/{answer-bank,agent-protocol,architecture,handoff}.md
 Base commit: 53b51452ed64ef365879cb78d5bde958a9342497
 Status: done
 Next: Review codex position-context guard. Seventeen offline tests pass; 27 local imported answers verified, two require the matching position. No browser submission or deployment.
@@ -645,7 +661,7 @@ Next: Review codex position-context guard. Seventeen offline tests pass; 27 loca
 ```text
 Owner: codex
 Scope: Local reusable answer bank, scoped question learning and extensible personal fields; no browser filling or deployment.
-Files: src/jobdisco/answer_bank.py, tests/test_answer_bank.py, pyproject.toml, docs/{answer-bank,agent-protocol,architecture,handoff}.md
+Files: src/operation1million/answer_bank.py, tests/test_answer_bank.py, pyproject.toml, docs/{answer-bank,agent-protocol,architecture,handoff}.md
 Base commit: bcfe9533292e5c6fb0f2c1327b4af6de88574319
 Status: done
 Next: Review codex answer-bank implementation. Local empty bank created; 16 focused tests pass; full suite 569 discovered, 559 passed and 10 environment skips. Browser reader/filler is a separate integration step.
@@ -654,7 +670,7 @@ Next: Review codex answer-bank implementation. Local empty bank created; 16 focu
 ```text
 Owner: codex
 Scope: Implement and regression-test B68-B84 from audits 13-15; no deployment.
-Files: deploy/local/, deploy/vps/backup-snapshot.py, deploy/vps/compact-history.sh, deploy/vps/daily-pass.sh, src/jobdisco/{collection_policy,collector,validate_sources,jsearch,query_catalog,store,review}.py, tests/, docs/{agent-protocol,architecture,handoff,vps-deployment}.md
+Files: deploy/local/, deploy/vps/backup-snapshot.py, deploy/vps/compact-history.sh, deploy/vps/daily-pass.sh, src/operation1million/{collection_policy,collector,validate_sources,jsearch,query_catalog,store,review}.py, tests/, docs/{agent-protocol,architecture,handoff,vps-deployment}.md
 Base commit: 34a77f6d0b8694b71d5582cf43aac388254c90a2
 Status: done
 Next: Review and integrate codex. B68-B84 fixed with offline regressions; 544 tests discovered, 535 pass, nine environment skips. No deployment. See newest handoff and architecture bug log.
@@ -692,7 +708,7 @@ Next: User reviews B68-B73 in docs/file-audit-round13-2026-09-21.md. Six offline
 ```text
 Owner:   claude
 Scope:   B63-B67 from the twelfth audit, and deployment of main to the VPS.
-Files:   src/jobdisco/{jsearch,collection_policy,ledger_guard}.py,
+Files:   src/operation1million/{jsearch,collection_policy,ledger_guard}.py,
          deploy/vps/daily-pass.sh, tests/, docs/
 Base commit: 72e93e00436601c22404043c8087713cd2670928
 Status:  done
@@ -705,7 +721,7 @@ Owner:   claude
 Scope:   B58-B62 from the eleventh audit: teaser descriptions, batch order of a
          moved requisition, shard size, superseded paid descriptions, and a day
          that seals mid-pass.
-Files:   src/jobdisco/{store,collector,jsearch}.py, tests/test_store.py, docs/
+Files:   src/operation1million/{store,collector,jsearch}.py, tests/test_store.py, docs/
 Base commit: ca501dc41640a09c0650d92bcb12ddddbf2025ca
 Status:  done
 Next:    Merged into main; 515 offline tests pass.
@@ -717,7 +733,7 @@ Scope:   B50-B57 from the tenth audit and the direct-intake half of B45: HiBob
          batch preparation, Eightfold incremental reconciliation, page-scoped
          validators, links built from missing ids, rejected pages read as
          repeats, --no-store, partial JSON-LD, and sitemap detail text.
-Files:   src/jobdisco/{collector,store}.py, data/config/migrations/006_source_full_pass.sql,
+Files:   src/operation1million/{collector,store}.py, data/config/migrations/006_source_full_pass.sql,
          tests/, docs/
 Base commit: 79fe1690dee09a7c8d4afc11e1679eb7ae24a6cd
 Status:  done
@@ -770,7 +786,7 @@ Scope:   B44-B49 from the ninth audit: provenance read as prose, records emptied
          by cleaning, joined filter patterns, the backfill cursor on an
          unreadable last page, link selection, and field order in structured
          payloads.
-Files:   src/jobdisco/{jsearch,experience,collector}.py, tests/test_jsearch.py, docs/
+Files:   src/operation1million/{jsearch,experience,collector}.py, tests/test_jsearch.py, docs/
 Base commit: 1aa84564c7a22311f6ce51b5bb9d8cb9e446b9c0
 Status:  done
 Next:    Merged into main; 498 offline tests pass. After install, run
@@ -785,7 +801,7 @@ Scope:   Bug check of the review path and the store CLI: the outstanding B27
          running (WAL sidecar), `--ranked 0` printing nothing, and `--verify`
          creating the index it checks. Plus the first run of review_static/app.js
          in a JavaScript runtime, confirming B41-B43 behaviourally.
-Files:   src/jobdisco/{applications,review,store}.py,
+Files:   src/operation1million/{applications,review,store}.py,
          tests/{test_applications,test_store}.py, docs/
 Base commit: 5166930
 Status:  done
@@ -802,7 +818,7 @@ Scope:   B31-B43 from the seventh and eighth audits -- the experience parser's
          unreadable requirements, title cleaning, the paid rejection record, the
          Review description panel and the page's dates, refresh and skip dialog --
          and seven equivalent optimizations measured before and after.
-Files:   src/jobdisco/{experience,job_text,jsearch,review,applications,collector,
+Files:   src/operation1million/{experience,job_text,jsearch,review,applications,collector,
          store}.py, review_static/app.js, pyproject.toml, tests/, docs/
 Base commit: 005766e / 182aa65
 Status:  done
@@ -817,7 +833,7 @@ Owner:   claude
 Scope:   Twenty-nine reviewed defects from B1-B30, across collection completeness,
          posting identity, the experience gate, the applications ledger and Review
          server, rescore durability, paid-request accounting and both backup scripts.
-Files:   src/jobdisco/{collector,store,applications,review,jsearch,collection_policy,
+Files:   src/operation1million/{collector,store,applications,review,jsearch,collection_policy,
          experience,validate_sources}.py, review_static/app.js, deploy/{vps,local}/*.sh,
          tests/, docs/architecture.md
 Base commit: ef6d4b3db5edd81cbfb0c86c67b334caf748b3e1

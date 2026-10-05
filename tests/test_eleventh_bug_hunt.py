@@ -11,10 +11,10 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from jobdisco import export, jsearch, ranking
-from jobdisco.experience import evaluate
-from jobdisco.job_text import clean_title
-from jobdisco.location import country
+from operation1million import export, jsearch, ranking
+from operation1million.experience import evaluate
+from operation1million.job_text import clean_title
+from operation1million.location import country
 
 RULES = jsearch.load_plan()[0]['filter']
 
@@ -295,7 +295,7 @@ class OlderThanTests(unittest.TestCase):
     def test_277_thirty_days_or_more_is_not_new(self):
         """Workday's "Posted 30+ Days Ago" was ignored, and the posting sorted
         by the day it was first seen, ahead of newer ones (409 queued)."""
-        from jobdisco import applications
+        from operation1million import applications
         job = {'posted_at': None, 'posted_relative': 'Posted 30+ Days Ago',
                'last_seen': '2026-09-27T10:00:00+00:00', 'first_seen': '2026-09-20T10:00:00+00:00'}
         applications.stated_age(job)
@@ -304,7 +304,7 @@ class OlderThanTests(unittest.TestCase):
         older = {'id': 'a', 'title': 'RTL Engineer', 'jobs': [job]}
         dated = {'id': 'b', 'title': 'RTL Engineer', 'jobs': [{'posted_at': '2026-09-01', 'first_seen': '2026-09-02'}]}
         self.assertEqual([group['id'] for group in ranking.order([older, dated])], ['b', 'a'])
-        script = (Path(__file__).resolve().parents[1] / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+        script = (Path(__file__).resolve().parents[1] / 'src/operation1million/review_static/app.js').read_text(encoding='utf-8')
         self.assertIn('posted_before', script)
 
 
@@ -386,7 +386,7 @@ class LastEightTests(unittest.TestCase):
         """"The best and most interesting internship experience" (Lightmatter)
         and "Your internship experience will involve" (Amazon) put the
         "Internship experience" chip on postings that ask for none."""
-        from jobdisco.experience import internship_experience
+        from operation1million.experience import internship_experience
         self.assertFalse(internship_experience('To have the best and most interesting internship experience!'))
         self.assertFalse(internship_experience('Your internship experience will involve safety reviews.'))
         self.assertTrue(internship_experience('Previous internship experience in digital logic design.'))

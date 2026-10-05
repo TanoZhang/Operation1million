@@ -10,9 +10,9 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from jobdisco import collection_policy, collector, jsearch, ledger_guard, workflow_state
-from jobdisco.jsearch_access import RequestGuard, QuotaExhausted
-from jobdisco.validate_sources import Source
+from operation1million import collection_policy, collector, jsearch, ledger_guard, workflow_state
+from operation1million.jsearch_access import RequestGuard, QuotaExhausted
+from operation1million.validate_sources import Source
 
 
 def response(payload=None, status=200, headers=None, text=''):
@@ -118,7 +118,7 @@ def main():
         comparison = ledger_guard.compare(live.path, published_path, settings)
         assert live.resume_page('query') == (9, True) and restored.resume_page('query') == (2, False) and comparison == (1, 1, True)
         shell = (Path(collector.__file__).resolve().parents[2] / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
-        assert 'python -m jobdisco.workflow_state operational/jsearch_usage.sqlite' in shell
+        assert 'python -m operation1million.workflow_state operational/jsearch_usage.sqlite' in shell
         out['B67_vps_local_cursor_not_rewound'] = {'local_cursor': live.resume_page('query'), 'published_cursor': restored.resume_page('query'), 'next_startup_comparison': comparison, 'charges_preserved': restored.used()}
 
         # Recovery positive control: restoring the actual runtime ledger keeps charges/pauses.

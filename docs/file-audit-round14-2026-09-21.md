@@ -26,7 +26,7 @@ Any unmocked robots HTTP request raises instead of accessing the network.
 
 ## B74 - A malformed source configuration aborts the whole validation run
 
-**Location:** `src/jobdisco/validate_sources.py:240-255`, especially the
+**Location:** `src/operation1million/validate_sources.py:240-255`, especially the
 `request_for(source)` call at line 241 before the exception boundary.
 
 **Trigger:** An enabled Workday row has `tenant` but lacks `site`. Source field
@@ -49,7 +49,7 @@ transport. Keep source identity and missing-field details in the report.
 
 ## B75 - An empty enabled catalog truncates the previous report, then crashes
 
-**Location:** `src/jobdisco/validate_sources.py:362-363`.
+**Location:** `src/operation1million/validate_sources.py:362-363`.
 
 **Trigger:** Both source tables have no enabled rows. The catalog reader returns
 an empty list, which is a valid result when sources have all been disabled.
@@ -68,7 +68,7 @@ report is successfully serialized. Add an explicit zero-source control.
 
 ## B76 - Apple validator loses titles containing normal nested markup
 
-**Location:** `src/jobdisco/validate_sources.py:170-191`.
+**Location:** `src/operation1million/validate_sources.py:170-191`.
 
 The first regex alternative matches a `job-title` opening anchor without
 capturing its href or title. The fallback only captures titles containing no
@@ -94,7 +94,7 @@ capture href/title for both class variants, including nested title markup.
 
 ## B77 - A harmless CDN reference creates a persistent 24-hour pause
 
-**Location:** `src/jobdisco/validate_sources.py:206-219` and `:325-332`.
+**Location:** `src/operation1million/validate_sources.py:206-219` and `:325-332`.
 
 `html_signal` searches raw markup for `akamai`, treating any occurrence as a
 verification challenge. That includes nonvisible script URLs and metadata.
@@ -117,7 +117,7 @@ B78: it creates a pause from evidence that is not a challenge.
 
 ## B78 - Successful extraction bypasses an explicitly detected challenge
 
-**Location:** `src/jobdisco/validate_sources.py:275-332`, especially the Apple
+**Location:** `src/operation1million/validate_sources.py:275-332`, especially the Apple
 and Achronix early returns before `html_signal`.
 
 **Trigger:** An HTTP 200 HTML document has visible `Human verification` text
@@ -138,7 +138,7 @@ control-flow cause: valid refusal evidence is never consulted.
 
 ## B79 - A scalar regex setting silently becomes a list of one-letter filters
 
-**Location:** `src/jobdisco/jsearch.py:122-127`, then `any_of`, `excluded` and
+**Location:** `src/operation1million/jsearch.py:122-127`, then `any_of`, `excluded` and
 the other pattern consumers.
 
 `load_plan` compiles every item in each pattern group but does not first check
@@ -176,7 +176,7 @@ shared validation boundary rather than only the exclusion consumer.
 
 ## B80 - Query migrations for different --db paths collide on one backup file
 
-**Location:** `src/jobdisco/query_catalog.py:11-24` and the `--db` option in
+**Location:** `src/operation1million/query_catalog.py:11-24` and the `--db` option in
 `main` at line 36.
 
 The migrator accepts an explicit database path but always stores its first

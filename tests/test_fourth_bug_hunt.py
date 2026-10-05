@@ -5,11 +5,11 @@ Numbered 41-60, continuing `test_third_bug_hunt.py`; the bug log entry in
 """
 import unittest
 
-from jobdisco import jsearch, ranking
-from jobdisco.degree import description_only
-from jobdisco.experience import evaluate
-from jobdisco.job_text import clean_title
-from jobdisco.location import country
+from operation1million import jsearch, ranking
+from operation1million.degree import description_only
+from operation1million.experience import evaluate
+from operation1million.job_text import clean_title
+from operation1million.location import country
 
 RULES = jsearch.load_plan()[0]['filter']
 

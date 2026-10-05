@@ -12,8 +12,8 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from jobdisco import jsearch, store
-from jobdisco.jsearch_access import RequestGuard
+from operation1million import jsearch, store
+from operation1million.jsearch_access import RequestGuard
 
 SEARCH = {'endpoint_template': 'https://api.openwebninja.com/jsearch/search-v2',
           'connection': {'auth_header': 'x-api-key'}}
@@ -31,7 +31,7 @@ class PaidRunTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.settings, _ = jsearch.load_plan()
-        for target in ('jobdisco.jsearch_access.time.sleep',):
+        for target in ('operation1million.jsearch_access.time.sleep',):
             p = patch(target, Mock())
             p.start()
             self.addCleanup(p.stop)

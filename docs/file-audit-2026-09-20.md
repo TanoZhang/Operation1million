@@ -45,7 +45,7 @@ temporary databases and local repositories, never production records.
 
 ### B01 - P1: A capped board can retire valid postings
 
-- Location: `src/jobdisco/collector.py:369`, `collect_json`; related final-page
+- Location: `src/operation1million/collector.py:369`, `collect_json`; related final-page
   shortcut in `collect_html:395`. Storage consequence: `store.record_source`.
 - Trigger: a Workday page reports four jobs while `max_jobs=3`.
 - Expected: partial inventory; no inventory-based closures or new validators.
@@ -59,7 +59,7 @@ temporary databases and local repositories, never production records.
 
 ### B02 - P1: An early empty page overrides a contradictory total
 
-- Location: `src/jobdisco/collector.py:346`, `collect_json`.
+- Location: `src/operation1million/collector.py:346`, `collect_json`.
 - Trigger: first page returns three of a reported four jobs; second page is empty
   while still reporting four.
 - Expected: incomplete inventory with an explicit count discrepancy.
@@ -74,7 +74,7 @@ temporary databases and local repositories, never production records.
 
 ### B03 - P2: One malformed object discards later valid page entries
 
-- Location: `src/jobdisco/collector.py:304`, `Collector.add` and `normalize`.
+- Location: `src/operation1million/collector.py:304`, `Collector.add` and `normalize`.
 - Trigger: a jobs array begins with `null`, followed by a valid posting.
 - Expected: quarantine the malformed item, continue with the valid one, mark partial.
 - Actual: `normalize` calls `.get` on null; `add` catches only `ValueError`.
@@ -85,7 +85,7 @@ temporary databases and local repositories, never production records.
 
 ### B04 - P2: "No less than" is mistaken for an upper bound
 
-- Location: `src/jobdisco/experience.py:25,98`, `NOT_A_MINIMUM` / `evaluate`.
+- Location: `src/operation1million/experience.py:25,98`, `NOT_A_MINIMUM` / `evaluate`.
 - Trigger: `No less than 5 years of professional experience required.`
 - Expected: effective experience 5; reject under the protected two-year policy.
 - Actual: no experience requirement is recorded and the role passes.
@@ -95,7 +95,7 @@ temporary databases and local repositories, never production records.
 
 ### B05 - P2: Negated internship language bypasses mandatory experience
 
-- Location: `src/jobdisco/experience.py:39`, `entry_level`.
+- Location: `src/operation1million/experience.py:39`, `entry_level`.
 - Trigger: ordinary RTL role with `This is not an internship. 5 years of
   professional experience required.`
 - Expected: no entry override; reject the five-year requirement.
@@ -106,7 +106,7 @@ temporary databases and local repositories, never production records.
 
 ### B06 - P2: A persisted cooldown is checked after a network request
 
-- Location: `src/jobdisco/collection_policy.py:83`, `SourcePolicy.__init__`.
+- Location: `src/operation1million/collection_policy.py:83`, `SourcePolicy.__init__`.
 - Trigger: restart with a current 403 pause and an empty robots cache.
 - Expected: reject the source before dispatching another request.
 - Actual: constructor calls `request_interval` -> `robots_delay` -> GET robots.txt;
@@ -118,7 +118,7 @@ temporary databases and local repositories, never production records.
 
 ### B07 - P2: Explicit zero totals become "no count"
 
-- Location: `src/jobdisco/collector.py:170`, `reported_total`.
+- Location: `src/operation1million/collector.py:170`, `reported_total`.
 - Trigger: `total=0`, `totalCount=0`, or `totalFound=0` without a fallback field.
 - Expected: preserve numeric zero and recognize a validly empty board.
 - Actual: boolean `or` chains turn zero into null. The first-page logic reports
@@ -143,7 +143,7 @@ temporary databases and local repositories, never production records.
 
 ### B09 - P2: Fresh-checkout source validation fails when writing its report
 
-- Location: `src/jobdisco/validate_sources.py:357`, `main`.
+- Location: `src/operation1million/validate_sources.py:357`, `main`.
 - Trigger: valid catalog but absent ignored `data/raw/` output directory.
 - Expected: create the directory and save the report.
 - Actual: validation completes, then `OUT_CSV.open` raises `FileNotFoundError`.
@@ -262,11 +262,11 @@ for covered behavior and executed; no claim of exhaustive line-by-line proof is 
 | `deploy/vps/daily-pass.sh` | Lifecycle, publication and READY recovery reviewed; R01; no VPS execution. |
 | `deploy/vps/heartbeat.sh` | Exit/signal contract reviewed; Windows-compatible fixtures pass, POSIX signal case skipped. |
 | `deploy/vps/install.sh` | Update lock, fast-forward, virtualenv and units reviewed statically; no deployment performed. |
-| `deploy/vps/jobdisco-backup.service` | User, environment, timeout and writable paths checked; B08 in invoked script. |
-| `deploy/vps/jobdisco-backup.timer` | 15-minute schedule checked; retry guarantee depends on B08. |
-| `deploy/vps/jobdisco-collect.service` | Three-hour timeout and shared pass entry point checked; R01. |
-| `deploy/vps/jobdisco-collect.timer` | 04:38 Pacific matches budget configuration; no new finding. |
-| `deploy/vps/jobdisco-review.service` | Loopback review, source tree, DB and ledger write paths checked; no new finding. |
+| `deploy/vps/operation1million-backup.service` | User, environment, timeout and writable paths checked; B08 in invoked script. |
+| `deploy/vps/operation1million-backup.timer` | 15-minute schedule checked; retry guarantee depends on B08. |
+| `deploy/vps/operation1million-collect.service` | Three-hour timeout and shared pass entry point checked; R01. |
+| `deploy/vps/operation1million-collect.timer` | 04:38 Pacific matches budget configuration; no new finding. |
+| `deploy/vps/operation1million-review.service` | Loopback review, source tree, DB and ledger write paths checked; no new finding. |
 | `docs/agent-protocol.md` | Main and remote Codex claims compared; this audit claimed separately. |
 | `docs/agents/domain.md` | Vocabulary/documentation guidance read; no new finding. |
 | `docs/agents/issue-tracker.md` | Issue conventions read; no external issues/messages created. |
@@ -285,28 +285,28 @@ for covered behavior and executed; no claim of exhaustive line-by-line proof is 
 | `docs/vps-deployment.md` | Compared with timer, installer, backup and READY behavior; D01, R01. |
 | `pyproject.toml` | TOML parsed; package/dependency/entry-point review; R03. |
 | `requirements.txt` | Editable compat installation checked; differs from README default install (R03). |
-| `src/jobdisco/__init__.py` | Package/version metadata reviewed; no new finding. |
-| `src/jobdisco/applications.py` | Identity replay, grouping, ledger locking and filtering reviewed; O02. |
-| `src/jobdisco/collection_policy.py` | Cooldown order, Retry-After and pacing reviewed; B06. |
-| `src/jobdisco/collector.py` | Adapters, normalization, pagination, caps, checkpoints and CLI reviewed; B01-B03, B07, O04. |
-| `src/jobdisco/experience.py` | Experience clauses, overrides and optional sections reviewed; B04-B05. |
-| `src/jobdisco/heartbeat.py` | Endpoint and nonfatal retry contract reviewed; tests pass. |
-| `src/jobdisco/job_text.py` | Title/suffix normalization and callers reviewed; tests pass. |
-| `src/jobdisco/jsearch.py` | Plan, transport, filtering, sweep cursor and per-page durability reviewed; O01. |
-| `src/jobdisco/jsearch_access.py` | Atomic reservations, cycle/day split and cooldowns reviewed; tests pass; O05. |
-| `src/jobdisco/ledger_guard.py` | Current-cycle comparison and missing-ledger handling reviewed; tests pass. |
-| `src/jobdisco/local_config.py` | Supported-key loading and environment precedence reviewed; no new finding. |
-| `src/jobdisco/paths.py` | Repository-relative runtime/config paths reviewed; deployment assumes editable/source checkout. |
-| `src/jobdisco/prune.py` | Whole-day retention and operational exclusions reviewed; tests pass; recovery interaction R01. |
-| `src/jobdisco/query_catalog.py` | Legacy migration backup and read-only query access reviewed; tests pass. |
-| `src/jobdisco/ranking.py` | Band/date/score ordering and deliberate day precision reviewed; tests pass. |
-| `src/jobdisco/review.py` | Host/token checks, projection, read/write routes reviewed; R02, O02. |
-| `src/jobdisco/review_static/app.js` | Escaping, safe links, selection, async detail guard and refresh reviewed; O06. |
-| `src/jobdisco/review_static/index.html` | Control IDs, labels, dialog and payload contract checked; no browser accessibility audit. |
-| `src/jobdisco/review_static/style.css` | Responsive rules and band classes reviewed; consider consolidating repeated override blocks; no browser visual QA. |
-| `src/jobdisco/store.py` | Identity, closure fuse, logging, sharding, verification, replay and scoring reviewed; B01/B02 consequence, R01, O03. |
-| `src/jobdisco/validate_sources.py` | Request construction, extraction, cooldown and report path reviewed; B06, B09. |
-| `src/jobdisco/workflow_state.py` | Cursor rollback preserves charges/cooldowns; tests pass. |
+| `src/operation1million/__init__.py` | Package/version metadata reviewed; no new finding. |
+| `src/operation1million/applications.py` | Identity replay, grouping, ledger locking and filtering reviewed; O02. |
+| `src/operation1million/collection_policy.py` | Cooldown order, Retry-After and pacing reviewed; B06. |
+| `src/operation1million/collector.py` | Adapters, normalization, pagination, caps, checkpoints and CLI reviewed; B01-B03, B07, O04. |
+| `src/operation1million/experience.py` | Experience clauses, overrides and optional sections reviewed; B04-B05. |
+| `src/operation1million/heartbeat.py` | Endpoint and nonfatal retry contract reviewed; tests pass. |
+| `src/operation1million/job_text.py` | Title/suffix normalization and callers reviewed; tests pass. |
+| `src/operation1million/jsearch.py` | Plan, transport, filtering, sweep cursor and per-page durability reviewed; O01. |
+| `src/operation1million/jsearch_access.py` | Atomic reservations, cycle/day split and cooldowns reviewed; tests pass; O05. |
+| `src/operation1million/ledger_guard.py` | Current-cycle comparison and missing-ledger handling reviewed; tests pass. |
+| `src/operation1million/local_config.py` | Supported-key loading and environment precedence reviewed; no new finding. |
+| `src/operation1million/paths.py` | Repository-relative runtime/config paths reviewed; deployment assumes editable/source checkout. |
+| `src/operation1million/prune.py` | Whole-day retention and operational exclusions reviewed; tests pass; recovery interaction R01. |
+| `src/operation1million/query_catalog.py` | Legacy migration backup and read-only query access reviewed; tests pass. |
+| `src/operation1million/ranking.py` | Band/date/score ordering and deliberate day precision reviewed; tests pass. |
+| `src/operation1million/review.py` | Host/token checks, projection, read/write routes reviewed; R02, O02. |
+| `src/operation1million/review_static/app.js` | Escaping, safe links, selection, async detail guard and refresh reviewed; O06. |
+| `src/operation1million/review_static/index.html` | Control IDs, labels, dialog and payload contract checked; no browser accessibility audit. |
+| `src/operation1million/review_static/style.css` | Responsive rules and band classes reviewed; consider consolidating repeated override blocks; no browser visual QA. |
+| `src/operation1million/store.py` | Identity, closure fuse, logging, sharding, verification, replay and scoring reviewed; B01/B02 consequence, R01, O03. |
+| `src/operation1million/validate_sources.py` | Request construction, extraction, cooldown and report path reviewed; B06, B09. |
+| `src/operation1million/workflow_state.py` | Cursor rollback preserves charges/cooldowns; tests pass. |
 | `tests/test_applications.py` | Coverage review + suite: Identity, replay, backlog, HTTP fixtures pass; add nested enrichment description fixture (R02). |
 | `tests/test_backup.py` | Coverage review + suite: Local-copy validation/rotation fixtures pass; no production restore test. |
 | `tests/test_collect_sql_sources.py` | Coverage review + suite: Existing pagination/normalization fixtures pass; add final-page cap and non-object record cases (B01/B03). |

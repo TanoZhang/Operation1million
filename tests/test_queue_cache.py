@@ -14,7 +14,7 @@ import sqlite3
 import tempfile
 import unittest
 
-from jobdisco import applications
+from operation1million import applications
 
 
 class QueueCacheTests(unittest.TestCase):

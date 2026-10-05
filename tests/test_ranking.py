@@ -14,7 +14,7 @@ import sqlite3
 import tempfile
 import unittest
 
-from jobdisco import applications, ranking
+from operation1million import applications, ranking
 
 
 class BucketTests(unittest.TestCase):

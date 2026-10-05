@@ -21,7 +21,7 @@ Line numbers below refer to the inspected working version, not the older source 
 
 ## B27: Cross-provider decision fallback survives a later requisition replacement
 
-Location: `src/jobdisco/applications.py:146` and `:158`, `moved_states` population and lookup.
+Location: `src/operation1million/applications.py:146` and `:158`, `moved_states` population and lookup.
 
 Sequence:
 
@@ -37,7 +37,7 @@ Suggested direction: require evidence that the decided scoped identity remains a
 
 ## B28: A rejection for another job ID hides the accepted job at the same URL
 
-Location: `src/jobdisco/applications.py:194`, the `superseded` subquery added for B24.
+Location: `src/operation1million/applications.py:194`, the `superseded` subquery added for B24.
 
 Sequence through the collector entry point:
 
@@ -52,7 +52,7 @@ Suggested direction: match the scoped requisition identity, with an explicit con
 
 ## B29: Export omits manifests for closure-only dates
 
-Location: `src/jobdisco/store.py:1072`, `main --export`, especially the manifest loop at `:1092`.
+Location: `src/operation1million/store.py:1072`, `main --export`, especially the manifest loop at `:1092`.
 
 Trigger: export a held posting first seen two days ago and closed yesterday into an empty history directory.
 
@@ -64,7 +64,7 @@ Suggested direction: seal every date/file actually written during export, includ
 
 ## B30: Rescore retry cannot publish corrections after the first append fails
 
-Location: `src/jobdisco/store.py:1137`, `rescore`, commit at `:1165` and publication at `:1170`.
+Location: `src/operation1million/store.py:1137`, `rescore`, commit at `:1165` and publication at `:1170`.
 
 Sequence:
 

@@ -14,26 +14,26 @@ clean-room way to run a pass while this machine is being changed or is suspect.
 
 ## Install
 
-Everything lives under `/opt/jobdisco`, owned by a system account with no login:
+Everything lives under `/opt/operation1million`, owned by a system account with no login:
 
-    /opt/jobdisco/code    the collector, checked out from the code repository
-    /opt/jobdisco/data    the data repository; JOBDISCO_STORE points here
-    /opt/jobdisco/venv    the virtualenv
-    /opt/jobdisco/code/.local          the quota and cooldown ledgers
-    /opt/jobdisco/code/data/db         the derived SQLite, gitignored
-    /etc/jobdisco/env     the three secrets, mode 640, root:jobdisco
+    /opt/operation1million/code    the collector, checked out from the code repository
+    /opt/operation1million/data    the data repository; OPERATION1MILLION_STORE points here
+    /opt/operation1million/venv    the virtualenv
+    /opt/operation1million/code/.local          the quota and cooldown ledgers
+    /opt/operation1million/code/data/db         the derived SQLite, gitignored
+    /etc/operation1million/env     the three secrets, mode 640, root:operation1million
 
 On the box:
 
     git clone https://github.com/TanoZhang/Operation1million.git
     sudo bash ./Operation1million/deploy/vps/install.sh
 
-The first run writes `/etc/jobdisco/env` with blank values and stops. Fill it in
+The first run writes `/etc/operation1million/env` with blank values and stops. Fill it in
 with an editor **on the box** — not by passing values on a command line, which
 puts them in your shell history and in the process list — and run the script
 again:
 
-    sudo nano /etc/jobdisco/env
+    sudo nano /etc/operation1million/env
     sudo bash ./Operation1million/deploy/vps/install.sh
 
 | Variable | What it is |
@@ -80,7 +80,7 @@ Four properties matter, and each has a test in `tests/test_heartbeat.py`:
   failure rather than a swallowed one.
 - **Success is never reported early.** The success ping is sent from the EXIT
   trap on status 0, which is reached only after the push.
-- **Only production pings.** The URL comes from `/etc/jobdisco/env` through the
+- **Only production pings.** The URL comes from `/etc/operation1million/env` through the
   unit and appears nowhere in the source tree — a test walks every tracked file
   to keep it that way. A shell without that variable, which is every manual
   diagnostic and every test, stays silent, because a ping it sent would tell the
@@ -97,7 +97,7 @@ rather be paged on it, change the final `exit` handling in `daily-pass.sh`.
 
 ## Update
 
-    sudo bash /opt/jobdisco/code/deploy/vps/install.sh
+    sudo bash /opt/operation1million/code/deploy/vps/install.sh
 
 From the Windows machine, three double-click files in `deploy/local/`:
 `open-review.bat` opens the review page through the ssh tunnel;
@@ -141,15 +141,15 @@ decision log stop agreeing.
     ./deploy/local/backup-from-vps.sh [target-dir]
 
 It streams the data tree over SSH, using the bundled `backup-snapshot.py` on
-the VPS. Python is required on both machines; `JOBDISCO_PYTHON` selects the
+the VPS. Python is required on both machines; `OPERATION1MILLION_PYTHON` selects the
 workstation interpreter. The archive includes the index at
 `sqlite/job_discovery.sqlite` and replaces published credit/cooldown copies
 with snapshots of the authoritative runtime databases under
-`/opt/jobdisco/code/.local` (`JOBDISCO_VPS_STATE` overrides that directory).
+`/opt/operation1million/code/.local` (`OPERATION1MILLION_VPS_STATE` overrides that directory).
 Application decisions are copied while holding the decision ledger lock.
 
-The helper runs as the service account (`sudo -n -u jobdisco`, overridden by
-`JOBDISCO_VPS_USER`), so the SSH user needs passwordless sudo, which the
+The helper runs as the service account (`sudo -n -u operation1million`, overridden by
+`OPERATION1MILLION_VPS_USER`), so the SSH user needs passwordless sudo, which the
 default `ubuntu` user has. As `ubuntu` itself it failed, measured on the VPS:
 it could not take the lock, which it had no write access to, and it could not
 open the index whenever no other process had it open, because a WAL database
@@ -194,19 +194,19 @@ reconstructs only what the fourteen-day window holds: `seen`, `closed` and
 `score` events are UPDATE statements, so a posting whose job line has aged out
 of the window is not recreated by them.
 
-    JOBDISCO_STORE=<target>/current job-store --bootstrap --verify
+    OPERATION1MILLION_STORE=<target>/current job-store --bootstrap --verify
 
 ## Triage
 
-    systemctl list-timers jobdisco-collect.timer   # when it next fires
-    systemctl status jobdisco-collect.service      # how the last pass ended
-    journalctl -u jobdisco-collect.service -n 200  # what it printed
-    journalctl -u jobdisco-collect.service --since '2 days ago'
+    systemctl list-timers operation1million-collect.timer   # when it next fires
+    systemctl status operation1million-collect.service      # how the last pass ended
+    journalctl -u operation1million-collect.service -n 200  # what it printed
+    journalctl -u operation1million-collect.service --since '2 days ago'
 
 To run a pass by hand **without** disturbing the monitor:
 
-    sudo -u jobdisco HOME=/opt/jobdisco \
-      bash /opt/jobdisco/code/deploy/vps/daily-pass.sh --no-heartbeat
+    sudo -u operation1million HOME=/opt/operation1million \
+      bash /opt/operation1million/code/deploy/vps/daily-pass.sh --no-heartbeat
 
 Note that this is a real pass: it spends credits, writes the log and pushes. It
 differs from a production pass only in staying silent to Healthchecks. There is
@@ -221,7 +221,7 @@ in both offsets, but a manual one started in the evening UTC can.
 
 To run a real production pass now, outside the timer:
 
-    sudo systemctl start jobdisco-collect.service
+    sudo systemctl start operation1million-collect.service
 
 Common failures, and what they look like:
 
@@ -291,5 +291,5 @@ better than an unpredictable one. But a stable IP against 35 boards is the one
 thing that could behave differently after the move, so watch the per-source
 outcomes for a fortnight:
 
-    sudo -u jobdisco /opt/jobdisco/venv/bin/job-store 2>/dev/null
-    journalctl -u jobdisco-collect.service --since '14 days ago' | grep -i 'paused\|403\|429'
+    sudo -u operation1million /opt/operation1million/venv/bin/job-store 2>/dev/null
+    journalctl -u operation1million-collect.service --since '14 days ago' | grep -i 'paused\|403\|429'

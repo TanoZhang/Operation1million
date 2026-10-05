@@ -11,12 +11,12 @@ from types import SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from unittest.mock import patch, Mock
-from jobdisco import collector
-from jobdisco.collector import (Collector, Source, ROOT, employer_matches,
+from operation1million import collector
+from operation1million.collector import (Collector, Source, ROOT, employer_matches,
                                 html_items, fallback, config, normalize,
                                 reported_total, source_lock)
-from jobdisco.paths import CONFIG
-from jobdisco import store
+from operation1million.paths import CONFIG
+from operation1million import store
 from dataclasses import replace
 
 class Response:
@@ -258,7 +258,7 @@ class NoStoreTests(unittest.TestCase):
 
 class CollectionTests(unittest.TestCase):
     def setUp(self):
-        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots = patch('operation1million.collection_policy.robots_delay', return_value=None)
         robots.start()
         self.addCleanup(robots.stop)
 
@@ -384,7 +384,7 @@ class CollectionTests(unittest.TestCase):
             {'Id':'1','Title':'RTL Engineer'}]}]}
         c.session.request=Mock(side_effect=[shell,page])
         self.addCleanup(c.session.close)
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run(),('complete',''))
         self.assertEqual(len(c.jobs),1)
         self.assertIsNone(c.etag);self.assertIsNone(c.last_modified)

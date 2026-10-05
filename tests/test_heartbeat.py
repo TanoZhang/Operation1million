@@ -17,7 +17,7 @@ import time
 import unittest
 from unittest import mock
 
-from jobdisco import heartbeat
+from operation1million import heartbeat
 
 ROOT = Path(__file__).resolve().parents[1]
 SHELL_HELPER = ROOT / 'deploy/vps/heartbeat.sh'
@@ -154,14 +154,14 @@ class ShellContractTests(unittest.TestCase):
             root = Path(directory)
             events = root / 'events'
             stub = root / 'pinger'
-            # The helper calls: "$JOBDISCO_PYTHON" -m jobdisco.heartbeat <event>
+            # The helper calls: "$OPERATION1MILLION_PYTHON" -m operation1million.heartbeat <event>
             stub.write_text('#!/bin/sh\necho "$3" >> "$EVENTS"\nexit %d\n' % pinger_exit,
                             encoding='utf-8', newline='\n')
             stub.chmod(0o755)
             script = root / 'pass.sh'
             script.write_text(
                 'set -euo pipefail\n'
-                'JOBDISCO_PYTHON=%s\n'
+                'OPERATION1MILLION_PYTHON=%s\n'
                 '. %s\n'
                 'heartbeat_arm\n%s' % (shlex.quote(stub.as_posix()),
                                       shlex.quote(SHELL_HELPER.as_posix()), body),
@@ -214,7 +214,7 @@ class ShellContractTests(unittest.TestCase):
             script = root / 'pass.sh'
             script.write_text(
                 'set -euo pipefail\n'
-                'JOBDISCO_PYTHON=%s\n'
+                'OPERATION1MILLION_PYTHON=%s\n'
                 '. %s\n'
                 'heartbeat_arm\n'
                 'sleep 60\n' % (stub.as_posix(), SHELL_HELPER.as_posix()),

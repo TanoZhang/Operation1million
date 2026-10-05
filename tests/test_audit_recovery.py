@@ -14,13 +14,13 @@ from urllib.request import urlopen
 import unittest
 from unittest.mock import patch
 
-from jobdisco import applications, collection_policy, jsearch, query_catalog, review, store, validate_sources
-from jobdisco.validate_sources import Source
+from operation1million import applications, collection_policy, jsearch, query_catalog, review, store, validate_sources
+from operation1million.validate_sources import Source
 
 
 class AuditRecoveryTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix='jobdisco-regressions-')
+        temporary = tempfile.TemporaryDirectory(prefix='operation1million-regressions-')
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         for target, field, value in ((store, 'ROOT', self.root), (store, 'LOG', self.root / 'history')):

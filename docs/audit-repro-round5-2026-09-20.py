@@ -9,9 +9,9 @@ import sqlite3
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
-from jobdisco import applications, collection_policy, collector, jsearch, store
-from jobdisco.jsearch_access import RequestGuard
-from jobdisco.validate_sources import Source
+from operation1million import applications, collection_policy, collector, jsearch, store
+from operation1million.jsearch_access import RequestGuard
+from operation1million.validate_sources import Source
 
 
 def database(path):

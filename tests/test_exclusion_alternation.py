@@ -11,7 +11,7 @@ import re
 import sqlite3
 import unittest
 
-from jobdisco import jsearch
+from operation1million import jsearch
 
 ROOT = Path(__file__).resolve().parents[1]
 LIVE_DB = ROOT / 'data/db/job_discovery.sqlite'

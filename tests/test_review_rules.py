@@ -9,8 +9,8 @@ import tempfile
 import unittest
 from unittest import mock
 
-from jobdisco import applications, jsearch, store
-from jobdisco.job_text import clean_title
+from operation1million import applications, jsearch, store
+from operation1million.job_text import clean_title
 
 
 class FilterPolicyTests(unittest.TestCase):
@@ -327,7 +327,7 @@ class AuditedWrongCatchTests(unittest.TestCase):
             'or an alien admitted as permanent resident', self.rules))
 
     def test_the_trades_tooling_is_not_ranked_as_unrelated(self):
-        from jobdisco import ranking
+        from operation1million import ranking
         for title, band in (('Timing Design Engineer', 2), ('CAD Gate-level 3DIC EM/IR Engineer', 2),
                             ('Digital Layout Design Engineer', 3), ('EDA/CAD SW Engineer', 3),
                             ('PhD Research Intern, Circuits - 2027', 1),
@@ -583,7 +583,7 @@ class QueueRulesTests(unittest.TestCase):
         job = self.queue()['pending'][0]['jobs'][0]
         self.assertEqual((job['publisher'], job['employer_site']),
                          ('InterviewSense', 'https://www.micron.com'))
-        from jobdisco import review
+        from operation1million import review
         self.assertEqual(review.slim({'pending': [{'id': 'x', 'jobs': [job]}]})['pending'][0]['jobs'][0]
                          ['publisher'], 'InterviewSense')
         with closing(sqlite3.connect(self.db)) as db, db:

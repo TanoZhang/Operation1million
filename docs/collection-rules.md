@@ -111,7 +111,7 @@ configure the actual billing anchor.
 
 Implemented storage uses one derived SQLite database with `jobs`,
 `job_identities`, `source_state`, and `collection_runs`. Persistent evidence is
-stored under `JOBDISCO_STORE` (default `data/store`) as daily `.ndjson.gz` files,
+stored under `OPERATION1MILLION_STORE` (default `data/store`) as daily `.ndjson.gz` files,
 size-bounded same-day shards, checksum manifests and `source_state.json`. SQLite
 is not committed to Git.
 
@@ -121,7 +121,7 @@ by this collector, not necessarily posted today. Finalized daily files and
 shards are immutable. The active UTC day rolls to a numbered shard before an
 append would exceed 90 MB, keeping every Git blob below GitHub's 100 MB hard
 limit. Rebuild the derived database from the restored private log with
-`python -m jobdisco.store --bootstrap` on a fresh runner.
+`python -m operation1million.store --bootstrap` on a fresh runner.
 
 A first source pass is full. Later passes may use conditional HTTP, a configured
 newest-first watermark, sitemap lastmod, or a full list scan. Only full inventory
@@ -204,7 +204,7 @@ no readable description is retained; location and employment metadata do not
 count as description evidence. Whatever survives is marked in the review queue,
 because it got in on its text and not on its name.
 
-When in doubt, keep the posting and let `jobdisco/ranking.py` sort it downward.
+When in doubt, keep the posting and let `operation1million/ranking.py` sort it downward.
 A posting ranked too low is one scroll away; a hard-rejected one leaves no row
 in `jobs` at all, and only `seen_jobs` remembers it was ever offered.
 

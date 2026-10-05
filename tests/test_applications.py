@@ -23,7 +23,7 @@ from urllib.error import HTTPError
 
 from unittest.mock import patch
 
-from jobdisco import applications, review
+from operation1million import applications, review
 
 
 class ApplicationsTests(unittest.TestCase):
@@ -514,7 +514,7 @@ class BacklogTests(ApplicationsTests):
 
 class HttpTests(ApplicationsTests):
     def test_description_survives_store_html_deduplication(self):
-        from jobdisco import store
+        from operation1million import store
         text = 'Design RTL and verify hardware.'
         raw = store.slim({'descriptionPlain': text, 'descriptionHtml': '<p>' + text + '</p>'})
         self.assertNotIn('descriptionHtml', raw)

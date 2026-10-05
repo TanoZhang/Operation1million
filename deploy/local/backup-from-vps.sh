@@ -20,17 +20,17 @@
 # SQLite and validate the incoming operational state.
 set -euo pipefail
 
-HOST=${JOBDISCO_VPS:-ubuntu@40.160.142.175}
-KEY=${JOBDISCO_VPS_KEY:-$HOME/.ssh/op1m_vps}
+HOST=${OPERATION1MILLION_VPS:-ubuntu@40.160.142.175}
+KEY=${OPERATION1MILLION_VPS_KEY:-$HOME/.ssh/op1m_vps}
 # The laptop holds the same access as op1m_laptop (2026-10-01).
-if [ -z "${JOBDISCO_VPS_KEY:-}" ] && [ ! -f "$KEY" ] && [ -f "$HOME/.ssh/op1m_laptop" ]; then
+if [ -z "${OPERATION1MILLION_VPS_KEY:-}" ] && [ ! -f "$KEY" ] && [ -f "$HOME/.ssh/op1m_laptop" ]; then
   KEY=$HOME/.ssh/op1m_laptop
 fi
-REMOTE=${JOBDISCO_VPS_DATA:-/opt/jobdisco/data}
-REMOTE_DB=${JOBDISCO_VPS_DB:-/opt/jobdisco/code/data/db/job_discovery.sqlite}
-REMOTE_STATE=${JOBDISCO_VPS_STATE:-/opt/jobdisco/code/.local}
-REMOTE_USER=${JOBDISCO_VPS_USER:-jobdisco}
-TARGET=${1:-${JOBDISCO_BACKUP_DIR:-$HOME/op1m-backup}}
+REMOTE=${OPERATION1MILLION_VPS_DATA:-/opt/operation1million/data}
+REMOTE_DB=${OPERATION1MILLION_VPS_DB:-/opt/operation1million/code/data/db/job_discovery.sqlite}
+REMOTE_STATE=${OPERATION1MILLION_VPS_STATE:-/opt/operation1million/code/.local}
+REMOTE_USER=${OPERATION1MILLION_VPS_USER:-operation1million}
+TARGET=${1:-${OPERATION1MILLION_BACKUP_DIR:-$HOME/op1m-backup}}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 mkdir -p "$TARGET"
@@ -86,7 +86,7 @@ if [ ! -f "$tree/operational/applications.ndjson" ]; then
   missing=1
 fi
 validator=
-for python in "${JOBDISCO_PYTHON:-}" python3 python; do
+for python in "${OPERATION1MILLION_PYTHON:-}" python3 python; do
   [ -n "$python" ] && command -v "$python" >/dev/null 2>&1 || continue
   validator=$python
   break
@@ -111,7 +111,7 @@ elif [ "$(head -c 16 "$snapshot" | tr -d '\0')" != 'SQLite format 3' ]; then
   missing=1
 else
   # Python was required above; every accepted snapshot receives this check.
-  for python in "${JOBDISCO_PYTHON:-}" python3 python; do
+  for python in "${OPERATION1MILLION_PYTHON:-}" python3 python; do
     [ -n "$python" ] && command -v "$python" >/dev/null 2>&1 || continue
     if ! "$python" -c 'import sqlite3, sys
 db = sqlite3.connect("file:" + sys.argv[1].replace("?", "%3f") + "?mode=ro", uri=True)
@@ -163,7 +163,7 @@ done
 # reads it and rewrites the manifest when it finishes, so a mismatch there is a
 # race with a live pass rather than a damaged copy.
 verified=no
-for python in "${JOBDISCO_PYTHON:-}" python3 python; do
+for python in "${OPERATION1MILLION_PYTHON:-}" python3 python; do
   [ -n "$python" ] && command -v "$python" >/dev/null 2>&1 || continue
   if ! "$python" - "$tree" <<'CHECKSUMS'
 import datetime, hashlib, json, pathlib, sys
@@ -249,8 +249,8 @@ echo "  decisions: $(wc -l < "$current/operational/applications.ndjson" 2>/dev/n
 echo "  pulled:   $(cat "$TARGET/last-pull")"
 echo
 echo "Fast restore from the copied SQLite snapshot:"
-echo "    install -D $current/sqlite/job_discovery.sqlite /opt/jobdisco/code/data/db/job_discovery.sqlite"
+echo "    install -D $current/sqlite/job_discovery.sqlite /opt/operation1million/code/data/db/job_discovery.sqlite"
 echo
 echo "Rebuild the index from event history instead:"
-echo "    JOBDISCO_STORE=$current job-store --bootstrap --verify"
+echo "    OPERATION1MILLION_STORE=$current job-store --bootstrap --verify"
 exit "$missing"

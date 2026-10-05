@@ -79,7 +79,7 @@ def main(argv=None):
     """Always exit 0. The caller owns its own exit code and keeps it."""
     argv = list(sys.argv[1:] if argv is None else argv)
     if len(argv) != 1 or argv[0] not in EVENTS:
-        print(f'usage: python -m jobdisco.heartbeat {{{"|".join(EVENTS)}}}', file=sys.stderr)
+        print(f'usage: python -m operation1million.heartbeat {{{"|".join(EVENTS)}}}', file=sys.stderr)
         return 0
     ping(argv[0])
     return 0

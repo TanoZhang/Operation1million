@@ -8,8 +8,8 @@ defects, two of them regressions from fixes made earlier the same day (#1 and
 """
 import unittest
 
-from jobdisco import jsearch
-from jobdisco.experience import evaluate, is_heading
+from operation1million import jsearch
+from operation1million.experience import evaluate, is_heading
 
 RULES = jsearch.load_plan()[0]['filter']
 
@@ -190,7 +190,7 @@ class LiveBandTests(unittest.TestCase):
     Red on cd39d79."""
 
     def band(self, title):
-        from jobdisco import ranking
+        from operation1million import ranking
         return ranking.bucket(title)
 
     def test_180_timing_methodology(self):
@@ -248,7 +248,7 @@ class LiveAbroadTests(unittest.TestCase):
     """Places abroad the live queue read as the U.S. Red on f808a1c."""
 
     def test_190_the_country_code_first_with_a_region_that_is_a_state_code(self):
-        from jobdisco.location import country
+        from operation1million.location import country
         for place in ('IN, TN, Chennai', 'IN, TN, Chennai - Virtual', 'IT, MI, Milan', 'IT, CT, Catania'):
             with self.subTest(place=place):
                 self.assertEqual(country(place), 'foreign')
@@ -258,7 +258,7 @@ class LiveAbroadTests(unittest.TestCase):
 
     def test_191_an_accented_city_beside_its_code(self):
         """Regression from #88: accents stripped from the place, not from the list."""
-        from jobdisco.location import country
+        from operation1million.location import country
         self.assertEqual(country('DE, München'), 'foreign')
         self.assertEqual(country('München, DE'), 'foreign')
         self.assertEqual(country('Montréal, CA'), 'foreign')
@@ -277,7 +277,7 @@ class LiveDuplicateTests(unittest.TestCase):
         from contextlib import closing
         from datetime import datetime, timedelta, timezone
         from pathlib import Path
-        from jobdisco import applications
+        from operation1million import applications
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
@@ -315,7 +315,7 @@ class LiveLocationTests(unittest.TestCase):
     def test_170_amazons_leading_country_codes(self):
         """Amazon writes "NG, Lagos", "BH, Manama", "JO, Amman": codes missing
         from the list, so those postings abroad were unplaced and kept."""
-        from jobdisco.location import country
+        from operation1million.location import country
         for place in ('NG, Lagos', 'BH, Manama', 'JO, Amman', 'KW, Kuwait City', 'QA, Doha'):
             with self.subTest(place=place):
                 self.assertEqual(country(place), 'foreign')

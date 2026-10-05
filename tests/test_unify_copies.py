@@ -1,7 +1,7 @@
 """One job found on several sites is one group (asked for on 2026-10-04)."""
 import unittest
 
-from jobdisco.applications import employer_name, unify_copies
+from operation1million.applications import employer_name, unify_copies
 
 
 def group(key, *jobs):

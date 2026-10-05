@@ -33,7 +33,7 @@ class DeployStagingTests(unittest.TestCase):
                     target.write_text('fixture\n')
             (root / '.gitignore').write_text((ROOT / '.gitignore').read_text())
             (root / '.gitattributes').write_text((ROOT / '.gitattributes').read_text())
-            files = {'src/jobdisco/new_module.py': 'code\n',
+            files = {'src/operation1million/new_module.py': 'code\n',
                      'tests/test_new_module.py': 'code\n',
                      'docs/new-module.md': '{}\n',
                      'application-autofill/extension/local-profile.json': '{}\n',
@@ -52,7 +52,7 @@ class DeployStagingTests(unittest.TestCase):
 
     def test_source_and_documentation_have_explicit_lf_endings(self):
         result = subprocess.run(['git', 'check-attr', 'eol', '--',
-                                 'src/jobdisco/review_static/app.js', 'docs/handoff.md'],
+                                 'src/operation1million/review_static/app.js', 'docs/handoff.md'],
                                 cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(all(line.endswith(': lf') for line in result.stdout.splitlines()), result.stdout)

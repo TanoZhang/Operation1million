@@ -14,7 +14,7 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from jobdisco import applications, export, review
+from operation1million import applications, export, review
 
 ROOT = Path(__file__).resolve().parents[1]
 PAID = 'https://www.linkedin.com/jobs/view/rtl-engineer-123'
@@ -127,7 +127,7 @@ class LinkEndpointTests(unittest.TestCase):
 
 class LinkPageTests(unittest.TestCase):
     def test_the_page_offers_and_shows_the_company_link(self):
-        script = (ROOT / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+        script = (ROOT / 'src/operation1million/review_static/app.js').read_text(encoding='utf-8')
         for needle in ("'/api/link'", 'official_link', 'Use company link', 'Open company listing'):
             self.assertIn(needle, script)
         self.assertIn('official_link', review.JOB_FIELDS)

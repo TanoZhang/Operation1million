@@ -427,7 +427,7 @@ QUERY = ('-in:sent -in:chats -from:jobalerts-noreply@linkedin.com -from:jobs-lis
 
 
 def gmail_dir():
-    return Path(os.environ.get('JOBDISCO_GMAIL_DIR', ROOT / '.local/gmail'))
+    return Path(os.environ.get('OPERATION1MILLION_GMAIL_DIR', ROOT / '.local/gmail'))
 
 
 def _header(value):

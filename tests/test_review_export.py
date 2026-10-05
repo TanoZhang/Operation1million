@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 import xml.dom.minidom
 import zipfile
 
-from jobdisco import export, review
+from operation1million import export, review
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -83,7 +83,7 @@ class WorkbookTests(unittest.TestCase):
 
     def test_a_workbook_open_in_excel_is_reported_not_duplicated(self):
         export.write(self.path, [('pending', GROUP)])
-        with patch('jobdisco.export.os.replace', side_effect=PermissionError(13, 'in use')):
+        with patch('operation1million.export.os.replace', side_effect=PermissionError(13, 'in use')):
             with self.assertRaises(export.ExportLocked):
                 export.write(self.path, [('pending', GROUP)])
         self.assertEqual([path.name for path in self.path.parent.iterdir()], ['review-queue.xlsx'])
@@ -181,8 +181,8 @@ class ExportEndpointTests(unittest.TestCase):
 
 class PageContractTests(unittest.TestCase):
     def setUp(self):
-        self.script = (ROOT / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
-        self.page = (ROOT / 'src/jobdisco/review_static/index.html').read_text(encoding='utf-8')
+        self.script = (ROOT / 'src/operation1million/review_static/app.js').read_text(encoding='utf-8')
+        self.page = (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8')
 
     def test_every_sort_in_the_menu_is_one_the_script_knows(self):
         # The sort menu's own options; the Applied tab's Show menu has others.

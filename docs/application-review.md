@@ -3,7 +3,7 @@
 The review server runs on the VPS, which owns the index, the seen table and the
 decisions written through it. It binds only to `127.0.0.1` and is reached over
 an SSH tunnel; see **VPS review** below. Running it against a local checkout
-(`python -m jobdisco.review`, then `http://127.0.0.1:8765`) is for development,
+(`python -m operation1million.review`, then `http://127.0.0.1:8765`) is for development,
 not for deciding: a decision written on a second machine is a second writer, and
 two copies of an append-only log do not reconcile. `--port` moves the port,
 `--db` selects a different index.
@@ -48,7 +48,7 @@ tightened after collection takes effect on rows already stored.
 
 ## Ordering
 
-Positions are ranked by band first and by date second; `jobdisco/ranking.py`
+Positions are ranked by band first and by date second; `operation1million/ranking.py`
 holds the rules and the reasoning.
 
 | Band | Contents |
@@ -120,10 +120,10 @@ While Excel has the workbook open, Windows refuses the replacement and the page
 says to close it. The file holds job data: keep it out of the public repo.
 
 Served from the VPS through the tunnel, the workbook is written on the VPS
-(`/opt/jobdisco/exports/review-queue.xlsx`; the checkout is read-only to the
+(`/opt/operation1million/exports/review-queue.xlsx`; the checkout is read-only to the
 service), not on the machine running the browser. Double-click
 `deploy/local/get-export.bat` to copy it to `Documents\review-queue.xlsx`
-(or `JOBDISCO_EXPORT`), replacing the last copy.
+(or `OPERATION1MILLION_EXPORT`), replacing the last copy.
 
 ## The company's own link for a third-party listing
 
@@ -131,7 +131,7 @@ Added 2026-10-02 at the user's request. A paid listing usually links to a
 third-party site. Once the company's own posting is found, **Use company
 link** on that listing records it; **Open company listing** then leads the
 row, the third-party link stays beside it, and **Change** / **Remove** edit it.
-The link is kept in `JOBDISCO_STORE/operational/listing_links.ndjson`, beside
+The link is kept in `OPERATION1MILLION_STORE/operational/listing_links.ndjson`, beside
 the decision ledger and append-only like it (the latest record for an address
 wins; an empty link removes it). It applies to every listing at that address,
 survives index rebuilds, is backed up with the ledger, and is what the Excel
@@ -139,10 +139,10 @@ export links to, with the third-party address in its last column.
 
 ## Durable state
 
-The authoritative file is `JOBDISCO_STORE/operational/applications.ndjson`.
+The authoritative file is `OPERATION1MILLION_STORE/operational/applications.ndjson`.
 Without that environment variable, it is `data/store/operational/applications.ndjson`,
 which is ignored by the code repository. `--ledger` can select another path.
-Set `JOBDISCO_STORE` to the local checkout of the private data repository to keep
+Set `OPERATION1MILLION_STORE` to the local checkout of the private data repository to keep
 the ledger there. Back up or commit this file to that private repository; a file
 stored only locally is not a remote backup. Never put it in the public overview.
 
@@ -165,13 +165,13 @@ ledger, rebuild or restore the job database, and start the review server.
 
 ## VPS review
 
-`deploy/vps/jobdisco-review.service` serves only `127.0.0.1:8765` on the VPS.
-It runs from `/opt/jobdisco/code`, the same checkout the collector uses, so the
+`deploy/vps/operation1million-review.service` serves only `127.0.0.1:8765` on the VPS.
+It runs from `/opt/operation1million/code`, the same checkout the collector uses, so the
 Review queue and the collector use the same filter rules. It reads
-`/opt/jobdisco/code/data/db/job_discovery.sqlite` and writes
-`/opt/jobdisco/data/operational/applications.ndjson`. The collection publisher
+`/opt/operation1million/code/data/db/job_discovery.sqlite` and writes
+`/opt/operation1million/data/operational/applications.ndjson`. The collection publisher
 includes this ledger in the next private data-repository checkpoint, and
-`jobdisco-backup.timer` backs the ledger up more frequently. Decisions made
+`operation1million-backup.timer` backs the ledger up more frequently. Decisions made
 after the most recent checkpoint remain local to the VPS until the next backup
 or collection publication.
 
@@ -253,9 +253,9 @@ Moving a position back to review hides its mark until it is applied again.
 
 ### From Gmail
 
-`jobdisco-gmail.timer` runs `python -m jobdisco.gmail_outcomes` on the VPS
+`operation1million-gmail.timer` runs `python -m operation1million.gmail_outcomes` on the VPS
 every thirty minutes. It reads the mailbox over IMAP with a Gmail app password
-(`GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `/etc/jobdisco/env`). The folder is
+(`GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `/etc/operation1million/env`). The folder is
 read with `BODY.PEEK`, so nothing is marked read. The one change it makes is
 to star the first reply per position it reads as Passed (Gmail's star is IMAP
 `\Flagged`), once:
@@ -298,4 +298,4 @@ single position. Clicking an item opens the position when one was guessed.
 Items leave the list once those positions have a mark, or after 21 days.
 
 The private working files (message cache, the unsettled list, the last run's
-summary) live in `/opt/jobdisco/gmail`, mode 700, outside both repositories.
+summary) live in `/opt/operation1million/gmail`, mode 700, outside both repositories.

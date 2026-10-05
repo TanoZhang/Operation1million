@@ -11,8 +11,8 @@ import sqlite3
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from jobdisco import applications, collector, jsearch, store
-from jobdisco.validate_sources import Source
+from operation1million import applications, collector, jsearch, store
+from operation1million.validate_sources import Source
 
 HELPER = runpy.run_path(str(Path(__file__).with_name('audit-repro-round5-2026-09-20.py')))
 

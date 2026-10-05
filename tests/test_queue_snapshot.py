@@ -4,8 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-from jobdisco import review, queue_snapshot
-from jobdisco.queue_snapshot import QueueSnapshot
+from operation1million import review, queue_snapshot
+from operation1million.queue_snapshot import QueueSnapshot
 
 
 def empty():
@@ -62,7 +62,7 @@ class SnapshotTests(unittest.TestCase):
             self.assertEqual(self.server().current_queue(), empty())
 
     def test_saved_decision_and_full_identity_survive_restart(self):
-        from jobdisco import applications
+        from operation1million import applications
         group = {'id':'fixture', 'company':'Example', 'title':'RTL Engineer', 'confidence':80,
                  'jobs':[{'url':'https://company.example/R1', 'provider_key':'manual',
                           'company_key':'example', 'source_job_id':'R1', 'first_seen':'2026-10-02'}]}

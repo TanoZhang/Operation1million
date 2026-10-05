@@ -2,7 +2,7 @@
 
 ## Scope and evidence
 
-Inspected all of `src/jobdisco/collector.py`, including the provider branches
+Inspected all of `src/operation1million/collector.py`, including the provider branches
 and nested functions in `main`, before moving to another module. New root causes
 are B50-B57. B45 has a remaining direct-intake instance and is not counted again.
 No business-code changes, priority labels, external collection or paid requests.

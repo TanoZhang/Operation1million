@@ -666,7 +666,7 @@ def touch_source(db, source, strategy, requests, etag=None, last_modified=None,
 
 
 # The durable log may live in a separate (private) data repository checkout.
-LOG = Path(os.environ.get('JOBDISCO_STORE') or DATA / 'store')
+LOG = Path(os.environ.get('OPERATION1MILLION_STORE') or DATA / 'store')
 # Job descriptions, requirements and pay are the point of collecting at all, so they
 # are kept in full. What goes is what carries no information about the job: branding
 # assets, employer ratings, the provider's own relevance scoring and parser output,
@@ -1349,7 +1349,7 @@ def main():
         print('rebuilt:', rebuild(args.db))
     if args.export:
         if any((LOG / 'runs').glob('*.ndjson.gz')) or any((LOG / 'manifests').glob('*.json')):
-            parser.error('Backfill requires an empty JOBDISCO_STORE; existing history is immutable')
+            parser.error('Backfill requires an empty OPERATION1MILLION_STORE; existing history is immutable')
         with closing(connect(args.db)) as db, db:
             urls = [r[0] for r in db.execute('SELECT url FROM jobs ORDER BY url')]
             closed = [(r[0], r[1]) for r in db.execute(
@@ -1404,7 +1404,7 @@ def main():
         if any(state != 'ok' for _, state in results):
             return 1
     # Opening a database creates it, and a check must not manufacture the thing
-    # it is checking. `JOBDISCO_STORE=<copy> job-store --verify` is what both
+    # it is checking. `OPERATION1MILLION_STORE=<copy> job-store --verify` is what both
     # `deploy/local/backup-from-vps.sh` and the deployment notes tell an
     # operator to run against a restored copy of the log, on a machine that may
     # hold no index at all: it verified the copy, then left an empty SQLite

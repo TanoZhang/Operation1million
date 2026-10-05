@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jobdisco"
+name = "operation1million"
 version = "0.1.0"
 description = "Compliant job source discovery and collection pipeline"
 requires-python = ">=3.10"
@@ -28,17 +28,17 @@ dependencies = [
 research = ["curl-cffi>=0.15.0"]
 
 [project.scripts]
-job-collect = "jobdisco.collector:main_cli"
-job-validate-sources = "jobdisco.validate_sources:main"
-job-queries = "jobdisco.query_catalog:main"
-job-store = "jobdisco.store:main"
-job-review = "jobdisco.review:main"
+job-collect = "operation1million.collector:main_cli"
+job-validate-sources = "operation1million.validate_sources:main"
+job-queries = "operation1million.query_catalog:main"
+job-store = "operation1million.store:main"
+job-review = "operation1million.review:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-jobdisco = ["review_static/*"]
+operation1million = ["review_static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

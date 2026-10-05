@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
 
-from jobdisco import jsearch
+from operation1million import jsearch
 
 CONFIG, _ = jsearch.load_plan()
 RULES = CONFIG['filter']

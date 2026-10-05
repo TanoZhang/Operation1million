@@ -2,7 +2,7 @@
 
 ## Scope and evidence
 
-Reviewed `src/jobdisco/jsearch.py` from configuration through final persistence,
+Reviewed `src/operation1million/jsearch.py` from configuration through final persistence,
 including its nested functions, before moving to another module. Six new root
 causes, B44-B49, are reproduced below. Variants sharing a cause are grouped.
 No priority labels and no business-code changes.

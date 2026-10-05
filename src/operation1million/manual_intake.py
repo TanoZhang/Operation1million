@@ -43,7 +43,7 @@ def public_url(value):
 @contextmanager
 def collection_slot(ledger):
     """Use the production collector lock when present; never run beside a pass."""
-    production = Path('/opt/jobdisco/collection.lock')
+    production = Path('/opt/operation1million/collection.lock')
     if production.exists():
         import fcntl
         with production.open('rb') as handle:

@@ -8,7 +8,7 @@ import threading
 import unittest
 from unittest.mock import patch, MagicMock
 from urllib.request import Request, urlopen
-from jobdisco import manual_intake as intake, applications, jsearch, review
+from operation1million import manual_intake as intake, applications, jsearch, review
 
 
 def empty():

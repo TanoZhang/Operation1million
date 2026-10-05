@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import requests
-from jobdisco.jsearch_access import RequestGuard, QuotaExhausted
+from operation1million.jsearch_access import RequestGuard, QuotaExhausted
 
 
 class GuardTests(unittest.TestCase):
@@ -24,7 +24,7 @@ class GuardTests(unittest.TestCase):
                                     ('2026-09-19T11:55:00+00:00', 24)]:
                     db.execute('INSERT INTO credit_events(at, period, day, credits) VALUES (?, ?, ?, ?)',
                                (datetime.fromisoformat(at).timestamp(), '2026-09-16', '2026-09-19', credits))
-            with patch('jobdisco.jsearch_access.time.time', return_value=datetime.fromisoformat(
+            with patch('operation1million.jsearch_access.time.time', return_value=datetime.fromisoformat(
                     '2026-09-19T12:00:00+00:00').timestamp()):
                 restarted = RequestGuard(path, daily_limit=320)
                 balance = restarted.balance()
@@ -47,7 +47,7 @@ class GuardTests(unittest.TestCase):
                 db.execute("INSERT INTO credit_usage VALUES ('2026-09-16', '2026-09-20', 4)")
             balances = []
             for stamp in ('2026-09-19T12:00:00+00:00', '2026-09-20T12:00:00+00:00'):
-                with patch('jobdisco.jsearch_access.time.time',
+                with patch('operation1million.jsearch_access.time.time',
                            return_value=datetime.fromisoformat(stamp).timestamp()):
                     balances.append(guard.balance()['day_used'])
             self.assertEqual(balances, [0, 4])
@@ -60,12 +60,12 @@ class GuardTests(unittest.TestCase):
                     ('2026-09-19T11:38:00+00:00', '2026-09-19'),
                     ('2026-12-19T12:37:59+00:00', '2026-12-18'),
                     ('2026-12-19T12:38:00+00:00', '2026-12-19')]:
-                with self.subTest(stamp=stamp), patch('jobdisco.jsearch_access.time.time',
+                with self.subTest(stamp=stamp), patch('operation1million.jsearch_access.time.time',
                         return_value=datetime.fromisoformat(stamp).timestamp()):
                     self.assertEqual(guard.daily_window()[0], expected)
             for stamp, hours in [('2026-03-08T10:00:00+00:00', 23),
                                   ('2026-11-01T10:00:00+00:00', 25)]:
-                with patch('jobdisco.jsearch_access.time.time',
+                with patch('operation1million.jsearch_access.time.time',
                            return_value=datetime.fromisoformat(stamp).timestamp()):
                     _, start, end = guard.daily_window()
                     self.assertEqual(end - start, hours * 3600)
@@ -76,12 +76,12 @@ class GuardTests(unittest.TestCase):
             guard.interval = 0
             session = Mock()
             session.get.return_value = Mock(status_code=200, headers={})
-            with patch('jobdisco.jsearch_access.time.time', return_value=datetime.fromisoformat(
+            with patch('operation1million.jsearch_access.time.time', return_value=datetime.fromisoformat(
                     '2026-09-19T11:37:59+00:00').timestamp()):
                 guard.get(session, 'https://example.com')
                 with self.assertRaises(QuotaExhausted):
                     guard.get(session, 'https://example.com')
-            with patch('jobdisco.jsearch_access.time.time', return_value=datetime.fromisoformat(
+            with patch('operation1million.jsearch_access.time.time', return_value=datetime.fromisoformat(
                     '2026-09-19T11:38:00+00:00').timestamp()):
                 guard.get(session, 'https://example.com')
                 self.assertEqual(guard.balance()['day_used'], 1)
@@ -93,7 +93,7 @@ class GuardTests(unittest.TestCase):
             with closing(sqlite3.connect(guard.path)) as db, db:
                 db.execute('DELETE FROM credit_usage')
                 db.execute("INSERT INTO credit_usage VALUES ('2026-09-16', '2026-09-19', 320)")
-            with patch('jobdisco.jsearch_access.time.time', return_value=datetime.fromisoformat(
+            with patch('operation1million.jsearch_access.time.time', return_value=datetime.fromisoformat(
                     '2026-09-19T12:00:00+00:00').timestamp()):
                 self.assertEqual(guard.balance()['day_remaining'], 0)
                 with self.assertRaises(QuotaExhausted):

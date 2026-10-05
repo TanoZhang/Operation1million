@@ -10,8 +10,8 @@ import sys
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
-from jobdisco import applications, collector, jsearch, store
-from jobdisco.jsearch_access import RequestGuard
+from operation1million import applications, collector, jsearch, store
+from operation1million.jsearch_access import RequestGuard
 
 
 def item(**changes):

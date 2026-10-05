@@ -5,7 +5,7 @@ import runpy
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from jobdisco import applications, experience, jsearch, store
+from operation1million import applications, experience, jsearch, store
 
 
 def main():

@@ -6,8 +6,8 @@ the live queue that day, or its nearest counterpart.
 """
 import unittest
 
-from jobdisco import jsearch
-from jobdisco.degree import phd_only
+from operation1million import jsearch
+from operation1million.degree import phd_only
 
 
 class PhdOnlyTests(unittest.TestCase):

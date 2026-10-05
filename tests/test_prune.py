@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 
-from jobdisco import prune
+from operation1million import prune
 
 
 class PruneTests(unittest.TestCase):
@@ -119,7 +119,7 @@ class CarryForwardTests(unittest.TestCase):
         from contextlib import closing
         import sqlite3
         from unittest.mock import patch
-        from jobdisco import store
+        from operation1million import store
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
@@ -165,7 +165,7 @@ class CarryForwardTests(unittest.TestCase):
                                 'https://careers.micron.com/careers/job/3': today})
 
     def test_postings_are_carried_into_the_store_being_pruned(self):
-        """History compaction prunes a staged copy, not the store JOBDISCO_STORE names."""
+        """History compaction prunes a staged copy, not the store OPERATION1MILLION_STORE names."""
         from contextlib import closing
         import shutil
         store = self.store

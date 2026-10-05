@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const {JSDOM} = require('jsdom');
-const assets = path.join(__dirname, '../src/jobdisco/review_static');
+const assets = path.join(__dirname, '../src/operation1million/review_static');
 const dom = new JSDOM(fs.readFileSync(path.join(assets, 'index.html'), 'utf8'),
   {url: 'http://localhost:8765', runScripts: 'outside-only'});
 const w = dom.window;

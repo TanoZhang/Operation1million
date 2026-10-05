@@ -105,7 +105,7 @@ def carry_forward(store, removable, db_path):
         # Pruning without carrying forward is how the index lost what was open.
         raise FileNotFoundError(f'no index at {db_path}; nothing pruned')
     # Into the store being pruned, which history compaction stages apart from
-    # the one JOBDISCO_STORE names.
+    # the one OPERATION1MILLION_STORE names.
     written_to = job_store.LOG
     job_store.LOG = Path(store)
     try:
@@ -141,7 +141,7 @@ def prune(store, keep_days=KEEP_DAYS, today=None, dry_run=False, db_path=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--store', type=Path,
-                        default=Path(os.environ.get('JOBDISCO_STORE', DATA / 'store')))
+                        default=Path(os.environ.get('OPERATION1MILLION_STORE', DATA / 'store')))
     parser.add_argument('--keep', type=int, default=KEEP_DAYS,
                         help=f'Days of log to keep, including today (default {KEEP_DAYS})')
     parser.add_argument('--db', type=Path, default=DB,

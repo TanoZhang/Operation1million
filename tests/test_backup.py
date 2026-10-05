@@ -18,8 +18,8 @@ import tarfile
 import unittest
 from types import SimpleNamespace
 
-from jobdisco.jsearch_access import RequestGuard
-from jobdisco.collection_policy import SourcePolicy
+from operation1million.jsearch_access import RequestGuard
+from operation1million.collection_policy import SourcePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 BASH = (str(Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/bash.exe')
@@ -29,7 +29,7 @@ BASH = (str(Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/
 @unittest.skipUnless(BASH and Path(BASH).is_file(), 'Bash required for backup regression')
 class BackupTests(unittest.TestCase):
     def run_backup(self, failure=None):
-        temporary = tempfile.TemporaryDirectory(prefix='jobdisco-backup-')
+        temporary = tempfile.TemporaryDirectory(prefix='operation1million-backup-')
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
         data = root / 'fixture/data'
@@ -102,8 +102,8 @@ class BackupTests(unittest.TestCase):
             + 'source ' + shlex.quote((ROOT / 'deploy/local/backup-from-vps.sh').as_posix())
             + ' backup\n', encoding='utf-8', newline='\n')
         result = subprocess.run([BASH, 'driver.sh'], cwd=root, capture_output=True, text=True,
-                                env={**os.environ, 'JOBDISCO_VPS_DATA': '/unused/data',
-                                     'JOBDISCO_PYTHON': Path(sys.executable).as_posix()})
+                                env={**os.environ, 'OPERATION1MILLION_VPS_DATA': '/unused/data',
+                                     'OPERATION1MILLION_PYTHON': Path(sys.executable).as_posix()})
         return result, backup
 
     def test_invalid_copies_preserve_both_recovery_generations(self):
@@ -123,8 +123,8 @@ class BackupTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         # Retry the exact failed transfer, not a fresh fixture.
         retried = subprocess.run([BASH, 'driver.sh'], cwd=backup.parent, capture_output=True,
-                                 env={**os.environ, 'JOBDISCO_VPS_DATA': '/unused/data',
-                                      'JOBDISCO_PYTHON': Path(sys.executable).as_posix()})
+                                 env={**os.environ, 'OPERATION1MILLION_VPS_DATA': '/unused/data',
+                                      'OPERATION1MILLION_PYTHON': Path(sys.executable).as_posix()})
         self.assertNotEqual(retried.returncode, 0)
         for name in ('current', 'previous'):
             self.assertEqual((backup / name / 'keep.txt').read_text(), name)
@@ -139,8 +139,8 @@ class BackupTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         (backup / 'current').rename(backup / 'previous.tmp')
         retried = subprocess.run([BASH, 'driver.sh'], cwd=backup.parent, capture_output=True,
-                                 env={**os.environ, 'JOBDISCO_VPS_DATA': '/unused/data',
-                                      'JOBDISCO_PYTHON': Path(sys.executable).as_posix()})
+                                 env={**os.environ, 'OPERATION1MILLION_VPS_DATA': '/unused/data',
+                                      'OPERATION1MILLION_PYTHON': Path(sys.executable).as_posix()})
         self.assertNotEqual(retried.returncode, 0)
         for name in ('current', 'previous'):
             self.assertEqual((backup / name / 'keep.txt').read_text(), name)
@@ -214,7 +214,7 @@ class BackupTests(unittest.TestCase):
         result, backup = self.run_backup()
         self.assertEqual(result.returncode, 0, result.stderr)
         remote = (backup.parent / 'ssh-args').read_text(encoding='utf-8').splitlines()[-1]
-        self.assertTrue(remote.startswith("sudo -n -u 'jobdisco' python3 - "), remote)
+        self.assertTrue(remote.startswith("sudo -n -u 'operation1million' python3 - "), remote)
 
     def test_the_day_still_being_written_may_differ_from_its_manifest(self):
         """A pass appending while tar reads is a race, not a damaged copy.

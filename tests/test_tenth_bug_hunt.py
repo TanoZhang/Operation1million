@@ -18,10 +18,10 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from jobdisco import applications, jsearch, ranking
-from jobdisco.collector import Collector, html_items
-from jobdisco.job_text import clean_title, readable_text
-from jobdisco.validate_sources import Source
+from operation1million import applications, jsearch, ranking
+from operation1million.collector import Collector, html_items
+from operation1million.job_text import clean_title, readable_text
+from operation1million.validate_sources import Source
 
 RULES = jsearch.load_plan()[0]['filter']
 SOURCE = Source('x', 'company_direct_sources', 'renesas', 'Renesas', 'renesas_careers',
@@ -51,7 +51,7 @@ def collector(source):
 
 class CollectorTests(unittest.TestCase):
     def setUp(self):
-        for target in ('jobdisco.collection_policy.robots_delay', 'jobdisco.collector.time.sleep'):
+        for target in ('operation1million.collection_policy.robots_delay', 'operation1million.collector.time.sleep'):
             patcher = patch(target, return_value=None)
             patcher.start()
             self.addCleanup(patcher.stop)

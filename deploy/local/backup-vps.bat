@@ -1,7 +1,7 @@
 @echo off
 rem Double-click: copy the VPS's data to this machine with
 rem backup-from-vps.sh, into the same folder as every earlier backup
-rem (%USERPROFILE%\op1m-backup unless JOBDISCO_BACKUP_DIR says otherwise).
+rem (%USERPROFILE%\op1m-backup unless OPERATION1MILLION_BACKUP_DIR says otherwise).
 rem The newest copy lands in current\, the one before it in previous\.
 setlocal
 cd /d "%~dp0..\.."
@@ -13,7 +13,7 @@ if not exist "%BASH%" (
   pause
   exit /b 1
 )
-set JOBDISCO_PYTHON=.venv/Scripts/python.exe
+set OPERATION1MILLION_PYTHON=.venv/Scripts/python.exe
 "%BASH%" ./deploy/local/backup-from-vps.sh
 set CODE=%ERRORLEVEL%
 echo.

@@ -13,8 +13,8 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from jobdisco import applications, collection_policy, collector, jsearch, store
-from jobdisco.validate_sources import Source
+from operation1million import applications, collection_policy, collector, jsearch, store
+from operation1million.validate_sources import Source
 
 
 def database(path):

@@ -2,7 +2,7 @@
 # Replace the data repository's history with a single commit holding the current
 # rolling window. Run by hand, on the VPS, while watching it.
 #
-#   sudo -u jobdisco HOME=/opt/jobdisco bash deploy/vps/compact-history.sh
+#   sudo -u operation1million HOME=/opt/operation1million bash deploy/vps/compact-history.sh
 #
 # WHY THIS IS NOT PART OF THE NIGHTLY PASS
 #
@@ -26,10 +26,10 @@
 # the shared history is safe at all.
 set -euo pipefail
 
-ROOT=${JOBDISCO_ROOT:-/opt/jobdisco}
+ROOT=${OPERATION1MILLION_ROOT:-/opt/operation1million}
 DATA=$ROOT/data
-KEEP=${JOBDISCO_KEEP_DAYS:-14}
-export JOBDISCO_STORE=$DATA
+KEEP=${OPERATION1MILLION_KEEP_DAYS:-14}
+export OPERATION1MILLION_STORE=$DATA
 export PATH=$ROOT/venv/bin:$PATH
 
 cd "$DATA"
@@ -75,13 +75,13 @@ trap cleanup EXIT
 git worktree add --quiet --detach "$staging/tree" HEAD
 # Open postings a dropped day alone describes are carried into the staged
 # tree's log first, from the live index (#318); without one, nothing is pruned.
-python -m jobdisco.prune --store "$staging/tree" --keep "$KEEP" \
+python -m operation1million.prune --store "$staging/tree" --keep "$KEEP" \
   --db "$ROOT/code/data/db/job_discovery.sqlite"
 
 echo '== Replace the history with one commit =='
 git -C "$staging/tree" add -A
 tree=$(git -C "$staging/tree" write-tree)
-candidate=$(git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
+candidate=$(git -c user.name='operation1million-vps' -c user.email='operation1million-vps@users.noreply.github.com' \
     commit-tree "$tree" -m "Snapshot $(date -u +%Y-%m-%d): a ${KEEP}-day rolling backup
 
 The log is a backup, not the working state. The derived index lives on the VPS,
@@ -96,9 +96,9 @@ echo '== Push =='
 git push --force-with-lease="refs/heads/main:$expected" origin "$candidate:refs/heads/main"
 # The remote accepted the exact candidate. Keep a recovery ref until the local
 # checkout has followed it, and never update the checkout before acceptance.
-git update-ref refs/jobdisco/pre-compaction HEAD
+git update-ref refs/operation1million/pre-compaction HEAD
 git reset --hard --quiet "$candidate"
-git update-ref -d refs/jobdisco/pre-compaction
+git update-ref -d refs/operation1million/pre-compaction
 cleanup
 trap - EXIT
 

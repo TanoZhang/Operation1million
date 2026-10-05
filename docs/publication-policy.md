@@ -7,7 +7,7 @@
 
 ## Never in the public repo
 
-- API keys and `.env.local`. Keys live in `/etc/jobdisco/env` on the VPS and in ignored local files.
+- API keys and `.env.local`. Keys live in `/etc/operation1million/env` on the VPS and in ignored local files.
 - Job records, run exports, SQLite files, logs.
 - Application decisions, answer-bank content, personal details.
 - Commit identities other than `TanoZhang <tanozhang@users.noreply.github.com>` and the agents' noreply addresses.

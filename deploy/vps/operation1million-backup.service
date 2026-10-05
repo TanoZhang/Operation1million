@@ -5,18 +5,18 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=jobdisco
-Group=jobdisco
-Environment=HOME=/opt/jobdisco
-EnvironmentFile=/etc/jobdisco/env
-ExecStart=/opt/jobdisco/code/deploy/vps/backup-applications.sh
+User=operation1million
+Group=operation1million
+Environment=HOME=/opt/operation1million
+EnvironmentFile=/etc/operation1million/env
+ExecStart=/opt/operation1million/code/deploy/vps/backup-applications.sh
 TimeoutStartSec=300
 
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/jobdisco
+ReadWritePaths=/opt/operation1million
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

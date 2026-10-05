@@ -11,7 +11,7 @@ import shutil
 import tempfile
 import unittest
 
-from jobdisco import collector, jsearch
+from operation1million import collector, jsearch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -76,8 +76,8 @@ class UnpublishedProgressTests(unittest.TestCase):
         self.assertIn('workflow_state operational/jsearch_usage.sqlite', branch)
 
     def test_a_rewind_keeps_the_credits_and_restores_the_cursor(self):
-        from jobdisco.jsearch_access import RequestGuard
-        from jobdisco.workflow_state import restore_cursors
+        from operation1million.jsearch_access import RequestGuard
+        from operation1million.workflow_state import restore_cursors
         with tempfile.TemporaryDirectory() as folder:
             before, runtime = Path(folder) / 'before.sqlite', Path(folder) / 'runtime.sqlite'
             RequestGuard(path=before).advance('q', 2, period='2026-09-16')
@@ -120,7 +120,7 @@ class ApplicationsBackupTests(unittest.TestCase):
 
     def backup(self):
         return subprocess.run(['bash', str(self.SCRIPT)], capture_output=True, text=True,
-                              env={**os.environ, 'JOBDISCO_ROOT': str(self.root)})
+                              env={**os.environ, 'OPERATION1MILLION_ROOT': str(self.root)})
 
     def ledger(self):
         return self.data / 'operational/applications.ndjson'
@@ -276,14 +276,14 @@ class BackupWiringTests(unittest.TestCase):
     """The units have to be installed, or they are a file nobody runs."""
 
     def test_the_timer_runs_every_fifteen_minutes(self):
-        unit = (ROOT / 'deploy/vps/jobdisco-backup.timer').read_text(encoding='utf-8')
+        unit = (ROOT / 'deploy/vps/operation1million-backup.timer').read_text(encoding='utf-8')
         self.assertIn('OnUnitActiveSec=15min', unit)
 
     def test_the_installer_installs_and_enables_it(self):
         installer = (ROOT / 'deploy/vps/install.sh').read_text(encoding='utf-8')
-        self.assertIn('jobdisco-backup.service', installer)
-        self.assertIn('jobdisco-backup.timer', installer)
-        self.assertRegex(installer, r'systemctl enable --now jobdisco-backup\.timer')
+        self.assertIn('operation1million-backup.service', installer)
+        self.assertIn('operation1million-backup.timer', installer)
+        self.assertRegex(installer, r'systemctl enable --now operation1million-backup\.timer')
 
     def test_every_git_writer_shares_one_lock(self):
         for name in ('daily-pass.sh', 'compact-history.sh', 'install.sh',
@@ -328,7 +328,7 @@ class DailyPassKeepsGoingTests(unittest.TestCase):
         self.assertNotIn('paid=0', script)
 
     def test_a_ledger_behind_is_restored_as_the_guard_advises(self):
-        body = self.script().split('if ! python -m jobdisco.ledger_guard')[1].split('\nfi\n')[0]
+        body = self.script().split('if ! python -m operation1million.ledger_guard')[1].split('\nfi\n')[0]
         self.assertIn('cp "$DATA/operational/jsearch_usage.sqlite" "$CODE/.local/jsearch_usage.sqlite"', body)
         self.assertIn('note_problem', body)
 
@@ -354,7 +354,7 @@ class PassStatisticsTests(unittest.TestCase):
     """A6: the six numbers that have to add up."""
 
     def test_the_collector_reports_the_seen_split(self):
-        source = (ROOT / 'src/jobdisco/collector.py').read_text(encoding='utf-8')
+        source = (ROOT / 'src/operation1million/collector.py').read_text(encoding='utf-8')
         for field in ('seen_fetched', 'seen_new', 'seen_existing',
                       'seen_accepted', 'seen_rejected', 'seen_malformed'):
             self.assertIn(field, source)
@@ -365,7 +365,7 @@ class PassStatisticsTests(unittest.TestCase):
         By listing address since 2026-09-27: JSearch's job_id changes for the
         same listing, and the row count called every record new
         (`store.count_new_listings`, tests/test_jsearch_plan_bugs.py)."""
-        source = (ROOT / 'src/jobdisco/collector.py').read_text(encoding='utf-8')
+        source = (ROOT / 'src/operation1million/collector.py').read_text(encoding='utf-8')
         self.assertIn("seen_totals['fetched'] += len(rows)", source)
         self.assertIn("added, existing = store.count_new_listings(db, rows)", source)
         self.assertIn("seen_totals['new_seen'] += added", source)

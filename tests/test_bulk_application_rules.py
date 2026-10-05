@@ -1,6 +1,6 @@
 """VLSI scope: preserve the original hardware-related software/JD policy."""
 import unittest
-from jobdisco import jsearch
+from operation1million import jsearch
 
 class VLSIScopeTests(unittest.TestCase):
     def setUp(self):

@@ -1,9 +1,9 @@
 """Required experience is a mechanical gate, not a seniority guess."""
 import unittest
 
-from jobdisco import jsearch
-from jobdisco import experience
-from jobdisco.experience import evaluate
+from operation1million import jsearch
+from operation1million import experience
+from operation1million.experience import evaluate
 
 
 class ExperienceTests(unittest.TestCase):

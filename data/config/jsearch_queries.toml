@@ -16,7 +16,7 @@ cycle_days = 30
 # 20:10 Pacific took 296 of 320 credits, and the pass eleven hours later got 24
 # and reached fifteen of its fifty-two queries.
 #
-# Keep these in step with deploy/vps/jobdisco-collect.timer. If the timer moves,
+# Keep these in step with deploy/vps/operation1million-collect.timer. If the timer moves,
 # these move with it, or the budget will again reset at a time nothing observes.
 budget_timezone = "America/Los_Angeles"
 budget_day_resets_at = "04:38"

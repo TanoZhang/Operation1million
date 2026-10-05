@@ -13,7 +13,7 @@ installed. The private repository has one authorized daily GitHub Actions run.
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
-.\.venv\Scripts\python.exe -m jobdisco.collector
+.\.venv\Scripts\python.exe -m operation1million.collector
 ```
 
 The new computer has a working project-local `.venv`; run its Python executable directly.
@@ -87,8 +87,8 @@ collection stops after three detail failures. A malformed record is quarantined
 and does not stop later valid records.
 
 ```powershell
-.\.venv\Scripts\python.exe -m jobdisco.collector --company arm --company synopsys --output runs/selected-run
-.\.venv\Scripts\python.exe -m jobdisco.collector --max-pages 600 --max-jobs 20000
+.\.venv\Scripts\python.exe -m operation1million.collector --company arm --company synopsys --output runs/selected-run
+.\.venv\Scripts\python.exe -m operation1million.collector --max-pages 600 --max-jobs 20000
 ```
 
 `complete` means the public API's reported total or an observed end of pagination
@@ -137,7 +137,7 @@ pipeline.
 
 ## Repository layout
 
-`src/jobdisco/` is the installable package and `tests/` contains its tests.
+`src/operation1million/` is the installable package and `tests/` contains its tests.
 `data/config/` contains source configuration and schema, `data/raw/` contains
 source validation reports, and `data/db/` contains the SQLite catalog. Generated
 run directories live under `runs/`; the large run files are ignored by Git.

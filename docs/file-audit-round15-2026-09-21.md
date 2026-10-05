@@ -44,7 +44,7 @@ and historical-decision checks, also exited 0.
 
 ## B81 - A moved requisition loses its history when its former URL is reused
 
-**Location:** `src/jobdisco/store.py`, `record_source`, approximately lines
+**Location:** `src/operation1million/store.py`, `record_source`, approximately lines
 310-329 and 416-438.
 
 B59's fix correctly stops pinning A to its old address when the batch says B
@@ -82,7 +82,7 @@ not only which IDs remain present.
 
 ## B82 - In-place rebuild replaces a newer rejection with an older snapshot
 
-**Location:** `src/jobdisco/store.py:96-124` (`import_seen`, `_insert_seen`)
+**Location:** `src/operation1million/store.py:96-124` (`import_seen`, `_insert_seen`)
 and the final snapshot import in `rebuild`.
 
 Seen rows are restored with unconditional `INSERT OR REPLACE`. That is harmless
@@ -116,7 +116,7 @@ newer-snapshot updates working; do not simply skip all conflicts.
 
 ## B83 - Interrupted sharded rescore leaves history that a successful retry cannot repair
 
-**Location:** `src/jobdisco/store.py:766-796` (`_append_records`),
+**Location:** `src/operation1million/store.py:766-796` (`_append_records`),
 `:842-861` (`append_scores`), and the rollback in `rescore`.
 
 Recursive append may durably write one sub-batch before a later sub-batch
@@ -157,7 +157,7 @@ across shard rollover, and a retry after UTC midnight.
 
 ## B84 - Review cache ignores filter configuration changes
 
-**Location:** `src/jobdisco/review.py`, `make_server.current_queue`, lines
+**Location:** `src/operation1million/review.py`, `make_server.current_queue`, lines
 101-109; compare `applications.queue`, which calls `jsearch.load_plan`.
 
 The cache key includes the application ledger, index, WAL sidecar and UTC
@@ -266,9 +266,9 @@ SHA-256 includes checked-out line endings:
 
 | File | SHA-256 |
 | --- | --- |
-| `src/jobdisco/store.py` | `86DC74C4F65425AE536A7BCBC2D03D4D622E3466E9EC026C116381809F968F3E` |
-| `src/jobdisco/review.py` | `C1F427B0DECBE12CAD894048EA33E8E36172C5E154399D785834B01ACBB92065` |
-| `src/jobdisco/applications.py` | `37A5F01C94FE923477B3DF31EF7E09283D49F6366B9F247B6DF8C286E2CB8FF7` |
+| `src/operation1million/store.py` | `86DC74C4F65425AE536A7BCBC2D03D4D622E3466E9EC026C116381809F968F3E` |
+| `src/operation1million/review.py` | `C1F427B0DECBE12CAD894048EA33E8E36172C5E154399D785834B01ACBB92065` |
+| `src/operation1million/applications.py` | `37A5F01C94FE923477B3DF31EF7E09283D49F6366B9F247B6DF8C286E2CB8FF7` |
 
 Next scope: provider response-shape and pagination contracts, with the current
 Workday and Eightfold fixes as the baseline and offline fixtures only.

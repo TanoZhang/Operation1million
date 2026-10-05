@@ -7,8 +7,8 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
-from jobdisco import applications, store
-from jobdisco.validate_sources import Source
+from operation1million import applications, store
+from operation1million.validate_sources import Source
 
 
 class DiscoveryIdentityTests(unittest.TestCase):

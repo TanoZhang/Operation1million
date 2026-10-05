@@ -4,31 +4,31 @@ After=network.target
 
 [Service]
 Type=simple
-User=jobdisco
-Group=jobdisco
+User=operation1million
+Group=operation1million
 # The same checkout the collector runs from, deliberately. The review queue
 # re-applies the hard exclusions at read time -- see applications.py, which
 # calls jsearch.load_plan() on every request -- so a second copy of the tree
 # means a second copy of the filter, and the queue starts showing what
 # collection has already excluded. That is not hypothetical: a hand-made copy
-# at /opt/jobdisco/review-code drifted within hours and was serving Boeing,
+# at /opt/operation1million/review-code drifted within hours and was serving Boeing,
 # RTX and SAIC postings, Senior titles and photonics roles that the collector
 # was rejecting at the same moment.
-WorkingDirectory=/opt/jobdisco/code
-Environment=JOBDISCO_STORE=/opt/jobdisco/data
+WorkingDirectory=/opt/operation1million/code
+Environment=OPERATION1MILLION_STORE=/opt/operation1million/data
 # Read only: the Gmail replies the timer could not settle.
-Environment=JOBDISCO_GMAIL_DIR=/opt/jobdisco/gmail
-Environment=PYTHONPATH=/opt/jobdisco/code/src
+Environment=OPERATION1MILLION_GMAIL_DIR=/opt/operation1million/gmail
+Environment=PYTHONPATH=/opt/operation1million/code/src
 # The export goes to its own folder: the checkout is read-only here
 # (ProtectSystem=strict), and the default under it failed with Errno 30.
-ExecStart=/opt/jobdisco/venv/bin/python -m jobdisco.review --db /opt/jobdisco/code/data/db/job_discovery.sqlite --port 8765 --export /opt/jobdisco/exports/review-queue.xlsx
+ExecStart=/opt/operation1million/venv/bin/python -m operation1million.review --db /opt/operation1million/code/data/db/job_discovery.sqlite --port 8765 --export /opt/operation1million/exports/review-queue.xlsx
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/jobdisco/data/operational /opt/jobdisco/code/data/db /opt/jobdisco/exports
+ReadWritePaths=/opt/operation1million/data/operational /opt/operation1million/code/data/db /opt/operation1million/exports
 
 [Install]
 WantedBy=multi-user.target

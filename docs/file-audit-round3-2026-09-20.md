@@ -22,7 +22,7 @@ Working-tree SHA256 fingerprints recorded after reproduction:
 
 ## B17 - P1: Failure sealing commits rows whose history append failed
 
-Location: `src/jobdisco/collector.py`, `main.persist` (line 796), `main.seal` (line 826), and the outer exception handler (line 978). Line numbers refer to committed audit source.
+Location: `src/operation1million/collector.py`, `main.persist` (line 796), `main.seal` (line 826), and the outer exception handler (line 978). Line numbers refer to committed audit source.
 
 Trigger: a source updates SQLite successfully, but `store.append_log` raises before appending its records. The reproducer injects an `OSError` at this boundary.
 
@@ -38,7 +38,7 @@ Regression coverage: injected append failure before any bytes, a partial append 
 
 ## B18 - P2: Same-batch URL reuse blends two requisitions and hides the newer one
 
-Location: `src/jobdisco/store.py`, `record_source` preparation (line 275 onward) and insertion-time `merge_raw` (line 329).
+Location: `src/operation1million/store.py`, `record_source` preparation (line 275 onward) and insertion-time `merge_raw` (line 329).
 
 Trigger: a paid result batch contains different job IDs with the same application URL. Replacement detection checks database state during preparation, before either prepared row has been inserted. The later write merges the first row's raw data into the second without repeating requisition replacement detection.
 
@@ -57,7 +57,7 @@ Suggested fix: evaluate replacement against the evolving state within the batch,
 
 ## B19 - P2: Sitemap collection bypasses the stable Renesas ID extractor
 
-Location: `src/jobdisco/collector.py`, `normalize` (line 103), `html_job_id` (line 185), and `collect_sitemap` (line 428).
+Location: `src/operation1million/collector.py`, `normalize` (line 103), `html_job_id` (line 185), and `collect_sitemap` (line 428).
 
 Trigger: a Renesas sitemap detail page exposes a JSON-LD JobPosting without one of the simple ID fields recognized by normalization. The URL contains a stable `-jid-6866` suffix. A later pass changes the title slug while preserving this suffix.
 

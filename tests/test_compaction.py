@@ -19,7 +19,7 @@ BASH = str(Path('C:/Program Files/Git/bin/bash.exe')) if os.name == 'nt' else sh
 @unittest.skipUnless(BASH and Path(BASH).is_file(), 'Bash required')
 class CompactionTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix='jobdisco-compact-')
+        temporary = tempfile.TemporaryDirectory(prefix='operation1million-compact-')
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.remote, self.data = self.root / 'remote.git', self.root / 'data'
@@ -50,14 +50,14 @@ class CompactionTests(unittest.TestCase):
     def compact(self, extra=''):
         driver = self.root / 'driver.sh'
         driver.write_text('''flock() { return 0; }
-python() { "$JOBDISCO_PYTHON" "$@"; }
-job-store() { "$JOBDISCO_PYTHON" -c 'from jobdisco import store; assert all(s == "ok" for _, s in store.verify())'; }
+python() { "$OPERATION1MILLION_PYTHON" "$@"; }
+job-store() { "$OPERATION1MILLION_PYTHON" -c 'from operation1million import store; assert all(s == "ok" for _, s in store.verify())'; }
 ''' + extra + '\nsource ' + shlex.quote((ROOT / 'deploy/vps/compact-history.sh').as_posix()),
                           encoding='utf-8', newline='\n')
         return subprocess.run([BASH, 'driver.sh'], cwd=self.root, capture_output=True, text=True,
                               env={**os.environ, 'PYTHONPATH': str(ROOT / 'src'),
-                                   'JOBDISCO_ROOT': self.root.as_posix(), 'JOBDISCO_KEEP_DAYS': '1',
-                                   'JOBDISCO_PYTHON': Path(sys.executable).as_posix()}, timeout=30)
+                                   'OPERATION1MILLION_ROOT': self.root.as_posix(), 'OPERATION1MILLION_KEEP_DAYS': '1',
+                                   'OPERATION1MILLION_PYTHON': Path(sys.executable).as_posix()}, timeout=30)
 
     def other_commit(self):
         other = self.root / 'other'

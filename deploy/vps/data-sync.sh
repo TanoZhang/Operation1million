@@ -46,7 +46,7 @@ sync_data() {
   fi
   # --autostash: the review page writes the ledger between commits, and a
   # rebase refuses a dirty tree.
-  if git -C "$dir" -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
+  if git -C "$dir" -c user.name='operation1million-vps' -c user.email='operation1million-vps@users.noreply.github.com' \
          rebase --quiet --autostash refs/remotes/origin/main; then
     return 0
   fi

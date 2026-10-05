@@ -12,7 +12,7 @@ All state is temporary. External transport is blocked or mocked. No provider cal
 
 ## B31: An optional skill erases a mandatory experience requirement in the same sentence
 
-Location: `src/jobdisco/experience.py`, clause splitting and `OPTIONAL.search(clause)`.
+Location: `src/operation1million/experience.py`, clause splitting and `OPTIONAL.search(clause)`.
 
 Input: `5 years experience required, FPGA knowledge preferred.`
 
@@ -24,7 +24,7 @@ Suggested direction: bind requirement/preference markers to their corresponding 
 
 ## B32: A required heading does not make the following experience bullet mandatory
 
-Location: `src/jobdisco/experience.py`, heading handling and the candidate check using `EXPERIENCE`, `REQUIRED`, `DEGREE` or standalone years.
+Location: `src/operation1million/experience.py`, heading handling and the candidate check using `EXPERIENCE`, `REQUIRED`, `DEGREE` or standalone years.
 
 Input:
 
@@ -41,7 +41,7 @@ Suggested direction: track required-section context and use it when interpreting
 
 ## B33: Explicit mandatory numeric formats are treated as unknown
 
-Location: `src/jobdisco/experience.py`, `NUMBER` and `YEARS` patterns.
+Location: `src/operation1million/experience.py`, `NUMBER` and `YEARS` patterns.
 
 Two examples demonstrate the format gap:
 

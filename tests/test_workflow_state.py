@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 
-from jobdisco.jsearch_access import RequestGuard
-from jobdisco.workflow_state import restore_cursors
+from operation1million.jsearch_access import RequestGuard
+from operation1million.workflow_state import restore_cursors
 
 
 class WorkflowStateTests(unittest.TestCase):

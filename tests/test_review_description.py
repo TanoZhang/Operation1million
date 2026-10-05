@@ -16,9 +16,9 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 from unittest.mock import patch
 
-from jobdisco import applications, review, store
-from jobdisco.job_text import display_description
-from jobdisco.validate_sources import Source
+from operation1million import applications, review, store
+from operation1million.job_text import display_description
+from operation1million.validate_sources import Source
 
 DIRECT = Source('ashby:fixture', 'company_sources', 'fixture', 'Fixture', 'ashby', '', {})
 PAID = Source('jsearch:fixture', 'discovery', 'fixture', 'Fixture', 'jsearch', '', {})
@@ -48,7 +48,7 @@ class DescriptionTests(unittest.TestCase):
             self.assertIn(fragment, text)
 
     def test_unique_teaser_requirement_survives_a_nonempty_description(self):
-        from jobdisco import jsearch
+        from operation1million import jsearch
         job = row('unique', 'https://example.test/unique', raw={
             'description': 'Build RTL blocks.',
             'descriptionTeaser': 'Must be a U.S. citizen.'})
@@ -78,7 +78,7 @@ class DescriptionTests(unittest.TestCase):
                 self.assertIn('Use vector<T> & RTL.', get(url=job['url'])['description'])
 
     def test_updated_duplicate_html_does_not_restore_obsolete_requirements(self):
-        from jobdisco import jsearch
+        from operation1million import jsearch
         url = 'https://example.test/update'
         self.persist([row('update', url, raw={
             'descriptionPlain': 'Earlier summary.',
@@ -92,7 +92,7 @@ class DescriptionTests(unittest.TestCase):
                          jsearch.load_plan()[0]['filter']), '')
 
     def test_structural_html_survives_storage_and_replay(self):
-        from jobdisco import degree, jsearch
+        from operation1million import degree, jsearch
         job = row('structure', 'https://example.test/structure', raw={
             'descriptionPlain': 'Basic Qualifications PhD in EE',
             'descriptionHtml': '<h2>Basic Qualifications</h2><p>PhD in EE</p>'})
@@ -110,7 +110,7 @@ class DescriptionTests(unittest.TestCase):
                 jsearch.description_text({'raw': raw}, structured=True)))
 
     def test_empty_html_preserves_teaser_and_experience_gate(self):
-        from jobdisco import jsearch
+        from operation1million import jsearch
         job = row('teaser', 'https://example.test/teaser', raw={
             'description': '<p></p>',
             'descriptionTeaser': 'RTL role requiring 5 years of experience.'})
@@ -155,7 +155,7 @@ class DescriptionTests(unittest.TestCase):
                 self.assertEqual(len(applications.queue(self.path, self.ledger)['pending']), 1)
 
     def setUp(self):
-        folder = tempfile.TemporaryDirectory(prefix='jobdisco-description-')
+        folder = tempfile.TemporaryDirectory(prefix='operation1million-description-')
         self.addCleanup(folder.cleanup)
         self.root = Path(folder.name)
         self.path = self.root / 'index.sqlite'
@@ -222,7 +222,7 @@ class DescriptionTests(unittest.TestCase):
     def test_the_store_and_the_page_recognise_the_same_fields(self):
         """`slim` drops a teaser only beside a full description; if the two
         lists drifted apart, one of them would drop or miss a description."""
-        from jobdisco import job_text
+        from operation1million import job_text
         self.assertIs(store.FULL_DESCRIPTIONS, job_text.FULL_DESCRIPTIONS)
         self.assertIs(store.TEASERS, job_text.TEASERS)
 
@@ -267,7 +267,7 @@ class CheckpointManifestTests(unittest.TestCase):
     """O10: describing a day after each append must not reread the whole day."""
 
     def setUp(self):
-        folder = tempfile.TemporaryDirectory(prefix='jobdisco-o10-')
+        folder = tempfile.TemporaryDirectory(prefix='operation1million-o10-')
         self.addCleanup(folder.cleanup)
         self.root = Path(folder.name)
         for patcher in (patch.object(store, 'ROOT', self.root),

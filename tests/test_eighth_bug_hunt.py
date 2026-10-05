@@ -4,10 +4,10 @@ Numbered 121-140 in `docs/bug-tracker.md`, continuing `test_seventh_bug_hunt.py`
 """
 import unittest
 
-from jobdisco import jsearch, ranking
-from jobdisco.degree import description_only, phd_only
-from jobdisco.experience import evaluate
-from jobdisco.location import country
+from operation1million import jsearch, ranking
+from operation1million.degree import description_only, phd_only
+from operation1million.experience import evaluate
+from operation1million.location import country
 
 RULES = jsearch.load_plan()[0]['filter']
 

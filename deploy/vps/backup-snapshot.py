@@ -50,7 +50,7 @@ def decision_lock(path):
 
 
 def archive(data, index, runtime, output):
-    with tempfile.TemporaryDirectory(prefix='jobdisco-snapshot-') as folder:
+    with tempfile.TemporaryDirectory(prefix='operation1million-snapshot-') as folder:
         temporary = Path(folder)
         snapshots = {'sqlite/job_discovery.sqlite': index,
                      f'{data.name}/operational/jsearch_usage.sqlite': runtime / 'jsearch_usage.sqlite',

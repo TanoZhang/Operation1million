@@ -145,13 +145,13 @@ expand to all 35 keywords or retry paid failures without a new instruction.
 
 ```powershell
 # One keyword, last week, at most one page/credit. Paid when executed.
-.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --jsearch-query "Design Verification Engineer" --jsearch-pages 1 --date-posted week --jsearch-budget 1 --no-store
+.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --jsearch-query "Design Verification Engineer" --jsearch-pages 1 --date-posted week --jsearch-budget 1 --no-store
 
 # Add --jsearch-plan to preview the same command without any API call.
 
 # All 35 functional queries over one week, bounded by an explicit budget.
 # Direct sources and company fallbacks are skipped by --jsearch-only.
-.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --date-posted week --jsearch-budget 320
+.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --date-posted week --jsearch-budget 320
 ```
 
 ## Backfill sweep
@@ -187,7 +187,7 @@ The cycle rolls every `cycle_days` (30) from `cycle_start`, not on a day of the
 month, so the window is computed from the ledger rather than from a cron date.
 
 ```powershell
-.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-only --backfill
+.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --backfill
 ```
 
 `--jsearch-query` replaces the functional catalog for this invocation; its page
@@ -209,10 +209,10 @@ One page is a sample, not proof of complete weekly coverage.
 
 ```powershell
 # Offline preview: no credentials or API requests required.
-.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch-plan
+.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-plan
 
 # Explicit paid daily run, after reviewing configuration and account usage.
-.\.venv\Scripts\python.exe -m jobdisco.collector --jsearch
+.\.venv\Scripts\python.exe -m operation1million.collector --jsearch
 ```
 
 Without `--jsearch` or a positive `--jsearch-budget`, paid discovery is off.
@@ -283,7 +283,7 @@ for direct sources; missing IDs fall back to normalized URLs. Matching direct
 URLs remain authoritative and receive search enrichment. Distinct URLs with no
 shared identity cannot always be recognized as the same posting.
 
-`JOBDISCO_STORE` selects the persistent root (default `data/store`):
+`OPERATION1MILLION_STORE` selects the persistent root (default `data/store`):
 
 ```text
 runs/YYYY-MM-DD.ndjson.gz
@@ -299,7 +299,7 @@ when the UTC date changes. Handled failures reseal the current day. Overlapping
 writers are unsupported.
 
 SQLite is a disposable local index. On a fresh runner, restore the private log
-root and run `python -m jobdisco.store --bootstrap`; checksum verification runs
+root and run `python -m operation1million.store --bootstrap`; checksum verification runs
 before replay. `--export` is a one-off backfill into an empty log root only.
 SQL schema and migrations remain versioned; SQLite and collected data do not
 enter the code repository. Transient `runs/<timestamp>/` JSONL/CSV files remain

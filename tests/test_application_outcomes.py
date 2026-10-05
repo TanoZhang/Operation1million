@@ -14,7 +14,7 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from jobdisco import applications, review
+from operation1million import applications, review
 
 ROOT = Path(__file__).resolve().parents[1]
 URL = 'https://careers.example.test/jobs/R123'
@@ -146,8 +146,8 @@ class GmailListEndpointTests(OutcomeEndpointTests):
     def test_the_unsettled_replies_are_served_newest_first(self):
         import os
         from unittest import mock
-        from jobdisco import gmail_outcomes
-        with tempfile.TemporaryDirectory() as folder, mock.patch.dict(os.environ, {'JOBDISCO_GMAIL_DIR': folder}):
+        from operation1million import gmail_outcomes
+        with tempfile.TemporaryDirectory() as folder, mock.patch.dict(os.environ, {'OPERATION1MILLION_GMAIL_DIR': folder}):
             gmail_outcomes._save(Path(folder) / 'unsorted.json',
                                  [{'id': 'a', 'at': '2026-10-01'}, {'id': 'b', 'at': '2026-10-03'}])
             with urlopen(self.root + '/api/gmail') as response:
@@ -156,19 +156,19 @@ class GmailListEndpointTests(OutcomeEndpointTests):
 
 class OutcomePageTests(unittest.TestCase):
     def test_the_page_offers_and_highlights_the_outcome(self):
-        script = (ROOT / 'src/jobdisco/review_static/app.js').read_text(encoding='utf-8')
+        script = (ROOT / 'src/operation1million/review_static/app.js').read_text(encoding='utf-8')
         for needle in ("'/api/outcome'", 'outcome-passed', 'outcome-declined', 'Clear outcome'):
             self.assertIn(needle, script)
-        style = (ROOT / 'src/jobdisco/review_static/style.css').read_text(encoding='utf-8')
+        style = (ROOT / 'src/operation1million/review_static/style.css').read_text(encoding='utf-8')
         self.assertIn('.job.outcome-passed', style)
         self.assertIn('outcome', review.GROUP_FIELDS)
 
     def test_the_file_is_backed_up_and_merged_with_the_ledger(self):
         install = (ROOT / 'deploy/vps/install.sh').read_text(encoding='utf-8')
-        for unit in ('jobdisco-gmail.service', 'jobdisco-gmail.timer'):
+        for unit in ('operation1million-gmail.service', 'operation1million-gmail.timer'):
             self.assertTrue((ROOT / 'deploy/vps' / unit).is_file())
             self.assertIn(unit, install)
-        self.assertIn('enable --now jobdisco-gmail.timer', install)
+        self.assertIn('enable --now operation1million-gmail.timer', install)
         for script in ('backup-applications.sh', 'daily-pass.sh', 'data-sync.sh'):
             text = (ROOT / 'deploy/vps' / script).read_text(encoding='utf-8')
             self.assertIn('operational/application_outcomes.ndjson', text, script)

@@ -13,9 +13,9 @@ import subprocess
 import tempfile
 from unittest.mock import Mock, patch
 
-from jobdisco import collection_policy, experience, store, validate_sources
-from jobdisco.collector import Collector, normalize, reported_total
-from jobdisco.validate_sources import Source
+from operation1million import collection_policy, experience, store, validate_sources
+from operation1million.collector import Collector, normalize, reported_total
+from operation1million.validate_sources import Source
 
 
 def main():
@@ -130,7 +130,7 @@ def main():
             # Windows has no flock. This fixture has only one writer; stub only
             # the lock, retaining real Git commits and pushes to a local bare repo.
             command = 'flock() { return 0; }; export -f flock; source "$AUDIT_SCRIPT"'
-            env = dict(os.environ, JOBDISCO_ROOT=backup_root.as_posix(), AUDIT_SCRIPT=script.as_posix())
+            env = dict(os.environ, OPERATION1MILLION_ROOT=backup_root.as_posix(), AUDIT_SCRIPT=script.as_posix())
             first = subprocess.run([str(bash), '-c', command], env=env, capture_output=True, text=True)
             assert first.returncode == 1, first.stderr
             git('remote', 'set-url', 'origin', str(remote), cwd=data)

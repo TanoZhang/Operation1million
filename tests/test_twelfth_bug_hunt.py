@@ -19,8 +19,8 @@ from urllib.request import Request, urlopen
 import requests
 from requests.structures import CaseInsensitiveDict
 
-from jobdisco import collector, export, manual_intake as intake, ranking, review
-from jobdisco.validate_sources import Source
+from operation1million import collector, export, manual_intake as intake, ranking, review
+from operation1million.validate_sources import Source
 
 
 def empty():

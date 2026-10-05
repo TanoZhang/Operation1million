@@ -86,7 +86,7 @@ not consume these profiles. See [private records](private-application-records.md
 | --- | --- |
 | `deploy/vps/daily-pass.sh` | The production pass: lock, preflight, tests, index, collect, publish, prune, push, heartbeat. |
 | `deploy/vps/install.sh` | Deploying a code change to the VPS. **A push to GitHub does not deploy.** |
-| `deploy/vps/jobdisco-collect.timer` | The schedule. Its `OnCalendar` and `budget_day_resets_at` in the TOML must say the same thing. |
+| `deploy/vps/operation1million-collect.timer` | The schedule. Its `OnCalendar` and `budget_day_resets_at` in the TOML must say the same thing. |
 | `deploy/vps/backup-applications.sh` | Pushes the decision ledger every fifteen minutes, because it is the one file nothing regenerates. |
 | `deploy/local/backup-from-vps.sh` | One-way VPS to workstation copy, including a consistent SQLite snapshot. |
 | `deploy/local/vps-env.bat` | The VPS address and SSH key the workstation scripts use (`deploy-vps.bat`, `open-review.bat`, `get-export.bat`), chosen in one place. |
@@ -1054,7 +1054,7 @@ fix on the VPS before merging it.
 - **Codex's B68 archive failed as the backup user.** `backup-snapshot.py` took
   the decision lock by opening `applications.lock` for append. The workstation
   backup runs as `ubuntu`, which can read the data checkout but not write that
-  file, owned by `jobdisco` with mode 644. Run on the VPS before merging: every
+  file, owned by `operation1million` with mode 644. Run on the VPS before merging: every
   archive stopped with `Permission denied` after the SQLite snapshots. `flock`
   needs no write access, so an existing lock is now opened read-only on POSIX.
   Reproducer: `BackupTests.test_a_lock_file_the_backup_user_cannot_write_is_still_honoured`,
@@ -1187,7 +1187,7 @@ the round below were also run in a JavaScript runtime for the first time.
   was getting the summary line by accident, so it now names the command that
   prints the summary and nothing else. Reproducer:
   `StoreTests.test_the_whole_ranking_is_printed_when_no_limit_is_given`.
-- **A check created the index it was checking.** `JOBDISCO_STORE=<copy>
+- **A check created the index it was checking.** `OPERATION1MILLION_STORE=<copy>
   job-store --verify` is what `deploy/local/backup-from-vps.sh` and the
   deployment notes tell an operator to run against a restored copy of the log,
   on a machine that may hold no index at all. Opening a database creates it, so
@@ -2492,12 +2492,12 @@ including 153 embedded/firmware groups. Applied/skipped IDs unchanged.
 
 ## Daily preflight pasted-link lock collision - 2026-10-03
 
-`daily-pass.sh` holds `/opt/jobdisco/collection.lock` before its offline tests.
+`daily-pass.sh` holds `/opt/operation1million/collection.lock` before its offline tests.
 Nine `test_twelfth_bug_hunt.py` HTTP fixtures called the real
 `manual_intake.collection_slot` on the VPS, so the lock correctly refused
 them with HTTP 400 and the scheduled pass stopped before paid discovery.
 Reproducer: the single SmartRecruiters posting test passes alone but fails
-with HTTP 400 when run under `flock -n /opt/jobdisco/collection.lock` on Linux.
+with HTTP 400 when run under `flock -n /opt/operation1million/collection.lock` on Linux.
 The fixture now stubs only `collection_slot` to a no-op context; the production
 intake still refuses simultaneous collection. Preflight tests must isolate
 production locks just as they isolate public HTTP calls and durable ledgers.

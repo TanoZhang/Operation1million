@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from jobdisco import validate_sources
+from operation1million import validate_sources
 
 
 class ValidatorReportTests(unittest.TestCase):

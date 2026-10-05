@@ -27,10 +27,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from jobdisco import jsearch
-from jobdisco import store
-from jobdisco.collector import Collector
-from jobdisco.validate_sources import Source
+from operation1million import jsearch
+from operation1million import store
+from operation1million.collector import Collector
+from operation1million.validate_sources import Source
 
 SOURCE = Source('ashby:matx', 'company_sources', 'matx', 'MatX', 'ashby',
                 'https://api.ashbyhq.com/posting-api/job-board/matx', {})
@@ -356,7 +356,7 @@ class StoreTests(unittest.TestCase):
         withdrawal and one arrival -- the shape that once retired 48% of
         Apple's board. All 899 open Renesas postings carry the number.
         """
-        from jobdisco.collector import html_job_id
+        from operation1million.collector import html_job_id
         moved = 'https://jobs.renesas.com/job/senior-rtl-engineer-in-tokyo-japan-jid-6866'
         original = 'https://jobs.renesas.com/job/-in-hitachinaka-ibaraki-japan-jid-6866'
         self.assertEqual(html_job_id(original, 'renesas_careers'), '6866')
@@ -404,7 +404,7 @@ class StoreTests(unittest.TestCase):
                     top = name.split('.')[0]
                     # tomllib is standard on 3.11+; guarded imports use tomli
                     # on 3.10, which this project also supports.
-                    if top in sys.stdlib_module_names or top in {'jobdisco', 'tomllib'}:
+                    if top in sys.stdlib_module_names or top in {'operation1million', 'tomllib'}:
                         continue
                     # Python 3.10 uses the declared tomli fallback; tomllib is
                     # standard-library code on the newer supported runtimes.
@@ -415,7 +415,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(outside, {}, 'imported but not declared as a dependency')
 
     def test_documented_module_entry_points_actually_run(self):
-        """`python -m jobdisco.store` is how a fresh machine is recovered.
+        """`python -m operation1million.store` is how a fresh machine is recovered.
 
         Without a `__main__` guard the module imports, runs nothing and exits
         zero, so the documented recovery step looked like it had worked and
@@ -423,7 +423,7 @@ class StoreTests(unittest.TestCase):
         """
         # Only the modules that parse arguments; `validate_sources` takes none
         # and would contact every configured board.
-        for module in ('jobdisco.store', 'jobdisco.collector'):
+        for module in ('operation1million.store', 'operation1million.collector'):
             done = subprocess.run([sys.executable, '-m', module, '--help'],
                                   capture_output=True, text=True)
             self.assertEqual(done.returncode, 0, module)
@@ -874,7 +874,7 @@ class LogRoundTripTests(unittest.TestCase):
 
 class EarlyStopTests(unittest.TestCase):
     def setUp(self):
-        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots = patch('operation1million.collection_policy.robots_delay', return_value=None)
         robots.start()
         self.addCleanup(robots.stop)
 
@@ -929,7 +929,7 @@ class EarlyStopTests(unittest.TestCase):
             self.response({'data': {'count': 40, 'positions': [
                 self.position('5', 1600000000)]}}),
         ]
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             status, _ = c.run()
         self.assertEqual(status, 'complete')
         # Stopped on the page that crossed the watermark; page 3 was never requested.
@@ -945,14 +945,14 @@ class EarlyStopTests(unittest.TestCase):
                 self.position('1', 1789516800), self.position('2', 1600000000)]}}),
             self.response({'data': {'count': 3, 'positions': [self.position('3', 1600000000)]}}),
         ]
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             c.run()
         self.assertEqual(len(c.jobs), 3)
 
     def test_conditional_probe_short_circuits_on_304(self):
         c = self.collector(SOURCE, 'conditional', 'W/"stored"')
         c.session.request.return_value = self.response(status=304)
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run(), ('unchanged', ''))
         self.assertEqual(c.session.request.call_count, 1)
         self.assertEqual(c.jobs, [])
@@ -973,7 +973,7 @@ class EarlyStopTests(unittest.TestCase):
         c.session.request.return_value = self.response(
             {'total': 1, 'jobPostings': [{'title': 'Engineer',
                                           'externalPath': '/job/Engineer_R1'}]})
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run(), ('complete', ''))
         self.assertEqual(c.session.request.call_count, 1)
         self.assertEqual(c.session.request.call_args.args[0], 'POST')
@@ -1153,7 +1153,7 @@ class EmptyBoardTests(unittest.TestCase):
     """
 
     def setUp(self):
-        robots = patch('jobdisco.collection_policy.robots_delay', return_value=None)
+        robots = patch('operation1million.collection_policy.robots_delay', return_value=None)
         robots.start()
         self.addCleanup(robots.stop)
 
@@ -1173,7 +1173,7 @@ class EmptyBoardTests(unittest.TestCase):
     def test_blank_first_page_without_a_count_is_not_complete(self):
         c = self.collector()
         c.session.request.return_value = self.response({'jobs': []})
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             status, reason = c.run()
         self.assertEqual(status, 'partial')
         self.assertIn('no count', reason)
@@ -1182,7 +1182,7 @@ class EmptyBoardTests(unittest.TestCase):
     def test_a_board_reporting_zero_is_believed(self):
         c = self.collector('eightfold', 'https://careers.x.com/api/pcsx/search?domain=x.com')
         c.session.request.return_value = self.response({'data': {'positions': [], 'count': 0}})
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run(), ('complete', ''))
 
     def test_a_blank_later_page_just_ends_pagination(self):
@@ -1198,7 +1198,7 @@ class EmptyBoardTests(unittest.TestCase):
             self.response({'data': {'positions': [position]}}),
             self.response({'data': {'positions': []}}),
         ]
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             self.assertEqual(c.run(), ('complete', ''))
         self.assertEqual(len(c.jobs), 1)
 
@@ -1216,7 +1216,7 @@ class EmptyBoardTests(unittest.TestCase):
             self.response({'data': {'positions': [position], 'count': 99}}),
             self.response({'data': {'positions': [], 'count': 99}}),
         ]
-        with patch('jobdisco.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'):
             status, reason = c.run()
         self.assertEqual(status, 'partial')
         self.assertIn('99', reason)
@@ -1231,7 +1231,7 @@ class RelevanceScoringTests(unittest.TestCase):
     """
 
     def setUp(self):
-        from jobdisco import jsearch
+        from operation1million import jsearch
         self.jsearch = jsearch
         self.rules = jsearch.load_plan()[0]['filter']
 
@@ -1314,7 +1314,7 @@ class HardExclusionTests(unittest.TestCase):
     """
 
     def setUp(self):
-        from jobdisco import jsearch
+        from operation1million import jsearch
         self.jsearch = jsearch
         self.rules = jsearch.load_plan()[0]['filter']
 
@@ -1722,7 +1722,7 @@ class StoreLifecycleTests(unittest.TestCase):
                          ['hard_pass_reason'], '')
         # And the symptom itself: the posting is back in the review queue.
         self.db.commit()
-        from jobdisco import applications
+        from operation1million import applications
         queue = applications.queue(self.db_path, Path(self.dir.name) / 'ledger.ndjson')
         self.assertIn('https://x/1', {job['url'] for group in queue['pending']
                                       for job in group['jobs']})
@@ -1908,7 +1908,7 @@ class BoardRowIdentityTests(unittest.TestCase):
     """
 
     def test_apple_rows_are_identified_by_requisition_not_slug(self):
-        from jobdisco.collector import html_job_id
+        from operation1million.collector import html_job_id
         same_slug = [
             'https://jobs.apple.com/en-us/details/114438158/us-manager',
             'https://jobs.apple.com/en-us/details/200683913/us-manager',
@@ -1919,7 +1919,7 @@ class BoardRowIdentityTests(unittest.TestCase):
         self.assertEqual(len(set(ids)), len(ids))
 
     def test_other_boards_keep_the_trailing_segment(self):
-        from jobdisco.collector import html_job_id
+        from operation1million.collector import html_job_id
         self.assertEqual(
             html_job_id('https://jobs.teradyne.com/job/North-Reading-Eng/1310296400/', 'jobs2web'),
             '1310296400')

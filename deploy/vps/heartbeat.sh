@@ -4,13 +4,13 @@
 # The contract, in one line: the heartbeat observes the pass and never changes
 # it. Whatever the pass exits with is what this script exits with.
 
-: "${JOBDISCO_PYTHON:=/opt/jobdisco/venv/bin/python}"
+: "${OPERATION1MILLION_PYTHON:=/opt/operation1million/venv/bin/python}"
 
 heartbeat() {
   # `|| true` is the whole point: a monitor that fails the run it monitors
   # turns a good collection red and teaches the operator to ignore the alarm.
   # The module already refuses to raise; this is the second belt.
-  "$JOBDISCO_PYTHON" -m jobdisco.heartbeat "$1" || true
+  "$OPERATION1MILLION_PYTHON" -m operation1million.heartbeat "$1" || true
 }
 
 heartbeat_finish() {

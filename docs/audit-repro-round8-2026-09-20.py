@@ -15,8 +15,8 @@ from unittest.mock import patch, Mock
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request
 
-from jobdisco import applications, experience, job_text, ranking, review, store, jsearch
-from jobdisco.validate_sources import Source
+from operation1million import applications, experience, job_text, ranking, review, store, jsearch
+from operation1million.validate_sources import Source
 
 
 def database(path):
@@ -141,7 +141,7 @@ def application_checks(root):
     a, other = row(), row(company_key='other')
     assert applications.decision_key(a) != applications.decision_key(other)
     assert applications.decision_key(row(provider='jsearch')) == applications.decision_key(row(provider='jsearch', company_key='other'))
-    with patch.dict(os.environ, {'JOBDISCO_STORE': str(root / 'custom')}):
+    with patch.dict(os.environ, {'OPERATION1MILLION_STORE': str(root / 'custom')}):
         assert applications.ledger_path() == root / 'custom' / 'operational/applications.ndjson'
     insert(path, [a])
     group = applications.queue(path, ledger)['pending'][0]

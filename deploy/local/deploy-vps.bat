@@ -43,11 +43,11 @@ echo == 7. Push ==
 git push origin HEAD:main || goto failed
 
 echo == 8. Deploy ==
-ssh -t -i "%KEY%" %HOST% "sudo bash /opt/jobdisco/code/deploy/vps/install.sh" || goto failed
+ssh -t -i "%KEY%" %HOST% "sudo bash /opt/operation1million/code/deploy/vps/install.sh" || goto failed
 
 echo == 9. Deployed commit ==
 for /f "delims=" %%C in ('git rev-parse --short HEAD') do set LOCAL=%%C
-for /f "delims=" %%C in ('ssh -i "%KEY%" %HOST% "sudo -u jobdisco git -C /opt/jobdisco/code rev-parse --short HEAD"') do set REMOTE=%%C
+for /f "delims=" %%C in ('ssh -i "%KEY%" %HOST% "sudo -u operation1million git -C /opt/operation1million/code rev-parse --short HEAD"') do set REMOTE=%%C
 echo Pushed:   %LOCAL%
 echo On VPS:   %REMOTE%
 if /i "%LOCAL%"=="%REMOTE%" (echo OK: the VPS runs what was pushed.) else (echo WARNING: the VPS is not on the pushed commit.)

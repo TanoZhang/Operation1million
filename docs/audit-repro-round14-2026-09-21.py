@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from jobdisco import collection_policy as policy
-from jobdisco import collector, jsearch, local_config, query_catalog
-from jobdisco import validate_sources as validator
+from operation1million import collection_policy as policy
+from operation1million import collector, jsearch, local_config, query_catalog
+from operation1million import validate_sources as validator
 
 
 def source(provider='apple_jobs', fields=None):
@@ -199,5 +199,5 @@ def controls(directory):
 
 if __name__ == '__main__':
     for case in (b74, b75, b76, b77, b78, b79, b80, controls):
-        with tempfile.TemporaryDirectory(prefix='jobdisco-audit14-') as temporary:
+        with tempfile.TemporaryDirectory(prefix='operation1million-audit14-') as temporary:
             case(Path(temporary))

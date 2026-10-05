@@ -9,7 +9,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from jobdisco import applications, gmail_outcomes as gmail
+from operation1million import applications, gmail_outcomes as gmail
 
 DECLINES = [
     ('Your application to NVIDIA', 'Thank you for your interest in the ASIC Design Intern role. '

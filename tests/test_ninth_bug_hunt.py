@@ -11,11 +11,11 @@ import sqlite3
 import tempfile
 import unittest
 
-from jobdisco import applications, jsearch, ranking, store
-from jobdisco.collection_policy import crawl_delay
-from jobdisco.collector import posted_from_text
-from jobdisco.experience import evaluate
-from jobdisco.job_text import clean_title
+from operation1million import applications, jsearch, ranking, store
+from operation1million.collection_policy import crawl_delay
+from operation1million.collector import posted_from_text
+from operation1million.experience import evaluate
+from operation1million.job_text import clean_title
 
 RULES = jsearch.load_plan()[0]['filter']
 
@@ -168,7 +168,7 @@ class StoreTests(unittest.TestCase):
 
 class ReviewTests(unittest.TestCase):
     def test_159_the_ipv6_loopback(self):
-        from jobdisco import review
+        from operation1million import review
         self.assertTrue(review.local_host('[::1]:8765'))
         self.assertTrue(review.local_host('localhost:8765'))
         self.assertTrue(review.local_host('127.0.0.1'))

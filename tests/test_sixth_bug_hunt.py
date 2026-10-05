@@ -10,10 +10,10 @@ import sqlite3
 import tempfile
 import unittest
 
-from jobdisco import applications, jsearch, ranking
-from jobdisco.experience import evaluate
-from jobdisco.job_text import clean_title
-from jobdisco.location import country
+from operation1million import applications, jsearch, ranking
+from operation1million.experience import evaluate
+from operation1million.job_text import clean_title
+from operation1million.location import country
 
 RULES = jsearch.load_plan()[0]['filter']
 

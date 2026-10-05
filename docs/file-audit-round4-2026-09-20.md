@@ -26,7 +26,7 @@ The original fixture called `Collector.run` and then `store.record_source` direc
 
 Location: `store.py:1026`, `main --export`, and `append_log` / `sealed`.
 
-Trigger: an existing index contains a posting first seen yesterday, and `JOBDISCO_STORE` is empty, satisfying the export command's explicit precondition.
+Trigger: an existing index contains a posting first seen yesterday, and `OPERATION1MILLION_STORE` is empty, satisfying the export command's explicit precondition.
 
 Actual: export groups jobs by historical `first_seen` day and calls the ordinary append function for that day. The function immediately raises `FileExistsError: Daily log is sealed; refusing to change a day that is over`. The fixture needs only one historical row; no existing history or conflicting file is needed.
 

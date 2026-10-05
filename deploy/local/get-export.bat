@@ -4,11 +4,11 @@ rem workbook from the VPS to one file on this computer, replacing the last copy.
 rem Close it in Excel first; Windows will not replace a workbook Excel has open.
 setlocal
 call "%~dp0vps-env.bat"
-if "%JOBDISCO_EXPORT%"=="" (set TARGET=%USERPROFILE%\Documents\review-queue.xlsx) else (set TARGET=%JOBDISCO_EXPORT%)
+if "%OPERATION1MILLION_EXPORT%"=="" (set TARGET=%USERPROFILE%\Documents\review-queue.xlsx) else (set TARGET=%OPERATION1MILLION_EXPORT%)
 
 rem Read with sudo: the workbook belongs to the service user and is private.
 rem Downloaded beside the target and moved over it only when complete.
-ssh -i "%KEY%" %HOST% "sudo cat /opt/jobdisco/exports/review-queue.xlsx" > "%TARGET%.part"
+ssh -i "%KEY%" %HOST% "sudo cat /opt/operation1million/exports/review-queue.xlsx" > "%TARGET%.part"
 if errorlevel 1 goto failed
 move /y "%TARGET%.part" "%TARGET%" >nul
 if errorlevel 1 goto failed

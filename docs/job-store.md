@@ -2,11 +2,11 @@
 
 
 Each pass writes into the shared `jobs` table and checkpoints `source_state`.
-On a fresh machine, restore private history under `JOBDISCO_STORE` (default
+On a fresh machine, restore private history under `OPERATION1MILLION_STORE` (default
 `data/store`) and bootstrap the derived database:
 
 ```powershell
-.\.venv\Scripts\python.exe -m jobdisco.store --bootstrap
+.\.venv\Scripts\python.exe -m operation1million.store --bootstrap
 ```
 
 `first_seen` is our own observation and exists for every board. `posted_at` only

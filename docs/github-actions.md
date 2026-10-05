@@ -9,7 +9,7 @@ before collection and saved after successful checkpoints.
 The intended separation supports a clean code repository containing source,
 tests, schemas, configuration examples, workflow definitions and documentation,
 and a private data repository containing compressed run history and manifests.
-`JOBDISCO_STORE` can point at the private checkout without changing the collector.
+`OPERATION1MILLION_STORE` can point at the private checkout without changing the collector.
 
 The current operating repository remains private because old Git history
 contains real data. Do not change its visibility or mirror its history into a
@@ -24,9 +24,9 @@ Run the data-handling workflow privately so logs and artifacts stay private.
 | --- | --- |
 | Source code and config | Checkout the reviewed code revision and install the package |
 | JSEARCH_API_KEY | Map the private Actions Secret into the process environment |
-| JOBDISCO_STORE/runs/*.ndjson.gz | Restore immutable private daily event history and numbered shards |
-| JOBDISCO_STORE/manifests/*.json | Restore private checksums and run statistics |
-| JOBDISCO_STORE/source_state.json | Restore the private source checkpoint |
+| OPERATION1MILLION_STORE/runs/*.ndjson.gz | Restore immutable private daily event history and numbered shards |
+| OPERATION1MILLION_STORE/manifests/*.json | Restore private checksums and run statistics |
+| OPERATION1MILLION_STORE/source_state.json | Restore the private source checkpoint |
 | data/db/job_discovery.sqlite | Rebuild locally; never commit this derived database |
 | .local/source_access.sqlite | Restore and save private provider cooldown state |
 | .local/jsearch_usage.sqlite | Restore and save the private page-credit ledger |
@@ -53,11 +53,11 @@ for collected data, regardless of whether download requires a login.
 ## Run order
 
 1. Checkout reviewed code and restore the private data checkout and both ledgers.
-2. Set JOBDISCO_STORE to that checkout's store directory.
-3. Install dependencies and run `python -m jobdisco.store --bootstrap`.
+2. Set OPERATION1MILLION_STORE to that checkout's store directory.
+3. Install dependencies and run `python -m operation1million.store --bootstrap`.
 4. Run the offline regression suite.
-5. Run `python -m jobdisco.collector --jsearch-plan` and verify the budget.
-6. Run `python -m jobdisco.collector --jsearch` with one collector process.
+5. Run `python -m operation1million.collector --jsearch-plan` and verify the budget.
+6. Run `python -m operation1million.collector --jsearch` with one collector process.
 7. Verify checksums and inspect completion/failure metrics, including exit code 2.
 8. Save `operational/source_access.sqlite` and
    `operational/jsearch_usage.sqlite` even after collection failures: attempted

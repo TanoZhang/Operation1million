@@ -15,7 +15,7 @@
 # is protecting; it says so and leaves the next run to try again.
 set -euo pipefail
 
-ROOT=${JOBDISCO_ROOT:-/opt/jobdisco}
+ROOT=${OPERATION1MILLION_ROOT:-/opt/operation1million}
 # shellcheck source=data-sync.sh
 . "$(dirname "${BASH_SOURCE[0]}")/data-sync.sh"
 DATA=$ROOT/data
@@ -57,7 +57,7 @@ else
   # -m before --, because everything after -- is a pathspec: with the message
   # after it, git looked for files called "-m" and "Back up application
   # decisions ...", failed, and the backup never committed anything.
-  git -c user.name='jobdisco-vps' -c user.email='jobdisco-vps@users.noreply.github.com' \
+  git -c user.name='operation1million-vps' -c user.email='operation1million-vps@users.noreply.github.com' \
       commit --quiet --only -m "Back up application decisions $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
       -- "${files[@]}"
   if [ -f "$LEDGER" ]; then echo "Committed $(wc -l < "$LEDGER") decisions."; fi

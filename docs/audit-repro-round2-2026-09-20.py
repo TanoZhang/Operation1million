@@ -24,11 +24,11 @@ from unittest.mock import Mock, patch
 from tempfile import TemporaryDirectory
 from urllib.request import urlopen
 
-from jobdisco import applications, collection_policy, collector as collector_module, jsearch, review, store
-from jobdisco.collector import Collector
-from jobdisco.collector import clean
-from jobdisco.jsearch_access import RequestGuard
-from jobdisco.validate_sources import Source
+from operation1million import applications, collection_policy, collector as collector_module, jsearch, review, store
+from operation1million.collector import Collector
+from operation1million.collector import clean
+from operation1million.jsearch_access import RequestGuard
+from operation1million.validate_sources import Source
 
 
 def database(path):
@@ -237,7 +237,7 @@ def main():
                 statuses = []
                 for _ in range(2):
                     result = subprocess.run([str(bash), 'driver.sh'], cwd=fixture_root,
-                        env=dict(os.environ, JOBDISCO_VPS_DATA='/unused/data', JOBDISCO_PYTHON=Path(sys.executable).as_posix()),
+                        env=dict(os.environ, OPERATION1MILLION_VPS_DATA='/unused/data', OPERATION1MILLION_PYTHON=Path(sys.executable).as_posix()),
                         capture_output=True, text=True)
                     assert result.returncode == 0, result.stdout + result.stderr
                     statuses.append(result.returncode)
