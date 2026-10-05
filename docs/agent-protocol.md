@@ -14,9 +14,9 @@ Files: src/operation1million/{jsearch,applications}.py,
        test_bulk_application_rules}.py, docs/{agent-protocol,architecture,handoff}.md;
        ignored .local/software-validation-audit/ private evidence only.
 Base commit: d130962
-Status: active
-Next: Capture the real stored posting, prove failing discovery/Review cases,
-      measure affected live records and preserve genuine chip roles.
+Status: done -- 07b58ed installed; 66 focused tests pass on that exact commit.
+Next: Automatic discovery and Review enforce current software JD evidence;
+      missing-JD software waits for actual prose. No additional paid pass.
 ```
 
 ```text

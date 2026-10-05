@@ -28,7 +28,22 @@ the fix; the real reported posting now returns no_vlsi_evidence. Installed
 Production recheck confirms the reported posting is refused, 170 queries and
 400 daily credits remain loaded, and Review root returns HTTP 200. Rescored
 all 57,080 stored records under the collection lock; October 5 log verification
-returns ok. Collector is idle and its timer active. Final queue check follows.
+returns ok. Collector is idle and its timer active.
+
+Follow-up 07b58ed moves Review's negative software-JD gate ahead of expensive
+experience parsing. All surviving rows still face every hard requirement;
+all 66 focused tests pass on that exact installed commit. The raw cohort has
+3,540 missing-JD, 2,460 no-evidence and 110 evidence-bearing software records
+before other filters, so the new order avoids unnecessary requirement parsing.
+
+Final live /api/queue returned HTTP 200 after rebuilding its cache. Pending
+went from 2,008 to 1,980: 29 software groups withheld (20 missing JD, nine
+without VLSI evidence) and one genuine chip-design software group recovered.
+Backlog went from 4,311 to 4,231: 89 withheld and nine recovered. All changed
+groups have software titles; the reported posting is absent from both automatic
+lists. All 235 applied group IDs and all 12 skipped group IDs are preserved.
+No paid requests were made. This documentation follow-up does not change the
+installed application, which remains 07b58ed.
 
 # Ten-page nationwide trials - 2026-10-05 (codex)
 
