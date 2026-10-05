@@ -1,6 +1,24 @@
 # JSearch daily discovery
 
-## Current nationwide expansion - 2026-10-05
+## Current trial depths - 2026-10-05
+
+After reviewing the latest measured three-page trial, the user raised all 123
+current nationwide trial caps from three to ten pages: the fifteen original
+title trials and all 108 newly added queries. The other 47 nationwide caps are
+unchanged. There are still 170 queries; caps now total 2,365 (970 Intern/Co-op,
+615 New Grad, 260 Entry Level and 520 General). Actual spending remains capped
+at 400 per Pacific budget day and 9,600 per UTC cycle. Provider cursors, tier
+priority, the 3days search window and final-three-days backfill stay unchanged.
+
+The latest completed measurement is October 5, not a run of the new 170-query
+plan. Its fifteen nationwide trials used 21 credits, returned 57 appearances,
+accepted 23 appearances and covered 17 distinct accepted URLs. Validation Co-op
+explicitly stopped at its three-page guard; ASIC Design New Grad used three
+pages but did not report a cap stop. More depth has unmeasured incremental yield.
+The 108 newly added terms have not run yet. No extra paid pass accompanies this
+configuration change; the next scheduled run reads the ten-page caps.
+
+## Nationwide expansion before the depth increase - 2026-10-05
 
 At the user's request, the daily budget is 400 credits and all twenty state
 splits are removed. The 62 existing nationwide queries retain their exact
@@ -93,8 +111,8 @@ SQLite `search_queries` table is not executed by this collector.
 | Total | 170 |
 
 The daily ceiling is 400. Each query declares an independent maximum depth:
-Intern/Co-op 550 capped pages, New Grad 398, Entry Level 148 and General 408.
-The caps total 1,504; they are not credit reservations. The budget guard stops
+Intern/Co-op 970 capped pages, New Grad 615, Entry Level 260 and General 520.
+The caps total 2,365; they are not credit reservations. The budget guard stops
 the day at 400 and the later tiers get what is left. Every call asks for
 `num_pages=1`; missing continuation, a repeated page/cursor, deadline or budget
 limit ends paging. A short page with a next cursor still continues.

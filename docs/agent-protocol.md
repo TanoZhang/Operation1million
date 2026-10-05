@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: User-requested increase of all current three-page nationwide trials
+       to ten pages per query, retaining the 400-credit daily ceiling.
+Files: data/config/jsearch_queries.toml, tests/test_jsearch.py,
+       docs/{agent-protocol,handoff,jsearch,collection-rules}.md
+Base commit: 34260e6
+Status: active -- 117 focused offline tests pass; exactly 123 cap changes.
+Next: Deploy and verify the next scheduled pass reads the ten-page caps.
+```
+
+```text
+Owner: codex
 Scope: User-requested 400-credit daily budget, remove all state-split searches,
        expand nationwide VLSI title coverage, validate and deploy the scheduled plan.
 Files: data/config/jsearch_queries.toml, tests/test_jsearch.py,

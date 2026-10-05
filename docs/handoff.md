@@ -1,3 +1,25 @@
+# Ten-page nationwide trials - 2026-10-05 (codex)
+
+The user asked how the three-page trials performed and requested ten pages
+per trial. Raise all 123 current three-page nationwide query caps to ten:
+the original fifteen synonym trials and the 108 just-added terms. All 170
+query texts, their order and tiers, and the other 47 caps are unchanged.
+Caps total 2,365 (970 Intern/Co-op, 615 New Grad, 260 Entry Level, 520 General).
+Daily ceiling remains 400, monthly target 9,600; all other settings and filters
+are byte-equivalent after parsing. The unchanged backfill has its own depths.
+
+Latest completed production evidence is October 5: the fifteen nationwide
+trials used 21 credits, returned 57 appearances, accepted 23 appearances and
+covered 17 distinct accepted URLs. Only Validation Co-op explicitly reported
+being stopped at the three-page cap. ASIC Design New Grad also used three
+pages but reported no cap stop. The expanded 170-query catalog has not run;
+the ten-page change does not itself trigger another paid pass.
+
+Validation on 34260e6 plus this patch: all 117 JSearch/budget/pagination tests
+pass offline. Parsed-config comparison confirms exactly 123 page-cap changes
+and no other semantic changes. Deployment follows; the next scheduled pass
+is October 6 at 04:38 Pacific.
+
 # Nationwide search expansion and 400-credit day - 2026-10-05 (codex)
 
 The user requested a daily budget of 400, removal of state splits, and much

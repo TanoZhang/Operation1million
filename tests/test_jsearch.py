@@ -321,7 +321,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'A')},
-            {'intern': 550, 'new_grad': 398, 'early_career': 148, 'A': 408})
+            {'intern': 970, 'new_grad': 615, 'early_career': 260, 'A': 520})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -334,18 +334,18 @@ class DiscoveryTests(unittest.TestCase):
             'new_grad': {'ASIC New Grad': 40, 'FPGA New Grad': 35, 'Hardware New Grad': 35, 'Physical Design New Grad': 30, 'SoC New Grad': 25, 'Verification New Grad': 25, 'RTL New Grad': 15, 'Silicon New Grad': 15, 'Digital Design New Grad': 5, 'DFT New Grad': 5, 'Hardware New College Grad': 15, 'Electrical Engineer New Grad': 30, 'Validation New Grad': 15, 'Hardware University Graduate': 15},
             'early_career': {'Design Verification Entry Level': 25, 'ASIC Entry Level': 15, 'FPGA Entry Level': 15, 'Digital Design Entry Level': 15, 'Hardware Entry Level': 15, 'Silicon Entry Level': 15},
             'A': {'Design Verification Engineer': 40, 'RTL Engineer': 40, 'ASIC Engineer': 40, 'Digital Design Engineer': 40, 'FPGA Engineer': 40, 'Hardware Engineer': 40, 'Silicon Engineer': 40, 'Physical Design Engineer': 40, 'DFT Engineer': 40}}
-        # User-approved title trials; preserve every pre-existing query and cap.
-        expected['intern'].update({'Hardware Verification Intern': 3, 'ASIC Design Intern': 3, 'Silicon Validation Intern': 3, 'Hardware Validation Intern': 3, 'IC Design Intern': 3, 'Logic Design Intern': 3, 'Pre-Silicon Verification Intern': 3, 'Emulation Intern': 3, 'Design Verification Co-op': 3, 'Validation Co-op': 3, 'FPGA Co-op': 3, 'RTL Co-op': 3})
-        expected['new_grad'].update({'Hardware Verification New Grad': 3, 'ASIC Design New Grad': 3, 'Silicon Validation New Grad': 3})
+        # User-approved title trials; all three-page trial caps raised to ten.
+        expected['intern'].update({'Hardware Verification Intern': 10, 'ASIC Design Intern': 10, 'Silicon Validation Intern': 10, 'Hardware Validation Intern': 10, 'IC Design Intern': 10, 'Logic Design Intern': 10, 'Pre-Silicon Verification Intern': 10, 'Emulation Intern': 10, 'Design Verification Co-op': 10, 'Validation Co-op': 10, 'FPGA Co-op': 10, 'RTL Co-op': 10})
+        expected['new_grad'].update({'Hardware Verification New Grad': 10, 'ASIC Design New Grad': 10, 'Silicon Validation New Grad': 10})
         # The state trial is withdrawn. Retain all 62 nationwide queries,
-        # with 108 new three-page trials in the same priority tiers.
+        # with 108 new ten-page trials in the same priority tiers.
         original = {text: (tier, pages) for tier, queries in expected.items()
                     for text, pages in queries.items()}
         actual = {q.query: (q.tier, q.pages) for q in self.plan}
         self.assertEqual({text: actual[text] for text in original}, original)
         added = {text: details for text, details in actual.items() if text not in original}
         self.assertEqual(len(added), 108)
-        self.assertTrue(all(pages == 3 for tier, pages in added.values()))
+        self.assertTrue(all(pages == 10 for tier, pages in added.values()))
         self.assertEqual({tier: sum(value[0] == tier for value in added.values())
                           for tier in expected},
                          {'intern': 48, 'new_grad': 28, 'early_career': 16, 'A': 16})
@@ -1616,7 +1616,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_small_budgets_go_to_internships_first(self):
         settings, plan = jsearch.load_plan()
         for cap, expected in [(24, {'intern': 24}),
-                              (574, {'intern': 550, 'new_grad': 24})]:
+                              (994, {'intern': 970, 'new_grad': 24})]:
             with self.subTest(cap=cap):
                 guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
                 guard.interval = 0

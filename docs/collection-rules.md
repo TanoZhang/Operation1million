@@ -96,7 +96,8 @@ alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
 As of 2026-10-05, the user-authorized functional plan has 170 nationwide
-queries, with independent caps totaling 1,504 pages. All twenty state splits
+queries, with independent caps totaling 2,365 pages. The 123 nationwide trial
+queries each have a ten-page cap; the other 47 caps are unchanged. All twenty state splits
 are removed. Intern/Co-op runs first, then New Grad, Early Career and General;
 each tier pages round-robin. Follow the provider's `data.cursor`: a short page
 with a next cursor continues, and budget/deadline stops do not prove exhaustion.
