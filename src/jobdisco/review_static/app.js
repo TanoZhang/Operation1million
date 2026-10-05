@@ -95,8 +95,8 @@ const internChip = group => group.internship_experience
 const appliedDate = group => group.at
   ? `Applied ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}`
   : 'Applied date unavailable';
-// Interview or Rejected, recorded on the Applied tab (2026-10-05).
-const OUTCOME_LABELS = {interview: 'Interview', rejected: 'Rejected'};
+// Passed or Declined, recorded on the Applied tab (2026-10-05).
+const OUTCOME_LABELS = {passed: 'Passed', declined: 'Declined'};
 const outcomeChip = group => OUTCOME_LABELS[group.outcome]
   ? ` <span class="outcome outcome-${group.outcome}">${OUTCOME_LABELS[group.outcome]}</span>` : '';
 const topBadge = group => tab === 'applied'
@@ -394,7 +394,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : (tab === 'applied' ? `<button id="outcome-interview" class="${group.outcome === 'interview' ? 'primary' : ''}">Interview</button><button id="outcome-rejected" class="${group.outcome === 'rejected' ? 'primary' : ''}">Rejected</button>${group.outcome ? '<button id="outcome-clear">Clear outcome</button>' : ''}` : '') + '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : (tab === 'applied' ? `<button id="outcome-passed" class="${group.outcome === 'passed' ? 'primary' : ''}">Passed</button><button id="outcome-declined" class="${group.outcome === 'declined' ? 'primary' : ''}">Declined</button>${group.outcome ? '<button id="outcome-clear">Clear outcome</button>' : ''}` : '') + '<button id="reopen">Move to review</button>'}</div>${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';
@@ -411,8 +411,8 @@ async function renderDetail(group) {
   });
   if ($('#skip')) $('#skip').onclick = () => { skipTarget = group.id; $('#reason').value = ''; $('#skip-dialog').showModal(); $('#reason').focus(); };
   if ($('#reopen')) $('#reopen').onclick = () => decide('pending');
-  if ($('#outcome-interview')) $('#outcome-interview').onclick = () => setOutcome(group.id, group.outcome === 'interview' ? '' : 'interview');
-  if ($('#outcome-rejected')) $('#outcome-rejected').onclick = () => setOutcome(group.id, group.outcome === 'rejected' ? '' : 'rejected');
+  if ($('#outcome-passed')) $('#outcome-passed').onclick = () => setOutcome(group.id, group.outcome === 'passed' ? '' : 'passed');
+  if ($('#outcome-declined')) $('#outcome-declined').onclick = () => setOutcome(group.id, group.outcome === 'declined' ? '' : 'declined');
   if ($('#outcome-clear')) $('#outcome-clear').onclick = () => setOutcome(group.id, '');
   const key = `${first.url}\u0000${group.id}`;
   if (described.key === key) { $('#description').textContent = described.text; return; }

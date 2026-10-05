@@ -71,11 +71,11 @@ def append_link(path, url, link):
     return event
 
 
-OUTCOMES = ('interview', 'rejected')
+OUTCOMES = ('passed', 'declined')
 
 
 def outcomes_path(ledger):
-    """What came of an application -- an interview or a rejection -- asked for
+    """What came of an application -- passed or declined -- asked for
     on 2026-10-05. Beside the ledger and backed up with it."""
     return Path(ledger).with_name('application_outcomes.ndjson')
 
@@ -107,11 +107,11 @@ def read_outcomes(path):
 
 
 def append_outcome(path, group_id, outcome):
-    """Record an interview or a rejection for a position; '' clears it."""
+    """Record passed or declined for a position; '' clears it."""
     if not isinstance(group_id, str) or not group_id:
         raise ValueError('Name the position the outcome is for')
     if outcome not in (*OUTCOMES, ''):
-        raise ValueError('Choose Interview or Rejected')
+        raise ValueError('Choose Passed or Declined')
     event = {'id': group_id, 'outcome': outcome, 'at': datetime.now(timezone.utc).isoformat()}
     path = Path(path)
     with locked(path):

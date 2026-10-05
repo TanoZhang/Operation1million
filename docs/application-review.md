@@ -235,11 +235,11 @@ Queue GETs time out after 25 seconds with a visible message and retry every
 10 seconds; initial server warm-up returns Preparing/503 rather than waiting
 behind the cold build. Writes are not automatically retried.
 
-## Interview or Rejected (2026-10-05)
+## Passed or Declined (2026-10-05)
 
-On the Applied tab, a position can be marked **Interview** or **Rejected**.
+On the Applied tab, a position can be marked **Passed** or **Declined**.
 Clicking the marked button again, or **Clear outcome**, removes the mark.
-An interview turns the card yellow, and a rejected position is greyed out.
+A passed position turns the card yellow, and a declined position is greyed out.
 The position stays applied: the decision ledger is not touched. Marks are
 kept in `operational/application_outcomes.ndjson`, next to the ledger. That
 file is append-only like the company links, and the latest mark for a

@@ -6,8 +6,8 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
-Scope: At the user's request (2026-10-05): mark an applied position Interview
-       or Rejected in Review; interviews are highlighted. Kept beside the
+Scope: At the user's request (2026-10-05): mark an applied position Passed
+       or Declined in Review; passed ones are highlighted. Kept beside the
        ledger in operational/application_outcomes.ndjson, append-only.
 Files: src/jobdisco/{applications,review,manual_intake}.py, review_static/*,
        deploy/vps/{backup-applications,daily-pass,data-sync}.sh,

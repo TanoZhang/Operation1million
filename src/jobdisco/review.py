@@ -419,7 +419,7 @@ def make_server(db, ledger, port=8765, export_path=None):
             self.send(written)
 
         def outcome(self):
-            """Interview or Rejected for an applied position (2026-10-05).
+            """Passed or Declined for an applied position (2026-10-05).
 
             Recorded beside the ledger and set on the cached queue in place.
             The ledger itself is untouched: the position stays applied.
