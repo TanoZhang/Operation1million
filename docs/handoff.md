@@ -11,7 +11,8 @@ Applied entries (pasted-link form, company names from Muse or its site note).
 Ledger 255 -> 365 lines; backup /opt/operation1million/applications.before-muse-merge.ndjson.
 Two no-number Quadric entries shared a placeholder address, so one hid the
 other; the real open Quadric posting was marked instead. A rerun now finds all
-303 applied. Review's Applied count went 235 -> 350.
+303 applied. Live Review after install: 1,928 pending, 4,175 backlog,
+351 applied, 12 skipped (skipped unchanged).
 
 Gmail reader: it already fetched only unseen mail, but every 30-minute run
 rebuilt the whole queue (~4 CPU minutes) and searched the full window. Now the
@@ -26,6 +27,13 @@ ambiguous; left as is.
 The user's rule: paid tests keep what they find (docs/jsearch.md). The
 2026-10-05 `--no-store` sample was against it. Its 41 new postings should
 mostly arrive through the 04:38 Pacific pass (3-day window, ten pages).
+
+Installed a45f75f; WSL 1,159 tests pass with no skips. The first scheduled Gmail
+run after it (09:35 UTC, not triggered by hand) re-read the cache once: 351
+applied, 427 emails, 0 new marks, 5 listed for the user -- an Optiver
+assessment invitation (3 Optiver applications), two Qorvo declines (2 Qorvo
+applications), an IMC portal invitation and a Marvell decline for a title not
+applied to. 15 Gmail declines stand from earlier runs.
 
 # Review namesakes and pasted-link identity - 2026-10-05 (claude)
 

@@ -12,8 +12,8 @@ Scope: User requests (2026-10-06): merge Muse's confirmed submissions into the
 Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,
        docs/{agent-protocol,handoff,jsearch}.md; private VPS ledgers (data only).
 Base commit: e1d92e4
-Status: active
-Next: Full suite, push, WSL, install, watch the first passive Gmail pass.
+Status: done -- a45f75f installed; Muse merge 303 applied; first passive Gmail run ok.
+Next: Compare the 04:38 pass against the 41 postings the unsaved sample found.
 ```
 
 ```text
