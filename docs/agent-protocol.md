@@ -5,6 +5,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: User-requested Review dedup (2026-10-05): a pasted-link decision covers
+       the company posting at that address; an application covers same-employer,
+       same-title namesakes unless both name different cities; undecided
+       early-career namesakes in the same places become one group. Skips never spread.
+Files: src/operation1million/{applications,review}.py,
+       tests/{test_applications,test_unify_copies}.py,
+       docs/{agent-protocol,application-review,architecture,handoff}.md
+Base commit: d448e03
+Status: active
+Next: Red tests, implement, full suite, install on the VPS, measure the live queue.
+```
+
+```text
 Owner: codex
 Scope: Reproduce the reported Zipline software-validation false positive;
        user clarified all software titles must have VLSI JD evidence before

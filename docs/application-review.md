@@ -43,6 +43,14 @@ location. That is deliberate -- showing a posting twice is recoverable and
 hiding one is not, and company-and-title grouping was burying 48 Apple
 requisitions behind a single Skip.
 
+Two exceptions since 2026-10-05, at the user's request. **Mark applied** also
+hides every other listing with the same employer and title -- a job board's
+copy, or the company reposting it under a new job number -- unless both name
+cities and they differ. A listing that names no city ("US", "3 Locations", a
+bare state) is taken to be the same job. **Skip** still answers only its own
+requisition. And undecided intern / new grad listings with the same employer,
+title and named places are one entry.
+
 The hard title and employer exclusions are re-applied at read time, so a rule
 tightened after collection takes effect on rows already stored.
 

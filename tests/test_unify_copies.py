@@ -125,6 +125,52 @@ class UnifyCopiesTests(unittest.TestCase):
         self.assertEqual(list(recent), ['ash'])
         self.assertEqual(backlog, {})
 
+    def test_early_career_namesakes_in_the_same_place_are_one_group(self):
+        # Asked for on 2026-10-05: Micron listed "New College Grad - ENG, HIG
+        # HBM PSE Design Validation" twice in Boise under two job numbers.
+        title = 'New College Grad - ENG, HIG HBM PSE Design Validation'
+        recent = dict([
+            group('a', job('https://careers.micron.com/careers/job/44701529', 'Micron Technology, Inc.',
+                           title, 'Boise, Idaho, United States of America', 'eightfold')),
+            group('b', job('https://careers.micron.com/careers/job/44702722', 'Micron Technology, Inc.',
+                           title, 'Boise, Idaho, United States of America', 'eightfold')),
+        ])
+        unify_copies(recent, {}, undecided)
+        self.assertEqual(len(recent), 1)
+        self.assertEqual(len(next(iter(recent.values()))['jobs']), 2)
+
+    def test_early_career_namesakes_in_other_places_stay_apart(self):
+        title = 'Silicon Technology Research Scientist Intern - 2027'
+        recent = dict([
+            group('a', job('https://ibm.test/1', 'IBM', title, 'Yorktown Heights, NY', 'ibm')),
+            group('b', job('https://ibm.test/2', 'IBM', title, 'Albany, NY', 'ibm')),
+        ])
+        unify_copies(recent, {}, undecided)
+        self.assertEqual(sorted(recent), ['a', 'b'])
+
+    def test_experienced_namesakes_in_one_place_stay_apart(self):
+        # KLA had about fifteen "Product Development Engineer" openings in Milpitas.
+        recent = dict([
+            group('a', job('https://kla.test/2638951', 'KLA', 'Product Development Engineer', 'Milpitas, CA', 'workday')),
+            group('b', job('https://kla.test/2634749', 'KLA', 'Product Development Engineer', 'Milpitas, CA', 'workday')),
+        ])
+        unify_copies(recent, {}, undecided)
+        self.assertEqual(sorted(recent), ['a', 'b'])
+
+    def test_a_skipped_namesake_is_not_folded_into_an_open_one(self):
+        # A skip answers its own opening only; merging would let it hide the other.
+        recent = dict([
+            group('a', job('https://micron.test/1', 'Micron', 'Intern - DRAM Design Engineer', 'Boise, ID', 'eightfold')),
+            group('b', job('https://micron.test/2', 'Micron', 'Intern - DRAM Design Engineer', 'Boise, ID', 'eightfold')),
+        ])
+
+        def decided(item):
+            return {'status': 'skipped'} if item['url'].endswith('/1') else None
+
+        covered = unify_copies(recent, {}, decided)
+        self.assertEqual(sorted(recent), ['a', 'b'])
+        self.assertEqual(covered, set())
+
     def test_employer_name_drops_the_legal_suffix_only(self):
         self.assertEqual(employer_name('NIKSUN, Inc.'), 'niksun')
         self.assertEqual(employer_name('QUALCOMM Incorporated'), 'qualcomm')

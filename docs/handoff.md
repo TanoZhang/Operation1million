@@ -1,3 +1,31 @@
+# Review namesakes and pasted-link identity - 2026-10-05 (claude)
+
+The user exported selected positions and found jobs the company site said
+were already applied for. Live queue at 07b58ed: 14 open groups shared an
+employer and exact title with an application. Two (Quadric, OpenAI) were the
+same URL decided through a pasted link; the `manual` identity never matched the
+board's alias. Fixed. At the user's choice, an application now hides same
+employer + title listings unless both name cities and none is shared, and
+undecided early-career namesakes in the same named places are one group.
+Skips never spread. Experienced titles (KLA's ~15 Milpitas namesakes) stay apart.
+
+Offline on d448e03 plus this patch: the new tests failed first (namesakes,
+pasted link, early-career merge); full suite 1,157 tests, 13 POSIX skips, OK.
+Two older tests placed a same-titled replacement in the applied city; they now
+place it elsewhere and still test the alias check and description refusal.
+Read-only comparison of installed vs patched queue on the live VPS ledger and
+index: pending 1,980 -> 1,961, backlog 4,231 -> 4,221, applied 235 and skipped
+12 unchanged. 12 namesake groups hidden; IMC (Schiller Park vs Chicago) and
+Ambarella ("US Headquarters" vs Santa Clara) stay visible by the city rule.
+22 early-career groups now hold several job numbers.
+
+Paid diagnostic the same evening, at the user's request: the 108 new trial
+queries, one page each, past week, `--no-store`: 108 credits, 300 raw, 99
+accepted appearances, 55 distinct URLs, 41 not already in the index; 44 queries
+returned nothing. One request (Analog IC Design Engineer) took 59 s and reported
+"budget reached; no request sent" with a failure and a spent credit; not chased.
+Results: /opt/operation1million/code/runs/20261006T01*.
+
 # Software JD evidence gate - 2026-10-05 (codex)
 
 The user reported a software systems validation false positive and clarified

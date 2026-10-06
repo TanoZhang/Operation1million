@@ -143,6 +143,12 @@ def make_server(db, ledger, port=8765, export_path=None):
             if cached['key'] != before or cached['state'] is not state:
                 return
             state[source] = [item for item in state[source] if item is not group]
+            if written['status'] == 'applied':
+                # An application also answers its namesakes, as the full build says.
+                index = applications.application_index([group])
+                for name in ('pending', 'backlog'):
+                    state[name] = [item for item in state[name]
+                                   if not applications.covered_by_application(item, index)]
             decided = dict(group, jobs=list(group['jobs']), at=written['at'],
                            reason=written.get('reason', ''))
             state[written['status']].insert(0, decided)

@@ -174,6 +174,12 @@ reproducer and update its evidence below.
   copies are not reviewable. Do not drop either.
 - **Scores cache unchanged content, not unchanged rules.** Content changes
   recalculate; rule changes require `job-store --rescore`.
+- **A skip covers one requisition; an application covers its namesakes.**
+  Since 2026-10-05, at the user's request, an application hides other
+  listings with the same employer and title unless both name cities and the
+  cities differ. A skip never spreads: Apple once had 48 same-titled
+  requisitions that one Skip would have buried. Undecided early-career
+  namesakes in the same named places are one group; experienced ones are not.
 
 ## Structural improvements
 
@@ -2610,3 +2616,33 @@ now applies the cheap negative software-JD gate before experience extraction,
 so unrelated and missing-JD software need not pay for that parser. Every row
 that survives still faces all hard requirements; eligibility results are
 unchanged. Discovery retains its reason-precedence order.
+
+## Review namesakes and pasted-link identity - 2026-10-05
+
+The user exported selected positions and found several the company site said
+were already applied for. Measured on the live queue: 14 open groups shared an
+employer and exact title with an application. Two were the same URL decided
+through a pasted link: the decision carried provider `manual`, the index's
+alias for that address carried the board's provider, and
+`still_the_decided_opening` read the mismatch as a replacement. A `manual`
+identity now matches an alias with the same scope and requisition id; a
+replacement requisition at the address is still shown.
+
+The rest were job-board copies placed elsewhere (JobServe's bare "Alabama, US",
+"US Headquarters", a LinkedIn copy in New York) or Micron reposting one title
+under another job number in the same city. At the user's choice,
+`covered_by_application` hides a listing when an application names its employer
+and title, unless both sides name cities and none is shared. A place naming no
+city ("US", "3 Locations", "Various Locations", a bare state with a country)
+agrees with any. Listings of the applied requisition itself still answer only
+to its own decision, so a URL-only reopen keeps working. Skips do not spread.
+`unify_copies` also folds undecided early-career namesakes whose named places
+match; groups holding a ruled listing are left alone.
+
+Two existing tests placed a same-titled replacement in the applied city; they
+now place it elsewhere and still test the alias check and description refusal.
+Reproducers: `ApplicationsTests.test_an_application_covers_*`,
+`test_a_skip_does_not_cover_its_namesake`,
+`test_a_pasted_link_decision_covers_the_company_posting_at_that_address`,
+`HttpTests.test_an_application_moves_its_namesakes_out_of_the_cached_queue`
+and the early-career cases in `tests/test_unify_copies.py`.

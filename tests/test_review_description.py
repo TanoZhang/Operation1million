@@ -24,9 +24,9 @@ DIRECT = Source('ashby:fixture', 'company_sources', 'fixture', 'Fixture', 'ashby
 PAID = Source('jsearch:fixture', 'discovery', 'fixture', 'Fixture', 'jsearch', '', {})
 
 
-def row(ident, url, provider='ashby', raw=None):
+def row(ident, url, provider='ashby', raw=None, location='US'):
     return dict(company_key='fixture', company_name='Fixture', provider_key=provider,
-                source_job_id=ident, url=url, title='RTL Design Engineer', location='US',
+                source_job_id=ident, url=url, title='RTL Design Engineer', location=location,
                 posted_at=None, raw=raw or {})
 
 
@@ -230,7 +230,8 @@ class DescriptionTests(unittest.TestCase):
 
     def decided_on_paid_listing(self):
         old = row('OLD', 'https://example.test/reused', 'jsearch',
-                  raw={'job_description': 'Original requisition description.'})
+                  raw={'job_description': 'Original requisition description.'},
+                  location='Austin, Texas, US')
         self.persist([old], PAID)
         group = applications.queue(self.path, self.ledger)['pending'][0]
         applications.append_decision(self.ledger, group, 'applied')
@@ -239,7 +240,10 @@ class DescriptionTests(unittest.TestCase):
 
     def test_a_replacement_under_the_same_title_is_not_shown_as_the_decided_job(self):
         old, group = self.decided_on_paid_listing()
-        self.persist([row('NEW', old['url'], raw={'description': 'New requisition description.'})])
+        # In another city: since 2026-10-05 an application covers a same-titled
+        # namesake in its own city (`applications.covered_by_application`).
+        self.persist([row('NEW', old['url'], raw={'description': 'New requisition description.'},
+                          location='Boston, Massachusetts, US')])
         state = applications.queue(self.path, self.ledger)
         self.assertEqual((len(state['applied']), len(state['pending'])), (1, 1),
                          'the queue itself should already tell these apart')

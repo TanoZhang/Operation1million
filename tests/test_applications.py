@@ -164,12 +164,81 @@ class ApplicationsTests(unittest.TestCase):
         applications.append_decision(self.ledger, self.paid_groups('applied')[0], 'pending')
         self.assertEqual(len(self.paid_groups()[0]['jobs']), 2)
 
-    def test_direct_requisitions_sharing_a_title_and_city_stay_apart(self):
+    def place(self, url, location, title='RTL Engineer'):
         with closing(sqlite3.connect(self.db)) as db, db:
-            db.execute("UPDATE jobs SET title='RTL Engineer', location='Austin' "
-                       "WHERE url IN ('https://example.test/a', 'https://example.test/b')")
+            db.execute('UPDATE jobs SET title=?, location=? WHERE url=?',
+                       (title, location, f'https://example.test/{url}'))
+
+    def test_an_application_covers_its_namesake_in_the_same_city(self):
+        """Asked for on 2026-10-05: an exported list held jobs the company's site
+        said were already applied for -- the same title, reposted under another
+        job number in the same city, or copied by a job board."""
+        self.place('a', 'Austin')
+        self.place('a2', 'Austin')
+        self.place('b', 'Austin')
         applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
-        self.assertEqual(len(self.queue()['pending']), 1, 'req-b is its own requisition')
+        state = self.queue()
+        self.assertEqual(state['pending'], [], 'req-b came back to be applied for again')
+        self.assertEqual(len(state['applied']), 1)
+
+    def test_an_application_covers_a_namesake_that_names_no_city(self):
+        self.place('a', 'Folsom, California, United States of America')
+        self.place('a2', 'Folsom, California, United States of America')
+        for location in ('Alabama, US', 'United States', '3 Locations', 'Various Locations'):
+            with self.subTest(location=location):
+                self.place('b', location)
+                self.assertEqual(len(self.queue()['pending']), 2)
+                applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
+                self.assertEqual([g['title'] for g in self.queue()['pending']], [])
+                applications.append_decision(self.ledger, self.queue()['applied'][0], 'pending')
+
+    def test_an_application_covers_a_namesake_group_with_one_listing_naming_no_city(self):
+        # Marvell, 2026-10-05: "5 Locations" on Workday and a LinkedIn copy
+        # placed in New York, after an application made in Santa Clara.
+        self.place('a', 'Santa Clara, California, US')
+        self.place('a2', 'Santa Clara, California, US')
+        self.place('b', '5 Locations')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("""INSERT INTO jobs SELECT 'https://example.test/b2', company_key,
+                          title, 'New York, New York, US', source_job_id, first_seen, posted_at,
+                          provider_key, relevance, closed_at, raw, last_seen
+                          FROM jobs WHERE url='https://example.test/b'""")
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
+        self.assertEqual(self.queue()['pending'], [])
+
+    def test_a_skip_does_not_cover_its_namesake(self):
+        self.place('a', 'Austin')
+        self.place('a2', 'Austin')
+        self.place('b', 'Austin')
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'skipped')
+        self.assertEqual(len(self.queue()['pending']), 1, 'a skip hid another requisition')
+
+    def test_reopening_an_application_brings_its_namesake_back(self):
+        self.place('a', 'Austin')
+        self.place('a2', 'Austin')
+        self.place('b', 'Austin')
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
+        applications.append_decision(self.ledger, self.queue()['applied'][0], 'pending')
+        self.assertEqual(len(self.queue()['pending']), 2)
+
+    def test_a_pasted_link_decision_covers_the_company_posting_at_that_address(self):
+        """A pasted link is recorded under provider `manual`. The index lists the
+        same requisition under the board's own provider, and the alias check
+        read that as a different opening (Quadric, OpenAI; 2026-10-05). A skip
+        is used so only the identity, not the namesake rule, can hide it."""
+        url = 'https://example.test/b'
+        self.identity(url, 'direct', 'sample', 'req-b')
+        pasted = {'id': 'manual-b', 'company': 'Sample Semiconductor', 'title': 'rtl engineer',
+                  'jobs': [{'url': url, 'provider_key': 'manual', 'company_key': 'sample',
+                            'source_job_id': 'req-b', 'title': 'rtl engineer', 'location': ''}]}
+        applications.append_decision(self.ledger, pasted, 'skipped')
+        self.assertNotIn(url, self.pending_urls())
+        # A different requisition later published at that address is not covered.
+        self.release_identities(url)
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET source_job_id='req-new' WHERE url=?", (url,))
+        self.identity(url, 'direct', 'sample', 'req-new')
+        self.assertIn(url, self.pending_urls())
 
     def test_deciding_one_requisition_leaves_its_namesake_alone(self):
         applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
@@ -367,10 +436,13 @@ class ApplicationsTests(unittest.TestCase):
                                for job in group['jobs']},
                          'a posting that only changed board came back as pending')
 
-        # The board then advertises a different opening at that address.
+        # The board then advertises a different opening at that address. It is
+        # placed in another city: since 2026-10-05 an application covers a
+        # same-titled namesake in its own city (`covered_by_application`).
         self.release_identities(url)
         with closing(sqlite3.connect(self.db)) as db, db:
-            db.execute("UPDATE jobs SET source_job_id='req-new' WHERE url=?", (url,))
+            db.execute("UPDATE jobs SET source_job_id='req-new', location='Elsewhere' "
+                       "WHERE url=?", (url,))
         self.identity(url, 'direct', 'sample', 'req-new')
         self.assertIn(url, {job['url'] for group in self.queue()['pending']
                             for job in group['jobs']},
@@ -762,6 +834,28 @@ class HttpTests(ApplicationsTests):
                            for g in queue[name]] for name in ('pending', 'backlog', 'applied', 'skipped')}
         self.assertEqual(shape(moved), shape(replayed))
         self.assertEqual([g['at'] for g in moved['skipped']], [g['at'] for g in replayed['skipped']])
+
+    def test_an_application_moves_its_namesakes_out_of_the_cached_queue(self):
+        self.place('a', 'Austin')
+        self.place('a2', 'Austin')
+        self.place('b', 'Austin')
+        server = review.make_server(self.db, self.ledger, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.shutdown)
+        root = f'http://127.0.0.1:{server.server_port}'
+        with urlopen(root + '/api/queue') as response:
+            state = json.load(response)
+        self.assertEqual(len(state['pending']), 2)
+        body = json.dumps({'id': self.group_for('req-a')['id'], 'status': 'applied'}).encode()
+        urlopen(Request(root + '/api/decision', data=body,
+                        headers={'X-Review-Token': state['token']})).close()
+        with urlopen(root + '/api/queue') as response:
+            moved = json.load(response)
+        self.assertEqual(moved['pending'], [], 'the namesake stayed until the next rebuild')
+        self.assertEqual(len(moved['applied']), 1)
 
     def test_a_decision_made_while_the_index_changed_rebuilds_in_full(self):
         server = review.make_server(self.db, self.ledger, 0)

@@ -216,6 +216,59 @@ def _city(place):
     return _plain(str(place or '').split(',')[0])
 
 
+def _vague(place):
+    """A place that names no city: "US", "3 Locations", "Various Locations", or a
+    bare state, which is how JobServe places a listing it cannot place."""
+    city, plain = _city(place), _plain(place)
+    return (city in VAGUE_PLACES or bool(MANY_PLACES.match(plain)) or 'various' in plain.split()
+            # "Alabama, US" but not "New York": a state named alone may be its city.
+            or city in location.US_STATES and plain != city
+            and plain[len(city):].strip() in VAGUE_PLACES)
+
+
+def places_agree(jobs, others):
+    """Whether two sets of listings can be in one place: a listing names no city, or they share one."""
+    if any(_vague(job.get('location')) for job in (*jobs, *others)):
+        return True
+
+    def named(city, items):
+        return any(f' {city} ' in f" {_plain(job.get('location'))} " for job in items)
+
+    return (any(named(_city(job.get('location')), others) for job in jobs)
+            or any(named(_city(job.get('location')), jobs) for job in others))
+
+
+def namesake(group):
+    return employer_name(group.get('company')), _plain(group.get('title'))
+
+
+def application_index(groups):
+    """Applied groups by employer and title, for `covered_by_application`."""
+    index = {}
+    for group in groups:
+        index.setdefault(namesake(group), []).append(
+            (group['jobs'], {decision_key(job) for job in group['jobs']}))
+    return index
+
+
+def covered_by_application(group, applied):
+    """Whether an application already answers this group.
+
+    Asked for on 2026-10-05: an exported list held jobs the company's site said
+    were already applied for -- Micron reposting one title under another job
+    number in the same city, or a job board's copy placed in "Alabama" or at
+    "US Headquarters". So an application covers every listing of its employer
+    and title, unless both name cities and the cities differ: a company that
+    opens one requisition per city still shows the other cities. A skip covers
+    only its own opening, so skipping one city never hides another. A listing
+    of the applied requisition itself answers to that decision, which may
+    have been reopened for it alone.
+    """
+    keys = {decision_key(job) for job in group['jobs']}
+    return any(places_agree(group['jobs'], jobs) and not keys & decided
+               for jobs, decided in applied.get(namesake(group), ()))
+
+
 def unify_copies(recent, backlog, decided):
     """Fold the same job found on several sites into one group, in place.
 
@@ -324,6 +377,24 @@ def unify_copies(recent, backlog, decided):
 
     def ruled(job):
         return (decided(job) or {}).get('status', 'pending') != 'pending'
+
+    # Asked for on 2026-10-05: Micron listed one new-grad title twice in Boise
+    # under two job numbers. An intern or new-grad title in the same named
+    # places is one opening to the person applying. Experienced titles stay
+    # apart -- KLA had about fifteen "Product Development Engineer" openings in
+    # Milpitas -- and so does anything already ruled on, so that a skip never
+    # comes to cover a namesake.
+    namesakes = {}
+    for table in tables:
+        for key, group in list(table.items()):
+            places = frozenset(_city(job.get('location')) for job in group['jobs'])
+            if (key not in table or not ranking.early_career(group['title'])
+                    or any(_vague(job.get('location')) for job in group['jobs'])
+                    or any(ruled(job) for job in group['jobs'])):
+                continue
+            into = namesakes.setdefault((*namesake(group), places), key)
+            if into != key:
+                fold(key, into)
 
     # Only a group this built: a requisition's own listings keep their own
     # decisions, as an old URL-only one covers just its listing.
@@ -557,7 +628,11 @@ def queue(db_path=DB, path=None, now=None):
         if identity is None or aliases is None:
             return True
         held = aliases.get(url)
-        return not held or identity in held
+        if not held or identity in held:
+            return True
+        # A pasted link is recorded under `manual`, and the index lists the same
+        # requisition under the board's own provider (Quadric, OpenAI; 2026-10-05).
+        return identity[0] == 'manual' and identity[1:] in {alias[1:] for alias in held}
 
     def decision_for(job):
         provider = job.get('provider_key') or ''
@@ -861,6 +936,9 @@ def queue(db_path=DB, path=None, now=None):
         group['flagged'] = jsearch.needs_evidence(group.get('title'), rules)
         return group
 
+    applied = application_index(event['group'] for event in group_states.values()
+                                if event['status'] == 'applied')
+
     def undecided(source):
         """Groups nobody has ruled on, with any already-ruled listing removed."""
         out = []
@@ -870,7 +948,7 @@ def queue(db_path=DB, path=None, now=None):
                 continue
             group['jobs'] = [job for job in group['jobs']
                              if (decision_for(job) or {}).get('status', 'pending') == 'pending']
-            if group['jobs']:
+            if group['jobs'] and not covered_by_application(group, applied):
                 out.append(group)
         return out
 
