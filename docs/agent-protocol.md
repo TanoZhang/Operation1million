@@ -14,7 +14,8 @@ Files: src/operation1million/export.py, deploy/vps/daily-pass.sh,
 Base commit: f93fc03
 Status: done -- 2300ddb installed; first CSV pushed by hand (data ef8e6cc,
         2,830 groups, 2,867 rows, 664 KB).
-Next: Merge Muse's newer submissions once they reach GitHub (only 315 there).
+        Muse merge 2: 91 marked, 269 new Applied (data 4eb21b7).
+Next: 31 Qorvo submissions need ids from Muse before they can be told apart.
 ```
 
 ```text

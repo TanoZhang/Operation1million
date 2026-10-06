@@ -16,6 +16,20 @@ about 600 submissions, but GitHub's history.jsonl still holds the 315 already
 merged (last Muse commit 2026-10-06 01:35 PDT): the rest is on the laptop.
 Merge them the same way once Muse pushes.
 
+Muse pushed (47844b0: 747 submission records, 676 distinct). Merged on the VPS
+at 23:17 UTC under the collection lock (backups
+/opt/operation1million/*.before-muse-merge-20261006T231749Z.ndjson): 299
+already Applied by requisition, 17 by employer + exact title, 91 open groups
+marked applied by requisition (80 backlog, 11 pending), 269 new Applied
+entries (pasted-link form, muse.invalid placeholders). New since the first
+merge: requisition variants (AMD iCIMS "2026-91463" = board "91463"), ids named
+in an earlier reconciliation's reason, and TI/ADI/AMD/HPE/onsemi aliases; a
+title-less record is titled "Requisition X (title not logged by Muse)". A rerun
+finds 675 of 676 applied. The one left is 31 Qorvo records with no title or
+requisition, which collapsed into one placeholder; Muse has to log their ids.
+Ledger 366 -> 726 lines, manual_jobs 81 -> 350. CSV refreshed: 2,722 open
+groups (was 2,830). Data 4eb21b7, pushed with bc30dc3.
+
 # Muse merge, passive Gmail, stored tests - 2026-10-06 (claude)
 
 Muse's job-applications/history.jsonl holds 315 submission records (258
