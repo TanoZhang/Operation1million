@@ -1788,6 +1788,26 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(observed, [deep[q.tier] for q in self.plan])
         self.assertTrue(all(p > q.pages for p, q in zip(observed, self.plan)))
 
+    def test_a_run_now_ignores_what_the_budget_day_already_spent(self):
+        """Asked for on 2026-10-06: "cancel autorun and run it now" means a full
+        run now, not the remainder of a budget day that ends at 04:38."""
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        for extra, ignored in (([], False), (['--ignore-daily-limit'], True)):
+            with self.subTest(extra=extra), (
+                patch.object(collector, 'load_sources', return_value=[])), (
+                patch.object(collector, 'config', side_effect=configs.__getitem__)), (
+                patch.object(collector, 'RequestGuard', return_value=self.guard)) as guard, (
+                patch.object(collector, 'load_credentials')), (
+                patch.object(jsearch, 'collect', return_value=([], {}))), (
+                patch.object(store, 'now', return_value=STAMP)), (
+                patch('sys.argv', ['collector', '--jsearch', '--jsearch-only', '--db', str(self.db_path),
+                                   '--output', str(self.root / f'now-{ignored}'), *extra])), (
+                patch('sys.stdout', new_callable=io.StringIO)):
+                collector.main()
+                self.assertEqual(guard.call_args.kwargs['ignore_daily_limit'], ignored)
+                self.assertIsNotNone(guard.call_args.kwargs['run_limit'], 'a run now is still capped')
+
     def test_backfill_rejects_no_store_before_any_paid_request(self):
         with patch('sys.argv', ['collector', '--backfill', '--no-store']), \
              self.assertRaises(SystemExit):

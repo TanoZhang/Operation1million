@@ -14,6 +14,7 @@ Claude and Codex both work in this repo and follow the same rules. Detail lives 
 ## Invariants
 
 - The daily credit budget resets at 04:38 America/Los_Angeles. The 30-day billing cycle counts UTC dates. Keep the two clocks separate.
+- The user's rule (2026-10-06): when the user says to cancel the scheduled run and run now, do it -- a full run now with `daily-pass.sh --ignore-daily-limit`, the timer paused past that day's 04:38. The 04:38 reset is not a reason to refuse or shrink it. The monthly target still applies.
 - Every paid request reserves its credit through `RequestGuard` before it is sent.
 - SQLite is derived and rebuildable. The decision ledger and `operational/` are the durable record. Application decisions never go in SQLite.
 - `first_seen` is when we first saw a posting, not when it was published.

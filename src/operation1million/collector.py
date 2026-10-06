@@ -877,6 +877,9 @@ def main():
     p.add_argument('--jsearch-pages', type=int, default=None, help='Pages for --jsearch-query only; default 1, maximum 20')
     p.add_argument('--date-posted', choices=['all', 'today', '3days', 'week', 'month'], help='Temporary JSearch time window; does not edit configuration')
     p.add_argument('--jsearch-plan', action='store_true', help='Print the fixed plan without making requests')
+    p.add_argument('--ignore-daily-limit', action='store_true',
+                   help='Run now with a full run budget, whatever this budget day already spent; '
+                        'the monthly target still applies')
     p.add_argument('--backfill', action='store_true',
                    help="Month-wide sweep of the cycle's remaining credits; run it after a daily pass")
     p.add_argument('--jsearch-config', type=Path, default=CONFIG / 'jsearch_queries.toml')
@@ -988,7 +991,7 @@ def main():
                                  cycle_days=settings['cycle_days'],
                                  day_zone=settings['budget_timezone'],
                                  day_resets_at=settings['budget_day_resets_at'],
-                                 ignore_daily_limit=args.backfill,
+                                 ignore_daily_limit=args.backfill or args.ignore_daily_limit,
                                  run_limit=run_budget if enabled else None)
     if args.backfill:
         # Spread what is left over the days that are left, so an early sweep

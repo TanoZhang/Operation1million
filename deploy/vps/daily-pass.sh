@@ -23,9 +23,13 @@ ENV_FILE=${OPERATION1MILLION_ENV_FILE:-/etc/operation1million/env}
 . "$CODE/deploy/vps/env-file.sh"
 load_env_file "$ENV_FILE"
 PREFLIGHT=0
+NOW=
 for argument in "$@"; do
   case "$argument" in
     --no-heartbeat) unset HEALTHCHECK_URL ;;
+    # "Cancel the autorun and run it now" (2026-10-06): a full run budget now,
+    # not what is left of a budget day that ends at 04:38 Pacific.
+    --ignore-daily-limit) NOW=--ignore-daily-limit ;;
     # Everything the pass depends on, checked in the order the pass depends on
     # it, and then stop before spending a credit or writing a row. This exists
     # because the rest of this file runs unattended at 04:38 against the
@@ -250,7 +254,7 @@ job-collect --jsearch-only --jsearch-plan || note_problem 'the JSearch plan prev
 rm -f "$READY"
 collect_started=1
 set +e
-job-collect --workers 3 --delay 1.0 --jsearch-max-seconds 6000 --jsearch-timeout 90 --jsearch
+job-collect --workers 3 --delay 1.0 --jsearch-max-seconds 6000 --jsearch-timeout 90 $NOW --jsearch
 collect_code=$?
 set -e
 if [ "$collect_code" -eq 2 ]; then
