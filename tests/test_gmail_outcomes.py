@@ -437,6 +437,44 @@ class GmailRegressionTests(unittest.TestCase):
             self.run_with_mail(folder, [message('NVIDIA', 'Please schedule an interview.')], preview=True)
             self.assertEqual(list(Path(folder).iterdir()), [])
 
+    def quiet_run(self, folder, mails):
+        """A run whose mailbox search returns `mails`; returns (result, queue built, fetch since)."""
+        groups = [group('n1', 'NVIDIA', 'ASIC Design Intern')]
+        with patch.object(gmail.applications, 'queue', return_value={'applied': groups}) as queue, \
+             patch.object(gmail.manual_intake, 'augment_queue', side_effect=lambda q, l: q), \
+             patch.object(gmail, 'fetch', return_value=mails) as fetch, \
+             patch.object(gmail, 'last_events', return_value={}), \
+             patch.object(gmail.applications, 'append_outcome'), \
+             patch.object(gmail, 'star', side_effect=lambda a, p, ids: ids):
+            result = gmail.run('unused', Path(folder) / 'ledger.ndjson', 'dummy', 'dummy', directory=folder)
+            return result, queue.called, fetch.call_args.args[2]
+
+    def test_a_quiet_mailbox_builds_nothing_after_the_first_full_scan(self):
+        """Asked for on 2026-10-06: watch for new mail; scan everything only once.
+        Every half hour rebuilt the whole queue -- about four CPU minutes --
+        whether or not anything had arrived."""
+        with tempfile.TemporaryDirectory() as folder:
+            first, built, since = self.quiet_run(folder, [message('NVIDIA', 'Please schedule an interview.')])
+            self.assertTrue(built)
+            self.assertLess(since, datetime(2026, 9, 1, tzinfo=timezone.utc), 'the first run is a full scan')
+            second, built, since = self.quiet_run(folder, [])
+            self.assertFalse(built, 'a run with no new mail rebuilt the queue')
+            self.assertTrue(second.get('idle'))
+            self.assertGreater(since, datetime.now(timezone.utc) - timedelta(days=3),
+                               'a later run searched the whole mailbox again')
+            _, built, _ = self.quiet_run(folder, [message('NVIDIA', 'We regret to inform you.', mid='m2')])
+            self.assertTrue(built, 'new mail was not read')
+
+    def test_changed_applications_reread_the_mail_already_held(self):
+        # Applications merged in bulk (Muse, 2026-10-06) need the replies that
+        # already arrived for them; those are in the local cache, not new mail.
+        with tempfile.TemporaryDirectory() as folder:
+            self.quiet_run(folder, [message('NVIDIA', 'Please schedule an interview.')])
+            (Path(folder) / 'ledger.ndjson').write_text('{}\n', encoding='utf-8')
+            result, built, _ = self.quiet_run(folder, [])
+            self.assertTrue(built)
+            self.assertFalse(result.get('idle'))
+
     def test_previously_starred_message_is_not_restarred(self):
         with tempfile.TemporaryDirectory() as folder:
             gmail._save(Path(folder) / 'starred.json', ['round1'])

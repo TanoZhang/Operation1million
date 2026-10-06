@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User requests (2026-10-06): merge Muse's confirmed submissions into the
+       Review ledger as Applied (skips untouched); make the Gmail reader passive
+       (full scan once, then new mail only); paid tests store their results.
+Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,
+       docs/{agent-protocol,handoff,jsearch}.md; private VPS ledgers (data only).
+Base commit: e1d92e4
+Status: active
+Next: Full suite, push, WSL, install, watch the first passive Gmail pass.
+```
+
+```text
+Owner: claude
 Scope: User-requested Review dedup (2026-10-05): a pasted-link decision covers
        the company posting at that address; an application covers same-employer,
        same-title namesakes unless both name different cities; undecided

@@ -180,9 +180,15 @@ daily searches and not a permanent edit to the configured `3days` default.
 For a one-keyword test, default to one page and one reserved credit. Do not
 expand to the whole catalog or retry paid failures without a new instruction.
 
+The user's rule (2026-10-06): testing is fine, but a paid test keeps what it
+found. Run tests on the VPS under the collection lock and store the results,
+so accepted postings reach Review; `--no-store` only when the user asks for a
+dry run. On 2026-10-05 a 108-credit `--no-store` sample of the new queries
+found 41 postings Review never received.
+
 ```powershell
-# One keyword, last week, at most one page/credit. Paid when executed.
-.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --jsearch-query "Design Verification Engineer" --jsearch-pages 1 --date-posted week --jsearch-budget 1 --no-store
+# One keyword, last week, at most one page/credit. Paid when executed; stored.
+.\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --jsearch-query "Design Verification Engineer" --jsearch-pages 1 --date-posted week --jsearch-budget 1
 
 # Add --jsearch-plan to preview the same command without any API call.
 

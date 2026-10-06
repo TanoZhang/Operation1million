@@ -1,3 +1,32 @@
+# Muse merge, passive Gmail, stored tests - 2026-10-06 (claude)
+
+Muse's job-applications/history.jsonl holds 315 submission records (258
+application-submitted, 21 submitted, 36 legacy status "submitted"; its README
+says 305). The user said Muse can log one submission several times and the user
+also applied by hand, so this was a merge, never a replacement, and Muse's skip
+or halt records were not imported. Dry run first, by job number with host or
+employer agreeing, then employer + exact title against Applied: 312 distinct,
+10 Muse duplicates, 192 already Applied, 50 open groups marked applied, 60 new
+Applied entries (pasted-link form, company names from Muse or its site note).
+Ledger 255 -> 365 lines; backup /opt/operation1million/applications.before-muse-merge.ndjson.
+Two no-number Quadric entries shared a placeholder address, so one hid the
+other; the real open Quadric posting was marked instead. A rerun now finds all
+303 applied. Review's Applied count went 235 -> 350.
+
+Gmail reader: it already fetched only unseen mail, but every 30-minute run
+rebuilt the whole queue (~4 CPU minutes) and searched the full window. Now the
+first run scans the full window; later runs search from two days before the
+last run and stop before building the queue when nothing arrived and the
+decision files and rules are unchanged. A changed ledger re-reads the cached
+mail once, which is how replies to the merged Muse applications get matched.
+Two Quadric "Design Verification Intern" Applied entries (company posting and a
+LinkedIn copy, both from 2026-10-03/04) make a title-only Quadric DV email
+ambiguous; left as is.
+
+The user's rule: paid tests keep what they find (docs/jsearch.md). The
+2026-10-05 `--no-store` sample was against it. Its 41 new postings should
+mostly arrive through the 04:38 Pacific pass (3-day window, ten pages).
+
 # Review namesakes and pasted-link identity - 2026-10-05 (claude)
 
 The user exported selected positions and found jobs the company site said

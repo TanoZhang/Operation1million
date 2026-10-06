@@ -686,19 +686,49 @@ def _settled(item, event, cache):
     return bool(decision_at and decision_at >= item['at'])
 
 
+def _inputs(ledger):
+    """What a pass decides from besides the mail: the decisions, pasted jobs,
+    outcome marks and these rules. A change to any is worth one re-read."""
+    files = (Path(ledger), manual_intake.path_for(ledger), applications.outcomes_path(ledger), Path(__file__))
+    out = []
+    for path in files:
+        try:
+            stat = path.stat()
+            out.append([str(path), stat.st_size, stat.st_mtime_ns])
+        except OSError:
+            out.append([str(path), None, None])
+    return out
+
+
 def run(db, ledger, address, password, directory=None, capture=None, preview=False):
     """One pass. With `preview`, everything is read and decided and nothing is
-    written or starred: the returned summary carries what would have been."""
+    written or starred: the returned summary carries what would have been.
+
+    Passive after the first pass, asked for on 2026-10-06: the first pass
+    searches the whole window, later ones only mail since the last pass, and
+    a pass with no new mail and unchanged decisions stops before building the
+    queue -- which cost about four CPU minutes every half hour.
+    """
     directory = Path(directory or gmail_dir())
-    groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger)['applied']
-    if not groups:
-        return {'applied': 0, 'checked': 0, 'written': 0, 'unsorted': 0}
-    # Decisions can be recorded weeks after applying; read from well before.
-    since = min(datetime.fromisoformat(group['at']) for group in groups if group.get('at')) - timedelta(days=45)
     cache_path = directory / 'messages.json'
     cache = _load(cache_path, {})
     known = {key for key, message in cache.items() if 'text' in message}
-    for message in fetch(address, password, since, known, capture):
+    last = _load(directory / 'last-run.json', {})
+    new = None
+    if cache and last.get('at') and not preview:
+        # Two days of overlap: Gmail's after: is a date, and mail can arrive late.
+        new = fetch(address, password, datetime.fromisoformat(last['at']) - timedelta(days=2), known, capture)
+        if not new and last.get('inputs') == _inputs(ledger):
+            return {'at': datetime.now(timezone.utc).isoformat(), 'idle': True,
+                    'checked': len(cache), 'written': 0}
+    groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger)['applied']
+    if not groups:
+        return {'applied': 0, 'checked': 0, 'written': 0, 'unsorted': 0}
+    if new is None:
+        # Decisions can be recorded weeks after applying; read from well before.
+        since = min(datetime.fromisoformat(group['at']) for group in groups if group.get('at')) - timedelta(days=45)
+        new = fetch(address, password, since, known, capture)
+    for message in new:
         cache[message['id']] = message
     # Every email is classified on every run, so a rule fixed today also
     # re-reads what arrived last week.
@@ -734,7 +764,7 @@ def run(db, ledger, address, password, directory=None, capture=None, preview=Fal
     summary = {'at': datetime.now(timezone.utc).isoformat(), 'applied': len(groups),
                'checked': len(cache), 'written': len(writes), 'unsorted': len(unsorted),
                'starred': len(newly)}
-    _save(directory / 'last-run.json', summary)
+    _save(directory / 'last-run.json', dict(summary, inputs=_inputs(ledger)))
     return summary
 
 
