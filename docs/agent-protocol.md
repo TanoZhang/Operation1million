@@ -12,8 +12,9 @@ Files: src/operation1million/export.py, deploy/vps/daily-pass.sh,
        tests/{test_review_export,test_prelaunch_fixes}.py,
        docs/{agent-protocol,application-review,handoff}.md
 Base commit: f93fc03
-Status: in progress
-Next: Deploy and check the file after the next pass.
+Status: done -- 2300ddb installed; first CSV pushed by hand (data ef8e6cc,
+        2,830 groups, 2,867 rows, 664 KB).
+Next: Merge Muse's newer submissions once they reach GitHub (only 315 there).
 ```
 
 ```text

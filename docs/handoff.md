@@ -9,6 +9,13 @@ warns and leaves the previous file. Measured on the 2026-10-04 local data:
 about 1.4 MB, over the 1 MB contents-API limit, so Muse asks for the raw media
 type. The user was given a prompt for Muse.
 
+2300ddb installed (Windows suite OK, 13 POSIX skips; WSL 1,163 OK). The first
+file was written on the VPS by hand and pushed through the backup service
+(data ef8e6cc: 2,830 groups, 2,867 rows, 664 KB). The user says Muse has made
+about 600 submissions, but GitHub's history.jsonl still holds the 315 already
+merged (last Muse commit 2026-10-06 01:35 PDT): the rest is on the laptop.
+Merge them the same way once Muse pushes.
+
 # Muse merge, passive Gmail, stored tests - 2026-10-06 (claude)
 
 Muse's job-applications/history.jsonl holds 315 submission records (258
