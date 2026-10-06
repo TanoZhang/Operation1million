@@ -14,8 +14,9 @@ Files: src/operation1million/{applications,review}.py,
        tests/{test_applications,test_unify_copies}.py,
        docs/{agent-protocol,application-review,architecture,handoff}.md
 Base commit: d448e03
-Status: active
-Next: Red tests, implement, full suite, install on the VPS, measure the live queue.
+Status: done -- b93d457 installed; 1,157 tests pass (WSL, no skips); live queue
+        1,961 pending / 4,221 backlog as predicted.
+Next: None. IMC and Ambarella copies stay visible by the city rule.
 ```
 
 ```text

@@ -26,6 +26,12 @@ returned nothing. One request (Analog IC Design Engineer) took 59 s and reported
 "budget reached; no request sent" with a failure and a spent credit; not chased.
 Results: /opt/operation1million/code/runs/20261006T01*.
 
+WSL on b93d457: all 1,157 tests pass with no skips. Installed b93d457 with
+install.sh. After the review service rebuilt its queue, live /api/queue
+returned HTTP 200 with 1,961 pending, 4,221 backlog, 235 applied and 12
+skipped, matching the comparison; the Quadric, OpenAI and Micron 44703045
+listings are hidden. Collector timer active, next pass October 6 04:38 Pacific.
+
 # Software JD evidence gate - 2026-10-05 (codex)
 
 The user reported a software systems validation false positive and clarified
