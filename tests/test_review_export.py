@@ -4,6 +4,7 @@ The export writes what the page is showing, in its order, to one workbook
 that each export replaces; nothing is opened and no second file is left.
 """
 from contextlib import closing
+import csv
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import json
@@ -92,6 +93,42 @@ class WorkbookTests(unittest.TestCase):
         export.write(self.path, [('pending', dict(GROUP, title='RTL\x0b Engineer\x00'))])
         rows, _ = sheet_rows(self.path)
         self.assertEqual(rows[1][2], 'RTL Engineer')
+
+
+class OpenQueueCsvTests(unittest.TestCase):
+    """The open queue as one CSV in the data repository, for Muse (2026-10-06)."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.path = Path(temporary.name) / 'review_queue.csv'
+
+    def test_only_what_remaining_counts_new_first(self):
+        state = {'pending': [GROUP, dict(GROUP, id='low', less_related=True)],
+                 'backlog': [dict(GROUP, id='early', early_career=True)],
+                 'applied': [dict(GROUP, id='done')], 'skipped': [dict(GROUP, id='no')]}
+        self.assertEqual([group['id'] for _, group in export.open_entries(state)], ['g1', 'early'])
+
+    def test_a_plain_csv_rewritten_in_place(self):
+        export.write_csv(self.path, [('pending', dict(GROUP, title='Old'))])
+        self.assertEqual(export.write_csv(self.path, [('pending', GROUP), ('backlog', dict(GROUP, id='g2'))]), 2)
+        with self.path.open(encoding='utf-8', newline='') as handle:
+            table = list(csv.reader(handle))
+        self.assertEqual(table[0], list(export.OPEN_COLUMNS))
+        self.assertNotIn('Decided', table[0])
+        row = dict(zip(table[0], table[1]))
+        self.assertEqual((row['Status'], row['Company'], row['Title'], row['Fit']),
+                         ('To review', 'A & B Semiconductor', 'RTL <Design> Engineer', '62'))
+        self.assertEqual(row['Link'], 'https://x.example/job?id=1&src="a"')
+        self.assertEqual(table[2][0], 'Backlog')
+        self.assertEqual([path.name for path in self.path.parent.iterdir()], ['review_queue.csv'])
+
+    def test_the_daily_pass_publishes_it(self):
+        script = (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
+        publish = script.split('publish_state() {')[1].split('\n}\n')[0]
+        self.assertIn('python -m operation1million.export operational/review_queue.csv', publish)
+        self.assertLess(publish.index('review_queue.csv'), publish.index('git commit'))
+        self.assertIn('operational/review_queue.csv; do', publish)
 
 
 class ExportEndpointTests(unittest.TestCase):

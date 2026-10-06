@@ -9,6 +9,8 @@ Written with the standard library. An .xlsx file is a zip of XML parts, and
 this needs one sheet of text, numbers and links -- not a reason for a
 dependency.
 """
+import argparse
+import csv
 from io import BytesIO
 import os
 from pathlib import Path
@@ -238,3 +240,55 @@ def write(path, entries):
     finally:
         Path(temporary).unlink(missing_ok=True)
     return len(table)
+
+
+# Asked for on 2026-10-06: Muse, the laptop's assistant, reads the data
+# repository through the GitHub API and could not see the queue, which exists
+# only as the index plus the ledger. One plain CSV of what Remaining counts,
+# rewritten in place each pass, is the whole interface: no SQLite in the
+# repository, and a day's change costs Git a compressed diff.
+OPEN_COLUMNS = tuple(name for name, _ in COLUMNS if name not in ('Decided', 'Reason'))
+
+
+def open_entries(state):
+    """What Remaining counts -- To review, Early career, Backlog -- new first."""
+    return [(source, group) for source in ('pending', 'backlog') for group in state[source]
+            if not group.get('less_related')]
+
+
+def write_csv(path, entries):
+    """Replace the CSV at `path` with these groups. Returns the row count."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    keep = [index for index, (name, _) in enumerate(COLUMNS) if name in OPEN_COLUMNS]
+    table = rows(entries)
+    handle, temporary = tempfile.mkstemp(prefix='.review-queue-', suffix='.csv', dir=path.parent)
+    try:
+        with os.fdopen(handle, 'w', encoding='utf-8', newline='') as out:
+            writer = csv.writer(out, lineterminator='\n')
+            writer.writerow(OPEN_COLUMNS)
+            writer.writerows([('' if row[i] is None else row[i]) for i in keep] for row in table)
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+    return len(table)
+
+
+def main():
+    from . import applications, manual_intake
+    from .paths import DB
+    parser = argparse.ArgumentParser(description='Write the open review queue as one CSV.')
+    parser.add_argument('csv', type=Path)
+    parser.add_argument('--db', type=Path, default=DB)
+    parser.add_argument('--ledger', type=Path, default=None)
+    args = parser.parse_args()
+    ledger = args.ledger or applications.ledger_path()
+    state = manual_intake.augment_queue(applications.queue(args.db, ledger), ledger)
+    applications.attach_links(state, applications.read_links(applications.links_path(ledger)))
+    entries = open_entries(state)
+    count = write_csv(args.csv, entries)
+    print(f'{args.csv}: {len(entries)} open positions, {count} listings', flush=True)
+
+
+if __name__ == '__main__':
+    main()

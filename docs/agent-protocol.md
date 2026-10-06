@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-06): publish the open Review queue as one CSV in
+       the data repository each daily pass, so Muse can read it directly.
+Files: src/operation1million/export.py, deploy/vps/daily-pass.sh,
+       tests/{test_review_export,test_prelaunch_fixes}.py,
+       docs/{agent-protocol,application-review,handoff}.md
+Base commit: f93fc03
+Status: in progress
+Next: Deploy and check the file after the next pass.
+```
+
+```text
+Owner: claude
 Scope: User requests (2026-10-06): merge Muse's confirmed submissions into the
        Review ledger as Applied (skips untouched); make the Gmail reader passive
        (full scan once, then new mail only); paid tests store their results.

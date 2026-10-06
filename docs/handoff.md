@@ -1,3 +1,14 @@
+# Open queue CSV for Muse - 2026-10-06 (claude)
+
+The user asked for the simplest way for Muse to read the filtered positions
+directly, and said not to bloat the data repository. `publish_state` now writes
+`operational/review_queue.csv` (export.main: To review, Early career, Backlog;
+no Low relevance, applied or skipped) and commits it with the pass; a failure
+warns and leaves the previous file. Measured on the 2026-10-04 local data:
+2,829 groups, 2,864 rows, 0.67 MB, 0.09 MB zlib. Live (~6,100 groups) should be
+about 1.4 MB, over the 1 MB contents-API limit, so Muse asks for the raw media
+type. The user was given a prompt for Muse.
+
 # Muse merge, passive Gmail, stored tests - 2026-10-06 (claude)
 
 Muse's job-applications/history.jsonl holds 315 submission records (258

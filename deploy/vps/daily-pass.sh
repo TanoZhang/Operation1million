@@ -121,10 +121,16 @@ publish_state() {
     echo 'WARNING: the seen-jobs snapshot was not refreshed; it is now stale and' >&2
     echo '         a rebuilt machine would treat old rejections as new.' >&2
   fi
+  # The open queue as one CSV, for Muse to read through the GitHub API
+  # (2026-10-06). A convenience like the snapshot above: warn, never abort.
+  if ! python -m operation1million.export operational/review_queue.csv \
+      --db "$CODE/data/db/job_discovery.sqlite" --ledger operational/applications.ndjson; then
+    echo 'WARNING: operational/review_queue.csv was not refreshed; it is from an earlier pass.' >&2
+  fi
   for name in operational/source_access.sqlite operational/jsearch_usage.sqlite \
               operational/applications.ndjson operational/listing_links.ndjson \
               operational/manual_jobs.ndjson operational/application_outcomes.ndjson \
-              operational/seen_jobs.ndjson.gz; do
+              operational/seen_jobs.ndjson.gz operational/review_queue.csv; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
   if ! git diff --cached --quiet; then

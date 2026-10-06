@@ -30,6 +30,14 @@ postings appear on that tab only, never under To review or Backlog, and
 Remaining does not count them. They can still be marked applied or skipped
 there.
 
+**For Muse** (2026-10-06): each daily pass writes what Remaining counts to
+`operational/review_queue.csv` in the data repository and pushes it with the
+pass, so Muse can read it through the GitHub API (`python -m
+operation1million.export <csv>`). One row per listing, To review / Early career
+new postings first, then Backlog; the columns are the Excel export's less
+Decided and Reason. It is a once-a-day picture: anything decided or applied
+since that pass is still listed.
+
 A position is one requisition: the provider's own job id, and the URL only where
 a provider publishes no id. The id is scoped the way the store scopes
 `job_identities` -- JSearch ids hold across the provider, a direct source's ids
