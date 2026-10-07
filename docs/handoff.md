@@ -1,3 +1,18 @@
+# Muse Qorvo reconciliation merged - 2026-10-07 (claude)
+
+Muse logged ids and titles for the Qorvo batch (5dd2471; 785 records, 742
+distinct). Merge 3: 11 backlog groups marked, 52 new Applied entries; a rerun
+finds all 742 applied (data 0e8a59a). The 2026-10-06 Qorvo placeholder
+(4873061f...) is retired by re-saving one real Qorvo entry (SOI Design Intern
+10592) as replacing it (cb91f9c). Gmail then matched 5 more Qorvo rejections;
+12 mails stay unmatched (6 Qorvo, 2 Broadcom, Marvell, Tenstorrent, IMC portal,
+Optiver assessment). Found by reading the cached mail, not by the reader: two
+HPE "invited to our screening process" mails (ASIC Engineering Intern, due Oct
+20; VLSI Engineer I Graduate, due Oct 21) have no outcome and never reached
+Unsorted -- the classifier does not know that wording. CSV: 2,676 open groups.
+
+The VPS also got two more SSH keys (op1m-laptop-2, op1m-backup-2026-10-06).
+
 # SSH keys only - 2026-10-06 (claude)
 
 At the user's request the VPS no longer accepts SSH passwords or root login:
