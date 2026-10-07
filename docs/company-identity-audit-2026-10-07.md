@@ -13,7 +13,9 @@ posting's requisition identity, not guessed with fuzzy matching.
 
 `employers.py` now owns exact aliases and legal-suffix matching. Review,
 application namesakes, paid-listing signatures, discovery company lookup and
-CSV/XLSX labels share it. Marvell variants display as Marvell. Unknown brand
+CSV/XLSX labels share it. Pasted-link imports and same-requisition matching
+use the same registry. Email matching retains full legal names beside canonical
+brands, including Advanced Micro Devices beside AMD. Marvell variants display as Marvell. Unknown brand
 punctuation is preserved; a staffing firm merely containing Marvell does not
 match. Raw provider names, direct company keys, requisition decision keys and
 append-only application snapshots are unchanged. Historical labels normalize

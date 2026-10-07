@@ -996,12 +996,10 @@ def queue(db_path=DB, path=None, now=None):
         result[status].sort(key=lambda group: group['at'], reverse=True)
     attach_links(result, read_links(links_path(path)))
     attach_outcomes(result, read_outcomes(outcomes_path(path)))
-    from .employers import display
+    from .employers import label_group
     for section in ('pending', 'backlog', 'applied', 'skipped'):
         for group in result[section]:
-            group['company'] = display(group.get('company'))
-            group['jobs'] = [dict(job, company=display(job.get('company') or group['company']))
-                             for job in group['jobs']]
+            label_group(group)
     return result
 
 

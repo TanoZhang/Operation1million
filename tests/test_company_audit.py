@@ -158,3 +158,20 @@ class CacheBoundaryTests(unittest.TestCase):
        'qualifications':['Required qualifications','Engineering degree',
                          'Preferred qualifications','Hands-on EtherCAT.']}}
   self.assertEqual(f.assess(row,profile())['verdict'],'keep')
+
+
+class ManualCompanyTests(unittest.TestCase):
+ def test_pasted_alias_uses_canonical_label_and_requisition_match(self):
+  from operation1million import manual_intake as intake
+  with tempfile.TemporaryDirectory() as folder:
+   ledger=Path(folder)/'applications.ndjson'
+   metadata={'company':'31 MSI - (Marvell Semi','company_key':'old_alias',
+             'title':'RTL Intern','source_job_id':'R1','description':'Design RTL.'}
+   g=intake.create_group('https://example.test/1',metadata);intake.save_manual(ledger,g)
+   path=intake.path_for(ledger);saved=path.read_bytes()
+   state={key:[] for key in ('pending','backlog','applied','skipped')}
+   state=intake.augment_queue(state,ledger)
+   self.assertEqual(state['pending'][0]['company'],'Marvell')
+   self.assertEqual(path.read_bytes(),saved)
+   incoming=dict(metadata,company='Marvell Technology, Inc.',company_key='marvell')
+   self.assertIsNotNone(intake.match_group(state,'https://example.test/2',incoming)[1])

@@ -369,8 +369,8 @@ def match_group(state, url, metadata=None):
                    for value in (job.get('url'), job.get('official_link'))):
                 matches.append((status, group)); break
             if metadata and str(job.get('source_job_id') or '') in requisitions and (
-                    str(group.get('company') or '').casefold() == metadata['company'].casefold()
-                    or job.get('company_key') == metadata.get('company_key')):
+                    applications.employer_name(group.get('company')) == applications.employer_name(metadata['company'])
+                    or job.get('company_key') and job['company_key'] == metadata.get('company_key')):
                 matches.append((status, group)); break
     unique = {group['id']: (status, group) for status, group in matches}
     return next(iter(unique.values())) if len(unique) == 1 else (None, None)
@@ -431,7 +431,8 @@ def augment_queue(state, ledger):
         # A decision already made keeps its tab.
         if status == 'pending' and refusal(group['jobs'][0], rules):
             continue
-        state[status].append(group)
+        from .employers import label_group
+        state[status].append(label_group(group))
     state['pending'].sort(key=ranking.rank)
     # Newest first, as applications.queue orders them (#309).
     for name in ('applied', 'skipped'):

@@ -60,3 +60,11 @@ def display(name):
         if shortened == text:
             return text
         text = shortened
+
+
+def label_group(group):
+    """Normalize an in-memory group without mutating its stored job snapshots."""
+    group['company'] = display(group.get('company'))
+    group['jobs'] = [dict(job, company=display(job.get('company') or group['company']))
+                     for job in group['jobs']]
+    return group
