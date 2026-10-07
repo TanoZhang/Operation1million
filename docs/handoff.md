@@ -9,7 +9,14 @@ fail validation. See [the audit](all-company-normalization-2026-10-07.md).
 
 The baseline reproduces split identities in seven non-Marvell families and
 24 catalog labels without a registered display. The focused repair suite
-passes 59 tests. Exact-commit full validation and deployment are pending.
+passes 59 tests. Exact final commit 38daa75 passed 1,205 tests with 14 skips
+in a clean detached worktree. The installer confirmed 38daa75, and rebuilt
+Review returned HTTP 200. All four live sections contain 224 company identities
+with zero split display labels. The Remaining CSV has 1,193 groups / 1,235 rows
+and 185 company identities, also with zero split labels; published privately
+as 5946cb0. Concurrent application-history/outcome commits were preserved.
+These are current live aggregates, separate from the broader inventory audit.
+Private evidence: .local/all-companies/production-verification.txt.
 Uncommitted Gmail outcome changes belong to the other agent and remain intact.
 The existing origin/codex divergence is retained; no unrelated autofill work
 is incorporated. Further optimization findings are proposals, not speedups.

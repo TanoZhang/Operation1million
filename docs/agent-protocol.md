@@ -9,8 +9,8 @@ Owner: codex
 Scope: Extend company normalization to the entire catalog and every Review employer; document further measured optimization opportunities.
 Files: employers.py, shared queue label boundary, alias configuration, company tests, docs; private audit only under .local/all-companies/.
 Base commit: 7ec7bee
-Status: active; gmail_outcomes.py and test_gmail_outcomes.py contain another agent's edits and will not be touched.
-Next: Audit all observed labels, enforce one display per canonical identity, test and deploy.
+Status: done -- 38daa75 tested and installed; all four live tabs and export verified; private CSV 5946cb0 published.
+Next: Additional optimization opportunities are documented; the other agent's uncommitted Gmail edits remain untouched.
 ```
 
 ```text

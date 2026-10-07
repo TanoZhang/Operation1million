@@ -6,7 +6,7 @@ NXP, Quadric, Astera Labs, onsemi, Intel legal entities and HPE. Twenty-four
 catalog labels lacked an explicit canonical display. Unknown-company case
 variants also lacked a shared queue-wide display choice.
 
-The repair registers every catalog employer and confirmed observed aliases:
+The repair registers all 45 catalog employers and confirmed observed aliases:
 60 canonical brands and 102 normalized alias keys. Queue labeling chooses one
 deterministic display per identity across pending, backlog, applied and skipped,
 including employers outside the catalog. Manual intake and CSV/XLSX use that
@@ -40,3 +40,15 @@ opportunities remain in the [original audit](company-identity-audit-2026-10-07.m
 
 Private measurements and inventories remain ignored under
 `.local/all-companies/`. No paid collection was invoked.
+
+Validation on exact commit 38daa75, in a clean detached worktree: 1,219 tests
+run, 1,205 passed and 14 skipped. The first full run exposed a stale Sandisk
+display expectation in the pasted-link regression; its expected canonical
+label is now SanDisk. The full suite was rerun successfully. The other agent's
+uncommitted Gmail changes were excluded from this validation and preserved.
+
+Deployment: installer confirmed 38daa75; rebuilt Review returned HTTP 200.
+All four sections contain 224 canonical identities with zero split labels.
+The private CSV was refreshed from that live snapshot: 1,193 groups, 1,235
+listing rows and 185 company identities; no split labels. Private commit
+5946cb0 preserves concurrent application-history/outcome updates.
