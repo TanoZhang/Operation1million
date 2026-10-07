@@ -1,3 +1,19 @@
+# All-company normalization - 2026-10-07 (codex)
+
+Base 7ec7bee. The user expanded the request to every company. The registry now
+covers the complete configured catalog and confirmed aliases from a fresh
+production inventory (443 raw labels, 395 normalized identities). All four
+Review sections and exports select one label per identity, including unknown
+companies. Raw names and durable decisions are preserved. Conflicting aliases
+fail validation. See [the audit](all-company-normalization-2026-10-07.md).
+
+The baseline reproduces split identities in seven non-Marvell families and
+24 catalog labels without a registered display. The focused repair suite
+passes 59 tests. Exact-commit full validation and deployment are pending.
+Uncommitted Gmail outcome changes belong to the other agent and remain intact.
+The existing origin/codex divergence is retained; no unrelated autofill work
+is incorporated. Further optimization findings are proposals, not speedups.
+
 # Company aliases and ten-bug audit - 2026-10-07 (codex)
 
 Base 587a639. The user's company-name defect plus ten additional failures were

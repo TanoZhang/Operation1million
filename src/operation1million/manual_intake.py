@@ -400,10 +400,11 @@ def save_manual(ledger, group, replaced_ids=(), replaced_groups=()):
 
 def augment_queue(state, ledger):
     """Explicit imports survive filter changes, DB rebuilds and normal decisions."""
+    from .employers import label_queue
     latest = {}
     path = path_for(ledger)
     if not path.exists():
-        return state
+        return label_queue(state)
     with applications.locked(path):
         for line in path.read_text(encoding='utf-8').splitlines():
             if line.strip():
@@ -439,4 +440,4 @@ def augment_queue(state, ledger):
         state[name].sort(key=lambda group: group.get('at') or '', reverse=True)
     applications.attach_links(state, applications.read_links(applications.links_path(ledger)))
     applications.attach_outcomes(state, applications.read_outcomes(applications.outcomes_path(ledger)))
-    return state
+    return label_queue(state)

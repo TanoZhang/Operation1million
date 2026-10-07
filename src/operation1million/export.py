@@ -70,6 +70,8 @@ def status_of(source, group):
 
 def rows(entries):
     """One row per listing, from (source, group) pairs in the order given."""
+    entries = list(entries)
+    labels = employers.display_names(group.get('company') for _, group in entries)
     out = []
     for source, group in entries:
         bucket = group.get('bucket')
@@ -78,7 +80,7 @@ def rows(entries):
             # The company's own link where the user found one: the row links to
             # it, and the third-party address it replaced is kept beside it.
             official = job.get('official_link')
-            out.append([status_of(source, group), employers.display(group.get('company')), group.get('title') or '',
+            out.append([status_of(source, group), labels[employers.identity(group.get('company'))], group.get('title') or '',
                         job.get('location') or '',
                         (job.get('posted_at') or '')[:10]
                         or (f"on or before {job['posted_before']}" if job.get('posted_before') else ''),

@@ -996,11 +996,8 @@ def queue(db_path=DB, path=None, now=None):
         result[status].sort(key=lambda group: group['at'], reverse=True)
     attach_links(result, read_links(links_path(path)))
     attach_outcomes(result, read_outcomes(outcomes_path(path)))
-    from .employers import label_group
-    for section in ('pending', 'backlog', 'applied', 'skipped'):
-        for group in result[section]:
-            label_group(group)
-    return result
+    from .employers import label_queue
+    return label_queue(result)
 
 
 def attach_links(state, links):

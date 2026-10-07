@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Extend company normalization to the entire catalog and every Review employer; document further measured optimization opportunities.
+Files: employers.py, shared queue label boundary, alias configuration, company tests, docs; private audit only under .local/all-companies/.
+Base commit: 7ec7bee
+Status: active; gmail_outcomes.py and test_gmail_outcomes.py contain another agent's edits and will not be touched.
+Next: Audit all observed labels, enforce one display per canonical identity, test and deploy.
+```
+
+```text
+Owner: codex
 Scope: Canonical company names/identity; reproduce and repair ten additional bugs; identify five measured optimization opportunities.
 Files: employer identity, applications/collector/discovery, resume fit/detail/cache paths as repros establish, regression tests, docs; private live audit under .local/.
 Base commit: 587a639

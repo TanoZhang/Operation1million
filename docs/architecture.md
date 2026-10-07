@@ -2701,3 +2701,11 @@ not a reason to abort a source or expose unusable Review actions.
 
 The same report records five measured optimization opportunities separately
 from implemented bug fixes. No performance speedup is asserted for them.
+
+The all-company follow-up covers every catalog employer and applies a shared
+display selection across all four queue sections and exports, including unknown
+employers with equivalent case/legal suffix variants. Exact confirmed aliases
+drive identity; presentation does not change immutable requisition keys or
+durable decisions. Conflicting alias registrations fail immediately. Unknown
+companies retain their punctuation; similar names alone cannot establish an
+alias. See [the follow-up audit](all-company-normalization-2026-10-07.md).
