@@ -403,7 +403,9 @@ class CollectionTests(unittest.TestCase):
                 {'title':'RTL Engineer','externalPath':f'/job/RTL_{n}'} for n in range(start,start+count)]})
         pages=[page(0,20,45),page(20,20,0),page(40,5,0)]
         c.fetch=lambda *a:pages.pop(0)
-        self.assertEqual(c.run(),('complete',''))
+        # Inventory pagination is independent of posting enrichment.
+        with patch('operation1million.job_details.enrich', return_value=[]):
+            self.assertEqual(c.run(),('complete',''))
         self.assertEqual(len(c.jobs),45)
         self.assertEqual(pages,[])
         # The rule it must not break: a board that is empty and says so.
@@ -534,7 +536,10 @@ class CollectionTests(unittest.TestCase):
         c=Collector(replace(self.source(),provider_key='apple_jobs'),self.args())
         c.jobs=[{'title':'Existing job'}]
         c.fetch=lambda *a:type('HTMLResponse',(),{'text':'<p>There are no results that match your search.</p>','url':'https://jobs.apple.com/en-us/search?page=226'})()
-        self.assertEqual(c.run(),('complete',''))
+        # This test isolates inventory termination; detail enrichment has its
+        # own captured-response tests and needs full normalized records.
+        with patch('operation1million.apple.enrich', return_value=[]):
+            self.assertEqual(c.run(),('complete',''))
     def test_missing_key_no_network(self):
         with patch.dict('os.environ',{},clear=True),patch('requests.Session.get') as get:
             rows,status,_=fallback(self.source(),['Sample'],self.args(),[30],config('sources_search.toml')['search']['jsearch'])

@@ -1,0 +1,23 @@
+{
+  "id": "100",
+  "jobAd": {
+    "sections": {
+      "companyDescription": {
+        "title": "Company Description",
+        "text": "<p>Minimum qualifications: 5 years of digital design experience.</p>"
+      },
+      "jobDescription": {
+        "title": "Job Description",
+        "text": "<p>Minimum qualifications: 5 years of digital design experience.</p>"
+      },
+      "qualifications": {
+        "title": "Qualifications",
+        "text": "<p>Minimum qualifications: 5 years of digital design experience.</p>"
+      },
+      "additionalInformation": {
+        "title": "Additional Information",
+        "text": "<p>Minimum qualifications: 5 years of digital design experience.</p>"
+      }
+    }
+  }
+}

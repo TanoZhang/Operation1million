@@ -696,8 +696,11 @@ class Collector:
         return status, detail
 
     def collect(self):
+        from .job_details import PROVIDERS
         try:
-            if self.strategy == 'conditional' and self.watermark and request_for(self.source)[1] != 'POST':
+            if (self.strategy == 'conditional' and self.watermark
+                    and self.source.provider_key not in PROVIDERS | {'apple_jobs'}
+                    and request_for(self.source)[1] != 'POST'):
                 # One cheap probe. A 304 ends the source here; anything else means
                 # the board moved and the normal pass below reads it properly.
                 #
@@ -748,10 +751,21 @@ class Collector:
                 self.validator = False
                 self.source = replace(self.source, provider_key='oracle_cloud', fields={'api_domain': urlsplit(base['data-apibaseurl']).netloc, 'site': base['data-sitenumber']})
             if self.source.provider_key in JSON_PROVIDERS:
-                return self.collect_json()
-            if self.source.provider_key in {'akeana_careers', 'renesas_careers'}:
-                return self.collect_sitemap()
-            return self.collect_html()
+                status, detail = self.collect_json()
+            elif self.source.provider_key in {'akeana_careers', 'renesas_careers'}:
+                status, detail = self.collect_sitemap()
+            else:
+                status, detail = self.collect_html()
+            if self.source.provider_key in PROVIDERS | {'apple_jobs'} and self.jobs:
+                if self.source.provider_key == 'apple_jobs':
+                    from .apple import enrich
+                else:
+                    from .job_details import enrich
+                db_path = getattr(self.args, 'db', None) if getattr(self.args, 'store', False) else None
+                errors = enrich(self, db_path)
+                if errors:
+                    return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+            return status, detail
         except SourcePaused as exc:
             return 'paused', str(exc)
         except Exception as exc:

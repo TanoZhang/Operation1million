@@ -649,6 +649,8 @@ def queue(db_path=DB, path=None, now=None):
     uri = Path(db_path).resolve().as_uri() + '?mode=ro'
     groups, backlog, legacy_history = {}, {}, []
     rules = jsearch.load_plan()[0]['filter']
+    from . import resume_fit
+    rules = dict(rules, _resume_fit_profile=resume_fit.load(resume_fit.profile_path(path)))
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
         if _has_identities(db):
@@ -816,7 +818,7 @@ def queue(db_path=DB, path=None, now=None):
                 # missing/off-domain JD before parsing experience across that
                 # much larger cohort. Every surviving row still faces all
                 # hard requirements below; this is only an earlier rejection.
-                if jsearch.software_jd_rejection(filter_row):
+                if jsearch.software_jd_rejection(filter_row, rules):
                     continue
                 if blocked:
                     if not jsearch.analog_chip_evidence(job['title'],

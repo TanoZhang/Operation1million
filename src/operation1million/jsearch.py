@@ -727,7 +727,7 @@ TITLE_FIELDS = {'title', 'job_title', 'name', 'position_name'}
 # became evidence, so an ordinary RTL role asking five years was accepted
 # whenever the query that found it said "Intern" -- and an antenna job scored
 # as silicon work whenever it was found by a query naming the trade.
-COLLECTOR_FIELDS = frozenset({'relevance', 'experience_filter', 'discovery_queries'})
+COLLECTOR_FIELDS = frozenset({'relevance', 'experience_filter', 'discovery_queries', 'apple_detail', 'detail_evidence'})
 
 TAGS = re.compile(r'<[^>]{0,400}>')
 WHITESPACE = re.compile(r'\s+')
@@ -830,14 +830,18 @@ SOFTWARE_JD_FIELDS = frozenset({
 })
 
 
-def software_jd_rejection(row):
+def software_jd_rejection(row, rules=None):
     """Shared automatic-admission gate; returns a reason or an empty string.
 
-    Every software title needs chip-specific evidence in current JD prose,
-    including explicit ASIC/FPGA titles. Missing prose waits for evidence;
+    A private resume profile can establish transferable duties or unknown JD.
+    Otherwise software titles need chip-specific evidence in current prose;
     neither an old score nor title/search metadata can supply it.
     """
     if not SOFTWARE_TITLE.search(row.get('title') or ''):
+        return ''
+    from .resume_fit import configured_assessment
+    fit = configured_assessment(row, rules)
+    if fit['verdict'] == 'keep' or fit['reason'] == 'missing_jd':
         return ''
     raw = row.get('raw')
     raw = raw if isinstance(raw, dict) else {}
@@ -1018,6 +1022,9 @@ def eligibility_rejection(row, rules, requirements=None):
         from .degree import phd_only
         if phd_only(row.get('title'), requirements):
             reason = 'phd_only'
+    if not reason:
+        from .resume_fit import rejection as resume_rejection
+        reason = resume_rejection(row, rules)
     return reason, experience
 
 
@@ -1065,7 +1072,7 @@ def rejection_reason(row, rules, description=None, score=None):
     reason, _ = eligibility_rejection(row, rules)
     if reason:
         return reason
-    reason = software_jd_rejection(row)
+    reason = software_jd_rejection(row, rules)
     if reason:
         return reason
     if SOFTWARE_TITLE.search(title) and not title_blocked(title, rules):

@@ -164,6 +164,15 @@ reproducer and update its evidence below.
   titles that settle the decision belong there; ambiguous trade words do not.
 - **Evidence titles require evidence when prose is supplied.** Missing prose
   is retained because a publisher's omission is not a negative signal.
+  The user reaffirmed this on 2026-10-06 during the Apple audit: failure to read
+  a JD is not itself a rejection. Shared detail enrichment supplies actual
+  minimum/preferred qualifications before the existing experience filter runs;
+  it does not tighten the two-year threshold or infer seniority from a title.
+  `job_details.py` owns selection, seven-day cache and provider detail adapters;
+  `apple.py` decodes Apple's captured hydration structure. Eightfold uses its
+  full HTML detail API because page JSON-LD can erase preferred headings and
+  turn optional experience into an apparent requirement. Failed details retain
+  inventory and prevent claiming complete detail coverage.
 - **Legacy credit residuals belong to their stored budget-day label.** Matching
   them to overlapping UTC dates counts one residual in two Pacific windows.
 - **Log-stamp dates are computed, never literal.** A past literal date seals and
@@ -2646,3 +2655,26 @@ Reproducers: `ApplicationsTests.test_an_application_covers_*`,
 `test_a_pasted_link_decision_covers_the_company_posting_at_that_address`,
 `HttpTests.test_an_application_moves_its_namesakes_out_of_the_cached_queue`
 and the early-career cases in `tests/test_unify_copies.py`.
+
+
+## Private resume-grounded fit policy - 2026-10-07
+
+The user superseded the chip-only scope: demonstrated transferable knowledge
+matters, while prior exposure does not establish specialist mastery. The
+private data repository's operational/resume_fit.json supplies supported work
+families and evidenced mandatory gaps; no resume facts belong in public code.
+Shared eligibility applies gaps before supported duties. Preferred conditions
+never establish mandatory gaps, titles cannot supply missing duty evidence,
+and absent or title-only descriptions remain unknown. Existing experience,
+citizenship and other hard exclusions retain precedence. Software titles may
+use private supported-duty evidence without the old chip-only vocabulary.
+Without a private profile the previous policy remains unchanged.
+
+Review uses the same profile and fingerprints it in its queue cache. Filtering
+only hides unsupported pending listings; it never writes application decisions
+or deletes inventory. Synthetic regressions reproduced title-based false
+admission and cover mandatory versus preferred depth, missing evidence,
+profile reload, software transfer, and intake/Review parity. Read-only live
+queue assessment also exposed a broad process-quality phrase incorrectly
+matching a verification JD; the private gap now requires specific process
+quality engineering or PFMEA evidence.

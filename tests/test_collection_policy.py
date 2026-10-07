@@ -183,7 +183,8 @@ class CollectionPolicyTests(unittest.TestCase):
             self.response(data={'data': {'count': 2, 'positions': [
                 {'id': '2', 'name': 'Verification Engineer', 'positionUrl': '/careers/job/2'}]}}),
         ]
-        with patch('operation1million.collector.time.sleep'):
+        with patch('operation1million.collector.time.sleep'), \
+                patch('operation1million.job_details.enrich', return_value=[]):
             self.assertEqual(c.run(), ('complete', ''))
         self.assertIn('start=1', c.session.request.call_args_list[1].args[1])
         self.assertIn('num=10', c.session.request.call_args_list[1].args[1])

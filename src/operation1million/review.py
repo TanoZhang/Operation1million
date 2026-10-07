@@ -11,7 +11,7 @@ import sqlite3
 import threading
 from urllib.parse import urlsplit, parse_qs
 
-from . import applications, export, ranking, jsearch, manual_intake, collection_policy, gmail_outcomes
+from . import applications, export, ranking, jsearch, manual_intake, collection_policy, gmail_outcomes, resume_fit
 from .queue_snapshot import QueueSnapshot
 from .job_text import display_description, readable_text
 from .paths import DB
@@ -120,7 +120,8 @@ def make_server(db, ledger, port=8765, export_path=None):
         return (fingerprint(ledger), fingerprint(db), wal_fingerprint(str(db) + '-wal'),
                 datetime.now(timezone.utc).date(),
                 jsearch.filter_fingerprint(jsearch.load_plan()[0]['filter']),
-                fingerprint(manual_intake.path_for(ledger)))
+                fingerprint(manual_intake.path_for(ledger)),
+                fingerprint(resume_fit.profile_path(ledger)))
 
     def record_decision(before, state, source, group, written):
         """Move a just-decided group in the cached queue instead of rebuilding it.

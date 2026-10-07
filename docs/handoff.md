@@ -1,28 +1,67 @@
-# Apple detail qualifications - 2026-10-06 (codex)
+# Resume-grounded filtering update - 2026-10-07 (codex)
 
-The user's Apple audit found regular Review roles asking for 3-10 years.
-Reproduced on base fd42835: stored Apple list records have no JD, so the
-experience parser reports unknown and admits them. Supplying the official
-minimum-qualification text correctly rejects the ten-year case; the parser
-itself was not the cause.
+The user requested implementation, based on actual JD duties and required depth.
+The shared private profile supports transferable work, rejects unsupported core
+requirements, and preserves unknown descriptions. Tests use synthetic profiles;
+the actual resume/profile and per-posting audit remain private. Review cache
+identity includes the profile. No application decisions or source jobs are
+deleted. The earlier narrow role-scope draft remains withdrawn.
 
-`apple.py` reads the public detail page's embedded React Router hydration JSON
-through the existing collector transport. It validates the exact posting number,
-keeps minimum and preferred qualifications separate, and stores them in normal
-raw fields that survive the durable log and later list-only updates. Relevant
-leads are enriched after inventory; intern titles first. Unchanged title/date
-captures are cached for seven days. Challenges and rate limits stop the source;
-missing/malformed details leave the row in inventory and make coverage partial.
+Read-only dry run against current production pending/backlog (excluding the
+less-related section): 2,709 indexed listings; 508 supported, 157 rejected,
+2,044 unknown. These are policy predictions before deployment, not final queue
+counts. Amazon had 49 listings at this snapshot, 11 supported and 38 rejected;
+its earlier 51-listing audit was a different snapshot.
 
-User clarification: missing JD alone must not reject a job. The exploratory
-missing-JD gate was removed. Existing two-year and preferred-only handling are
-unchanged. The live HTTP-200 capture and audit records stay in ignored .local/;
-the public test fixture preserves only the captured structure with redacted values.
+Branch comparison: origin/claude is contained in base 2531b95. The ten commits
+on origin/codex not in main concern old audits and autofill; their existing
+branch is preserved, and this change does not incorporate unrelated autofill.
+Validation/deployment status is recorded below after completion.
 
-Validation: 170 focused offline tests pass on fd42835 plus this working-tree
-patch. A captured real ten-year JD now produces required_experience_over_2_years.
-No paid collection, decision changes, or deployment. Existing live Review rows
-will change only after deployment and a subsequent Apple detail collection.
+# Cross-company JD enrichment - 2026-10-07 (codex)
+
+The user's Apple audit found ordinary Review titles asking for 3-10 years,
+then explicitly expanded the request to other employers. Reproduced on base
+fd42835: list-only raw records have no JD, so the experience parser reports
+unknown. Supplying the official required text correctly rejects the ten-year
+case. Missing collection evidence, rather than the two-year threshold, was
+the main cause. User clarification: missing JD alone must not reject a job.
+
+Read-only production audit: 162 distinct candidate posting URLs across 39
+non-Apple companies, 119 readable descriptions, 38 triggering the existing
+required-experience filter after replacing flattened Eightfold descriptions
+with full API evidence. This is a targeted sample, not a prevalence estimate
+or an exact Review queue count. Examples: Altera CPU design requires 3 years,
+CPU DV 8; Ambarella physical design 3-5. NVIDIA samples include 1-year and
+2-year paths. Private findings, captures and matched passages remain ignored
+under .local/apple-jd-audit/other-jds/report.md.
+
+`job_details.py` now enriches relevant inventory after listing, intern titles
+first, through existing paced transport and cooldowns. Adapters cover Apple
+(apple.py hydration), Workday CXS, Eightfold position_details, SmartRecruiters
+posting API, and Phenom/TalentBrew/Avature/Jobs2Web public JobPosting markup.
+Identity is validated; unchanged title/date evidence is cached seven days;
+existing full list JDs avoid extra requests. Required/preferred sections survive
+storage and list-only updates. Missing/failed details preserve inventory and
+report partial coverage; source challenges stop requests. Conditional list
+304s cannot suppress detail refresh. Rivos/Uplers and Oracle detail extraction
+remain unsupported. No new missing-JD gate or experience threshold change.
+
+An additional captured regression: Microsoft's JSON-LD omitted the headings
+that distinguish MS + 1 year required from MS + 3 years preferred. Its full
+public API preserves them; the real case now correctly has effective one year.
+Twelve public Eightfold API reads across all four active companies confirmed
+the detail shape. Public fixtures retain captured structures with synthetic
+values, never actual job records.
+
+Validation is against 2531b95 plus this working-tree patch (the other agent's
+Gmail commit advanced HEAD during the work). Full offline suite: 1191 tests,
+13 skipped, passed; final focused detail/filter/collection suite: 180 passed.
+Windows first selected the unusable system32 bash shim; selecting installed
+Git Bash fixed the unrelated env-file test without changing that test or code.
+No paid calls, application decisions, production job writes or deployment.
+The live queue is not yet corrected; deployment and a detail collection are
+required before the stored production records include this evidence.
 
 # Gmail: unrecognised mail is shown, not dropped - 2026-10-07 (claude)
 

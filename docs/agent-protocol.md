@@ -5,6 +5,42 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Resume-grounded JD fit: user clarified transferable knowledge matters, not narrow job-title categories.
+Files: private resume/JD analysis and any evidence-backed shared filtering changes, tests, docs.
+Base commit: 2531b95
+Status: implementing and validating shared private-profile fit; live read-only dry run complete.
+Next: Complete regression tests, commit private profile, deploy shared filtering, verify live queue. No sector-wide PLC/PCB/embedded exclusion.
+```
+
+```text
+Owner: codex
+Scope: Inspect actual live Amazon Remaining queue against actual JD duties; user clarified no sector-wide exclusions.
+Files: private .local/ audit evidence and docs claim only. Exploratory domain-rule edits withdrawn.
+Base commit: 2531b95
+Status: done -- inspected live Review's 51 Amazon listings and their stored JDs; per-posting assessment written privately.
+Next: .local/apple-jd-audit/amazon-current-review.md records duties and chip-adjacent evidence. No online filtering or decisions changed.
+```
+
+```text
+Owner: codex
+Scope: Fix Apple senior-experience leakage and audit other companies' actual JDs; preserve preferred-only, entry-level, and unknown-JD roles.
+Files: apple.py, job_details.py, collector.py, jsearch.py, detail/pagination tests, docs; ignored .local/apple-jd-audit/.
+Base commit: fd42835
+Status: done -- 1191 offline tests pass (13 skipped); 180 focused tests pass; 119 non-Apple JDs read.
+Next: Deploy and collect details to update live Review. This patch has not written production jobs or been deployed.
+```
+
+```text
+Owner: codex
+Scope: Read-only Apple JD audit requested by user; broaden Review sample across roles.
+Files: ignored .local/apple-jd-audit/ only; docs/agent-protocol.md claim.
+Base commit: fd42835
+Status: done -- 48 preselected roles; 38 official qualification sections read.
+Next: Findings in ignored .local/apple-jd-audit/report.md; no application or production changes.
+```
+
+```text
 Owner: claude
 Scope: User request (2026-10-06): publish the open Review queue as one CSV in
        the data repository each daily pass, so Muse can read it directly.

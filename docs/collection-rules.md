@@ -5,6 +5,29 @@ They prioritize low request volume and truthful coverage reporting.
 
 ## Current source decisions
 
+Apple HTML inventory contains titles and locations, not qualification text.
+Since the 2026-10-06 JD audit, title-relevant Apple leads receive a public
+detail-page read through the same paced transport and source cooldowns. The
+React Router hydration payload is decoded as JSON, bound to the exact posting
+number, and its required/preferred sections remain separate. Evidence is stored
+in the durable job log; unchanged title/date evidence is reused for seven days.
+The first pass therefore needs additional detail requests. Intern titles go first.
+A failed or missing detail never deletes a listing or establishes closure; it
+remains unknown under the existing policy, per the user's clarification.
+
+The 2026-10-07 cross-company audit extended the same detail pass to Workday,
+Eightfold, SmartRecruiters, Phenom, TalentBrew, Avature and Jobs2Web. Workday
+uses the inventory's externalPath on CXS; SmartRecruiters reads jobAd sections;
+Eightfold reads pcsx/position_details, not its flattened JSON-LD description,
+which can omit required/preferred headings. Other supported pages publish
+JobPosting JSON-LD or microdata. Payload identity must match the requested
+posting. Existing full list descriptions are reused. Relevant missing or
+excerpt-only descriptions are enriched with the same seven-day cache and
+source pacing. Conditional list-page 304s cannot skip this detail refresh.
+Rivos/Uplers and Oracle detail extraction are not added by this change; their
+unreadable JDs remain unknown. Coverage is not inferred from a successful HTML
+response or from the number of inventory rows.
+
 The active catalog contains 35 companies after removing Rambus and Ventana
 Micro. Their company rows, source rows, and JSearch fallback entries are removed.
 Historical run artifacts remain evidence of their original collection dates.
