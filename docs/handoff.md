@@ -16,7 +16,25 @@ its earlier 51-listing audit was a different snapshot.
 Branch comparison: origin/claude is contained in base 2531b95. The ten commits
 on origin/codex not in main concern old audits and autofill; their existing
 branch is preserved, and this change does not incorporate unrelated autofill.
-Validation/deployment status is recorded below after completion.
+Implementation commit: 0ce8778. Full offline suite on base 2531b95 plus
+patch: 1,199 tests passed, 13 skipped. The final title-only unknown refinement
+was additionally checked on exact commit 0ce8778: 93 focused tests passed.
+Private profile commit: 3a29371. Installer confirmed 0ce8778 on the VPS;
+Review restarted; its rebuilt queue returned HTTP 200. No paid requests or collection
+were triggered. The new detail adapters will enrich stored descriptions on
+the next normal collection; this deploy immediately filters existing JDs.
+
+Production verification: pending/backlog excluding less-related went from
+2,709 listing URLs to 2,682: 157 removed, 130 admitted (26 supported duties,
+104 unknown JDs previously held by the software-specific gate). None of the
+157 rejected original records remain pending. Amazon changed from 49 to 14:
+38 removed, 11 retained, three supported embedded/Annapurna software postings
+admitted. These are live listing counts, not claims of universal JD coverage.
+Private verification evidence is in .local/apple-jd-audit/fit-production-verification.txt.
+
+The standing codex branch cannot fast-forward because it retains unrelated
+autofill commits; the push was rejected and that branch was left intact.
+The tested current-main change was pushed to main and installed normally.
 
 # Cross-company JD enrichment - 2026-10-07 (codex)
 

@@ -9,8 +9,8 @@ Owner: codex
 Scope: Resume-grounded JD fit: user clarified transferable knowledge matters, not narrow job-title categories.
 Files: private resume/JD analysis and any evidence-backed shared filtering changes, tests, docs.
 Base commit: 2531b95
-Status: implementing and validating shared private-profile fit; live read-only dry run complete.
-Next: Complete regression tests, commit private profile, deploy shared filtering, verify live queue. No sector-wide PLC/PCB/embedded exclusion.
+Status: done -- 0ce8778 installed; HTTP 200 live queue verified; private profile 3a29371.
+Next: Normal collection will enrich missing JDs. Existing JD fit is live; no sector-wide PLC/PCB/embedded exclusion.
 ```
 
 ```text
