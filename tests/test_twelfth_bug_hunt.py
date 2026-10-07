@@ -145,7 +145,7 @@ class ProviderPages(Pasted):
         group, job = self.added({page: '<html><body></body></html>',
                                  api: (json.dumps(record), 'application/json')}, page)
         self.assertEqual(group['title'], 'Senior Staff Engineer, Enterprise Data Platform')
-        self.assertEqual(group['company'], 'Sandisk')
+        self.assertEqual(group['company'], 'SanDisk')
         self.assertEqual(job['location'], 'Milpitas, CA, us')
         self.assertEqual(job['source_job_id'], '744000151450267')
         self.assertEqual(job['posted_at'], '2026-09-23T18:39:02.858Z')
