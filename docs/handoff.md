@@ -81,6 +81,20 @@ No paid calls, application decisions, production job writes or deployment.
 The live queue is not yet corrected; deployment and a detail collection are
 required before the stored production records include this evidence.
 
+# Muse merge 4 and CSV refresh - 2026-10-07 (claude)
+
+After Codex's resume-evidence filtering (0ce8778) the CSV was regenerated
+(data 1bfadc9: 2,654 groups). Muse then pushed Applied Materials +34, Intel +9,
+AMD +6 and more (a2bed45; 1,029 submission records, 983 distinct). One line of
+history.jsonl held two records; the merge read both, and Muse has since split
+it (118c848). Run as a detached systemd unit on the VPS (muse-merge-095733,
+log /tmp/muse-merge.log) so the user could power off the laptop: 100 open
+groups marked applied by requisition (95 backlog, 5 pending), 116 new Applied
+entries; a rerun finds all 983 applied. Ledger 789 -> 1005 lines, manual_jobs
+403 -> 519. CSV: 2,518 open groups, 2,545 rows. Pushed as data efb6fa5.
+The merge script still lives only in the session scratchpad; if merges keep
+recurring it belongs in the repository.
+
 # Gmail: unrecognised mail is shown, not dropped - 2026-10-07 (claude)
 
 The user's call (2026-10-06): keyword screening misses wordings, so flip the
