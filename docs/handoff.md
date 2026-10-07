@@ -1,3 +1,45 @@
+# Apple detail qualifications - 2026-10-06 (codex)
+
+The user's Apple audit found regular Review roles asking for 3-10 years.
+Reproduced on base fd42835: stored Apple list records have no JD, so the
+experience parser reports unknown and admits them. Supplying the official
+minimum-qualification text correctly rejects the ten-year case; the parser
+itself was not the cause.
+
+`apple.py` reads the public detail page's embedded React Router hydration JSON
+through the existing collector transport. It validates the exact posting number,
+keeps minimum and preferred qualifications separate, and stores them in normal
+raw fields that survive the durable log and later list-only updates. Relevant
+leads are enriched after inventory; intern titles first. Unchanged title/date
+captures are cached for seven days. Challenges and rate limits stop the source;
+missing/malformed details leave the row in inventory and make coverage partial.
+
+User clarification: missing JD alone must not reject a job. The exploratory
+missing-JD gate was removed. Existing two-year and preferred-only handling are
+unchanged. The live HTTP-200 capture and audit records stay in ignored .local/;
+the public test fixture preserves only the captured structure with redacted values.
+
+Validation: 170 focused offline tests pass on fd42835 plus this working-tree
+patch. A captured real ten-year JD now produces required_experience_over_2_years.
+No paid collection, decision changes, or deployment. Existing live Review rows
+will change only after deployment and a subsequent Apple detail collection.
+
+# Gmail: unrecognised mail is shown, not dropped - 2026-10-07 (claude)
+
+The user's call (2026-10-06): keyword screening misses wordings, so flip the
+default rather than add an API. classify() now returns 'unknown' when no rule
+recognises an email; None only for a confirmation or NOISE (login codes,
+account verification, withdrawals, job alerts, events, ads). decide() lists
+unknown like unclear, only for an employer applied to, never starred; the page
+labels it "not recognised, read it". Also: html.unescape in _plain (Cisco and
+HPE text parts carried literal &nbsp;), "sorry to inform" / "do not meet the
+requirements" (Keysight) and "invited to our screening" (HPE). Measured on the
+912 cached emails before deploying: 4 new marks (HPE ASIC Engineering Intern
+and VLSI Engineer I Graduate passed; Keysight Custom Solutions and ASIC DFT
+declined) and 2 more in Unsorted (Micron "[Action Required] Create your
+Candidate Home", IMC "Additional Info Needed"); 13 -> 15. One full-suite run
+across midnight UTC had 1 failure that two reruns did not reproduce.
+
 # Muse Qorvo reconciliation merged - 2026-10-07 (claude)
 
 Muse logged ids and titles for the Qorvo batch (5dd2471; 785 records, 742

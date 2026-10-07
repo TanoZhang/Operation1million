@@ -99,7 +99,8 @@ const appliedDate = group => group.at
 const OUTCOME_LABELS = {passed: 'Passed', declined: 'Declined'};
 // Replies the Gmail check could not tie to one position or read plainly.
 let gmailItems = [];
-const GUESS_LABELS = {passed: 'looks passed', declined: 'looks declined', unclear: 'may be an invitation'};
+const GUESS_LABELS = {passed: 'looks passed', declined: 'looks declined', unclear: 'may be an invitation',
+                      unknown: 'not recognised, read it'};
 async function loadGmail() {
   try { gmailItems = (await api('/api/gmail')).items || []; } catch (err) { gmailItems = []; }
   renderGmail();

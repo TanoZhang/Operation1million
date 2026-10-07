@@ -86,8 +86,10 @@ class ClassifyTests(unittest.TestCase):
     def test_a_description_of_the_process_is_not_an_invitation(self):
         subject = 'Prepare for your application process with Optiver'
         self.assertIsNone(gmail.classify(subject, OPTIVER))
-        # Not even without the line that says it is a confirmation.
-        self.assertIsNone(gmail.classify(subject, OPTIVER.replace('Your application has been received. ', '')))
+        # Not even without the line that says it is a confirmation -- though
+        # since 2026-10-06 that one is shown as unknown, never dropped.
+        self.assertEqual(gmail.classify(subject, OPTIVER.replace('Your application has been received. ', '')),
+                         'unknown')
         # While a real invitation from the same firm still is one.
         self.assertEqual(gmail.classify('Optiver - Next steps', 'You have been invited to complete our '
                                         'online assessment. Please complete it within 7 days.'), 'passed')
@@ -145,7 +147,61 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(gmail.classify('IMC has invited you to the Candidate Portal', imc), 'unclear')
 
     def test_courtesies_alone_are_not_a_rejection(self):
-        self.assertIsNone(gmail.classify('Good luck', 'Best of luck on your exams!'))
+        self.assertEqual(gmail.classify('Good luck', 'Best of luck on your exams!'), 'unknown')
+
+
+class UnrecognisedMailTests(unittest.TestCase):
+    """Asked for on 2026-10-06, after reading all 912 fetched emails by hand:
+    what no rule recognises is shown, not dropped. Excerpts of the real mail."""
+
+    HPE = ("Thanks for your interest in joining us as a ASIC Engineering Intern. In order to get to know you "
+           "better, we'd like to move forward with the hiring process. You're invited to participate in our "
+           "screening process! Submit by Total questions (6) Oct 20th, 2026 (11:59 PM EDT) Single choice")
+    KEYSIGHT = ("Thank you very much for your recent application for our Custom Solutions Engineering Internship "
+                "position, requisition number 2026-54611. We have reviewed your application and we are sorry to "
+                "inform you that you do not meet the requirements for this position. However, we invite you to "
+                "continue to look for opportunities at our company that meet your interests and match your "
+                "qualifications. We encourage you to continue to visit our Careers Page and apply for other "
+                "positions that may interest you.")
+    IMC = ("You are receiving this request for additional information because you responded Yes or Maybe to one "
+           "or more of the questions on our application regarding immigration sponsorship. Please use the form "
+           "below to provide more specific information on your current immigration status and expiration date. "
+           "Completion of this form is needed in order to process your application, so please complete at your "
+           "earliest convenience.")
+
+    def test_a_screening_invitation_is_passed(self):
+        self.assertEqual(gmail.classify('Congratulations! You are invited to our screening process', self.HPE),
+                         'passed')
+
+    def test_sorry_to_inform_is_a_rejection(self):
+        self.assertEqual(gmail.classify('Keysight Application Status - Job Requisition 2026-54611', self.KEYSIGHT),
+                         'declined')
+
+    def test_a_request_no_rule_names_is_unknown_not_nothing(self):
+        self.assertEqual(gmail.classify('IMC Application: Additional Info Needed', self.IMC), 'unknown')
+
+    def test_entities_left_in_the_text_are_read_as_spaces(self):
+        cisco = ("Thank you for taking&nbsp;the&nbsp;first step towards&nbsp;a&nbsp;career at&nbsp;Cisco&nbsp;by "
+                 "applying! We're keen to learn more about you.")
+        self.assertIsNone(gmail.classify('Your Cisco Journey Begins Here', cisco))
+
+    def test_codes_and_job_alerts_are_still_nothing(self):
+        for subject, body in (('Security code for your application to Optiver', 'Your security code is 123456.'),
+                              ('Verify your candidate account', 'Click below to verify your account.'),
+                              ('New job opportunities at Texas Instruments', 'Roles picked for you.'),
+                              ("You've withdrawn your Amazon job application!", 'This confirms it.')):
+            self.assertIsNone(gmail.classify(subject, body), subject)
+
+    def test_unknown_is_listed_only_for_an_employer_applied_to(self):
+        groups = [group('i1', 'IMC', 'Graduate Hardware Engineer')]
+        imc = message('IMC Application: Additional Info Needed', self.IMC,
+                      sender='IMC Recruiting <recruitmentchi@imc.com>', outcome='unknown', mid='imc')
+        stranger = message('Quick chat about a role?', 'Would you be open to a chat?',
+                           sender='Recruiter <someone@agency.example>', outcome='unknown', mid='x')
+        writes, unsorted, stars = gmail.decide(groups, [imc, stranger], {})
+        self.assertEqual(writes, [])
+        self.assertEqual([item['id'] for item in unsorted], ['imc'])
+        self.assertEqual(stars, [])
 
 
 def group(gid, company, title, at='2026-09-20T00:00:00+00:00', req=''):
@@ -312,15 +368,15 @@ class ParseAndStoreTests(unittest.TestCase):
 EVALUATION = [
     # amimrjo
     (None, 'Your application to Acme Corp', 'Thank you for applying to the Software Engineer position at Acme Corp. We have received your application and will be in touch.'),
-    (None, 'Quick chat about a role?', "Hi, I came across your profile on LinkedIn and think you'd be a great fit for our Backend Engineer role. Would you be open to a quick chat this week?"),
+    ('unknown', 'Quick chat about a role?', "Hi, I came across your profile on LinkedIn and think you'd be a great fit for our Backend Engineer role. Would you be open to a quick chat this week?"),
     ('passed', 'Interview invitation - Beta Inc', 'We would like to schedule an interview for the position of Data Analyst. Please use this Calendly link to pick a time.'),
     ('declined', 'Update on your application', 'Thank you for your interest in Gamma LLC. After careful consideration, we have decided to move forward with other candidates for this role.'),
     ('passed', 'Your offer from Delta Co', 'We are pleased to offer you the position of Product Manager. Please find the attached offer letter.'),
-    (None, 'This week in tech', 'Here is your weekly roundup of tech news and industry trends.'),
+    ('unknown', 'This week in tech', 'Here is your weekly roundup of tech news and industry trends.'),
     (None, 'New jobs posted from Grainger Businesses', 'Thank you for joining the Grainger Businesses talent community! Joining our talent community will allow us to notify you directly when roles aligned to your interests are posted.'),
     (None, 'New job opportunities at Texas Instruments', 'Hello, We have new job opportunities that might interest you. Check them out: Network Engineer, AI Solutions Engineer. See all opportunities.'),
     ('passed', 'New job opportunities at Acme -- plus your interview invitation', "We have new job opportunities you might like. Separately: we'd like to schedule an interview for the position of Backend Engineer."),
-    (None, 'Opportunity', "We have an opportunity we'd love to discuss with you regarding a role."),
+    ('unknown', 'Opportunity', "We have an opportunity we'd love to discuss with you regarding a role."),
     (None, 'Application received', 'Thank you for applying. We have received your application.'),
     # fnuAshutosh templates
     ('passed', 'Interview', 'We are pleased to invite you for an interview for the RTL Engineer position at Acme. The interview is scheduled for Oct 9.'),
@@ -331,7 +387,7 @@ EVALUATION = [
     ('declined', 'Decision', 'We have reviewed your application for RTL and regret to inform you that we will not be proceeding.'),
     (None, 'Application submitted', 'Acme has confirmed receipt of your application for RTL.'),
     (None, 'Submitted', 'Your application for RTL at Acme has been successfully submitted and is under review.'),
-    (None, 'Resume help', 'We can help improve your resume for just $99. Get professional writing today!'),
+    ('unknown', 'Resume help', 'We can help improve your resume for just $99. Get professional writing today!'),
     (None, 'Coaching', 'Urgent: Claim your FREE job interview coaching session now!'),
     (None, 'Profile', 'SPECIAL OFFER: Get your LinkedIn profile optimized by experts. Limited time only!'),
     # Hard confirmations

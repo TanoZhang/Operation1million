@@ -23,6 +23,7 @@ a sentence that is neither conditional nor negated.
 import argparse
 from datetime import datetime, timedelta, timezone
 import email
+import html
 from email.header import decode_header, make_header
 from email.utils import parseaddr, parsedate_to_datetime
 import imaplib
@@ -52,6 +53,9 @@ DECLINED = (
     'going in a different direction', 'decided to go with', 'decided to move on',
     'not been selected', 'not selected', 'were not selected', 'not chosen',
     'not shortlisted', 'not been shortlisted',
+    # Keysight, 2026-10-06: "we are sorry to inform you that you do not meet
+    # the requirements for this position" went unread.
+    'sorry to inform', 'do not meet the requirements', 'does not meet the requirements',
     'no longer under consideration', 'no longer being considered', 'no longer considering',
     'not proceed', 'not be proceeding', 'decided not to proceed', 'not be progressing',
     'not progress your application', 'not to progress', 'not advancing', 'not be advancing',
@@ -138,6 +142,9 @@ PASSED = (
     'advanced to the next', 'advancing to the next', 'proceed to the next', 'progress to the next',
     'progressed to the next', 'moved to the next',
     # An assessment.
+    # HPE, 2026-10-05: "You are invited to our screening process", six
+    # questions with a deadline, read as nothing.
+    'invited to our screening', 'invited to participate in our screening', 'screening questionnaire',
     'online assessment', 'coding assessment', 'technical assessment', 'coding challenge',
     'coding test', 'technical test', 'online test', 'take-home', 'take home assignment',
     'complete the assessment', 'complete an assessment', 'complete this assessment',
@@ -206,12 +213,32 @@ CONFIRMATION = (
     'application has been received', 'application was received', 'application was submitted',
     'application has been submitted', 'successfully submitted', 'successfully applied',
     'we have received', 'confirming your application', 'application confirmation',
-    'thank you for your interest',
+    'thank you for your interest', 'your application is in', 'confirmed receipt', 'received your job application',
+    # Read as unknown on the real mail, 2026-10-06: Tesla, Cisco (ten of
+    # them), Stateside Brands.
+    "we've received your", 'thank you for taking the first step', 'no further action is needed',
+)
+# Mail from an employer that is plainly not news: a login code, an account to
+# verify, a withdrawal the user made. Everything else no rule recognises is
+# `unknown` and shown, not dropped (2026-10-06): phrase lists will always
+# trail the wording, and the HPE screening invitations, a Keysight rejection
+# and IMC's request for a sponsorship form were all read as nothing. Kept to
+# what a footer does not say -- "unsubscribe" is in invitations too.
+NOISE = (
+    'security code', 'verification code', 'one-time password', 'one time password',
+    'verify your candidate account', 'verify your email', 'verify your account', 'confirm your identity',
+    'confirm your email', 'confirm your career profile', 'registration code', 'reset your password',
+    'password reset', 'sign-in code', 'login code', 'withdrawn your', 'decided not to continue',
+    'weekly digest', 'new jobs', 'new job opportunities', 'jobs posted', 'job alert', 'jobs you may',
+    'career fair', 'hackathon', 'webinar', 'info session', 'information session', 'mock interview',
+    'claim your', 'special offer', 'limited time', 'thank you for registering', 'candidates like you',
 )
 
 
 def _plain(text):
-    text = str(text or '').replace('’', "'").replace('‘', "'").replace('\xa0', ' ')
+    # Some mailers leave entities in the text part: Cisco's "taking&nbsp;the&nbsp;first
+    # step" and HPE's invitation matched no phrase until unescaped (2026-10-06).
+    text = html.unescape(str(text or '')).replace('’', "'").replace('‘', "'").replace('\xa0', ' ')
     return ' '.join(text.casefold().split())
 
 
@@ -270,11 +297,14 @@ def _found(pattern, line):
 
 
 def classify(subject, body):
-    """'passed', 'declined', 'unclear' (look at it) or None (nothing to do).
+    """'passed', 'declined', 'unclear' (look at it), 'unknown' (no rule
+    recognises it: look at it) or None (known to be nothing to do).
 
     Order matters, and it leans toward not losing an invitation: a plain
     invitation is Passed even in an email that also says "unfortunately",
     unless the same email is also a plain rejection, which is unclear.
+    Nothing is dropped for want of a rule: only a confirmation or plain
+    noise is None.
     """
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
@@ -290,16 +320,21 @@ def classify(subject, body):
         return 'passed'
     if declined:
         return 'declined'
-    if any(_CONFIRMATION.search(line) for line in lowered):
-        return None
     mentioned = any(_PASSED_WEAK.search(line) and not _HEDGES.search(line) and not _DESCRIPTIVE.search(line)
                     for line in lowered)
-    return 'unclear' if mentioned or len(hits) >= 2 else None
+    if any(_CONFIRMATION.search(line) for line in lowered):
+        return None
+    if mentioned or len(hits) >= 2:
+        return 'unclear'
+    if any(_NOISE.search(line) for line in lowered):
+        return None
+    return 'unknown'
 
 
 _PASSED, _PASSED_WEAK, _DECLINED = _phrases(PASSED), _phrases(PASSED_WEAK), _phrases(DECLINED)
 _HEDGES, _DECLINE_HEDGES = _phrases(HEDGES), _phrases(DECLINE_HEDGES)
 _DESCRIPTIVE, _CONFIRMATION, _PORTAL = _phrases(DESCRIPTIVE), _phrases(CONFIRMATION), _phrases(PORTAL)
+_NOISE = _phrases(NOISE)
 
 
 # ---------------------------------------------------------------- matching --
@@ -465,7 +500,9 @@ def decide(groups, messages, current):
                 seen_senders.add(sender)
             continue
         found = match(groups, message)
-        if verdict == 'unclear' or not found:
+        # Unknown is listed like unclear, and only for an employer applied
+        # to: a newsletter no rule names stays out of the list.
+        if verdict in ('unclear', 'unknown') or not found:
             guess = found or match(groups, message, company_only=True)
             if not guess and verdict != 'passed':
                 continue
