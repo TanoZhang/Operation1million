@@ -1,3 +1,12 @@
+# SSH keys only - 2026-10-06 (claude)
+
+At the user's request the VPS no longer accepts SSH passwords or root login:
+/etc/ssh/sshd_config.d/00-keys-only.conf (read before 50-cloud-init.conf, which
+had turned passwords on). Checked: key login works; password and root are
+refused with "Permission denied (publickey)". All 8 password logins in the
+logs came from the user's own addresses; ~200k failed attempts from others.
+Recovery without a key is OVH's KVM console or rescue mode, not SSH.
+
 # Open queue CSV for Muse - 2026-10-06 (claude)
 
 The user asked for the simplest way for Muse to read the filtered positions
