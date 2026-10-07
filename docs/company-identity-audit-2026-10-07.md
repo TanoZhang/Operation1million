@@ -64,5 +64,10 @@ absolute local timings do not predict VPS timings.
 | 4 | EXPLAIN QUERY PLAN for the recent open queue scans jobs_relevance and uses a temporary B-tree; julianday(first_seen) is not an indexed range. | Benchmark an expression/composite index for open date windows and ordering. | Offset-aware timestamp equivalence, insertion overhead, old-schema migration and query-plan change. |
 | 5 | Projecting and JSON-encoding the 7,257-group snapshot took a local median 99.52 ms over ten iterations. | Cache the slim response per queue version, invalidating after decisions, links, outcomes and input changes. | Byte-equivalent payload apart from intentional transient fields; no stale actions or leaked tokens. |
 
-Implementation, test commit and production verification are recorded in the
-newest handoff entry when complete. Private evidence: `.local/company-audit/`.
+Implemented in f9a5c2c plus the pasted-link follow-up d1d4e73. Full suite:
+1,213 tests passed (13 skipped) on f9a5c2c; 78 targeted tests passed on exact
+final code d1d4e73, which the installer confirmed in production. Review returned
+HTTP 200 and all four tabs and export rows use only Marvell for the confirmed
+aliases; all four original source labels remain in the index. Private CSV
+refresh published as d0faa0f. The newest handoff records aggregate counts.
+Private evidence: `.local/company-audit/`.

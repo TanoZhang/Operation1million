@@ -11,7 +11,19 @@ matching, vague-location copies and damaged persisted Review queues. The
 [full audit](company-identity-audit-2026-10-07.md) links every reproducer and
 separates five measured optimization opportunities from implemented repairs.
 
-Status: full offline suite running; production install and verification pending.
+Validation: full suite on f9a5c2c passed 1,213 tests (13 skipped). The final
+pasted-link fix was checked with 182 integration/regression tests and, on exact
+commit d1d4e73, 78 targeted tests. Installer confirmed d1d4e73; rebuilt Review returned HTTP 200.
+The other agent's concurrent 0bcb726 handoff-only commit is retained in the
+ancestry and its historical text was not overwritten. Production verification found only Marvell across all four tabs and export
+rows; four original source labels remain in the index. Marvell pending/backlog
+has 25 groups, applied 26 and skipped one. The current Remaining snapshot has
+2,508 groups / 2,541 listing rows. Private CSV refreshed from that same live
+snapshot and published as d0faa0f, preserving the other writer's intervening
+application-history and skip-ledger commits. No decisions were written by
+this task. Private verification: .local/company-audit/production-verification.txt.
+These are live aggregate measurements; the ten bug regressions are offline
+reproductions, not a claim that all ten occurred in production.
 No paid/external collection has been invoked. Read-only production evidence and
 local timing harnesses remain ignored under .local/company-audit/.
 

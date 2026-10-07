@@ -9,8 +9,8 @@ Owner: codex
 Scope: Canonical company names/identity; reproduce and repair ten additional bugs; identify five measured optimization opportunities.
 Files: employer identity, applications/collector/discovery, resume fit/detail/cache paths as repros establish, regression tests, docs; private live audit under .local/.
 Base commit: 587a639
-Status: investigating; no overlapping active claim found.
-Next: Reproduce employer aliases and adjacent failure cases, add regression tests before fixes, test and deploy.
+Status: done -- d1d4e73 installed; all Review tabs/export labels verified; private CSV d0faa0f published.
+Next: Five measured optimization opportunities are documented separately; no further bug-fix work remains.
 ```
 
 ```text
