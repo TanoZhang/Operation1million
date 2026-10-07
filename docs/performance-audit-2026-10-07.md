@@ -37,7 +37,13 @@ is written atomically and failure warns without aborting the collection pass.
    Version the queue and side ledgers, invalidating on decisions, reopen,
    manual imports and file replacement. Parsing caches alone do not remove
    these traversals.
-3. **Reuse the serialized browser payload.** The earlier measurement of slim
+3. **Reuse location patterns in title cleaning.** The full fixed-input baseline
+   calls `clean_title` 67,217 times, taking 82.691 cumulative seconds of a
+   312.750-second profiled queue build. Its location-dependent regexes are
+   constructed repeatedly. Benchmark a bounded cache keyed by normalized
+   location, preserving punctuation, city boundaries and idempotence. Nested
+   regex compilation time is included in that number, not additive.
+4. **Reuse the serialized browser payload.** The earlier measurement of slim
    projection and JSON serialization still applies; this patch only caches
    parsed side ledgers. A response cache must include queue mutation version,
    links/outcomes, configuration and the server-local token. See the
@@ -45,3 +51,12 @@ is written atomically and failure warns without aborting the collection pass.
 
 Private raw inputs, frozen replay data and profiles are ignored under
 `.local/performance/`. Other-agent Gmail edits are excluded from this patch.
+
+Full fixed-input replay: the frozen local database and five operational inputs
+produce exactly equal queue JSON before and after, all 7,210 groups including
+nested jobs and decisions. Profiled builds measured 312.979 and 220.077 seconds;
+these local runs overlapped other offline tests and are not isolated production
+benchmarks. The first full suite exposed two test-contract issues: importing
+another test module violated the dependency audit, and a CSV publication check
+assumed it was the last item in the staging loop. Both tests were adjusted and
+24 focused checks passed; production logic did not change for these corrections.

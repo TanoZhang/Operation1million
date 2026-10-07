@@ -3,7 +3,12 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 from operation1million import applications, review, jsearch, resume_fit
-from tests.test_resume_fit import profile
+
+
+def profile():
+    return {'version': 1, 'families': [
+        {'id': 'digital', 'evidence': 'Synthetic RTL project', 'all': [r'\bRTL\b', r'design|verif']}
+    ], 'gaps': []}
 
 class PerformanceContracts(unittest.TestCase):
 

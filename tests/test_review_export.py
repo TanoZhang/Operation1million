@@ -128,7 +128,9 @@ class OpenQueueCsvTests(unittest.TestCase):
         publish = script.split('publish_state() {')[1].split('\n}\n')[0]
         self.assertIn('python -m operation1million.export operational/review_queue.csv', publish)
         self.assertLess(publish.index('review_queue.csv'), publish.index('git commit'))
-        self.assertIn('operational/review_queue.csv; do', publish)
+        staged = publish.split('for name in operational/source_access.sqlite', 1)[1].split('; do', 1)[0]
+        self.assertIn('operational/review_queue.csv', staged)
+        self.assertIn('operational/company_alias_audit.json', staged)
 
 
 class ExportEndpointTests(unittest.TestCase):
