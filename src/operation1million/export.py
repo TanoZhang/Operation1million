@@ -20,7 +20,7 @@ import zipfile
 from xml.sax.saxutils import escape
 from urllib.parse import urlsplit
 
-from . import ranking
+from . import ranking, employers
 from .paths import ROOT
 
 DEFAULT_PATH = ROOT / '.local' / 'exports' / 'review-queue.xlsx'
@@ -78,7 +78,7 @@ def rows(entries):
             # The company's own link where the user found one: the row links to
             # it, and the third-party address it replaced is kept beside it.
             official = job.get('official_link')
-            out.append([status_of(source, group), group.get('company') or '', group.get('title') or '',
+            out.append([status_of(source, group), employers.display(group.get('company')), group.get('title') or '',
                         job.get('location') or '',
                         (job.get('posted_at') or '')[:10]
                         or (f"on or before {job['posted_before']}" if job.get('posted_before') else ''),

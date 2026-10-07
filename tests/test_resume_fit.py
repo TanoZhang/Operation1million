@@ -41,7 +41,7 @@ class ResumeFitTests(unittest.TestCase):
         self.assertEqual(resume_fit.assess(row, profile())['verdict'], 'reject')
 
     def test_missing_and_qualification_only_jd_are_unknown(self):
-        for raw in ({}, {'preferred_qualifications': 'RTL design'}, {'requirements': 'PLC expert'}):
+        for raw in ({}, {'preferred_qualifications': 'RTL design'}, {'requirements': 'Engineering degree'}):
             self.assertEqual(resume_fit.assess({'title': 'Engineer', 'raw': raw}, profile())['verdict'], 'unknown')
         self.assertEqual(resume_fit.assess({'title': 'RTL Design Intern', 'raw': {
             'description': 'RTL Design Intern at Example'}}, profile())['verdict'], 'unknown')

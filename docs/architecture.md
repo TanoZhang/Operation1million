@@ -68,6 +68,7 @@ Current patch status and measurements: newest section of [handoff](handoff.md).
 
 | File | Owns |
 | --- | --- |
+| `employers.py` | Explicit company aliases and legal-suffix identity shared by discovery, Review and exports; never rewrites requisition identity or original provider evidence. |
 | `applications.py` | The queue and the decision ledger. `decision_key` is what a decision may cover and nothing wider. `queue()` replays the ledger, re-applies the filter to stored rows, and ranks. Decisions are appended to NDJSON under a file lock and fsynced; **no application state lives in SQLite**, so rebuilding the index cannot erase a decision. |
 | `ranking.py` | What to read first. Bands, the early-career signal, and the sort key. Ranking only -- it cannot drop a posting. |
 | `review.py` | The loopback HTTP server. Binds `127.0.0.1` only, checks the Host header so an SSH tunnel still works, and requires a token for writes. `slim()` projects the queue down to what the page renders. |
@@ -2678,3 +2679,25 @@ profile reload, software transfer, and intake/Review parity. Read-only live
 queue assessment also exposed a broad process-quality phrase incorrectly
 matching a verification JD; the private gap now requires specific process
 quality engineering or PFMEA evidence.
+
+
+## Company identity and ten-bug repair - 2026-10-07
+
+The user reported Marvell brand/legal-entity aliases splitting company counts
+and deduplication. `employers.py` now supplies shared identity and display
+normalization. Known aliases are exact; no fuzzy substring merger. Discovery
+normalizes unknown employer hashes, and Review normalizes historical labels
+on read. Raw names and decision/requisition identities remain durable and
+unchanged. CSV/XLSX uses the same display vocabulary.
+
+Ten additional reproducers and their fixes are documented in
+[the company audit](company-identity-audit-2026-10-07.md): four JD evidence
+boundary failures, two detail-cache failures, three geographic dedup failures,
+and acceptance of damaged queue snapshots. Mandatory qualification evidence
+is checked even if duties are missing; absence alone still cannot reject.
+City identity now includes state and never uses city substring matching.
+Detail-cache proof includes the requisition id. Invalid caches are disposable,
+not a reason to abort a source or expose unusable Review actions.
+
+The same report records five measured optimization opportunities separately
+from implemented bug fixes. No performance speedup is asserted for them.

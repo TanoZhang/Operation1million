@@ -200,11 +200,8 @@ def employer_name(value):
     name as the publisher wrote it, so "NIKSUN" and "NIKSUN, Inc." were two
     employers, and "Marvell Technology" on LinkedIn was not Marvell's board.
     """
-    words = _plain(value).split()
-    while words and words[-1] in {'inc', 'incorporated', 'corp', 'corporation', 'llc',
-                                  'ltd', 'limited', 'co', 'company', 'plc'}:
-        words.pop()
-    return ' '.join(words)
+    from .employers import identity
+    return identity(value)
 
 
 VAGUE_PLACES = {'', 'us', 'usa', 'united states', 'united states of america', 'remote'}
@@ -213,7 +210,19 @@ MANY_PLACES = re.compile(r'^\d+ locations$')
 
 
 def _city(place):
-    return _plain(str(place or '').split(',')[0])
+    return _place_key(place)[0]
+
+
+def _place_key(place):
+    """Named city and state; keep homonymous cities in different states apart."""
+    text = re.sub(r'\s*\(HQ\)|\s+or\s+Remote\b', '', str(place or ''), flags=re.I)
+    parts = [_plain(part) for part in text.split(',')]
+    if len(parts) >= 3 and parts[0] in {'us', 'usa', 'united states'}:
+        parts = [parts[-1], *parts[1:-1]]
+    city = re.sub(r'^location\s+', '', parts[0])
+    states = [location.US_STATES.get(part, part) for part in parts[1:]
+              if part in location.US_STATES or part in location.US_STATE_CODES]
+    return city, states[0] if states else ''
 
 
 def _vague(place):
@@ -231,11 +240,13 @@ def places_agree(jobs, others):
     if any(_vague(job.get('location')) for job in (*jobs, *others)):
         return True
 
-    def named(city, items):
-        return any(f' {city} ' in f" {_plain(job.get('location'))} " for job in items)
-
-    return (any(named(_city(job.get('location')), others) for job in jobs)
-            or any(named(_city(job.get('location')), jobs) for job in others))
+    for job in jobs:
+        city, state = _place_key(job.get('location'))
+        for other in others:
+            other_city, other_state = _place_key(other.get('location'))
+            if city == other_city and (not state or not other_state or state == other_state):
+                return True
+    return False
 
 
 def namesake(group):
@@ -304,13 +315,11 @@ def unify_copies(recent, backlog, decided):
             return None
         job = group['jobs'][0]
         found = direct.get((employer_name(job.get('company')), _plain(job['title'])), {})
-        cities = {_city(item.get('location')) for item in group['jobs']} - VAGUE_PLACES
+        cities = {_place_key(item.get('location')) for item in group['jobs']
+                  if not _vague(item.get('location'))}
 
         def same_place(target):
-            places = [_plain(item.get('location')) for item in target['jobs']]
-            if all(_city(place) in VAGUE_PLACES or MANY_PLACES.match(place) for place in places):
-                return True
-            return any(city in place for place in places for city in cities)
+            return places_agree(group['jobs'], target['jobs'])
 
         if len(found) > 1:
             # One title per city: only the listing's city can say which.
@@ -353,7 +362,7 @@ def unify_copies(recent, backlog, decided):
                 continue
             job = group['jobs'][0]
             into = paid.setdefault((employer_name(job.get('company')), _plain(job['title']),
-                                    _city(job.get('location'))), key)
+                                    _place_key(job.get('location'))), key)
             if into != key:
                 fold(key, into)
     # A listing that names no city ("US", or nothing) is the same job as the
@@ -370,7 +379,7 @@ def unify_copies(recent, backlog, decided):
             group = where(key).get(key)
             if (group is None or other not in recent and other not in backlog
                     or any(job.get('provider_key') != 'jsearch' for job in group['jobs'])
-                    or {_city(job.get('location')) for job in group['jobs']} - VAGUE_PLACES):
+                    or any(not _vague(job.get('location')) for job in group['jobs'])):
                 continue
             fold(key, other)
             break
@@ -387,7 +396,7 @@ def unify_copies(recent, backlog, decided):
     namesakes = {}
     for table in tables:
         for key, group in list(table.items()):
-            places = frozenset(_city(job.get('location')) for job in group['jobs'])
+            places = frozenset(_place_key(job.get('location')) for job in group['jobs'])
             if (key not in table or not ranking.early_career(group['title'])
                     or any(_vague(job.get('location')) for job in group['jobs'])
                     or any(ruled(job) for job in group['jobs'])):
@@ -421,7 +430,7 @@ def listing_signature(job):
     """
     def plain(value):
         return ' '.join(re.sub(r'[\W_]+', ' ', str(value or '')).casefold().split())
-    return (plain(job.get('company_key') or job.get('company')),
+    return (employer_name(job.get('company') or job.get('company_key')),
             plain(clean_title(job.get('title') or '', job.get('location') or '')),
             plain(job.get('location')))
 
@@ -987,6 +996,12 @@ def queue(db_path=DB, path=None, now=None):
         result[status].sort(key=lambda group: group['at'], reverse=True)
     attach_links(result, read_links(links_path(path)))
     attach_outcomes(result, read_outcomes(outcomes_path(path)))
+    from .employers import display
+    for section in ('pending', 'backlog', 'applied', 'skipped'):
+        for group in result[section]:
+            group['company'] = display(group.get('company'))
+            group['jobs'] = [dict(job, company=display(job.get('company') or group['company']))
+                             for job in group['jobs']]
     return result
 
 

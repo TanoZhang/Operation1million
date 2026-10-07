@@ -30,8 +30,12 @@ class QueueSnapshot:
                 return None
             for name in ('pending', 'backlog', 'applied', 'skipped'):
                 if any(not isinstance(group, dict) or not isinstance(group.get('id'), str)
+                       or not all(isinstance(group.get(key), str) for key in ('company', 'title'))
+                       or not isinstance(group.get('confidence'), (int, float))
                        or not isinstance(group.get('jobs'), list)
-                       or not all(isinstance(job, dict) for job in group['jobs']) for group in state[name]):
+                       or not group['jobs']
+                       or not all(isinstance(job, dict) and isinstance(job.get('url'), str)
+                                  and job['url'] for job in group['jobs']) for group in state[name]):
                     return None
             self.saved = signature
             return state

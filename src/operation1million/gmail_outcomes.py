@@ -370,8 +370,14 @@ def company_names(company):
     if ' ' in name and len(name.replace(' ', '')) >= 6:
         names.add(name.replace(' ', ''))
     for full, short in ALIASES.items():
-        if name.startswith(full):
+        if name.startswith(full) or name in short:
             names.update(short)
+            # A canonical brand (AMD) must still match mail spelling its legal
+            # name out. Company display normalization must not erase evidence.
+            if applications.employer_name(full) == name:
+                names.add(full)
+                if ' ' in full and len(full.replace(' ', '')) >= 6:
+                    names.add(full.replace(' ', ''))
     return {item for item in names if len(item) >= 3}
 
 

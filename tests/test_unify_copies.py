@@ -174,7 +174,7 @@ class UnifyCopiesTests(unittest.TestCase):
     def test_employer_name_drops_the_legal_suffix_only(self):
         self.assertEqual(employer_name('NIKSUN, Inc.'), 'niksun')
         self.assertEqual(employer_name('QUALCOMM Incorporated'), 'qualcomm')
-        self.assertEqual(employer_name('Advanced Micro Devices, Inc.'), 'advanced micro devices')
+        self.assertEqual(employer_name('Advanced Micro Devices, Inc.'), 'amd')
 
 
 if __name__ == '__main__':

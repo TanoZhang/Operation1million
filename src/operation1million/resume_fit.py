@@ -18,9 +18,10 @@ BODY_FIELDS = ('descriptionPlain', 'job_description', 'description', 'jobDescrip
                'jobSummary', 'responsibilities', 'ExternalResponsibilitiesStr')
 REQUIRED_FIELDS = ('basic_qualifications', 'minimum_qualifications',
                    'required_qualifications', 'requirements', 'qualifications',
-                   'ExternalQualificationsStr')
+                   'required_skills', 'ExternalQualificationsStr')
 PREFERRED = re.compile(r'^(?:preferred|desired|nice.to.have|bonus)\b', re.I)
-REQUIRED = re.compile(r'^(?:(?:basic|minimum|required|essential)\s+)?(?:qualifications|requirements)\b', re.I)
+REQUIRED = re.compile(r'^(?:(?:(?:basic|minimum|required|essential)\s+)?'
+                      r'(?:qualifications|requirements)|(?:required|essential)\s+skills)\b', re.I)
 DUTIES = re.compile(r'^(?:(?:key|job|main|your)\s+)*(?:responsibilities|duties)\b|^what you.*do\b', re.I)
 
 
@@ -64,21 +65,42 @@ def _text(value):
 
 def sections(raw):
     duties, required = [], []
-    for key in BODY_FIELDS:
-        mode = 'duties'
-        for line in _text(raw.get(key)).splitlines():
+
+    def consume(value, mode):
+        if isinstance(value, dict):
+            for key, content in value.items():
+                name = str(key).replace('_', ' ')
+                child = ('preferred' if PREFERRED.match(name) else
+                         'required' if REQUIRED.match(name) or name.casefold() == 'required' else
+                         'duties' if DUTIES.match(name) else mode)
+                consume(content, child)
+            return mode
+        if isinstance(value, list):
+            for item in value:
+                mode = consume(item, mode)
+            return mode
+        for line in _text(value).splitlines():
             line = line.strip()
-            if PREFERRED.match(line):
-                mode = 'preferred'
-            elif REQUIRED.match(line):
-                mode = 'required'
-            elif DUTIES.match(line):
-                mode = 'duties'
-            elif mode == 'duties':
+            for pattern, next_mode in ((PREFERRED, 'preferred'), (REQUIRED, 'required'),
+                                       (DUTIES, 'duties')):
+                match = pattern.match(line)
+                if match:
+                    mode = next_mode
+                    line = line[match.end():].lstrip(' :-')
+                    break
+            if mode == 'duties':
                 duties.append(line)
             elif mode == 'required':
                 required.append(line)
-    required.extend(_text(raw.get(key)) for key in REQUIRED_FIELDS)
+        return mode
+
+    for key in BODY_FIELDS:
+        consume(raw.get(key), 'duties')
+    for key in REQUIRED_FIELDS:
+        consume(raw.get(key), 'required')
+    highlights = raw.get('job_highlights')
+    if isinstance(highlights, dict):
+        consume(highlights, 'ignored')
     return '\n'.join(duties).strip(), '\n'.join(required).strip()
 
 
@@ -95,20 +117,20 @@ def assess(row, profile):
     raw = row.get('raw')
     raw = raw if isinstance(raw, dict) else {}
     prose, required = sections(raw)
+    title = row.get('title') or ''
+    for rule in profile.get('gaps', []):
+        text = required if rule.get('scope') == 'requirements' else prose
+        if text and _matches(rule, text if rule.get('scope') == 'requirements' else title + '\n' + text):
+            return {'verdict': 'reject', 'reason': 'unsupported_core_requirement',
+                    'evidence': [rule['id']]}
     if not prose:
         return {'verdict': 'unknown', 'reason': 'missing_jd', 'evidence': []}
-    title = row.get('title') or ''
     # A title repeated by a publisher is not a description of the work.
     remainder = re.sub(re.escape(title), '', prose, flags=re.I) if title else prose
     if len(prose) < 300 and not re.search(
             r'\b(?:design\w*|develop\w*|build\w*|verif\w*|validat\w*|test\w*|'
             r'commission\w*|implement\w*|debug\w*|maintain\w*|research\w*)\b', remainder, re.I):
         return {'verdict': 'unknown', 'reason': 'missing_jd', 'evidence': []}
-    for rule in profile.get('gaps', []):
-        text = required if rule.get('scope') == 'requirements' else title + '\n' + prose
-        if _matches(rule, text):
-            return {'verdict': 'reject', 'reason': 'unsupported_core_requirement',
-                    'evidence': [rule['id']]}
     matches = [rule['id'] for rule in profile['families'] if _matches(rule, prose)]
     if matches:
         return {'verdict': 'keep', 'reason': 'supported_transfer', 'evidence': matches}

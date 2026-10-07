@@ -136,7 +136,12 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
     if db_path is not None:
         with closing(sqlite3.connect(db_path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
             for url, raw in db.execute('SELECT url, raw FROM jobs WHERE provider_key=?', (provider,)):
-                previous[url] = json.loads(raw or '{}')
+                try:
+                    decoded = json.loads(raw or '{}')
+                except (TypeError, ValueError):
+                    continue
+                if isinstance(decoded, dict):
+                    previous[url] = decoded
     rules = jsearch.load_plan()[0]['filter']
     now = datetime.now(timezone.utc)
     errors = []
@@ -147,6 +152,8 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
             continue
         old = previous.get(row['url'], {})
         proof = old.get(metadata) or {}
+        if not isinstance(proof, dict):
+            proof = {}
         try:
             checked = datetime.fromisoformat(proof.get('checked_at', ''))
             fresh = timedelta(0) <= now - checked < REFRESH_AFTER
@@ -154,6 +161,7 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
             fresh = False
         if (fresh and proof.get('status') == 'verified'
                 and proof.get('title') == row['title']
+                and proof.get('source_job_id') == str(row.get('source_job_id') or '')
                 and proof.get('posted_at') == row.get('posted_at')
                 and readable_text(old.get(evidence))):
             row['raw'].update({key: old.get(key, '') for key in fields})
@@ -166,6 +174,7 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
             row['raw'][metadata] = {
                 'status': 'verified', 'checked_at': now.isoformat(),
                 'title': row['title'], 'posted_at': row.get('posted_at'),
+                'source_job_id': str(row.get('source_job_id') or ''),
             }
         except SourcePaused:
             raise

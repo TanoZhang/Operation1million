@@ -1,3 +1,20 @@
+# Company aliases and ten-bug audit - 2026-10-07 (codex)
+
+Base 587a639. The user's company-name defect plus ten additional failures were
+reproduced before repair. Shared explicit aliases now unify Marvell names for
+matching, Review display, history and CSV/XLSX. Provider raw and the durable
+application ledger are retained; direct requisition identity is unchanged.
+
+The additional fixes cover inline/structured/required-only JD evidence,
+preferred boundaries, corrupt and reused-requisition detail caches, state/city
+matching, vague-location copies and damaged persisted Review queues. The
+[full audit](company-identity-audit-2026-10-07.md) links every reproducer and
+separates five measured optimization opportunities from implemented repairs.
+
+Status: full offline suite running; production install and verification pending.
+No paid/external collection has been invoked. Read-only production evidence and
+local timing harnesses remain ignored under .local/company-audit/.
+
 # Resume-grounded filtering update - 2026-10-07 (codex)
 
 The user requested implementation, based on actual JD duties and required depth.

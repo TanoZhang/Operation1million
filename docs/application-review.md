@@ -62,6 +62,16 @@ title and named places are one entry.
 The hard title and employer exclusions are re-applied at read time, so a rule
 tightened after collection takes effect on rows already stored.
 
+## Company names
+
+Company display, namesake matching and exported labels use the same explicit
+alias registry. Marvell, Marvell Technology, Inc., and the confirmed Workday
+legal-entity labels display as Marvell. Unknown brands are not fuzzy-matched;
+merely mentioning a client does not make a staffing agency that employer.
+Historical display is normalized on read, without rewriting decisions.
+Raw provider names and direct company/requisition keys remain unchanged.
+Named cities in explicitly different states remain separate.
+
 ## Ordering
 
 Positions are ranked by band first and by date second; `operation1million/ranking.py`

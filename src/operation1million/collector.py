@@ -775,12 +775,8 @@ class Collector:
 
 
 def employer_normalize(name):
-    text = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().lower()
-    words = re.findall(r'[a-z0-9]+', text)
-    suffixes = {'inc', 'incorporated', 'corp', 'corporation', 'llc', 'ltd', 'limited', 'co', 'company'}
-    while words and words[-1] in suffixes:
-        words.pop()
-    return ' '.join(words)
+    from .employers import identity
+    return identity(name)
 
 
 def employer_matches(name, aliases):

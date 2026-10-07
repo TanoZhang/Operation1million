@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Canonical company names/identity; reproduce and repair ten additional bugs; identify five measured optimization opportunities.
+Files: employer identity, applications/collector/discovery, resume fit/detail/cache paths as repros establish, regression tests, docs; private live audit under .local/.
+Base commit: 587a639
+Status: investigating; no overlapping active claim found.
+Next: Reproduce employer aliases and adjacent failure cases, add regression tests before fixes, test and deploy.
+```
+
+```text
+Owner: codex
 Scope: Resume-grounded JD fit: user clarified transferable knowledge matters, not narrow job-title categories.
 Files: private resume/JD analysis and any evidence-backed shared filtering changes, tests, docs.
 Base commit: 2531b95

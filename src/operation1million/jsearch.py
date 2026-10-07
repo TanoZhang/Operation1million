@@ -408,7 +408,7 @@ def normalize_job(item, query, companies, rules=None):
         raise ValueError('Employer name must be text')
     key = companies.get(employer_normalize(employer))
     if not key:
-        key = 'discovered_' + hashlib.sha256(employer.casefold().encode()).hexdigest()[:16]
+        key = 'discovered_' + hashlib.sha256(employer_normalize(employer).encode()).hexdigest()[:16]
     source = Source(query.key, 'discovery', key, employer, 'jsearch', '', {})
     # The first candidate that is a public address, not the first that is
     # nonempty. A blank or `javascript:void(0)` apply link used to win, fail the
