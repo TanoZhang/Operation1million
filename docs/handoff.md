@@ -1,3 +1,15 @@
+# Filtering and Review optimization - 2026-10-07 (codex)
+
+Base 13a0658. Implemented parsed side-ledger caching, per-evaluation resume
+assessment reuse, bounded inventory-URL detail-cache reads and lazy preferred
+section parsing. The daily pass now writes an advisory company-alias report
+to the private operational directory. No paid collection or decisions written.
+[Measurements and further opportunities](performance-audit-2026-10-07.md).
+
+Initial 67 focused tests passed; new invalidation/race/report tests also pass.
+Full fixed-input queue comparison, exact-commit validation and deployment are
+pending. The other agent's Gmail edits are still uncommitted and untouched.
+
 # All-company normalization - 2026-10-07 (codex)
 
 Base 7ec7bee. The user expanded the request to every company. The registry now

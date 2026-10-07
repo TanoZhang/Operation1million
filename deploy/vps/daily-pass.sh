@@ -127,10 +127,15 @@ publish_state() {
       --db "$CODE/data/db/job_discovery.sqlite" --ledger operational/applications.ndjson; then
     echo 'WARNING: operational/review_queue.csv was not refreshed; it is from an earlier pass.' >&2
   fi
+  if ! python -m operation1million.company_audit --db "$CODE/data/db/job_discovery.sqlite" \
+      --output operational/company_alias_audit.json; then
+    echo 'WARNING: company alias audit was not refreshed; it is from an earlier pass.' >&2
+  fi
   for name in operational/source_access.sqlite operational/jsearch_usage.sqlite \
               operational/applications.ndjson operational/listing_links.ndjson \
               operational/manual_jobs.ndjson operational/application_outcomes.ndjson \
-              operational/seen_jobs.ndjson.gz operational/review_queue.csv; do
+              operational/seen_jobs.ndjson.gz operational/review_queue.csv \
+              operational/company_alias_audit.json; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
   if ! git diff --cached --quiet; then

@@ -830,7 +830,7 @@ SOFTWARE_JD_FIELDS = frozenset({
 })
 
 
-def software_jd_rejection(row, rules=None):
+def software_jd_rejection(row, rules=None, *, fit_assessment=None):
     """Shared automatic-admission gate; returns a reason or an empty string.
 
     A private resume profile can establish transferable duties or unknown JD.
@@ -840,7 +840,7 @@ def software_jd_rejection(row, rules=None):
     if not SOFTWARE_TITLE.search(row.get('title') or ''):
         return ''
     from .resume_fit import configured_assessment
-    fit = configured_assessment(row, rules)
+    fit = fit_assessment() if fit_assessment is not None else configured_assessment(row, rules)
     if fit['verdict'] == 'keep' or fit['reason'] == 'missing_jd':
         return ''
     raw = row.get('raw')
@@ -875,8 +875,8 @@ def us_person_required(text, rules):
     # citizens" was " citizenship, candidates ", its condition lost
     # (2026-09-27). The same text with those points blanked, same offsets.
     plain = ABBREVIATION.sub(lambda found: found.group().replace('.', ' '), text)
+    optional_spans = None
     for pattern in rules.get('us_person_required_patterns', []):
-        optional_spans = preferred_spans(text)
         for match in re.finditer(pattern, text, re.I):
             # The sentence the match stands in, up to it. A requirement stated
             # conditionally is not this posting's requirement: "ITAR projects,
@@ -901,6 +901,8 @@ def us_person_required(text, rules):
             if TRAILING_CONDITION.match(rest) or LICENCE_INSTEAD.search(rest):
                 continue
             # Under a preferred heading, or a line labelled as a preference.
+            if optional_spans is None:
+                optional_spans = preferred_spans(text)
             if any(start <= match.start() < end for start, end in optional_spans):
                 continue
             if WORK_AUTHORIZATION.search(rest):
@@ -999,7 +1001,7 @@ HEDGED = re.compile(r'\b(?:if|may|might|could|where|whether|should)\b', re.I)
 DENIED = re.compile(r"(?:\b(?:not|never)|n't)\s+(?:\w+\s+){0,2}$", re.I)
 
 
-def eligibility_rejection(row, rules, requirements=None):
+def eligibility_rejection(row, rules, requirements=None, *, fit_assessment=None):
     """Return the posting-level eligibility rejection and parsed experience.
 
     Paid intake and the Review queue must apply these hard checks in the same
@@ -1024,7 +1026,7 @@ def eligibility_rejection(row, rules, requirements=None):
             reason = 'phd_only'
     if not reason:
         from .resume_fit import rejection as resume_rejection
-        reason = resume_rejection(row, rules)
+        reason = resume_rejection(row, rules, fit_assessment)
     return reason, experience
 
 
@@ -1069,10 +1071,12 @@ def rejection_reason(row, rules, description=None, score=None):
             prose = description_text(row)
         return prose
 
-    reason, _ = eligibility_rejection(row, rules)
+    from .resume_fit import lazy_assessment
+    fit_assessment = lazy_assessment(row, rules)
+    reason, _ = eligibility_rejection(row, rules, fit_assessment=fit_assessment)
     if reason:
         return reason
-    reason = software_jd_rejection(row, rules)
+    reason = software_jd_rejection(row, rules, fit_assessment=fit_assessment)
     if reason:
         return reason
     if SOFTWARE_TITLE.search(title) and not title_blocked(title, rules):

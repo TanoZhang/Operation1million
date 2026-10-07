@@ -133,15 +133,20 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
     from . import jsearch
     from .job_text import display_description
     previous = {}
-    if db_path is not None:
+    if db_path is not None and collector.jobs:
+        from .store import chunks
         with closing(sqlite3.connect(db_path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
-            for url, raw in db.execute('SELECT url, raw FROM jobs WHERE provider_key=?', (provider,)):
-                try:
-                    decoded = json.loads(raw or '{}')
-                except (TypeError, ValueError):
-                    continue
-                if isinstance(decoded, dict):
-                    previous[url] = decoded
+            # URL is the existing cache identity. Restrict reads to this inventory,
+            # without narrowing company scope or losing shared URL evidence.
+            for urls in chunks(list(dict.fromkeys(row['url'] for row in collector.jobs))):
+                query = 'SELECT url, raw FROM jobs WHERE provider_key=? AND url IN (%s)'
+                for url, raw in db.execute(query % ','.join('?' * len(urls)), (provider, *urls)):
+                    try:
+                        decoded = json.loads(raw or '{}')
+                    except (TypeError, ValueError):
+                        continue
+                    if isinstance(decoded, dict):
+                        previous[url] = decoded
     rules = jsearch.load_plan()[0]['filter']
     now = datetime.now(timezone.utc)
     errors = []

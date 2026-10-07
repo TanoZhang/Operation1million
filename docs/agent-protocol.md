@@ -6,6 +6,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Implement measured Review/JD optimizations and alias auditing; find further measured opportunities.
+Files: review cache, JD assessment call boundaries, employer audit, tests and docs; private profiling under .local/performance/.
+Base commit: 13a0658
+Status: active; other agent Gmail edits remain untouched.
+Next: Measure baselines, preserve outputs and invalidation, test exact commit and deploy.
+```
+
+```text
+Owner: codex
 Scope: Extend company normalization to the entire catalog and every Review employer; document further measured optimization opportunities.
 Files: employers.py, shared queue label boundary, alias configuration, company tests, docs; private audit only under .local/all-companies/.
 Base commit: 7ec7bee

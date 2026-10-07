@@ -102,6 +102,15 @@ def wal_fingerprint(path):
     return state if state and state[1] else None
 
 
+def ledger_fingerprint(path):
+    """Detect append, deletion and atomic replacement, even at equal mtime/size."""
+    try:
+        state = Path(path).stat()
+    except FileNotFoundError:
+        return None
+    return state.st_mtime_ns, state.st_size, state.st_ino, state.st_ctime_ns
+
+
 def make_server(db, ledger, port=8765, export_path=None):
     token = secrets.token_urlsafe(32)
     export_path = export_path or export.DEFAULT_PATH
@@ -115,6 +124,21 @@ def make_server(db, ledger, port=8765, export_path=None):
     building = threading.Lock()
     cached = {'key': None, 'state': None}
     snapshot = QueueSnapshot(ledger, db)
+    parsed_ledgers = {}
+
+    def read_cached(path, reader):
+        # Only these two side ledgers are cached; callers hold the building lock.
+        # A concurrent writer makes this read uncacheable, never a permanent hit.
+        before = ledger_fingerprint(path)
+        previous = parsed_ledgers.get(path)
+        if previous is not None and previous[0] == before:
+            return previous[1]
+        value = reader(path)
+        if ledger_fingerprint(path) == before:
+            parsed_ledgers[path] = (before, value)
+        else:
+            parsed_ledgers.pop(path, None)
+        return value
 
     def queue_key():
         return (fingerprint(ledger), fingerprint(db), wal_fingerprint(str(db) + '-wal'),
@@ -181,14 +205,14 @@ def make_server(db, ledger, port=8765, export_path=None):
         """
         key = queue_key()
         with building:
-            signature = snapshot.signature(key, [fingerprint(links), fingerprint(outcomes)])
+            signature = snapshot.signature(key, [ledger_fingerprint(links), ledger_fingerprint(outcomes)])
             if cached['key'] != key:
                 restored = snapshot.load(signature) if cached['state'] is None else None
                 cached['state'] = restored if restored is not None else manual_intake.augment_queue(applications.queue(db, ledger), ledger)
                 cached['key'] = key
             if queue_key() == key:
-                applications.attach_links(cached['state'], applications.read_links(links))
-                applications.attach_outcomes(cached['state'], applications.read_outcomes(outcomes))
+                applications.attach_links(cached['state'], read_cached(links, applications.read_links))
+                applications.attach_outcomes(cached['state'], read_cached(outcomes, applications.read_outcomes))
                 snapshot.save(signature, cached['state'])
             return cached['state']
 

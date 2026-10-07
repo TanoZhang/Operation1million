@@ -2709,3 +2709,22 @@ drive identity; presentation does not change immutable requisition keys or
 durable decisions. Conflicting alias registrations fail immediately. Unknown
 companies retain their punctuation; similar names alone cannot establish an
 alias. See [the follow-up audit](all-company-normalization-2026-10-07.md).
+
+## Lossless filtering and Review optimization - 2026-10-07
+
+Resume assessment may be reused only within one posting evaluation; it is
+lazy so earlier hard rejects keep precedence. Preferred-section parsing in
+citizenship checks is lazy and shared across that text's pattern matches.
+Detail evidence is read by provider plus inventory URL batches, preserving
+the same requisition proof and freshness checks.
+
+Review caches only the latest parsed links and outcomes per server. Append,
+deletion and atomic replacement invalidate through file identity, size and
+timestamps. A file changed during reading is not cached. Queue snapshots also
+include the stronger side-ledger identity. Full attachment traversal remains
+until a separately verified queue mutation version can make it unnecessary.
+
+The private daily company-alias audit is advisory and read-only. Shared reported
+domains never establish identity automatically. See the
+[performance report](performance-audit-2026-10-07.md) for measured improvements
+and separately identified remaining opportunities.

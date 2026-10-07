@@ -823,11 +823,12 @@ def queue(db_path=DB, path=None, now=None):
                             or copies_workday_requisition(job, raw)):
                         continue
                 filter_row = {'title': job['title'], 'raw': raw}
+                fit_assessment = resume_fit.lazy_assessment(filter_row, rules)
                 # Generic software titles now reach this point too. Refuse
                 # missing/off-domain JD before parsing experience across that
                 # much larger cohort. Every surviving row still faces all
                 # hard requirements below; this is only an earlier rejection.
-                if jsearch.software_jd_rejection(filter_row, rules):
+                if jsearch.software_jd_rejection(filter_row, rules, fit_assessment=fit_assessment):
                     continue
                 if blocked:
                     if not jsearch.analog_chip_evidence(job['title'],
@@ -835,7 +836,7 @@ def queue(db_path=DB, path=None, now=None):
                         continue
                     # Stored scores may predate the new chip-layout vocabulary.
                     job['confidence'] = max(job['confidence'], jsearch.relevance(filter_row, rules)[0])
-                reason, experience = jsearch.eligibility_rejection(filter_row, rules)
+                reason, experience = jsearch.eligibility_rejection(filter_row, rules, fit_assessment=fit_assessment)
                 if reason:
                     continue
                 if jsearch.publisher_excluded(job['url'], raw, rules):

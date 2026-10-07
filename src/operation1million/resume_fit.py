@@ -143,6 +143,14 @@ def configured_assessment(row, rules=None):
     return assess(row, profile)
 
 
-def rejection(row, rules):
-    result = configured_assessment(row, rules)
+def lazy_assessment(row, rules):
+    """Reuse one result within this row's evaluation only; never cache across rows."""
+    @lru_cache(maxsize=1)
+    def evaluate():
+        return configured_assessment(row, rules)
+    return evaluate
+
+
+def rejection(row, rules, assessment=None):
+    result = assessment() if assessment is not None else configured_assessment(row, rules)
     return 'resume_' + result['reason'] if result['verdict'] == 'reject' else ''
