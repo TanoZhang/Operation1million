@@ -60,3 +60,17 @@ benchmarks. The first full suite exposed two test-contract issues: importing
 another test module violated the dependency audit, and a CSV publication check
 assumed it was the last item in the staging loop. Both tests were adjusted and
 24 focused checks passed; production logic did not change for these corrections.
+
+Final offline validation on exact commit 813c463 in a clean detached worktree:
+1,227 tests run, 1,213 passed and 14 skipped. The installer confirmed the same
+commit. The first production alias report covers 395 identities and four shared
+domain candidates, published privately as 554380a. Its VPS first-run copy is
+preserved in the ignored code directory to avoid an untracked-file conflict
+when the next normal data sync brings in the published report.
+
+Production verification: rebuilt Review returned HTTP 200. The entire response
+is exactly equal to the pre-deploy capture after removing only the per-server
+token. All 224 displayed employer identities still have one label; Remaining
+export rows are unchanged. This proves output parity for that live snapshot,
+not a universal timing claim. No application decisions or collection runs
+were triggered. Private evidence: `.local/performance/production-verification.txt`.

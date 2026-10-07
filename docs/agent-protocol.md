@@ -9,8 +9,8 @@ Owner: codex
 Scope: Implement measured Review/JD optimizations and alias auditing; find further measured opportunities.
 Files: review cache, JD assessment call boundaries, employer audit, tests and docs; private profiling under .local/performance/.
 Base commit: 13a0658
-Status: active; other agent Gmail edits remain untouched.
-Next: Measure baselines, preserve outputs and invalidation, test exact commit and deploy.
+Status: done -- 813c463 tested and installed; live response identical excluding token; private alias audit 554380a.
+Next: Four further measured opportunities are documented; other-agent Gmail edits remain untouched.
 ```
 
 ```text

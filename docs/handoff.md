@@ -6,9 +6,18 @@ section parsing. The daily pass now writes an advisory company-alias report
 to the private operational directory. No paid collection or decisions written.
 [Measurements and further opportunities](performance-audit-2026-10-07.md).
 
-Initial 67 focused tests passed; new invalidation/race/report tests also pass.
-Full fixed-input queue comparison, exact-commit validation and deployment are
-pending. The other agent's Gmail edits are still uncommitted and untouched.
+Exact final commit 813c463: 1,227 tests run, 1,213 passed and 14 skipped in a
+clean detached worktree. All 7,210 groups of the fixed-input queue compare
+exactly equal. Profiled local build: 312.979 to 220.077 seconds; not an isolated
+production benchmark. Installer confirmed 813c463; rebuilt Review returned
+HTTP 200 and its entire response equals the before-deploy capture apart from
+the server token. Company labels remain unified. The production advisory
+report covers 395 identities / four shared-domain candidates and is published
+privately as 554380a. Its first-run VPS copy is preserved under code/.local/ so
+an untracked report cannot obstruct the next normal data sync. No CSV refresh
+is needed because the live response is unchanged. The other agent's Gmail
+edits remain uncommitted and untouched. Private evidence: .local/performance/.
+Four remaining measured opportunities are recorded separately from repairs.
 
 # All-company normalization - 2026-10-07 (codex)
 
