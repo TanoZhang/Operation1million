@@ -480,6 +480,27 @@ class GmailRegressionTests(unittest.TestCase):
         self.assertIsNone(gmail.classify('Application received',
             'Thank you for applying. We received a large number of applications. We wish you the best.'))
 
+    def test_if_youre_selected_is_a_condition(self):
+        # Microsoft's confirmation, 2026-10-07, was read as an invitation.
+        self.assertIsNone(gmail.classify('Thank you for your application!',
+            'Thank you for taking the time to submit your application for Firmware Engineering Internship '
+            '(Job number: 200059632). You may not receive feedback from us on your application directly, but '
+            'please know that it’s being evaluated. If you’re selected for an interview, you’ll be '
+            'notified by the recruiting team.'))
+
+    def test_a_mark_whose_email_now_reads_otherwise_is_cleared(self):
+        # Motorola's confirmation was marked Declined on 2026-10-05 by rules
+        # fixed since; the mark outlived the rule that made it.
+        groups = [group('g1', 'Motorola Solutions', '2027 Intern - SoC Digital Engineer')]
+        mail = message('Thank you in your interest', sender='<motorolasolutions@myworkday.com>', mid='c')
+        current = {'g1': {'by': 'gmail', 'outcome': 'declined', 'message': 'c'}}
+        self.assertEqual(gmail.decide(groups, [mail], current)[0], [('g1', '', 'c')])
+        # Still a rejection, or marked by hand, or its email gone: left alone.
+        still = dict(mail, outcome='declined', subject='Unrelated')
+        self.assertEqual(gmail.decide([], [still], current)[0], [])
+        self.assertEqual(gmail.decide(groups, [mail], {'g1': {'outcome': 'declined', 'at': 'x'}})[0], [])
+        self.assertEqual(gmail.decide(groups, [], current)[0], [])
+
     def test_unless_is_a_condition_not_a_rejection(self):
         # Anthropic's confirmation, 2026-10-08: "not ... fit" read as a
         # rejection of two applications made that day.

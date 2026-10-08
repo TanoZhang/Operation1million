@@ -1,3 +1,14 @@
+# Gmail clears its own stale marks - 2026-10-08 (claude)
+
+decide() now clears a Gmail mark (by='gmail', outcome '') when the email it
+came from is read otherwise today and no email supports the mark; hand marks
+and marks whose email has left the cache are untouched. "if you're" is a
+hedge, so Microsoft's "If you're selected for an interview" confirmation is
+nothing. Preview on the 1,385 cached emails before installing: only that
+email reclassifies (passed -> None), no outcome writes (the three stale marks
+were cleared by hand earlier today), Unsorted 28 -> 27. Full suite 1,236 run,
+13 skipped, all pass.
+
 # Muse merge 5, Gmail Unsorted read by hand - 2026-10-08 (claude)
 
 Installed fc6e628 (Optiver: an email naming "FPGA Engineer Intern (Summer 2027

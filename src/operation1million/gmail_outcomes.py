@@ -178,7 +178,8 @@ HEDGES = (
     'subscribe',
     'career fair', 'info session', 'information session', 'mock interview', 'interview prep',
     'practice interview', 'interview tips',
-    'if your', 'if you are selected', 'are selected', 'be selected', 'is selected',
+    # "If you're selected for an interview" (Microsoft's confirmation, 2026-10-07).
+    'if your', 'if you are selected', "if you're", 'are selected', 'be selected', 'is selected',
     'should you', 'should your', 'if we ', 'if there', 'if our', 'if you meet', 'if you match',
     'if you qualify', 'if you pass', 'if successful', 'successful candidates', 'if you move',
     'if you advance', 'next steps if', 'qualifications match', 'experience matches',
@@ -539,6 +540,14 @@ def decide(groups, messages, current):
             # it does, since the latest word wins.
             wanted[group['id']] = (verdict, message['id'])
     writes = []
+    # A mark outlives the rule that made it unless cleared: Motorola's
+    # confirmation stayed Declined after the rules read it as one (2026-10-08).
+    # Cleared only when its own email now says otherwise, never by hand.
+    verdicts = {message['id']: message.get('outcome') for message in messages}
+    for group_id, last in current.items():
+        if (group_id not in wanted and last.get('by') == 'gmail' and last.get('outcome')
+                and last.get('message') in verdicts and verdicts[last['message']] != last['outcome']):
+            writes.append((group_id, '', last['message']))
     for group_id, (verdict, message_id) in wanted.items():
         last = current.get(group_id)
         if last and last.get('by') != 'gmail':

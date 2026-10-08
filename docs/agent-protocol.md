@@ -5,6 +5,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: User request (2026-10-08): Gmail reader clears its own stale marks;
+       "if you're selected" is a hedge (Microsoft confirmation read as passed).
+Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,
+       docs/{agent-protocol,handoff}.md
+Base commit: 89d2d7c
+Status: done -- full suite 1,236 run, 13 skipped, all pass; installed.
+Next: None. On the cached mail only Microsoft's confirmation changes.
+```
+
+```text
 Owner: codex
 Scope: Further measured optimization: title location patterns, Review configuration, attachment traversal and serialized response reuse.
 Files: job_text.py, review.py, regression tests, performance docs; ignored .local/performance-next/.
