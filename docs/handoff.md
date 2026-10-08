@@ -10,10 +10,12 @@ Ledger 1,005 -> 1,258 lines, manual_jobs 519 -> 741; backups
 wrote 5 declines; two were wrong: Anthropic's confirmation ("We may not reach
 out unless we think you are a strong fit") matched the not-a-fit pattern.
 5959b38 adds " unless " to the decline hedges; across 1,381 cached emails only
-those two change. It is pushed, NOT installed: Codex's c36497e/31a723f sit
-under it untested on production, and the two wrong Anthropic Declined marks
-must be cleared with by='gmail' after the install (a hand clear would lock
-Gmail out of those groups for good).
+those two change. Codex's deploy installed it; then every Gmail mark whose
+email the installed rules no longer read that way was cleared with
+by='gmail' (a hand clear would lock Gmail out of the group): the two
+Anthropic ones and a Motorola Solutions confirmation marked Declined on
+2026-10-05 by older rules. The reader never clears its own stale marks; that
+gap remains.
 
 Unsorted, read by hand. Declined, written by hand: Qorvo Digital Systems
 (#10729) and Electrical Design (#10869) Engineering Intern, Broadcom Board
