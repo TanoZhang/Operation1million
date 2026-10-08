@@ -9,8 +9,8 @@ Owner: codex
 Scope: Further measured optimization: title location patterns, Review configuration, attachment traversal and serialized response reuse.
 Files: job_text.py, review.py, regression tests, performance docs; ignored .local/performance-next/.
 Base commit: fc6e628
-Status: active; preserve Claude's active Gmail/data claim and commits.
-Next: Reproduce repeat work, enforce invalidation, compare complete queues and test before deployment.
+Status: done -- 31a723f included in installed 5959b38; 136 related checks pass; live warm HTTP median 177.776 to 9.447 ms.
+Next: Measurements and response parity documented; Claude's active Gmail/data claim and commits preserved.
 ```
 
 ```text

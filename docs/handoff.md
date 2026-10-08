@@ -9,9 +9,14 @@ reopen, skip, manual import, replaced/invalid/racing configuration files.
 are identical. The profiled frozen build took 192.079 s versus the previous
 220.077 s. These are local replay measurements, not production guarantees.
 
-Initial 87 focused checks and new HTTP/configuration regressions pass.
-Exact-commit full validation and deployment are pending. Claude's active
-Gmail/data claim remains separate; no private decisions or collection invoked.
+Full suite on c36497e: 1,233 run, 1,219 passed, 14 skipped. The subsequent
+manual/profile race fix in 31a723f passed 89 related tests. Installed 5959b38
+includes Claude's next Gmail fix and passed 136 related tests with Git Bash.
+Production warm HTTP median: 177.776 to 9.447 ms across 20 requests. Pending,
+backlog and skipped responses are identical; applied differs only in five
+concurrent outcome metadata updates. All 250 live company identities have one
+display label each. Claude's active Gmail/data claim remains separate; no
+private decisions or collection invoked by this work.
 
 # Filtering and Review optimization - 2026-10-07 (codex)
 

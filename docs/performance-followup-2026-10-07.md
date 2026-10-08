@@ -58,3 +58,23 @@ they are not a production latency guarantee.
 
 Private input, output and logs remain ignored under `.local/performance-next/`.
 No application decisions or paid collection were triggered.
+
+## Validation and deployment
+
+Commit c36497e passed the full suite in a clean detached worktree: 1,233 tests,
+1,219 passed and 14 skipped. The additional manual/profile invalidation fix
+in 31a723f passed 89 related tests. The installer selected 5959b38, which also
+contains Claude's subsequent Gmail condition fix; 136 related Review/Gmail
+tests pass on that exact commit. The first Windows run selected the WSL bash
+stub and failed the environment-file shell test; selecting installed Git Bash
+resolved that runner issue without a source change.
+
+Production returned HTTP 200 after warming. Twenty localhost warm requests
+had a median of 177.776 ms before and 9.447 ms after (18.8x faster); the after
+maximum was 12.445 ms. This measures server HTTP response, not browser/network
+latency. Pending, backlog and skipped responses are identical. Applied differs
+only in outcome/outcome_at/outcome_by for five existing groups, reflecting
+concurrent durable outcome updates. Excluding those fields and the server
+token, the entire response is identical. All four sections contain 250 company
+identities with zero split display labels. No export refresh is needed for
+these cache changes. Production evidence is ignored beside the offline logs.
