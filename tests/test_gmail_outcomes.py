@@ -480,6 +480,16 @@ class GmailRegressionTests(unittest.TestCase):
         self.assertIsNone(gmail.classify('Application received',
             'Thank you for applying. We received a large number of applications. We wish you the best.'))
 
+    def test_unless_is_a_condition_not_a_rejection(self):
+        # Anthropic's confirmation, 2026-10-08: "not ... fit" read as a
+        # rejection of two applications made that day.
+        self.assertIsNone(gmail.classify('Thank you for applying to Anthropic',
+            'We appreciate you taking the time to submit an application for the Silicon Engineer position. '
+            'Please note that with the high volume of candidates interested in Anthropic, our team may need '
+            'some additional time to thoroughly review your application. We may not reach out unless we think '
+            'you are a strong fit for the role you applied to.'))
+        self.assertEqual(gmail.classify('Your application', 'You are not a fit for this role.'), 'declined')
+
     def test_each_pass_round_is_starred(self):
         groups = [group('n1', 'NVIDIA', 'ASIC Design Intern')]
         mails = [message('NVIDIA', outcome='passed', mid='round1'),

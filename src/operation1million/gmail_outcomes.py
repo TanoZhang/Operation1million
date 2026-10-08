@@ -201,7 +201,9 @@ DESCRIPTIVE = (
     'our assessments', 'our interviews', 'our interview', 'candidate journey', 'knowledge hub',
     'prepare you', 'get ready', 'faq', 'video', 'blog', 'culture', 'internship program',
 )
-DECLINE_HEDGES = (' if ', 'whether', 'in the event', 'should we', 'should you', 'regardless',
+# "We may not reach out unless we think you are a strong fit" is Anthropic's
+# confirmation, not a rejection (2026-10-08).
+DECLINE_HEDGES = (' if ', ' unless ', 'whether', 'in the event', 'should we', 'should you', 'regardless',
                   'either way', 'one way or')
 # An invitation to a portal is not one to interview, though it is worth a
 # look: these cancel a plain invitation phrase, not a vague mention.
