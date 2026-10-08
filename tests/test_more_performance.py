@@ -97,7 +97,7 @@ class MorePerformanceTests(unittest.TestCase):
                 db.execute('INSERT INTO companies VALUES (?,?)', ('example', 'Example'))
                 db.execute('INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
                     ('https://example.test/job', 'example', 'RTL Engineer', 'Austin, TX',
-                     'req-1', stamp, None, 'example', 90, None, '{}', stamp))
+                     'req-1', stamp, None, 'example', 90, None, json.dumps({'description': 'Design and verify RTL.'}), stamp))
             server = review.make_server(database, ledger, 0)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
@@ -124,10 +124,19 @@ class MorePerformanceTests(unittest.TestCase):
                 self.assertNotIn('outcome', reopened['pending'][0])
                 post('/api/decision', {'id': ident, 'status': 'skipped'})
                 self.assertEqual(get()['skipped'][0]['id'], ident)
-                with patch.object(review.manual_intake, 'catalog_source', return_value=None):
+                post('/api/decision', {'id': ident, 'status': 'pending'})
+                save = review.manual_intake.save_manual
+                def save_and_change_profile(*args, **kwargs):
+                    result = save(*args, **kwargs)
+                    review.resume_fit.profile_path(ledger).write_text(json.dumps({
+                        'version': 1, 'families': [{'id': 'different', 'evidence': 'Synthetic project',
+                                                  'all': ['unrelated work']}]}), encoding='utf-8')
+                    return result
+                with patch.object(review.manual_intake, 'catalog_source', return_value=None), \
+                     patch.object(review.manual_intake, 'save_manual', side_effect=save_and_change_profile):
                     post('/api/manual', {'url': 'https://example.test/other', 'company': 'Other Example',
                                         'title': 'Verification Engineer'})
-                self.assertEqual(get()['pending'][0]['company'], 'Other Example')
+                self.assertEqual([group['company'] for group in get()['pending']], ['Other Example'])
                 self.assertEqual(get(), get())
             finally:
                 server.shutdown()

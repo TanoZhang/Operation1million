@@ -27,6 +27,13 @@ projections for five identical requests. It now observes one of each and a
 fresh response after an external link update. An end-to-end HTTP regression
 exercises apply, outcome, reopen, skip and manual import after warming the cache.
 
+That regression additionally changes the resume profile while saving a manual
+import. The pre-existing shortcut compared database/filter inputs but omitted
+the resume-profile input, retaining an automatic listing rejected by the new
+profile. Its comparison now includes the profile and any later queue inputs;
+the fresh queue retains only the explicit manual import in that case. The
+failure was reproduced before this repair; 23 related checks pass afterward.
+
 ## Measurements
 
 Same private snapshot, local loopback HTTP, initial request plus 20 warm reads:

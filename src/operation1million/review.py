@@ -443,7 +443,10 @@ def make_server(db, ledger, port=8765, export_path=None):
                 if created:
                     after = queue_key()
                     with building:
-                        if cached['state'] is state and cached['key'] == before and after[1:5] == before[1:5]:
+                        # This shortcut permits ledger/manual-file changes only;
+                        # concurrent DB, rules, date or resume changes need a build.
+                        if (cached['state'] is state and cached['key'] == before
+                                and after[1:5] == before[1:5] and after[6:] == before[6:]):
                             cached['state'] = manual_intake.augment_queue(state, ledger)
                             cached['key'] = after
                             invalidate()
