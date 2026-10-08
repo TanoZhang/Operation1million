@@ -155,8 +155,12 @@ const companySearch = (job, title) => {
 // A third-party listing can be given the company's own link once it is found
 // (asked for on 2026-10-02); it is kept beside the ledger and leads the row.
 const thirdParty = job => job.third_party_site === true;
+// An import with no address of its own (Muse's, muse.invalid) has nothing to open.
+const unreachable = job => { try { return new URL(job.url).hostname.endsWith('.invalid'); } catch { return true; } };
 const listingRow = (job, title) => {
   const via = job.official_link ? 'company link added by you'
+    : job.matched ? `${job.provider_key}, matched to the imported entry by ${job.matched}`
+    : unreachable(job) ? 'imported, no address of its own'
     : job.publisher ? `via ${job.publisher}${thirdParty(job) ? ' (third-party site)' : ''}` : job.provider_key;
   const search = job.employer_site && !job.official_link ? companySearch(job, title) : null;
   const url = escapeText(job.url);
@@ -166,7 +170,7 @@ const listingRow = (job, title) => {
       + `<button type="button" class="link-button" data-company-link="${url}">Change</button>`
       + `<button type="button" class="link-button" data-company-link="${url}" data-remove="1">Remove</button>`
     : (search ? newTab(search, 'Find on company site') : '')
-      + newTab(job.url, 'Open listing')
+      + (unreachable(job) ? '' : newTab(job.url, 'Open listing'))
       + (thirdParty(job) ? `<button type="button" class="link-button" data-company-link="${url}">Use company link</button>` : '');
   return `<div class="location-row"><span>${escapeText(job.location || 'Location not listed')}<br><span class="muted">${escapeText(via)}</span></span><div class="listing-links">${links}</div></div>`;
 };

@@ -285,7 +285,7 @@ def main():
     parser.add_argument('--ledger', type=Path, default=None)
     args = parser.parse_args()
     ledger = args.ledger or applications.ledger_path()
-    state = manual_intake.augment_queue(applications.queue(args.db, ledger), ledger)
+    state = manual_intake.augment_queue(applications.queue(args.db, ledger), ledger, args.db)
     applications.attach_links(state, applications.read_links(applications.links_path(ledger)))
     entries = open_entries(state)
     count = write_csv(args.csv, entries)

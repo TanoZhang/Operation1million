@@ -1,12 +1,14 @@
 """Offline contracts for explicit imports and normal application decisions."""
 import copy
 import json
-from contextlib import nullcontext
+import sqlite3
+from contextlib import closing, nullcontext
 from pathlib import Path
 import tempfile
 import threading
 import unittest
 from unittest.mock import patch, MagicMock
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 from operation1million import manual_intake as intake, applications, jsearch, review
 
@@ -139,3 +141,129 @@ class ManualTests(unittest.TestCase):
                 self.assertIn('Preparing', caught.exception.read().decode())
             finally:
                 release.set(); warming.join(); server.shutdown(); server.server_close(); serving.join()
+
+
+class ImportedPostingTests(unittest.TestCase):
+    """An imported entry is shown with the index's copy of its posting (2026-10-08).
+
+    Muse's submissions were imported as `https://muse.invalid/<company>/<req>`
+    with no description, so Review showed Renesas req 20032940 with neither
+    text nor a working link, while the index held the posting as jid-7004.
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.ledger = Path(self.temp.name) / 'decisions.ndjson'
+        self.db = Path(self.temp.name) / 'index.sqlite'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.executescript(
+                'CREATE TABLE companies(company_key TEXT PRIMARY KEY, name TEXT);'
+                'CREATE TABLE jobs(url TEXT PRIMARY KEY, company_key TEXT, provider_key TEXT, title TEXT,'
+                ' location TEXT, source_job_id TEXT, posted_at TEXT, first_seen TEXT, closed_at TEXT, raw TEXT);')
+            db.executemany('INSERT INTO companies VALUES (?, ?)', [('renesas', 'Renesas'), ('kla', 'KLA')])
+
+    def posting(self, url, company_key, title, place, requisition=None):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?)',
+                       (url, company_key, 'html', title, place, requisition,
+                        '2026-09-24T11:40:46+00:00', json.dumps({'description': 'Debug SystemVerilog'})))
+        return url
+
+    def applied(self, company, title, place, requisition):
+        url = f'https://muse.invalid/{company.casefold()}/{requisition}'
+        group = intake.create_group(url, {'title': title, 'company': company, 'location': place,
+                                          'source_job_id': requisition, 'description': ''})
+        intake.save_manual(self.ledger, group)
+        applications.append_decision(self.ledger, group, 'applied', 'Applied by Muse')
+        return group
+
+    def shown(self, group):
+        state = intake.augment_queue(empty(), self.ledger, self.db)
+        return next(item for item in state['applied'] if item['id'] == group['id'])
+
+    def test_renesas_entry_shows_the_index_posting_of_its_title_and_city(self):
+        group = self.applied('Renesas', 'Electrical Engineer', 'Austin, TX', '20032940')
+        real = self.posting('https://jobs.renesas.com/job/electrical-engineer-in-austin-texas-united-states-jid-7004',
+                            'renesas', 'Electrical Engineer', 'Austin, TEXAS, United States', '7004')
+        self.posting('https://jobs.renesas.com/job/electrical-engineer-in-san-jose-jid-7005',
+                     'renesas', 'Electrical Engineer', 'San Jose, CALIFORNIA, United States', '7005')
+        shown = self.shown(group)
+        self.assertEqual([job['url'] for job in shown['jobs']], [real, group['jobs'][0]['url']])
+        self.assertEqual(shown['jobs'][0]['matched'], 'title and place')
+        self.assertFalse(shown['jobs'][0].get('manual_import'))
+
+    def test_a_requisition_picks_one_of_several_postings_of_one_title(self):
+        group = self.applied('KLA', 'Sr. Electrical Engineer', 'Milpitas, CA', '2641848')
+        for number in ('2636363', '2641848', '2641850'):
+            self.posting(f'https://kla.wd1.myworkdayjobs.com/Search/job/Milpitas-CA/Sr-Electrical-Engineer_{number}',
+                         'kla', 'Sr. Electrical Engineer', 'Milpitas, CA', number)
+        shown = self.shown(group)
+        self.assertTrue(shown['jobs'][0]['url'].endswith('_2641848'))
+        self.assertEqual(shown['jobs'][0]['matched'], 'requisition')
+
+    def test_a_board_number_inside_the_requisition_is_that_posting(self):
+        group = self.applied('KLA', 'Photonics Design Co-Op', 'San Jose CA', '2026-91633')
+        real = self.posting('https://kla.example/careers/jobs/91633', 'kla', 'Masters Photonics Co-Op',
+                            'San Jose, California', '91633')
+        self.assertEqual(self.shown(group)['jobs'][0]['url'], real)
+
+    def test_one_posting_taken_by_two_requisitions_goes_to_neither(self):
+        first = self.applied('KLA', 'Applications Engineer', 'Sunnyvale, CA', '18811')
+        second = self.applied('KLA', 'Applications Engineer', 'Sunnyvale, CA', '18812')
+        self.posting('https://kla.example/applications-engineer/44408/100768196016',
+                     'kla', 'Applications Engineer', 'Sunnyvale, California', '100768196016')
+        self.assertEqual([len(self.shown(group)['jobs']) for group in (first, second)], [1, 1])
+
+    def test_a_requisition_in_another_case_is_the_same(self):
+        group = self.applied('KLA', 'Static Timing Engineer', 'Phoenix, AZ', 'jr0286869')
+        real = self.posting('https://kla.example/Static-Timing-Engineer_JR0286869-1', 'kla',
+                            'Senior Static Timing Engineer', '2 Locations', 'JR0286869-1')
+        self.assertEqual(self.shown(group)['jobs'][0]['matched'], 'requisition')
+        self.assertEqual(self.shown(group)['jobs'][0]['url'], real)
+
+    def test_two_postings_of_the_title_in_its_city_link_neither(self):
+        group = self.applied('KLA', 'Product Development Engineer', 'Milpitas, CA', '2640241')
+        for number in ('2634749', '2636529'):
+            self.posting(f'https://kla.example/Product-Development-Engineer-{number}',
+                         'kla', 'Product Development Engineer', 'Milpitas, CA')
+        self.assertEqual(len(self.shown(group)['jobs']), 1)
+
+    def test_a_posting_of_another_requisition_is_not_linked(self):
+        group = self.applied('KLA', 'Product Development Engineer', 'Milpitas, CA', '2640241')
+        self.posting('https://kla.example/Product-Development-Engineer_2634749',
+                     'kla', 'Product Development Engineer', 'Milpitas, CA', '2634749')
+        self.assertEqual(len(self.shown(group)['jobs']), 1)
+
+    def test_another_city_or_employer_is_not_linked(self):
+        group = self.applied('Renesas', 'Electrical Engineer', 'Austin, TX', '20032940')
+        self.posting('https://jobs.renesas.com/job/electrical-engineer-in-san-jose-jid-7005',
+                     'renesas', 'Electrical Engineer', 'San Jose, CALIFORNIA, United States')
+        self.posting('https://kla.example/Electrical-Engineer', 'kla', 'Electrical Engineer', 'Austin, TX')
+        self.assertEqual(len(self.shown(group)['jobs']), 1)
+
+    def test_an_entry_with_its_own_description_is_left_alone(self):
+        group = intake.create_group('https://company.example/1', {'title': 'Electrical Engineer', 'company': 'Renesas',
+                                    'location': 'Austin, TX', 'description': 'Pasted text'})
+        intake.save_manual(self.ledger, group)
+        self.posting('https://jobs.renesas.com/job/electrical-engineer-jid-7004',
+                     'renesas', 'Electrical Engineer', 'Austin, TX')
+        state = intake.augment_queue(empty(), self.ledger, self.db)
+        self.assertEqual(len(state['pending'][0]['jobs']), 1)
+
+    def test_description_endpoint_reads_the_linked_posting(self):
+        group = self.applied('Renesas', 'Electrical Engineer', 'Austin, TX', '20032940')
+        real = self.posting('https://jobs.renesas.com/job/electrical-engineer-jid-7004',
+                            'renesas', 'Electrical Engineer', 'Austin, TX')
+        with patch.object(review.applications, 'queue', side_effect=lambda *args: empty()):
+            server = review.make_server(self.db, self.ledger, port=0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+            try:
+                base = f'http://127.0.0.1:{server.server_port}'
+                shown = json.load(urlopen(base + '/api/queue'))['applied'][0]
+                self.assertEqual(shown['jobs'][0]['url'], real)
+                self.assertEqual(shown['jobs'][0]['matched'], 'title and place')
+                body = json.load(urlopen(base + '/api/job?url=' + quote(real, safe='') + '&id=' + group['id']))
+                self.assertEqual(body['description'], 'Debug SystemVerilog')
+            finally:
+                server.shutdown(); server.server_close()

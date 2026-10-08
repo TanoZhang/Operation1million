@@ -1,3 +1,30 @@
+# Imported entries show their index posting - 2026-10-08 (claude)
+
+Muse's submissions were imported as `https://muse.invalid/<company>/<req>`
+with no description, so Review showed them with neither text nor a working
+link. Renesas req 20032940 was in the index as jid-7004, hidden by the
+application covering it. `manual_intake.link_postings` (called from
+`augment_queue` with the index) now puts the index's posting in front of an
+imported entry that has no description: the employer's posting carrying the
+requisition (case-insensitive; AMD "2026-91633" = 91633), else its only
+posting of that title in that place. A posting with a different requisition
+of the same shape is refused (KLA 2640241 vs 2634749); a board's own number
+is not a contradiction (Renesas jid 7004, Micron 44766957 for JR113316). A
+posting two different requisitions would both take goes to neither (Synopsys
+18811/18812). Display only: decisions, group ids and the ledger are untouched.
+The page labels the listing "matched to the imported entry by ..." and gives
+a muse.invalid listing no Open link.
+
+On the 2026-10-08 VPS backup (1,248 applied, 737 imported without text): 330
+linked (218 by requisition, 112 by title and place), no posting shared, 406
+left (272 title not in the index, 100 employer not in the index, 40 several
+postings, 35 places that do not parse alike, e.g. "Boise/Folsom/..."). All 34
+requisition links whose titles differ read correct by hand. Linking costs 3.3 s
+of the queue build. End to end on a copy of that backup: Renesas shows its
+description; 157 of the 330 have none because the index holds none for them
+(Workday 116, Eightfold 23, Avature 17, Jobs2Web 1) -- their link now works.
+Full suite 1,246 run, 13 skipped, all pass.
+
 # Gmail clears its own stale marks - 2026-10-08 (claude)
 
 decide() now clears a Gmail mark (by='gmail', outcome '') when the email it

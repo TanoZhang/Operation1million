@@ -782,7 +782,7 @@ def run(db, ledger, address, password, directory=None, capture=None, preview=Fal
         if not new and last.get('inputs') == _inputs(ledger):
             return {'at': datetime.now(timezone.utc).isoformat(), 'idle': True,
                     'checked': len(cache), 'written': 0}
-    groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger)['applied']
+    groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger, db)['applied']
     if not groups:
         return {'applied': 0, 'checked': 0, 'written': 0, 'unsorted': 0}
     if new is None:

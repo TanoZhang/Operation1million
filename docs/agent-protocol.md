@@ -6,6 +6,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-08): imported (Muse) applied entries have no
+       description and a muse.invalid link although the index holds the
+       posting (Renesas req 20032940 = jid-7004). Link them to it in Review.
+Files: src/operation1million/{manual_intake,review,export,gmail_outcomes}.py,
+       review_static/app.js, tests/test_manual_intake.py,
+       docs/{agent-protocol,handoff}.md
+Base commit: 567e0b4
+Status: done -- 330 of 737 imported applied entries linked on the backup;
+        full suite 1,246 run, 13 skipped, all pass.
+Next: 157 linked postings have no description in the index (Workday,
+      Eightfold, Avature); 406 entries have no posting the rules can trust.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-08): Gmail reader clears its own stale marks;
        "if you're selected" is a hedge (Microsoft confirmation read as passed).
 Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,

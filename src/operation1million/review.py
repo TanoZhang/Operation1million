@@ -35,7 +35,9 @@ GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
                 'early_career', 'outcome', 'outcome_at', 'outcome_by')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
-              'posted_before', 'publisher', 'employer_site', 'official_link', 'third_party_site')
+              'posted_before', 'publisher', 'employer_site', 'official_link', 'third_party_site',
+              # How an imported entry's index posting was found (2026-10-08).
+              'matched')
 STATUSES = ('pending', 'backlog', 'applied', 'skipped')
 # The page and its two assets, by path.
 ASSETS = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
@@ -215,7 +217,7 @@ def make_server(db, ledger, port=8765, export_path=None):
             signature = snapshot.signature(key, side_keys)
             if cached['key'] != key:
                 restored = snapshot.load(signature) if cached['state'] is None else None
-                cached['state'] = restored if restored is not None else manual_intake.augment_queue(applications.queue(db, ledger), ledger)
+                cached['state'] = restored if restored is not None else manual_intake.augment_queue(applications.queue(db, ledger), ledger, db)
                 cached['key'] = key
                 invalidate()
             if queue_key() == key:
@@ -447,7 +449,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                         # concurrent DB, rules, date or resume changes need a build.
                         if (cached['state'] is state and cached['key'] == before
                                 and after[1:5] == before[1:5] and after[6:] == before[6:]):
-                            cached['state'] = manual_intake.augment_queue(state, ledger)
+                            cached['state'] = manual_intake.augment_queue(state, ledger, db)
                             cached['key'] = after
                             invalidate()
             self.send({'id': group['id'], 'created': created, 'replaced': bool(replaced),

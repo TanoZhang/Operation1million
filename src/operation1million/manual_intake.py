@@ -1,12 +1,13 @@
 """User-directed single-link intake, durable outside the derived job index."""
 import codecs
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 import ipaddress
 import json
 from pathlib import Path
 import re
 import socket
+import sqlite3
 import time
 from types import SimpleNamespace
 from urllib.parse import urlsplit, urlunsplit, urljoin, parse_qsl, urlencode
@@ -15,7 +16,7 @@ from bs4 import BeautifulSoup
 import requests
 
 from . import applications, collection_policy, collector, jsearch, ranking
-from .job_text import readable_text
+from .job_text import clean_title, readable_text
 
 
 def path_for(ledger):
@@ -398,8 +399,118 @@ def save_manual(ledger, group, replaced_ids=(), replaced_groups=()):
         applications._append_line(path, event)
 
 
-def augment_queue(state, ledger):
-    """Explicit imports survive filter changes, DB rebuilds and normal decisions."""
+def _naming(requisition):
+    """A test of whether an address or id names the requisition as a whole token."""
+    # Muse wrote Intel's JR0286869 as "jr0286869".
+    token = re.compile(r'(?<![0-9A-Za-z])' + re.escape(requisition) + r'(?![0-9A-Za-z])', re.I)
+    # AMD's "2026-91633" is its board's 91633.
+    parts = {part for part in re.split(r'[^0-9A-Za-z]+', requisition.upper())
+             if len(part) >= 4 and re.search(r'[0-9]', part)}
+
+    def names(row):
+        held = str(row['source_job_id'] or '').upper()
+        return held == requisition.upper() or held in parts or token.search(row['url']) is not None
+    return names
+
+
+def _shape(requisition):
+    """"JR113316" -> "JR999999": ids of one shape are numbered by one system."""
+    return re.sub(r'[0-9]', '9', requisition.upper())
+
+
+def _other_requisition(row, requisition):
+    """Whether the posting carries a different requisition of the same system.
+
+    A board's own number is not a contradiction: Renesas's page is jid-7004
+    for requisition 20032940, and Micron's careers site numbers JR113316 as
+    44766957.
+    """
+    held = str(row['source_job_id'] or '')
+    return (bool(held and requisition) and _shape(held) == _shape(requisition)
+            and held.upper() != requisition.upper())
+
+
+def link_postings(state, db):
+    """Put the index's copy of its posting in front of an imported entry, in place.
+
+    Asked for on 2026-10-08. Muse's submissions were imported as
+    `https://muse.invalid/<company>/<requisition>` with no description, so
+    Review showed Renesas requisition 20032940 with neither text nor a working
+    link, while the index held the posting as jid-7004. The index's posting
+    leads the entry, so the page shows its description and its address; the
+    imported listing stays beside it.
+
+    Matched as `match_group` and `unify_copies` match, never wider: the
+    employer's posting carrying the requisition; else its only posting, open or
+    closed, of that title in that place, which carries no other requisition.
+    A posting that entries of different requisitions would each take is
+    given to none of them: Synopsys's 18811 and 18812 share one title and
+    place, and its board numbers both differently.
+    Showing an entry without text is recoverable; showing another opening's
+    text as the one applied for is not.
+    """
+    wanted = [group for name in ('pending', 'backlog', 'applied', 'skipped') for group in state[name]
+              if group.get('manual_import') and len(group['jobs']) == 1
+              and not group['jobs'][0].get('manual_description')]
+    if not wanted or not db or not Path(db).exists():
+        return state
+    employers = {}
+
+    def employer(name):
+        if name not in employers:
+            employers[name] = applications.employer_name(name)
+        return employers[name]
+
+    by_employer = {}
+    for group in wanted:
+        by_employer.setdefault(employer(group['company']), [])
+    with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
+        con.row_factory = sqlite3.Row
+        # An index made by hand, or not yet built, has nothing to link.
+        if len({name for (name,) in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('jobs', 'companies')")}) < 2:
+            return state
+        for row in con.execute(
+                '''SELECT j.url, j.company_key, j.provider_key, j.source_job_id, j.title, j.location,
+                          j.first_seen, j.posted_at,
+                          COALESCE(c.name, json_extract(j.raw, '$.employer_name'), j.company_key) AS company
+                   FROM jobs j LEFT JOIN companies c USING(company_key)'''):
+            rows = by_employer.get(employer(row['company']))
+            if rows is not None:
+                rows.append(dict(row, title=clean_title(row['title'] or '', row['location'] or '')))
+    planned, claims = [], {}
+    for group in wanted:
+        imported = group['jobs'][0]
+        requisition = str(imported.get('source_job_id') or '').strip()
+        rows = by_employer[employer(group['company'])]
+        found, how = [], 'requisition'
+        if len(requisition) >= 4:
+            names = _naming(requisition)
+            found = [row for row in rows if names(row)]
+            if len(found) > 1:
+                found = [row for row in found if applications.places_agree([imported], [row])]
+        if not found:
+            how = 'title and place'
+            title = applications._plain(clean_title(group['title'], imported.get('location') or ''))
+            found = [row for row in rows if applications._plain(row['title']) == title
+                     and applications.places_agree([imported], [row])]
+            if any(_other_requisition(row, requisition) for row in found):
+                found = []
+        if len(found) == 1:
+            planned.append((group, found[0], how))
+            claims.setdefault(found[0]['url'], set()).add(requisition.upper() or group['id'])
+    for group, row, how in planned:
+        if len(claims[row['url']]) == 1:
+            group['jobs'] = [dict(row, matched=how), *group['jobs']]
+    return state
+
+
+def augment_queue(state, ledger, db=None):
+    """Explicit imports survive filter changes, DB rebuilds and normal decisions.
+
+    With the index, an imported entry without a description is shown with the
+    index's copy of its posting (`link_postings`).
+    """
     from .employers import label_queue
     latest = {}
     path = path_for(ledger)
@@ -434,6 +545,7 @@ def augment_queue(state, ledger):
             continue
         from .employers import label_group
         state[status].append(label_group(group))
+    link_postings(state, db)
     state['pending'].sort(key=ranking.rank)
     # Newest first, as applications.queue orders them (#309).
     for name in ('applied', 'skipped'):

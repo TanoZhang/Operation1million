@@ -522,7 +522,7 @@ class GmailRegressionTests(unittest.TestCase):
     def run_with_mail(self, directory, mails, current=None, preview=False):
         groups = [group('n1', 'NVIDIA', 'ASIC Design Intern')]
         with patch.object(gmail.applications, 'queue', return_value={'applied': groups}), \
-             patch.object(gmail.manual_intake, 'augment_queue', side_effect=lambda q, l: q), \
+             patch.object(gmail.manual_intake, 'augment_queue', side_effect=lambda q, l, d=None: q), \
              patch.object(gmail, 'fetch', return_value=mails), \
              patch.object(gmail, 'last_events', return_value=current or {}), \
              patch.object(gmail.applications, 'append_outcome'), \
@@ -550,7 +550,7 @@ class GmailRegressionTests(unittest.TestCase):
         """A run whose mailbox search returns `mails`; returns (result, queue built, fetch since)."""
         groups = [group('n1', 'NVIDIA', 'ASIC Design Intern')]
         with patch.object(gmail.applications, 'queue', return_value={'applied': groups}) as queue, \
-             patch.object(gmail.manual_intake, 'augment_queue', side_effect=lambda q, l: q), \
+             patch.object(gmail.manual_intake, 'augment_queue', side_effect=lambda q, l, d=None: q), \
              patch.object(gmail, 'fetch', return_value=mails) as fetch, \
              patch.object(gmail, 'last_events', return_value={}), \
              patch.object(gmail.applications, 'append_outcome'), \
