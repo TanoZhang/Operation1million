@@ -6,6 +6,22 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-08): employers that cap applications (Ashby
+       5 per 180 days, Amazon 10 active; others with evidence) keep only
+       postings worth a slot -- a stricter score -- and show slots used.
+Files: data/config/application_limits.toml (new),
+       src/operation1million/{application_limits (new),manual_intake,review}.py,
+       review_static/app.js, tests/test_application_limits.py (new),
+       docs/{agent-protocol,handoff,application-review}.md
+Base commit: 1ed028f
+Status: done -- backup queue 5,091 -> 4,571 groups; full suite 1,257 run,
+        13 skipped, all pass.
+Next: Ashby is not capped as a whole (Etched took 37); add employers only
+      with evidence.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-08): imported (Muse) applied entries have no
        description and a muse.invalid link although the index holds the
        posting (Renesas req 20032940 = jid-7004). Link them to it in Review.

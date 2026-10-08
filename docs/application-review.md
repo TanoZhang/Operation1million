@@ -30,6 +30,14 @@ postings appear on that tab only, never under To review or Backlog, and
 Remaining does not count them. They can still be marked applied or skipped
 there.
 
+**Capped employers** (2026-10-08): an employer in
+`data/config/application_limits.toml` caps applications (OpenAI 5 per 180
+days, Amazon 10 active, Google 3 per 30 days, Zipline 3 per 30 days). Its
+postings outside the last band and at Fit 40 or more stay; the rest leave
+every tab, Low relevance included. A pasted posting always stays. The detail
+pane says how many of the employer's slots are used ("-- full" at the cap):
+applied entries in the window, or for Amazon those not marked Declined.
+
 **For Muse** (2026-10-06): each daily pass writes what Remaining counts to
 `operational/review_queue.csv` in the data repository and pushes it with the
 pass, so Muse can read it through the GitHub API (`python -m

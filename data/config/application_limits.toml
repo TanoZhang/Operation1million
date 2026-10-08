@@ -1,0 +1,44 @@
+# Employers that cap how many applications a candidate may make.
+#
+# Asked for on 2026-10-08: a capped employer's slots are scarce, so its
+# postings face a stricter filter than the rest of the queue
+# (`application_limits.py`), and Review says how many slots are used.
+# Only caps with evidence belong here. On 2026-10-03 a "max 8 applications
+# per company" rule was invented, applied and reverted by the user; a cap
+# nobody stated hides postings the user could have applied to.
+
+[filter]
+# A capped employer's posting is kept only outside the last band ("Other")
+# and at or above this score. Measured on the 2026-10-08 backup: Google's
+# core silicon titles score 62, its adjacent titles 21-29 with "TPU Design
+# Engineer" beside "Camera Electrical Engineer"; Amazon's Annapurna design
+# verification 42; OpenAI's runtime and Etched's kernel driver roles 40.
+min_confidence = 40
+
+[[limit]]
+employer = "OpenAI"
+applications = 5
+days = 180
+# OpenAI's own Ashby posting: no more than 5 applications in any 180 days.
+# The user (2026-10-08) named Ashby as a whole; Ashby lets each employer set
+# its own, and the private history records Ashby employers past it: Etched
+# 37 submissions, MatX 14, Quadric 12, while OpenAI stopped at
+# 6. A `provider = "ashby"` entry would cap all of them.
+source = "OpenAI posting on jobs.ashbyhq.com; user 2026-10-08"
+
+[[limit]]
+employer = "Amazon"
+active = 10
+source = "user 2026-10-08 (10 at once); Blind reports of the portal's message"
+
+[[limit]]
+employer = "Google"
+applications = 3
+days = 30
+source = "support.google.com/googlecareers/answer/6095391: up to three jobs in 30 days"
+
+[[limit]]
+employer = "Zipline"
+applications = 3
+days = 30
+source = "private browser_work_packages.json: 3 applications per 30 days across all roles"

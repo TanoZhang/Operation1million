@@ -509,7 +509,8 @@ def augment_queue(state, ledger, db=None):
     """Explicit imports survive filter changes, DB rebuilds and normal decisions.
 
     With the index, an imported entry without a description is shown with the
-    index's copy of its posting (`link_postings`).
+    index's copy of its posting (`link_postings`). A capped employer's postings
+    face `application_limits`.
     """
     from .employers import label_queue
     latest = {}
@@ -546,6 +547,9 @@ def augment_queue(state, ledger, db=None):
         from .employers import label_group
         state[status].append(label_group(group))
     link_postings(state, db)
+    # Employers that cap applications keep only postings worth a slot (2026-10-08).
+    from . import application_limits
+    application_limits.apply(state, db)
     state['pending'].sort(key=ranking.rank)
     # Newest first, as applications.queue orders them (#309).
     for name in ('applied', 'skipped'):

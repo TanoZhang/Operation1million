@@ -1,3 +1,24 @@
+# Capped employers keep only postings worth a slot - 2026-10-08 (claude)
+
+The user: Ashby allows 5 applications in 180 days and Amazon 10 at once, so a
+capped employer's slots should not go to barely related postings; find the
+others. `application_limits.apply` (from `augment_queue`) drops a capped
+employer's posting in the "Other" band or under Fit 40 from every tab, keeps
+pasted ones, and labels the rest with slots used. Caps, each with evidence in
+`data/config/application_limits.toml`: OpenAI 5/180 days (its own Ashby
+posting), Amazon 10 active (the user; Blind), Google 3/30 days (Google's help
+page), Zipline 3/30 days (private work packages). Not Ashby as a whole: the
+private history records Etched 37 submissions, MatX 14, Quadric 12, OpenAI
+stopped at 6; a `provider` entry would cap all of them. Not Meta: only
+conflicting forum reports. MediaTek's 8 a day and LinkedIn's daily Easy Apply
+limit are pacing, not filtering.
+
+On the 2026-10-08 backup: 5,091 to-review/backlog groups -> 4,571; Google
+428 -> 29, Amazon 97 -> 13, OpenAI 39 -> 5, Zipline 3 -> 0. All three of
+Google, Amazon and OpenAI are already full: Google 3 used (10-06, 10-07),
+OpenAI 5 (10-03 to 10-07), Amazon 11 applied and not declined (some are
+repeat entries of one posting). Full suite 1,257 run, 13 skipped, all pass.
+
 # Imported entries show their index posting - 2026-10-08 (claude)
 
 Muse's submissions were imported as `https://muse.invalid/<company>/<req>`

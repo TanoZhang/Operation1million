@@ -33,7 +33,9 @@ from .paths import DB
 # it here; leaving it out shows as undefined rather than as stale data.
 GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
-                'early_career', 'outcome', 'outcome_at', 'outcome_by')
+                'early_career', 'outcome', 'outcome_at', 'outcome_by',
+                # A capped employer's slots (2026-10-08).
+                'application_limit')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
               'posted_before', 'publisher', 'employer_site', 'official_link', 'third_party_site',
               # How an imported entry's index posting was found (2026-10-08).
