@@ -1,0 +1,53 @@
+# Title and Review cache optimization
+
+Baseline fc6e628, preserving the concurrent Gmail fix. This follows the four
+remaining opportunities in the [previous audit](performance-audit-2026-10-07.md).
+
+## Changes and evidence
+
+- Location patterns used by title cleanup are immutable and cached for at most
+  2,048 normalized locations. Matching order and title cleanup rules are the
+  same. Three different titles in one city previously repeated candidate
+  construction three times; the regression now observes one call.
+- Query plans are validated once per unchanged file and retained for at most
+  four resolved paths. Callers receive deep copies of mutable configuration
+  and a new query list. Modification, deletion, atomic replacement at equal
+  size/mtime, and a change while parsing are covered. Invalid configuration
+  raises instead of reusing an earlier valid plan.
+- Review attaches links and outcomes once per unchanged queue and side-ledger
+  identity. Every in-memory mutation invalidates attachment and response state.
+- Each Review server retains one serialized queue response. The server's write
+  and build locks protect mutation/serialization; sending bytes happens after
+  releasing the locks. Tokens are server-local and are never persisted in the
+  queue snapshot. Warm-up, decisions, outcomes, links, manual import, reopen,
+  database/configuration/profile changes still flow through queue validation.
+
+The original hot-HTTP regression observed five attachment passes and five slim
+projections for five identical requests. It now observes one of each and a
+fresh response after an external link update. An end-to-end HTTP regression
+exercises apply, outcome, reopen, skip and manual import after warming the cache.
+
+## Measurements
+
+Same private snapshot, local loopback HTTP, initial request plus 20 warm reads:
+
+| Measurement | Baseline | Optimized |
+| --- | ---: | ---: |
+| Warm HTTP median | 133.814 ms | 7.020 ms |
+| TOML parses | 42 | 1 |
+| Slim projections | 21 | 1 |
+| Attachment passes | 21 | 1 |
+| Cleanup of 52,392 open inventory titles | 34.275 s | 16.495 s |
+
+The parsed responses (excluding server token) and every cleaned title are
+identical. The location cache remained bounded at 2,048 entries: 47,321 hits,
+5,071 misses in the title replay.
+
+The complete frozen queue also compares exactly equal: 7,210 groups, including
+nested listing and decision fields. Its profiled build took 192.079 seconds;
+the previous same-input build took 220.077 seconds. These local replay timings
+overlapped other offline checks and include profiling overhead where noted;
+they are not a production latency guarantee.
+
+Private input, output and logs remain ignored under `.local/performance-next/`.
+No application decisions or paid collection were triggered.

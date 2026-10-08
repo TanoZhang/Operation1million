@@ -2728,3 +2728,19 @@ The private daily company-alias audit is advisory and read-only. Shared reported
 domains never establish identity automatically. See the
 [performance report](performance-audit-2026-10-07.md) for measured improvements
 and separately identified remaining opportunities.
+
+## Bounded title, plan and response caches - 2026-10-07
+
+Title cleanup shares immutable location regexes in a 2,048-entry LRU without
+changing matching order. Validated query plans are cached for at most four
+resolved paths, keyed by file size, timestamps and identity. Mutable config
+containers and query lists are copied per caller; changed or invalid files
+cannot fall back to an old valid plan. A racing file read is not cached.
+
+Review keeps one serialized response per server and one attachment identity.
+Rebuilds, decisions, manual imports, link and outcome mutations invalidate both.
+External side-ledger changes invalidate through their existing fingerprints.
+Response generation uses the writing-then-building lock order and releases
+locks before network writes. The token belongs only to the server instance;
+serialized responses are never persisted. See the
+[follow-up measurements](performance-followup-2026-10-07.md).

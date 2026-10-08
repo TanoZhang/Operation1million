@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Further measured optimization: title location patterns, Review configuration, attachment traversal and serialized response reuse.
+Files: job_text.py, review.py, regression tests, performance docs; ignored .local/performance-next/.
+Base commit: fc6e628
+Status: active; preserve Claude's active Gmail/data claim and commits.
+Next: Reproduce repeat work, enforce invalidation, compare complete queues and test before deployment.
+```
+
+```text
 Owner: claude
 Scope: User requests (2026-10-07): Muse merge 5 (65 new submissions); Optiver
        assessment mail unmatched; judge Gmail Unsorted decline-or-not.

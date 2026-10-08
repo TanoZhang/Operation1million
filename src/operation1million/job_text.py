@@ -1,5 +1,6 @@
 """Stable display titles without publisher time and location suffixes."""
 import re
+from functools import lru_cache
 import unicodedata
 from html import escape, unescape
 
@@ -159,10 +160,22 @@ def _location_candidates(location):
     return candidates
 
 
+@lru_cache(maxsize=2048)
+def _location_patterns(location):
+    """Bounded immutable patterns shared by titles at the same normalized place."""
+    patterns = []
+    for candidate in sorted(_location_candidates(location), key=len, reverse=True):
+        place = r'(?:,\s*|\s*[-–]\s*)'.join(re.escape(piece.strip()) for piece in candidate.split(','))
+        patterns.append((
+            re.compile(r'(?:\s*,\s*|\s+(?:in|at)\s+|' + SEPARATOR + ')' + place + r'$', re.I),
+            re.compile(r'\s*\(\s*' + place + r'\s*\)$', re.I)))
+    return tuple(patterns)
+
+
 def clean_title(title, location=''):
     title = ' '.join(unicodedata.normalize('NFKC', ZERO_WIDTH.sub('', title or '')).split())
     location = ' '.join(unicodedata.normalize('NFKC', location or '').split())
-    candidates = sorted(_location_candidates(location), key=len, reverse=True)
+    patterns = _location_patterns(location)
 
     def once(title):
         title = POSTED_SUFFIX.sub('', title).strip()
@@ -174,7 +187,7 @@ def clean_title(title, location=''):
             stripped = suffix.sub('', title).strip()
             if stripped:
                 title = stripped
-        for candidate in candidates:
+        for separated, bracketed in patterns:
             # Only a known full location suffix is removable; role words stay intact.
             # A comma separates it as well: "Engineer, Austin, TX" came back
             # as "Engineer," (2026-09-27).
@@ -182,12 +195,11 @@ def clean_title(title, location=''):
             # Engineer in" and the bracketed place behind (2026-09-27).
             # "Austin,TX" without a space is the same place (2026-09-27).
             # Or joined with a dash: "- Remote - US" for "Remote, US" (2026-09-27).
-            place = r'(?:,\s*|\s*[-–]\s*)'.join(re.escape(piece.strip()) for piece in candidate.split(','))
             # Never the whole title: "Austin" for a posting in Austin stays.
-            match = re.search(r'(?:\s*,\s*|\s+(?:in|at)\s+|' + SEPARATOR + ')' + place + r'$', title, re.I)
+            match = separated.search(title)
             if match and title[:match.start()].strip():
                 return title[:match.start()].strip()
-            match = re.search(r'\s*\(\s*' + place + r'\s*\)$', title, re.I)
+            match = bracketed.search(title)
             if match and title[:match.start()].strip():
                 return title[:match.start()].strip()
         return title

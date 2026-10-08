@@ -122,9 +122,14 @@ def make_server(db, ledger, port=8765, export_path=None):
     # ledger is the one file here nothing regenerates.
     writing = threading.Lock()
     building = threading.Lock()
-    cached = {'key': None, 'state': None}
+    cached = {'key': None, 'state': None, 'attachments': None, 'response': None}
     snapshot = QueueSnapshot(ledger, db)
     parsed_ledgers = {}
+
+    def invalidate():
+        """Called under building after every in-memory queue mutation."""
+        cached['attachments'] = None
+        cached['response'] = None
 
     def read_cached(path, reader):
         # Only these two side ledgers are cached; callers hold the building lock.
@@ -178,6 +183,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                            reason=written.get('reason', ''))
             state[written['status']].insert(0, decided)
             cached['key'] = after
+            invalidate()
 
     def current_queue():
         """The queue, rebuilt only when what it is derived from has changed.
@@ -205,16 +211,33 @@ def make_server(db, ledger, port=8765, export_path=None):
         """
         key = queue_key()
         with building:
-            signature = snapshot.signature(key, [ledger_fingerprint(links), ledger_fingerprint(outcomes)])
+            side_keys = (ledger_fingerprint(links), ledger_fingerprint(outcomes))
+            signature = snapshot.signature(key, side_keys)
             if cached['key'] != key:
                 restored = snapshot.load(signature) if cached['state'] is None else None
                 cached['state'] = restored if restored is not None else manual_intake.augment_queue(applications.queue(db, ledger), ledger)
                 cached['key'] = key
+                invalidate()
             if queue_key() == key:
-                applications.attach_links(cached['state'], read_cached(links, applications.read_links))
-                applications.attach_outcomes(cached['state'], read_cached(outcomes, applications.read_outcomes))
+                if cached['attachments'] != side_keys:
+                    invalidate()
+                    applications.attach_links(cached['state'], read_cached(links, applications.read_links))
+                    applications.attach_outcomes(cached['state'], read_cached(outcomes, applications.read_outcomes))
+                    if side_keys == (ledger_fingerprint(links), ledger_fingerprint(outcomes)):
+                        cached['attachments'] = side_keys
                 snapshot.save(signature, cached['state'])
             return cached['state']
+
+    def queue_response():
+        # Mutations take writing -> building in this order. Serialize under the
+        # same locks, then release them before sending bytes to a slow client.
+        with writing:
+            current_queue()
+            with building:
+                if cached['response'] is None:
+                    cached['response'] = json.dumps(dict(slim(cached['state']),
+                        token=token, labels=list(ranking.LABELS))).encode()
+                return cached['response']
 
     class Handler(BaseHTTPRequestHandler):
         # A socket that connects and then says nothing used to stop the server
@@ -229,7 +252,7 @@ def make_server(db, ledger, port=8765, export_path=None):
             pass
 
         def send(self, body, code=200, mime='application/json'):
-            data = json.dumps(body).encode() if mime == 'application/json' else body
+            data = json.dumps(body).encode() if mime == 'application/json' and not isinstance(body, bytes) else body
             self.send_response(code)
             self.send_header('Content-Type', mime + '; charset=utf-8')
             self.send_header('Content-Length', str(len(data)))
@@ -247,10 +270,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                 if route.path == '/api/queue':
                     if cached['state'] is None and building.locked():
                         return self.send({'error': 'Preparing the job queue'}, 503)
-                    # Added after `slim`, which would read a bare list of names
-                    # as a list of groups and project the strings away.
-                    return self.send(dict(slim(current_queue()),
-                                          token=token, labels=list(ranking.LABELS)))
+                    return self.send(queue_response())
                 if route.path == '/api/job':
                     return self.job(parse_qs(route.query))
                 if route.path == '/api/gmail':
@@ -426,6 +446,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                         if cached['state'] is state and cached['key'] == before and after[1:5] == before[1:5]:
                             cached['state'] = manual_intake.augment_queue(state, ledger)
                             cached['key'] = after
+                            invalidate()
             self.send({'id': group['id'], 'created': created, 'replaced': bool(replaced),
                        'confidence': group.get('confidence', 0), 'status': requested})
 
@@ -450,6 +471,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                             job['official_link'] = written['link']
                         else:
                             job.pop('official_link', None)
+                    invalidate()
             self.send(written)
 
         def outcome(self):
@@ -468,6 +490,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                 with building:
                     applications.attach_outcomes(
                         {'applied': [group]}, {group['id']: written} if written['outcome'] else {})
+                    invalidate()
             self.send(written)
 
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)

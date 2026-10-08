@@ -1,5 +1,7 @@
 """Fixed JSearch discovery plans, transport, and post-normalization filtering."""
 from dataclasses import dataclass, replace
+from collections import OrderedDict
+from copy import deepcopy
 import hashlib
 import html
 import unicodedata
@@ -8,6 +10,7 @@ from datetime import date
 import os
 import re
 import time
+import threading
 from urllib.parse import urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -39,7 +42,39 @@ class Query:
             (self.company_key + '\n' + self.query).encode()).hexdigest()[:20]
 
 
+_PLAN_CACHE = OrderedDict()
+_PLAN_LOCK = threading.Lock()
+
+
+def _plan_stamp(path):
+    stat = path.stat()
+    return stat.st_mtime_ns, stat.st_size, stat.st_ino, stat.st_ctime_ns
+
+
 def load_plan(path=CONFIG / 'jsearch_queries.toml'):
+    """Cache validated file contents, returning isolated mutable caller copies."""
+    path = path.resolve()
+    with _PLAN_LOCK:
+        before = _plan_stamp(path)
+        previous = _PLAN_CACHE.get(path)
+        if previous is not None and previous[0] == before:
+            _PLAN_CACHE.move_to_end(path)
+            config, queries = previous[1]
+        else:
+            config, queries = _read_plan(path)
+            if _plan_stamp(path) == before:
+                _PLAN_CACHE[path] = (before, (config, queries))
+                _PLAN_CACHE.move_to_end(path)
+                while len(_PLAN_CACHE) > 4:
+                    _PLAN_CACHE.popitem(last=False)
+            else:
+                _PLAN_CACHE.pop(path, None)
+        # Query objects are frozen; the enclosing list and all configuration
+        # containers belong to the caller, never to another load_plan call.
+        return deepcopy(config), list(queries)
+
+
+def _read_plan(path):
     with path.open('rb') as handle:
         config = tomllib.load(handle)
     quota = config.get('monthly_quota', 10000)

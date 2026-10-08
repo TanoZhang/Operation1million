@@ -1,3 +1,18 @@
+# Further Review optimization - 2026-10-07 (codex)
+
+Base fc6e628, including Claude's Gmail fix. Added bounded location-pattern and
+query-plan caches, conditional attachment passes and one serialized response
+per Review server. Mutation/reload regressions cover links, outcomes, apply,
+reopen, skip, manual import, replaced/invalid/racing configuration files.
+[Measurements](performance-followup-2026-10-07.md): local warm HTTP median
+133.814 to 7.020 ms; all 52,392 titles and the complete 7,210-group frozen queue
+are identical. The profiled frozen build took 192.079 s versus the previous
+220.077 s. These are local replay measurements, not production guarantees.
+
+Initial 87 focused checks and new HTTP/configuration regressions pass.
+Exact-commit full validation and deployment are pending. Claude's active
+Gmail/data claim remains separate; no private decisions or collection invoked.
+
 # Filtering and Review optimization - 2026-10-07 (codex)
 
 Base 13a0658. Implemented parsed side-ledger caching, per-evaluation resume
