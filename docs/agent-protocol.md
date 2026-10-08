@@ -5,6 +5,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: User requests (2026-10-07): Muse merge 5 (65 new submissions); Optiver
+       assessment mail unmatched; judge Gmail Unsorted decline-or-not.
+Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,
+       docs/{agent-protocol,handoff}.md; private VPS ledgers (data only).
+Base commit: 7ec7bee
+Status: in progress -- Optiver title fix committed; deploy, merge and Unsorted next.
+Next: Install, dry-run merge 5, list Unsorted for the user.
+```
+
+```text
 Owner: codex
 Scope: Implement measured Review/JD optimizations and alias auditing; find further measured opportunities.
 Files: review cache, JD assessment call boundaries, employer audit, tests and docs; private profiling under .local/performance/.

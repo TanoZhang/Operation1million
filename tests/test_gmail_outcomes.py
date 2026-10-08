@@ -435,6 +435,28 @@ class GmailRegressionTests(unittest.TestCase):
         self.assertEqual(gmail.match(groups, message('NVIDIA ASIC Design Intern')), [])
         self.assertEqual([g['id'] for g in gmail.match(groups, message('NVIDIA ASIC Design Intern JR2222'))], ['n2'])
 
+    def test_the_longest_title_named_wins_over_titles_inside_it(self):
+        # Optiver, 2026-10-07 (the user pasted it): the ledger held the Austin
+        # intern posting, Muse's shorter copy of it and a full-time FPGA
+        # Engineer. All three titles are in the email; it names the first.
+        groups = [group('o1', 'Optiver', 'FPGA Engineer Intern (Summer 2027 - Austin)', req='8641352002'),
+                  group('o2', 'Optiver', 'FPGA Engineer Intern (Summer 2027)',
+                        req='optiver-fpga-intern-2027-austin'),
+                  group('o3', 'Optiver', 'FPGA Engineer', req='8375607002')]
+        mail = message('Optiver Assessments',
+                       'Dear Candidate,\n\nThanks again for your interest in the FPGA Engineer Intern '
+                       '(Summer 2027 - Austin) role here at Optiver. We would like to invite you to complete '
+                       'the Optiver assessments. Please complete the assessments by October 12, 2026.',
+                       sender='<no-reply@optiver.com>', outcome='passed')
+        self.assertEqual(gmail.classify(mail['subject'], mail['text']), 'passed')
+        self.assertEqual([g['id'] for g in gmail.match(groups, mail)], ['o1'])
+        self.assertEqual(gmail.decide(groups, [mail], {})[0], [('o1', 'passed', 'm1')])
+        # Two titles neither inside the other still need a person.
+        both = message('Optiver', 'About the FPGA Engineer Intern (Summer 2027 - Austin) and the '
+                       'Hardware Engineer roles', sender='<no-reply@optiver.com>')
+        groups.append(group('o4', 'Optiver', 'Hardware Engineer'))
+        self.assertEqual(gmail.match(groups, both), [])
+
     def test_explicit_requisition_can_match_a_shortened_title(self):
         groups = [group('n1', 'NVIDIA', 'ASIC Design Intern - Summer 2027', req='JR1111')]
         self.assertEqual(gmail.match(groups, message('NVIDIA update for JR1111')), groups)

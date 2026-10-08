@@ -444,6 +444,13 @@ def match(groups, message, company_only=False):
         return by_id if any(_has(value, text) for value in shared) else []
     by_title = [group for group in candidates if len(_words(group.get('title'))) >= 6
                 and _has(_words(group.get('title')), text)]
+    # A title found only inside a longer one found is not the one named:
+    # Optiver's "FPGA Engineer Intern (Summer 2027 - Austin)" also contains
+    # "FPGA Engineer" and "FPGA Engineer Intern (Summer 2027)" (2026-10-07).
+    by_title = [group for group in by_title
+                if not any(_words(group.get('title')) != _words(other.get('title'))
+                           and _has(_words(group.get('title')), _words(other.get('title')))
+                           for other in by_title)]
     if len(by_title) == 1:
         return by_title
     if len(candidates) == 1 and not _names_a_role(message):
