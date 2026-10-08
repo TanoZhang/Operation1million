@@ -1,3 +1,37 @@
+# Muse merge 5, Gmail Unsorted read by hand - 2026-10-08 (claude)
+
+Installed fc6e628 (Optiver: an email naming "FPGA Engineer Intern (Summer 2027
+- Austin)" also contains two shorter Applied Optiver titles; the longest title
+named now wins). Merge 5 on the VPS with the merge-4 script (still in a session
+scratchpad): 1,240 distinct Muse submissions, 31 open groups marked, 222 new
+Applied entries (65 from closed index rows); a rerun finds all 1,204 applied.
+Ledger 1,005 -> 1,258 lines, manual_jobs 519 -> 741; backups
+/opt/operation1million/*.before-muse-merge5.ndjson. The forced Gmail run then
+wrote 5 declines; two were wrong: Anthropic's confirmation ("We may not reach
+out unless we think you are a strong fit") matched the not-a-fit pattern.
+5959b38 adds " unless " to the decline hedges; across 1,381 cached emails only
+those two change. It is pushed, NOT installed: Codex's c36497e/31a723f sit
+under it untested on production, and the two wrong Anthropic Declined marks
+must be cleared with by='gmail' after the install (a hand clear would lock
+Gmail out of those groups for good).
+
+Unsorted, read by hand. Declined, written by hand: Qorvo Digital Systems
+(#10729) and Electrical Design (#10869) Engineering Intern, Broadcom Board
+Hardware Engineer R026936 (ledger id "R026936-1"), Tenstorrent Physical Design
+Engineer ML4PD (four copies), Skyworks RF Module Design Co-op (two rejections,
+two entries). Already marked: Marvell Security V/V Intern, Qorvo Test x2,
+Renesas Electrical Engineer passed (the recruiter is calling). Left for the
+user: Qorvo RF Design #10709 (ledger 10668) and Applications Engineering #10618
+(ledger 10692/10671/10619) name numbers no entry carries; Broadcom R026760,
+Qualcomm 3096542, TI 25017543, Intel JR0285739 and JR0282220 (cancelled) have
+no Applied entry. Not declines: five Advantest "profile is incomplete" mails
+(8757, 9129, 8179, 9131, 9132: Muse's submissions there did not complete), IMC
+sponsorship form, Micron Candidate Home, Marvell survey, LinkedIn confirmation,
+and Microsoft's confirmation read as passed ("If you're selected for an
+interview" is not hedged; "if you're" is missing from HEDGES).
+Data bbf48d7 (pushed through the backup unit; an interactive push has no
+GITHUB_TOKEN). CSV: 1,153 open positions, 1,192 listings.
+
 # Further Review optimization - 2026-10-07 (codex)
 
 Base fc6e628, including Claude's Gmail fix. Added bounded location-pattern and

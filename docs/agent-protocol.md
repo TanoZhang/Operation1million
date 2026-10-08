@@ -20,8 +20,10 @@ Scope: User requests (2026-10-07): Muse merge 5 (65 new submissions); Optiver
 Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,
        docs/{agent-protocol,handoff}.md; private VPS ledgers (data only).
 Base commit: 7ec7bee
-Status: in progress -- Optiver title fix committed; deploy, merge and Unsorted next.
-Next: Install, dry-run merge 5, list Unsorted for the user.
+Status: in progress -- fc6e628 installed; merge 5 written (data bbf48d7);
+        Unsorted read; 5959b38 (unless) pushed, not installed.
+Next: After Codex's c36497e/31a723f are cleared for production, install and
+      clear the two Anthropic Declined marks with by='gmail'.
 ```
 
 ```text
