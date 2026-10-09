@@ -1,3 +1,17 @@
+# Muse merge 6: Applied and hard skips - 2026-10-09 (claude)
+
+The user: a Muse merge updates Applied and Skipped, and Skipped takes only
+the user's hard skips (full-time without sponsorship, transcript, U.S.
+citizenship/person/ITAR/clearance, PhD-only, outside the U.S./Japan/China/
+Taiwan, declined by the user) -- never closed, duplicate, experience, scope,
+retryable or the reverted company-cap skips. /tmp/muse_merge6.py on the VPS
+(merge-5 script plus skips; dry run without --write): Applied 54 open groups
+marked + 185 created, Skipped 10 marked + 76 created. Ledger 1,258 -> 1,583
+lines, manual_jobs 741 -> 1,002; backups
+/opt/operation1million/*.before-muse-merge6-20261009T044847Z.ndjson. A rerun
+adds nothing. Live Review: applied 1,493, skipped 98. Muse's
+application-rules.md now allows China and Taiwan (data 1f3d6f7).
+
 # Japan, China and Taiwan pass the location filter - 2026-10-08 (claude)
 
 The user: the U.S., Japan, China and Taiwan all pass. `location.outside_allowed`
