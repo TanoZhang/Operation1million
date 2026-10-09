@@ -843,8 +843,9 @@ def queue(db_path=DB, path=None, now=None):
                     continue
                 # Located only abroad, at the user's request on 2026-09-22. Per
                 # listing, so a requisition also offered in Austin keeps its
-                # Austin listing; a location this cannot place is kept.
-                if location.outside_us(job['location']):
+                # Austin listing; a location this cannot place is kept. Japan,
+                # China and Taiwan are wanted too (the user, 2026-10-08).
+                if location.outside_allowed(job['location']):
                     continue
                 job['experience_filter'] = experience
                 # A paid listing's link is wherever Google Jobs found the

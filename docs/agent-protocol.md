@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-08): the location filter lets the U.S., Japan,
+       China (with Hong Kong and Macau) and Taiwan through; elsewhere abroad
+       is still dropped.
+Files: src/operation1million/{location,applications}.py, tests/test_location*.py,
+       docs/{agent-protocol,handoff,application-review}.md
+Base commit: bbc6da4
+Status: done -- 1,279 groups return on the backup; full suite 1,260 run,
+        13 skipped, all pass.
+Next: Muse's application-rules.md still says U.S. and Japan only.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-08): employers that cap applications (Ashby
        5 per 180 days, Amazon 10 active; others with evidence) keep only
        postings worth a slot -- a stricter score -- and show slots used.

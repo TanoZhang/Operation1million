@@ -6,7 +6,7 @@ the live queue that day.
 """
 import unittest
 
-from operation1million.location import country, outside_us
+from operation1million.location import country, outside_allowed, outside_us
 
 
 class CountryTests(unittest.TestCase):
@@ -84,3 +84,25 @@ class ReportedBugTests(unittest.TestCase):
         self.assertEqual(country('Burlington, VT'), 'us')
         self.assertEqual(country('London, United Kingdom'), 'foreign')
         self.assertEqual(country('London, KY'), 'us')
+
+
+class AllowedAbroadTests(unittest.TestCase):
+    """The user (2026-10-08): the U.S., Japan, China and Taiwan all pass."""
+
+    def test_japan_china_and_taiwan_pass(self):
+        for text in ('Hiroshima, Japan', 'Tokyo', 'JP, Kumamoto', 'Shanghai, China', 'CN, Shanghai',
+                     'Beijing', 'Taichung City, Taichung City, Taiwan', 'Hsinchu', 'TW, Zhubei',
+                     'Hong Kong', 'Tianjin (Weiwu)', 'Hsinchu City, Taiwan; Seoul, Korea, Republic of'):
+            with self.subTest(text=text):
+                self.assertFalse(outside_allowed(text))
+
+    def test_elsewhere_abroad_is_still_outside(self):
+        for text in ('IN, KA, Bengaluru', 'GB, London', 'Singapore, Singapore', 'Seoul, Korea, Republic of',
+                     'Jerusalem, Israel', 'Penang, Malaysia', 'AU, VIC, Melbourne', 'APAC'):
+            with self.subTest(text=text):
+                self.assertTrue(outside_allowed(text))
+
+    def test_the_us_and_unplaced_pass(self):
+        for text in ('Austin, Texas', 'Carmel, IN', '', 'Remote', 'Kansas City, MO'):
+            with self.subTest(text=text):
+                self.assertFalse(outside_allowed(text))

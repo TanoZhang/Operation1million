@@ -299,3 +299,35 @@ def country(location):
 def outside_us(location):
     """Only a location this can place abroad, and nowhere in the U.S."""
     return country(location) == 'foreign'
+
+
+# Abroad but wanted (the user, 2026-10-08): Japan, China with Hong Kong and
+# Macau, and Taiwan. The cities are the ones FOREIGN_CITIES lists there.
+ALLOWED_ABROAD = (
+    'japan', 'china', "people's republic of china", 'taiwan', 'hong kong', 'macau', 'macao',
+    'tokyo', 'osaka', 'yokohama', 'hiroshima', 'kyoto', 'nagoya', 'kumamoto',
+    'shanghai', 'beijing', 'shenzhen', 'suzhou', 'nanjing', 'hangzhou', 'chengdu', 'wuhan',
+    "xi'an", 'xian', 'guangzhou', 'dalian', 'hefei', 'tianjin', 'chongqing', 'wuxi', 'xiamen',
+    'taipei', 'new taipei', 'hsinchu', 'taichung', 'tainan', 'kaohsiung', 'zhubei', 'jubei', 'taoyuan',
+)
+# Not "mo" for Macau: it is Missouri.
+ALLOWED_CODES = {'jp', 'cn', 'tw', 'hk'}
+_ALLOWED = _words(ALLOWED_ABROAD)
+
+
+def _allowed_part(text):
+    return bool(_ALLOWED.search(text)) or any(
+        part.strip().lower() in ALLOWED_CODES for part in text.split(','))
+
+
+def outside_allowed(location):
+    """Placed abroad, and in none of the U.S., Japan, China or Taiwan.
+
+    Asked for on 2026-10-08; before it, everything abroad left the queue
+    (`outside_us`, 2026-09-22). One allowed place keeps a posting, as one U.S.
+    place does, and a place this cannot read is kept.
+    """
+    if not outside_us(location):
+        return False
+    text = _unaccented(str(location or ''))
+    return not any(_allowed_part(part) for part in re.split(r'\s*[;|•]\s*|\s+/\s+', text) if part.strip())

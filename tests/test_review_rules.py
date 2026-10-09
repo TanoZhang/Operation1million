@@ -557,7 +557,9 @@ class QueueRulesTests(unittest.TestCase):
                     {'title': title, 'raw': {'description': text}}, rules), reason)
 
     def test_a_posting_located_only_abroad_is_hidden(self):
-        for where, kept in (('IN, KA, Bengaluru', False), ('Hiroshima, Japan', False),
+        # Japan, China and Taiwan are wanted as well (the user, 2026-10-08).
+        for where, kept in (('IN, KA, Bengaluru', False), ('Seoul, Korea, Republic of', False),
+                            ('Hiroshima, Japan', True), ('Shanghai, China', True), ('Hsinchu, Taiwan', True),
                             ('US, CA, Santa Clara', True), ('', True), ('2 Locations', True)):
             with self.subTest(where=where):
                 with closing(sqlite3.connect(self.db)) as db, db:

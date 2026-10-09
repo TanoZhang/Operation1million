@@ -1,3 +1,14 @@
+# Japan, China and Taiwan pass the location filter - 2026-10-08 (claude)
+
+The user: the U.S., Japan, China and Taiwan all pass. `location.outside_allowed`
+replaces `outside_us` in the queue: abroad and in none of those (Hong Kong and
+Macau count as China; "MO" is Missouri, never Macau). On a copy of the
+2026-10-08 backup 1,279 groups return -- 61 to review, 1,218 backlog; Taiwan
+636, China 386, Japan 246, Hong Kong 11 -- many of them field-service and
+sales titles that land in Low relevance. Muse's own rules
+(job-applications/application-rules.md) still say U.S. and Japan only; that
+file is Muse's and was not changed. Full suite 1,260 run, 13 skipped, all pass.
+
 # Capped employers keep only postings worth a slot - 2026-10-08 (claude)
 
 The user: Ashby allows 5 applications in 180 days and Amazon 10 at once, so a

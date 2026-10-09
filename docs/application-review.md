@@ -30,6 +30,11 @@ postings appear on that tab only, never under To review or Backlog, and
 Remaining does not count them. They can still be marked applied or skipped
 there.
 
+**Places** (2026-10-08): a listing placed only outside the U.S., Japan,
+China (with Hong Kong and Macau) and Taiwan is not shown
+(`location.outside_allowed`); one listing in any of them keeps the posting, and
+a place that cannot be read is kept. Until 2026-10-08 only the U.S. passed.
+
 **Capped employers** (2026-10-08): an employer in
 `data/config/application_limits.toml` caps applications (OpenAI 5 per 180
 days, Amazon 10 active, Google 3 per 30 days, Zipline 3 per 30 days). Its
