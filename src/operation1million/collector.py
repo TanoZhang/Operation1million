@@ -396,7 +396,16 @@ class Collector:
         for attempt in range(self.args.retries + 1):
             self.policy.check()
             self.requests += 1
-            r = self.session.request(method, url, json=payload, timeout=self.args.timeout)
+            try:
+                r = self.session.request(method, url, json=payload, timeout=self.args.timeout)
+            except (requests.Timeout, requests.ConnectionError):
+                # Transient like a 503, and given the same bounded backoff. One
+                # read timeout ended Apple's list at 480 of ~4,450 postings on
+                # 2026-10-09, with every later page unread and nothing retried.
+                if attempt == self.args.retries:
+                    raise
+                time.sleep(max(self.policy.interval, 5 * 2 ** attempt))
+                continue
             if self.validator and self.etag is None and r.status_code == 200:
                 self.etag = r.headers.get('ETag')
                 self.last_modified = r.headers.get('Last-Modified')
@@ -462,6 +471,7 @@ class Collector:
         url, method, payload = request_for(self.source)
         offset = 0
         stated_total = None
+        repeats = 0
         for page in range(self.args.max_pages):
             if page:
                 self.partial_validator()
@@ -543,8 +553,18 @@ class Collector:
             # nothing, and reading that as the provider ignoring pagination
             # stopped the pass there with every later, valid page unread. The
             # pass stays partial for the rejects; it just carries on reading.
+            # A board whose order shifts while it is read -- a posting added
+            # near the top pushes ten already-read ones onto the next page --
+            # serves a page of nothing new once and then moves on: Qualcomm
+            # stopped at 990 of ~2,080 that way on 2026-10-09. A board that
+            # ignores pagination serves the same page every time. So only a
+            # run of them, while the board still states more to come, ends it.
             if not added and len(self.rejected) == rejected_before:
-                return 'partial', 'Repeated page; provider ignored pagination'
+                repeats += 1
+                if repeats >= 3 or not isinstance(stated_total, (int, float)):
+                    return 'partial', 'Repeated page; provider ignored pagination'
+            else:
+                repeats = 0
             if len(self.jobs) >= self.args.max_jobs:
                 return 'partial', 'Job cap reached; increase --max-jobs'
         return 'partial', 'Page cap reached; increase --max-pages'
@@ -879,7 +899,7 @@ def main():
     p.add_argument('--timeout', type=float, default=25)
     p.add_argument('--delay', type=float, default=1.0, help='Minimum delay; Eightfold uses at least 2.5s and Microsoft 3s')
     p.add_argument('--no-store', dest='store', action='store_false', help='Write run files only; leave the job store untouched')
-    p.add_argument('--retries', type=int, default=3, help='Retries for 503 only; 429 pauses the source immediately')
+    p.add_argument('--retries', type=int, default=3, help='Retries for 503, timeouts and dropped connections; 429 pauses the source immediately')
     p.add_argument('--fallback-queries', type=int, default=1)
     p.add_argument('--jsearch', action='store_true', help='Enable the fixed functional JSearch discovery plan')
     p.add_argument('--jsearch-only', action='store_true', help='Run functional JSearch only, without direct sources or company fallbacks')

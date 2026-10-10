@@ -7,6 +7,7 @@ from email.utils import format_datetime
 from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
+import requests
 import unittest
 from unittest.mock import Mock, patch
 
@@ -144,6 +145,23 @@ class CollectionPolicyTests(unittest.TestCase):
         c.session.request.return_value = self.response(503)
         with patch('operation1million.collector.time.sleep') as sleep:
             self.assertEqual(c.run()[0], 'paused')
+        self.assertEqual(c.requests, 4)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [5, 10, 20])
+
+    def test_a_read_timeout_is_retried_with_backoff(self):
+        # Apple's list, 2026-10-09: one ReadTimeout and every later page unread.
+        c = self.collector()
+        c.session.request.side_effect = [requests.ReadTimeout('read timed out'), self.response()]
+        with patch('operation1million.collector.time.sleep') as sleep:
+            c.fetch(c.source.access_url)
+        self.assertEqual(c.requests, 2)
+        sleep.assert_called_once_with(5)
+
+    def test_timeout_retries_are_bounded(self):
+        c = self.collector()
+        c.session.request.side_effect = requests.ConnectTimeout('connect timed out')
+        with patch('operation1million.collector.time.sleep') as sleep, self.assertRaises(requests.Timeout):
+            c.fetch(c.source.access_url)
         self.assertEqual(c.requests, 4)
         self.assertEqual([call.args[0] for call in sleep.call_args_list], [5, 10, 20])
 

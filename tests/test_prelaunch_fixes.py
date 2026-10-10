@@ -75,6 +75,15 @@ class UnpublishedProgressTests(unittest.TestCase):
         self.assertIn('workflow_state "$CODE/.local/jsearch_usage.sqlite"', branch)
         self.assertIn('workflow_state operational/jsearch_usage.sqlite', branch)
 
+    def test_the_offline_tests_run_without_the_production_environment(self):
+        # With OPERATION1MILLION_STORE exported they read the production resume
+        # profile: 61 failures and 5 errors on the VPS, 2026-10-09.
+        script = (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
+        step = script.split("echo '== Offline regression tests =='")[1].split("echo '== Database =='")[0]
+        command = step[step.index('env -i'):step.index('unittest discover')]
+        self.assertNotIn('OPERATION1MILLION', command)
+        self.assertNotIn('JSEARCH', command)
+
     def test_a_rewind_keeps_the_credits_and_restores_the_cursor(self):
         from operation1million.jsearch_access import RequestGuard
         from operation1million.workflow_state import restore_cursors

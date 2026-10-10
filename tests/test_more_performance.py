@@ -163,3 +163,16 @@ class MorePerformanceTests(unittest.TestCase):
             path.unlink()
             with self.assertRaises(FileNotFoundError):
                 jsearch.load_plan(path)
+
+    def test_a_rewrite_with_an_identical_stat_is_not_served_from_cache(self):
+        # ext4 on the VPS gave a same-size rewrite inside one clock tick the
+        # identical mtime and ctime (162 of 200 tries, 2026-10-09), and the
+        # cache went on serving the old plan.
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'plan.toml'
+            path.write_text('[filter]\nmin_confidence = 25\n', encoding='utf-8')
+            self.assertEqual(jsearch.load_plan(path)[0]['filter']['min_confidence'], 25)
+            frozen = path.stat()
+            path.write_text('[filter]\nmin_confidence = 26\n', encoding='utf-8')
+            with patch.object(Path, 'stat', lambda self, **kwargs: frozen):
+                self.assertEqual(jsearch.load_plan(path)[0]['filter']['min_confidence'], 26)

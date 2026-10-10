@@ -237,7 +237,11 @@ cd "$CODE"
 
 echo '== Offline regression tests =='
 # A failing test stopped the whole pass on 2026-10-03, free boards included.
-python -m unittest discover -s tests || note_problem 'the offline tests did not all pass'
+# In a clean environment: with OPERATION1MILLION_STORE exported the tests read
+# the production resume profile, and 65 of them failed on 2026-10-09 for that
+# alone. Nor should a test see the production store or the paid key.
+env -i HOME="$HOME" PATH="$PATH" LANG=C.UTF-8 PYTHONUNBUFFERED=1 \
+  python -m unittest discover -s tests || note_problem 'the offline tests did not all pass'
 echo '== Database =='
 inputs=$(database_inputs)
 if [ ! -f "$CODE/data/db/job_discovery.sqlite" ] || [ ! -f "$READY" ] || [ "$(cat "$READY")" != "$inputs" ]; then

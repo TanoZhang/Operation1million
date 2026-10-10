@@ -68,6 +68,17 @@ class AppleDetailTests(unittest.TestCase):
                          'required_experience_over_2_years')
         self.assertEqual(fields['preferred_qualifications'], 'Experience with verification tools.')
 
+    def test_older_layout_key_qualifications_are_its_requirements(self):
+        # 200355493-0836 (posted 2022): no minimumQualifications at all, and
+        # the posting went unread every pass, marking Apple partial.
+        page = (Path(__file__).parent / 'fixtures/apple_detail_legacy_redacted.html').read_text(encoding='utf-8')
+        fields = apple.detail_fields(page, 'https://jobs.apple.com/en-us/details/200000002-0001/example')
+        self.assertIn('6 years', fields['minimum_qualifications'])
+        self.assertIn("Master's degree", fields['minimum_qualifications'])
+        row = {'title': 'RTL Engineer', 'provider_key': 'apple_jobs', 'raw': fields}
+        self.assertEqual(jsearch.eligibility_rejection(row, jsearch.load_plan()[0]['filter'])[0],
+                         'required_experience_over_2_years')
+
     def test_detail_reads_prioritize_relevant_inventory(self):
         rules = jsearch.load_plan()[0]['filter']
         for title in ('Retail Specialist', 'Existing job', 'Senior RTL Engineer'):

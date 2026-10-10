@@ -47,8 +47,14 @@ _PLAN_LOCK = threading.Lock()
 
 
 def _plan_stamp(path):
+    # The contents, not only the stat: ext4 on the VPS stamps a rewrite inside
+    # the same clock tick with the identical mtime and ctime -- 162 of 200
+    # same-size rewrites, measured 2026-10-09 -- so the stat alone kept serving
+    # a plan that had changed. Reading the small file is cheap; parsing it is
+    # what the cache saves.
     stat = path.stat()
-    return stat.st_mtime_ns, stat.st_size, stat.st_ino, stat.st_ctime_ns
+    digest = hashlib.sha256(path.read_bytes()).digest()
+    return stat.st_mtime_ns, stat.st_size, stat.st_ino, stat.st_ctime_ns, digest
 
 
 def load_plan(path=CONFIG / 'jsearch_queries.toml'):

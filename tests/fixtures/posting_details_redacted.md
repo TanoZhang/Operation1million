@@ -17,3 +17,9 @@ preserved in a synthetic degree-alternative example. Its JSON-LD description
 omitted these headings; using that flattened value incorrectly rejected the
 real posting. `smartrecruiters_detail_redacted.json` retains the posting id and
 `jobAd.sections.*.text` shape captured from Sandisk's public posting API.
+
+`phenom_detail_redacted.html` keeps the shape of Cisco's public posting page
+(2023919, captured 2026-10-09): a JSON-LD JobPosting whose `title` is the job
+family ("Software Engineer") and the Phenom `phApp.ddo` job object whose
+`title` is the listed posting title. Identifiers, places and description are
+synthetic.

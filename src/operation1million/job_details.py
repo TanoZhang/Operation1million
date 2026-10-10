@@ -37,9 +37,26 @@ def page_fields(text, row, response_url):
     # Some boards omit url/identifier. Require the returned title as a second
     # check even when the HTTP endpoint and published URL match.
     title = lambda value: re.sub(r'\s+', ' ', readable_text(value)).strip().casefold()
-    if title(data.get('title')) != title(row['title']):
+    if title(data.get('title')) != title(row['title']) and title(row['title']) not in {
+            title(value) for value in embedded_titles(text)}:
         raise ValueError('Detail title does not match inventory')
     return {'description': data['description']}
+
+
+def embedded_titles(text):
+    """Every JSON "title" string the page embeds.
+
+    Cisco's JSON-LD names the job family -- "Software Engineer" -- where its
+    Phenom data on the same page names the posting, "Embedded Software
+    Engineer, RoomOS and PhoneOS" (2023919, 2026-10-09). The page was already
+    asked for at the posting's own address; its own data naming the listed
+    title is the second check this needs.
+    """
+    for match in re.finditer(r'"title"\s*:\s*("(?:[^"\\]|\\.){0,300}")', text):
+        try:
+            yield json.loads(match.group(1))
+        except ValueError:
+            continue
 
 
 def read(collector, row):

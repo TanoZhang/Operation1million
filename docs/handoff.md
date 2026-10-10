@@ -1,3 +1,30 @@
+# VPS test failures and partial sources - 2026-10-09 (claude)
+
+Tests: the pass ran them with OPERATION1MILLION_STORE (and the env file's keys)
+exported, so they read the production resume_fit.json -- 60 failures and 5
+errors, reproduced here by setting the variable. daily-pass.sh now runs them
+under `env -i`. The 61st, test_plan_changed_while_parsing_is_not_cached, is a
+real bug: ext4 gave a same-size rewrite the identical stat 162 of 200 times on
+the VPS, so load_plan served a stale plan; the stamp now includes a digest.
+
+Sources partial on 2026-10-09, from runs/*/company_results.csv:
+- Cisco (since 10-07): JSON-LD title is the job family ("Software Engineer")
+  for 2023919 and 2021564; the page's own Phenom title is accepted. Fixed.
+- Apple: a ReadTimeout ended the list at 480 of ~4,450; timeouts and dropped
+  connections now get the 503 backoff (3 retries). 200355493-0836 uses the
+  older keyQualifications layout; read as its requirements. Fixed.
+- Qualcomm: one page of already-read postings ended it at 990 of ~2,080; three
+  in a row now does. Fixed.
+- Open, needs the user: Amazon (10,000 ceiling; 62 business categories sum to
+  22,417, the largest 7,848, so a partition works but more than doubles the
+  run log), SanDisk (SmartRecruiters empty since 09-24; the board moved to
+  avature.sandisk.com, sitemap lists 623; the 308 old postings stay open behind
+  the fuse), Microsoft (429 on the first request 10-05, 10-08, 10-09; on other
+  days the fuse blocks 25-35% closures), Rivos (Uplers page; completeness
+  unverifiable by design). A single detail failure also marks a source
+  partial, which stops its closures (architecture.md: "Failed details ...
+  prevent claiming complete detail coverage").
+
 # Muse merge 6: Applied and hard skips - 2026-10-09 (claude)
 
 The user: a Muse merge updates Applied and Skipped, and Skipped takes only

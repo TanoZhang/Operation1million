@@ -37,9 +37,17 @@ def detail_fields(text, url):
             raise ValueError('Apple detail job data is absent')
         if data.get('jobNumber') != match.group(1):
             raise ValueError('Apple detail posting does not match requested requisition')
-        if not readable_text(data.get('minimumQualifications')):
-            raise ValueError('Apple detail has no minimum qualifications')
-        return {target: data.get(source) or '' for source, target in DETAIL_FIELDS.items()}
+        fields = {target: data.get(source) or '' for source, target in DETAIL_FIELDS.items()}
+        if not readable_text(fields['minimum_qualifications']):
+            # Apple's older layout (Pre-Silicon Engineer 200355493-0836, posted
+            # 2022, read 2026-10-09): "Key Qualifications" and "Education &
+            # Experience" are what it requires, and there is no other list.
+            legacy = [data.get(key) for key in ('keyQualifications', 'educationAndExperience')
+                      if isinstance(data.get(key), str) and readable_text(data.get(key))]
+            if not legacy:
+                raise ValueError('Apple detail has no minimum qualifications')
+            fields['minimum_qualifications'] = '\n'.join(legacy)
+        return fields
     raise ValueError('Apple detail hydration is absent')
 
 

@@ -33,6 +33,15 @@ class DetailTests(unittest.TestCase):
             with self.subTest(row=row), self.assertRaises(ValueError):
                 job_details.page_fields(self.page, row, url)
 
+    def test_phenom_job_family_in_json_ld_still_names_the_posting(self):
+        # Cisco 2023919, 2026-10-09: JSON-LD says "Software Engineer", the
+        # page's own Phenom data says the listed title. Not a different posting.
+        page = (Path(__file__).parent / 'fixtures' / 'phenom_detail_redacted.html').read_text(encoding='utf-8')
+        row = dict(self.row, title='Embedded Software Engineer, Example Devices')
+        self.assertIn('degree', job_details.page_fields(page, row, row['url'])['description'])
+        with self.assertRaises(ValueError):
+            job_details.page_fields(page, dict(row, title='Firmware Engineer'), row['url'])
+
     def test_workday_identity_and_missing_description(self):
         path = '/job/Example/RTL-Engineer_R0001'
         self.assertIn('8 years', job_details.workday_fields(self.workday, path)['description'])

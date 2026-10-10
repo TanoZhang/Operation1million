@@ -6,6 +6,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-09): fix the VPS's failing offline tests (61
+       failures, 5 errors on 6fee617) and the partial direct sources (Cisco,
+       Qualcomm, Apple, Amazon, Rivos, Microsoft paused, SanDisk empty).
+Files: deploy/vps/daily-pass.sh, src/operation1million/{jsearch,collector}.py,
+       tests/{test_prelaunch_fixes,test_more_performance,test_collector*}.py,
+       docs/{agent-protocol,handoff,collection-rules}.md
+Base commit: 82b8856
+Status: active
+Next: Tests first (run with the production store and keys in the env; the
+      plan cache misses a same-tick rewrite on ext4), then source by source.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-08): the location filter lets the U.S., Japan,
        China (with Hong Kong and Macau) and Taiwan through; elsewhere abroad
        is still dropped.

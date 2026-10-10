@@ -365,6 +365,24 @@ class CollectionTests(unittest.TestCase):
         # into the other.
         self.assertEqual(c.jobs,[]);self.assertEqual(len(c.rejected),2)
 
+    def eightfold_board(self, pages, count):
+        source=replace(self.source(),provider_key='eightfold',
+                       access_url='https://careers.test/api/pcsx/search?domain=x.com')
+        c=Collector(source,self.args()); served=iter(pages)
+        def position(n): return {'id':str(n),'name':'Store Associate','positionUrl':f'/careers/job/{n}'}
+        c.fetch=lambda *a:Response({'data':{'count':count,'positions':[position(n) for n in next(served)]}})
+        return c
+
+    def test_one_page_of_shifted_postings_is_read_past(self):
+        """Qualcomm, 2026-10-09: a page of nothing new ended the board at 990 of ~2,080."""
+        c=self.eightfold_board([[1,2],[1,2],[3,4]],6)
+        self.assertEqual(c.run(),('complete',''))
+        self.assertEqual(len(c.jobs),4)
+
+    def test_a_board_that_ignores_pagination_still_stops(self):
+        c=self.eightfold_board([[1,2]]*10,20)
+        self.assertEqual(c.run(),('partial','Repeated page; provider ignored pagination'))
+
     def test_the_ti_shell_does_not_supply_the_boards_validator(self):
         """The shell is not the board, and its ETag does not describe the jobs.
 
