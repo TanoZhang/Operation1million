@@ -30,8 +30,12 @@ export DEBIAN_FRONTEND=noninteractive
 # changed nothing, because this script's output was being discarded. Nothing
 # here needs installing after the first run; it only has to not fail.
 APT_WAIT='-o DPkg::Lock::Timeout=300'
+# A third-party list that stops answering must not block a deployment either:
+# the Caddy repository on dl.cloudsmith.io began returning 402 on 2026-10-09,
+# `update` exited 100 and nothing was installed. The packages below were all
+# present already; `install` reads the lists that are still on disk.
 # shellcheck disable=SC2086
-apt-get $APT_WAIT update -qq
+apt-get $APT_WAIT update -qq || echo 'WARNING: apt-get update failed; using the package lists already on disk' >&2
 # shellcheck disable=SC2086
 apt-get $APT_WAIT install -y -qq python3-venv python3-dev git curl ca-certificates
 
