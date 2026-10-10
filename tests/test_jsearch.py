@@ -10,7 +10,7 @@ import threading
 import unittest
 from contextlib import closing
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -208,7 +208,8 @@ class DiscoveryTests(unittest.TestCase):
         params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
         self.assertEqual(params['date_posted'], ['week'])
         self.assertEqual(params['num_pages'], ['1'])
-        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'], 400)
+        self.assertEqual(guard_factory.call_args.kwargs['daily_limit'],
+                         jsearch.load_plan()[0]['daily_budget'])
         manifest = json.loads((output / 'manifest.json').read_text())
         self.assertEqual(manifest['jsearch_pages_used'], 1)
         self.assertEqual(manifest['jsearch_queries'][0]['date_posted'], 'week')
@@ -304,10 +305,14 @@ class DiscoveryTests(unittest.TestCase):
     def test_fixed_catalog_and_budget_math(self):
         self.assertEqual(len(self.plan), 170)
         self.assertEqual(self.settings['monthly_target'], 9600)
-        self.assertEqual(self.settings['daily_budget'], 400)
+        # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
+        # day, then 330 from the next cycle on.
+        on = lambda day: jsearch.load_plan(today=date.fromisoformat(day))[0]['daily_budget']
+        self.assertEqual([on(day) for day in ('2026-10-09', '2026-10-15', '2026-10-16', '2026-11-15')],
+                         [570, 570, 330, 330])
         # Daily pacing may exceed a uniform monthly slice; the independent
         # monthly guard still binds at 9,600 credits.
-        self.assertGreater(self.settings['daily_budget'] * 30, self.settings['monthly_target'])
+        self.assertGreater(on('2026-10-15') * 30, self.settings['monthly_target'])
         # A 30-day cycle, not a day of the month: a calendar anchor would drift
         # against the provider every time a period crosses a short month.
         self.assertEqual(self.settings['cycle_start'], '2026-09-16')
@@ -316,7 +321,7 @@ class DiscoveryTests(unittest.TestCase):
         # Caps are independent ceilings; provider cursors and the actual daily
         # credit budget, not the sum of caps, bound a pass.
         worst = sum(q.pages for q in self.plan)
-        self.assertGreater(worst, self.settings['daily_budget'])
+        self.assertGreater(worst, on('2026-10-15'))
         self.assertEqual(self.settings['daily_pages_cap'], worst)
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
@@ -382,6 +387,26 @@ class DiscoveryTests(unittest.TestCase):
         settings, queries = jsearch.load_plan(path)
         self.assertEqual(settings['daily_pages_cap'], 10)
         self.assertEqual(len(queries), 2)
+
+    def test_a_cycle_budget_applies_to_its_own_cycle_only(self):
+        path = self.root / 'cycle-budget.toml'
+        path.write_text('daily_budget=3\ncycle_start="2026-09-16"\ncycle_days=30\n'
+                        'cycle_daily_budget={"2026-09-16"=7}\n'
+                        '[[query]]\nquery="RTL Engineer"\npages=5\n', encoding='utf-8')
+        budget = lambda day: jsearch.load_plan(path, today=date.fromisoformat(day))[0]['daily_budget']
+        # Read once inside the cycle, then again after it from the same cache.
+        self.assertEqual(budget('2026-09-16'), 7)
+        self.assertEqual(budget('2026-10-15'), 7)
+        self.assertEqual(budget('2026-10-16'), 3)
+        self.assertEqual(budget('2026-09-15'), 3)
+
+    def test_a_cycle_budget_must_name_a_cycle_and_fund_every_query(self):
+        path = self.root / 'bad-cycle-budget.toml'
+        for table in ('{"2026-09-17"=7}', '{"soon"=7}', '{"2026-09-16"=0}', '{"2026-09-16"=99999}'):
+            path.write_text(f'cycle_daily_budget={table}\n'
+                            '[[query]]\nquery="RTL Engineer"\npages=5\n', encoding='utf-8')
+            with self.subTest(table=table), self.assertRaises(ValueError):
+                jsearch.load_plan(path)
 
     def test_an_overbooked_plan_spends_its_budget_in_priority_order(self):
         guard = RequestGuard(path=self.root / 'overbooked.sqlite', limit=10000,

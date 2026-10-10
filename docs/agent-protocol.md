@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-09): spread the rest of the 2026-09-16 cycle's
+       JSearch credits at about 4,000/7 a day (570), and 330 a day from the
+       2026-10-16 cycle on.
+Files: src/operation1million/jsearch.py, data/config/jsearch_queries.toml,
+       tests/test_jsearch.py, docs/{agent-protocol,handoff,jsearch}.md
+Base commit: 82b8856
+Status: done -- full suite 1,270 run, 13 skipped, all pass (Windows)
+Next: Install on the VPS before the 2026-10-10 04:38 Pacific pass.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-09): fix the VPS's failing offline tests (61
        failures, 5 errors on 6fee617) and the partial direct sources (Cisco,
        Qualcomm, Apple, Amazon, Rivos, Microsoft paused, SanDisk empty).

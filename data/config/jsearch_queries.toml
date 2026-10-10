@@ -4,7 +4,12 @@ version = 1
 monthly_quota = 10000
 target_utilization = 0.96
 operating_days = 30
-daily_budget = 400
+daily_budget = 330
+# A cycle's own daily budget, keyed by the cycle's first day; other cycles use
+# daily_budget. On 2026-10-09 the user spread what was left of the 2026-09-16
+# cycle (4,673 credits to the 9,600 target, six passes to go) at about 4,000/7,
+# and asked for 330 again from the 2026-10-16 cycle.
+cycle_daily_budget = { "2026-09-16" = 570 }
 # The plan renews every 30 days from this date, not on a day of the month.
 cycle_start = "2026-09-16"
 cycle_days = 30
@@ -49,11 +54,12 @@ exclude_job_publishers = [
 ]
 
 # Priority: intern/co-op -> new_grad -> early_career -> General (A).
-# On 2026-10-05 the user raised the daily limit to 400, removed all twenty
+# On 2026-10-05 the user raised the daily limit to 400 (570 for the rest of
+# that cycle and 330 after it, from 2026-10-09), removed all twenty
 # state splits, and requested much broader nationwide VLSI title coverage.
 # Keep all 170 nationwide queries. The user subsequently raised all 123
 # three-page trial caps to ten; the other 47 caps stay unchanged. Caps total
-# 2,365, not reserved credits. RequestGuard limits actual spend to 400 per
+# 2,365, not reserved credits. RequestGuard limits actual spend to the daily budget per
 # Pacific budget day and 9,600 per UTC billing cycle.
 # Search terms discover candidates; the existing JD filters decide eligibility.
 # Every query gets one page per round within its tier. A missing next cursor,

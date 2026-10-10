@@ -1,3 +1,14 @@
+# JSearch budget by cycle - 2026-10-09 (claude)
+
+The user: spread what is left of this cycle at about 4,000/7 a day, and go
+back to 330 when the next cycle begins. The plan now says daily_budget = 330
+and cycle_daily_budget = { "2026-09-16" = 570 }; load_plan picks the budget for
+the cycle the UTC date falls in, so 2026-10-16 onward gets 330 with no further
+change. Measured from the data repo's ledger (446492f, 2026-10-09 12:46 UTC):
+4,927 used, 4,673 to the 9,600 target, 400 of 400 spent on 10-09. Not measured:
+whether a pass actually spends 570 -- the caps total 2,365, and the 10-08
+and 10-09 passes each spent their full 400.
+
 # VPS test failures and partial sources - 2026-10-09 (claude)
 
 Tests: the pass ran them with OPERATION1MILLION_STORE (and the env file's keys)

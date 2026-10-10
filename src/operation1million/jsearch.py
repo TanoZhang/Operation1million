@@ -6,7 +6,7 @@ import hashlib
 import html
 import unicodedata
 import math
-from datetime import date
+from datetime import date, datetime, timezone
 import os
 import re
 import time
@@ -57,8 +57,11 @@ def _plan_stamp(path):
     return stat.st_mtime_ns, stat.st_size, stat.st_ino, stat.st_ctime_ns, digest
 
 
-def load_plan(path=CONFIG / 'jsearch_queries.toml'):
-    """Cache validated file contents, returning isolated mutable caller copies."""
+def load_plan(path=CONFIG / 'jsearch_queries.toml', today=None):
+    """Cache validated file contents, returning isolated mutable caller copies.
+
+    `daily_budget` is the one for the cycle `today` (a UTC date) falls in.
+    """
     path = path.resolve()
     with _PLAN_LOCK:
         before = _plan_stamp(path)
@@ -77,7 +80,22 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml'):
                 _PLAN_CACHE.pop(path, None)
         # Query objects are frozen; the enclosing list and all configuration
         # containers belong to the caller, never to another load_plan call.
-        return deepcopy(config), list(queries)
+        config = deepcopy(config)
+    # Resolved per call, not cached: a cached plan outlives the cycle it was read in.
+    start = cycle_start_for(config, today)
+    config['daily_budget'] = config['cycle_daily_budget'].get(start, config['daily_budget'])
+    return config, list(queries)
+
+
+def cycle_start_for(config, today=None):
+    """The ISO first day of the billing cycle `today` falls in, counted in UTC dates.
+
+    The same arithmetic as RequestGuard._cycle, which dates the ledger.
+    """
+    today = today or datetime.now(timezone.utc).date()
+    anchor = date.fromisoformat(str(config['cycle_start']))
+    cycles = (today - anchor).days // config['cycle_days']
+    return date.fromordinal(anchor.toordinal() + cycles * config['cycle_days']).isoformat()
 
 
 def _read_plan(path):
@@ -102,6 +120,20 @@ def _read_plan(path):
         raise ValueError('cycle_start must be an ISO date') from None
     if type(config['cycle_days']) is not int or not 1 <= config['cycle_days'] <= 366:
         raise ValueError('cycle_days must be between 1 and 366')
+    # A budget for one cycle only, so a change for what is left of a cycle
+    # reverts on its own when the next one starts.
+    overrides = config.setdefault('cycle_daily_budget', {})
+    if not isinstance(overrides, dict):
+        raise ValueError('cycle_daily_budget must be a table of cycle start to budget')
+    for start, budget in overrides.items():
+        try:
+            first = date.fromisoformat(start)
+        except ValueError:
+            raise ValueError(f'cycle_daily_budget key {start!r} must be an ISO date') from None
+        if cycle_start_for(config, first) != start:
+            raise ValueError(f'cycle_daily_budget key {start} is not the first day of a cycle')
+        if type(budget) is not int or not 0 <= budget <= config['monthly_target']:
+            raise ValueError(f'Invalid daily page-credit budget for the cycle from {start}')
     # A budget day runs from one scheduled pass to the next, so these two say
     # when that is. Validated here rather than at the guard so a typo stops the
     # plan from loading instead of surfacing halfway through a paid run.
@@ -160,7 +192,8 @@ def _read_plan(path):
         queries.append(Query(text, pages, tier))
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
-    validate_budget(queries, config['daily_budget'])
+    for budget in (config['daily_budget'], *config['cycle_daily_budget'].values()):
+        validate_budget(queries, budget)
     # Caps may sum past the daily budget. Many queries reach their final cursor far
     # below theirs, so caps held to the budget left about half of it unspent; the
     # guard stops a day at its budget, and tier order decides who is left out.

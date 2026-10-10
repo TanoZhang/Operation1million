@@ -1,5 +1,21 @@
 # JSearch daily discovery
 
+## Daily budget by cycle - 2026-10-09
+
+At the user's request the daily budget is 570 for the rest of the 2026-09-16
+cycle and 330 from the 2026-10-16 cycle on. On 2026-10-09 the ledger held
+4,927 credits used, 4,673 left to the 9,600 target and six scheduled passes
+(October 10-15 Pacific); the user asked for about 4,000/7 a day. Six passes at
+570 can spend 3,420; the October 13-15 UTC backfill sweep still spends what is
+left, and the 9,600 target still binds.
+
+`cycle_daily_budget` in `jsearch_queries.toml` maps a cycle's first day to that
+cycle's budget; every other cycle uses `daily_budget`. `load_plan` resolves it
+from the UTC date on each call, with the same cycle arithmetic as
+`RequestGuard`, so the override ends with its cycle without another edit. A key
+that is not a cycle's first day, or a budget below the query count, is refused
+when the plan loads. The 400 below was the budget from 2026-10-05 to 10-09.
+
 ## Current trial depths - 2026-10-05
 
 After reviewing the latest measured three-page trial, the user raised all 123
