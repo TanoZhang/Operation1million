@@ -13,9 +13,12 @@ Files: deploy/vps/daily-pass.sh, src/operation1million/{jsearch,collector}.py,
        tests/{test_prelaunch_fixes,test_more_performance,test_collector*}.py,
        docs/{agent-protocol,handoff,collection-rules}.md
 Base commit: 82b8856
-Status: active
-Next: Tests first (run with the production store and keys in the env; the
-      plan cache misses a same-tick rewrite on ext4), then source by source.
+Status: tests, Cisco, Apple, Qualcomm done -- 045f16e + 33fd72b installed
+        (install.sh: Caddy's apt list answers 402). Daily-pass test step on
+        the VPS: 1,268 run, 0 skipped, all pass.
+Next: The user decides Amazon (partition, log size), SanDisk (Avature
+      route; 308 old postings behind the fuse), Microsoft (429 / fuse),
+      and whether a detail failure should stop closures.
 ```
 
 ```text
