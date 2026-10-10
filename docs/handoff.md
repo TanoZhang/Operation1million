@@ -1,3 +1,20 @@
+# Chip titles out of Low relevance - 2026-10-09 (claude)
+
+The user: the Low relevance tab is "way irrelevant"; option 2 of two offered --
+find the chip work in it and move it up, leaving the tab. Measured on the local
+index bootstrapped from data cdd2d3c: 4,571 groups, 4,365 with no stored
+description (so Fit 0 and the title band decide), highest Fit 19. Of 3,157
+distinct titles, 1,478 not plainly off-trade were read. ranking.py now places
+logic equivalence checking and cache coherency in the core band; IP
+integration/engineering, power analysis, performance modeling, TLM, PDK,
+design enablement, DTCO, SPICE/compact modeling, heterogeneous integration,
+3DHI, interposers, SI/PI, LPDRAM, AMS/ISP/codec/wireless-MAC design and three
+Chinese terms in the related band. Result: Low relevance 4,571 -> 4,504; 67
+groups moved (6 early career, 2 core, 59 related), none moved in. Over all
+open postings 160 titles change band. "STCO" was left out: Amazon Logistics
+uses it. Not changed: seniority (226 Staff/Senior/Principal titles in the tab),
+and the rest of the tab, which the user may still want hidden.
+
 # JSearch budget by cycle - 2026-10-09 (claude)
 
 The user: spread what is left of this cycle at about 4,000/7 a day, and go

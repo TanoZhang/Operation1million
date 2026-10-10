@@ -41,6 +41,43 @@ class BucketTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(ranking.bucket(title), 4, title)
 
+    def test_titles_read_in_the_low_relevance_tab_on_2026_10_09(self):
+        """Live titles that sat in Low relevance with no description to rescue them."""
+        for title, band in (
+                ('Logic Equivalence Check (LEC) Engineer', 2),
+                ('DMTS NOC Cache Coherency Architect', 2),
+                ('IP Integration Engineer', 3),
+                ('Member of the Technical Staff, IP Engineering', 3),
+                ('Graphics Power Analysis & Optimization Engineer', 3),
+                ('Power Analysis and Optimization Intern - 2027', 1),
+                ('AI TLM Performance Modeling', 3),
+                ('PDK Enablement Engineer', 3),
+                ('Engineer Design Enablement', 3),
+                ('Design Technology Co-Optimization (DTCO) Engineer, Design flow and Methodology', 3),
+                ('Spice Modeling Engineer', 3),
+                ('Device Compact Modeling Engineer (2027 New College Graduate)', 1),
+                ('3D Heterogeneous Integration Engineer', 3),
+                ('Quantum 3DHI Engineer (2027 New College Graduate)', 1),
+                ('Quantum Interposer Design Engineer', 3),
+                ('Camera SIPI Engineer', 3),
+                ('SI/PI Engineer', 3),
+                ('LPDRAM Product Engineer', 3),
+                ('Staff GenAI Engineer - AMS Design and Optimization', 3),
+                ('ISP Design Engineer, up to Staff', 3),
+                ('Video Codec Design Engineer, up to Staff', 3),
+                ('Wireless MAC Design Engineer', 3),
+                ('2027校招-模拟芯片测试工程师/Test Engineer', 3),
+                ('硅后验证工程师(实习生岗可转正)', 3)):
+            with self.subTest(title=title):
+                self.assertEqual(ranking.bucket(title), band, title)
+        # The same letters elsewhere: Amazon's capacity team, a paralegal, a
+        # Mac designer, and media relations, still the last band.
+        for title in ('Transportation Specialist (Short Term Capacity Optimization), STCO Amazon Logistics',
+                      'IP Paralegal', 'Mac Designer', 'Media Relations, Staff',
+                      'Professional Services Consulting, Staff Consultant'):
+            with self.subTest(title=title):
+                self.assertEqual(ranking.bucket(title), 4, title)
+
     def test_early_career_leads_both_bands_but_rescues_neither_outsider(self):
         self.assertEqual(ranking.bucket('RTL Design Intern'), 0)
         self.assertEqual(ranking.bucket('ASIC Design Engineer, New Grad'), 0)

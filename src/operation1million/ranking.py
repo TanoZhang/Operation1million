@@ -72,6 +72,9 @@ CORE = re.compile(r"""\b(?:
     # An HDL by name and digital logic design (#290): "Bluespec Design
     # Engineer", "Technical Staff Engineer-Design (Digital Logic)".
     | bluespec | digital \s+ logic
+    # Read in the Low relevance tab on 2026-10-09: equivalence checking is
+    # formal verification of a netlist, and coherency is the CPU's interconnect.
+    | logic \s+ equivalence \s+ check\w* | (?-i: LEC ) | cache \s+ coheren\w*
 )\b""", re.I | re.X)
 
 
@@ -125,7 +128,29 @@ RELATED = re.compile(r"""\b(?:
     | computer \s+ engineering | digital \s+ systems?
     | slt | automated \s+ test \s+ equipment
     | ucie | cxl
+    # Read title by title in the Low relevance tab on 2026-10-09, where 4,365
+    # of 4,571 postings had no description and so nothing but this band to go
+    # on: "IP Integration Engineer", "Power Analysis and Optimization Intern",
+    # "AI TLM Performance Modeling", "PDK Enablement Engineer", "DTCO
+    # Engineer", "Spice Modeling Engineer", "3D Heterogeneous Integration
+    # Engineer", "Quantum Interposer Design Engineer", "Camera SIPI Engineer",
+    # "LPDRAM Product Engineer", "AMS Design", "ISP Design Engineer",
+    # "Video Codec Design Engineer", "Wireless MAC Design Engineer".
+    | ip \s+ (?: integration | engineer(?:ing)? ) | power \s+ analysis
+    | performance \s+ model(?:l)?ing | (?-i: TLM )
+    # DTCO only: "STCO" is also Amazon Logistics' capacity team.
+    | pdk | design \s+ enablement | (?-i: DTCO )
+    | design[-\s]technology \s+ co-?optimi[sz]ation
+    | (?: spice | compact ) \s+ model(?:l)?ing
+    | hetero\w* \s+ integration | 3dhi | interposer
+    | (?-i: SI \s* /? \s* PI ) | lp-?dram | (?-i: AMS ) \s+ design
+    | (?: isp | codec | wireless \s+ mac ) \s+ design
 )\b""", re.I | re.X)
+
+# The same neighbourhood in Chinese, where no word boundary separates one term
+# from the next: 芯片 (chip), 集成电路 (integrated circuit), 硅后 (post-silicon),
+# as in "模拟芯片测试工程师" and "硅后验证工程师" (2026-10-09).
+RELATED_CJK = re.compile('芯片|集成电路|硅后')
 
 
 # Openings an application without a degree in hand can actually reach.
@@ -220,7 +245,7 @@ def bucket(title):
         core = [word for word in core if not re.search(r'\bsoc\b', word, re.I)]
     if core:
         return 0 if early else 2
-    if RELATED.search(title):
+    if RELATED.search(title) or RELATED_CJK.search(title):
         return 1 if early else 3
     return 4
 

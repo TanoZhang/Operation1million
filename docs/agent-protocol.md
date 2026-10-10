@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-09): read the Low relevance tab's titles and
+       move the chip work in it to the main tabs by title rules; the tab stays.
+Files: src/operation1million/ranking.py, tests/test_ranking.py,
+       docs/{agent-protocol,handoff}.md
+Base commit: bfb10bc
+Status: done -- full suite 1,271 run, 13 skipped, all pass (Windows)
+Next: Deploy. Stored Fit moves to the band's title-only floor on --rescore.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-09): spread the rest of the 2026-09-16 cycle's
        JSearch credits at about 4,000/7 a day (570), and 330 a day from the
        2026-10-16 cycle on.
