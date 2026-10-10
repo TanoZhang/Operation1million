@@ -11,7 +11,7 @@ design enablement, DTCO, SPICE/compact modeling, heterogeneous integration,
 3DHI, interposers, SI/PI, LPDRAM, AMS/ISP/codec/wireless-MAC design and three
 Chinese terms in the related band. Result: Low relevance 4,571 -> 4,504; 67
 groups moved (6 early career, 2 core, 59 related), none moved in. Over all
-open postings 160 titles change band. "STCO" was left out: Amazon Logistics
+open postings 110 titles (155 postings) change band. "STCO" was left out: Amazon Logistics
 uses it. Not changed: seniority (226 Staff/Senior/Principal titles in the tab),
 and the rest of the tab, which the user may still want hidden.
 
