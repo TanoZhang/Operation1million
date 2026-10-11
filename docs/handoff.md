@@ -1,3 +1,21 @@
+# Muse merge 7 and a Gmail run - 2026-10-11 (claude)
+
+The user: bring Muse's applied positions into Review and check that each match
+is the position Muse applied to; then run Gmail. Merge-6 rules (Applied, and
+Skipped only for hard skips), plus one change: a second submission with the
+same employer and title is a duplicate, because Muse logged one Qualcomm job
+under two numbers (446719402654 and 3093278). Muse history through Batch 07
+(data 1592a8f, 2,764 lines). Each of the 21 open groups marked matched by the
+job number in its URL with the same title (two wordings differ: Cisco adds
+"(Full Time) - United States"; KLA's URL carries Muse's full title). The dry
+run gave the same plan locally and on the VPS. Written on the VPS: 21 open
+groups marked applied, 91 Applied entries created (23 from closed index
+postings), 1 hard skip created; ledger 1,583 -> 1,696 lines, manual_jobs
+1,002 -> 1,094; backups /opt/operation1million/*.before-muse-merge7-
+20261011T231908Z.ndjson. The forced Gmail run: 1,606 applied, 1,954 emails,
+3 outcomes written (two screening invitations, one decline, its text read),
+70 unsorted.
+
 # Review from a phone - 2026-10-11 (claude)
 
 At the user's request and with their approval to expose it: Caddy serves
