@@ -2744,3 +2744,43 @@ Response generation uses the writing-then-building lock order and releases
 locks before network writes. The token belongs only to the server instance;
 serialized responses are never persisted. See the
 [follow-up measurements](performance-followup-2026-10-07.md).
+
+## Direct source coverage after the October 11 pass - 2026-10-11
+
+The October 11 VPS manifest (`bfb10bc`) counted 170 JSearch queries and 361
+paid pages. All queries reached their provider cursor end or own guard; none
+hit its configured page cap. The direct report had 29 complete, 11 unchanged
+and five partial sources: Qualcomm, Sandisk, Amazon, Microsoft and Rivos.
+The 41 final actionable groups reported to the user are a downstream count,
+not evidence that JSearch stopped at 400 pages.
+
+Sandisk's corporate careers page points to its Avature portal. Its public
+`/Careers/sitemap.xml` is a URL set with numbered JobDetail pages and unrelated
+portal pages. The previous SmartRecruiters endpoint lists zero jobs; the 25%
+closure fuse preserves its 308 historical open rows. A captured Avature detail
+shows that JSON-LD names only title and date; the visible page carries place
+and description. New source migration 007 adds the sitemap separately, and
+the collector binds each numbered detail to its sitemap URL and reads the
+visible fields. The old provider inventory is not silently retired or merged.
+
+Amazon's global JSON search states `hits=10000`. A captured public
+`business_category[]=advertising` request states 525 hits and includes jobs
+outside the global first page. Source migration 008 raises only Amazon's job
+cap to 30,000. The collector reads the global list, then the business categories
+observed in that list. Its total request limit remains 400 pages and access
+pauses still apply. Category partitioning increases discovery but is not proof
+of whole-board coverage: a category absent from the capped global list could
+still hold older jobs. The source stays partial and cannot close postings.
+
+The October 11 Qualcomm run stopped on three repeated pages after 799 jobs;
+one later diagnostic received HTTP 429. Its production cooldown was recorded
+and no alternate identity or endpoint was used. After that cooldown, a paced
+no-store pass on the same VPS exit read 2,067 jobs in 208 requests and reached
+`complete`; the 799-job stop did not recur. An independent October 11 Amazon
+no-store pass read 22,343 unique jobs in 360 requests across the global result
+and all 59 categories observed there. It remained partial for the missing-
+category possibility, not the 400-page cap. Microsoft listed 2,286 jobs
+but the 25% fuse blocked 1,535 proposed closures. Rivos still has only an
+unverified Uplers profile; its former Lever board currently answers 404.
+Neither the fuse nor the absence of an official complete Rivos board is a
+reason to claim completeness.

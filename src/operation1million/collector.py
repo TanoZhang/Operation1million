@@ -370,6 +370,9 @@ class Collector:
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'JobSourceCollector/1.0', 'Accept': 'application/json,text/html,application/xml'})
         self.jobs, self.seen = [], set()
+        requested_max_jobs = getattr(args, 'max_jobs', None)
+        self.max_jobs = (requested_max_jobs if requested_max_jobs is not None
+                         else int(getattr(source, 'fields', {}).get('max_jobs', 10000)))
         self.rejected = []
         # Set once the cap stopped a posting from being kept. The board was
         # longer than this pass read, whatever else the pass concludes.
@@ -448,7 +451,7 @@ class Collector:
             key = row['url']
             if key in self.seen:
                 continue
-            if len(self.jobs) >= self.args.max_jobs:
+            if len(self.jobs) >= self.max_jobs:
                 self.capped = True
                 break
             self.seen.add(key)
@@ -468,6 +471,8 @@ class Collector:
 
     def collect_json(self):
         p = self.source.provider_key
+        if p == 'amazon_jobs':
+            return self.collect_amazon()
         url, method, payload = request_for(self.source)
         offset = 0
         stated_total = None
@@ -484,14 +489,12 @@ class Collector:
                 target = url.replace('offset%3D0', f'offset%3D{offset}')
             elif p == 'smartrecruiters':
                 target = query_url(url, offset=offset, limit=100)
-            elif p == 'amazon_jobs':
-                target = f'https://www.amazon.jobs/en/search.json?offset={offset}&result_limit=100&sort=recent'
             elif p == 'eightfold':
                 target = query_url(url, start=offset, num=10)
             elif p == 'amd_careers':
                 target = query_url(url, page=page + 1)
             data = self.fetch(target, method, payload).json()
-            items = data.get('jobs', []) if p == 'amazon_jobs' else json_items(p, data)
+            items = json_items(p, data)
             total = reported_total(p, data)
             if total == 0 and items:
                 # A page that lists postings is not stating that the board has
@@ -505,7 +508,7 @@ class Collector:
                 total = None
             if isinstance(total, (int, float)):
                 stated_total = total
-            expected = {'workday': 'jobPostings', 'greenhouse': 'jobs', 'ashby': 'jobs', 'smartrecruiters': 'content', 'oracle_cloud': 'items', 'phenom': 'refineSearch', 'amazon_jobs': 'jobs', 'eightfold': 'data', 'amd_careers': 'jobs'}[p]
+            expected = {'workday': 'jobPostings', 'greenhouse': 'jobs', 'ashby': 'jobs', 'smartrecruiters': 'content', 'oracle_cloud': 'items', 'phenom': 'refineSearch', 'eightfold': 'data', 'amd_careers': 'jobs'}[p]
             if not isinstance(data, dict) or expected not in data:
                 raise ValueError(f'Unexpected {p} JSON schema')
             if p == 'phenom' and (data['refineSearch'].get('status') != 200 or not isinstance(data['refineSearch'].get('data', {}).get('jobs'), list)):
@@ -542,11 +545,9 @@ class Collector:
             added = self.add(items)
             offset += len(items)
             if p in {'greenhouse', 'ashby'}:
-                return ('partial', 'Job cap reached') if len(items) > self.args.max_jobs else ('complete', '')
+                return ('partial', 'Job cap reached') if len(items) > self.max_jobs else ('complete', '')
             if isinstance(stated_total, (int, float)) and offset >= stated_total:
                 total = stated_total
-                if p == 'amazon_jobs' and total >= 10000:
-                    return 'partial', 'Amazon search returned its 10,000-result ceiling; partition searches to establish full coverage'
                 return 'complete', ''
             # B54: nothing accepted from a page is a repeat only if nothing on
             # it was refused either. A page of malformed records also adds
@@ -565,9 +566,87 @@ class Collector:
                     return 'partial', 'Repeated page; provider ignored pagination'
             else:
                 repeats = 0
-            if len(self.jobs) >= self.args.max_jobs:
+            if len(self.jobs) >= self.max_jobs:
                 return 'partial', 'Job cap reached; increase --max-jobs'
         return 'partial', 'Page cap reached; increase --max-pages'
+
+    def collect_amazon(self):
+        """Read the capped global list, then its observed business categories.
+
+        Amazon states 10,000 for the unfiltered list even when category searches
+        reveal older jobs beyond it. Categories observed in those 10,000 may not
+        be exhaustive, so a partitioned pass still cannot claim board closure.
+        """
+        base = 'https://www.amazon.jobs/en/search.json'
+        ceiling = int(self.source.fields.get('amazon_result_ceiling', 10000))
+        pages = 0
+        categories = set()
+        offset = 0
+        previous = None
+
+        def page_for(offset, category=None):
+            params = {'offset': offset, 'result_limit': 100, 'sort': 'recent'}
+            if category is not None:
+                params['business_category[]'] = category
+            data = self.fetch(query_url(base, **params)).json()
+            if (not isinstance(data, dict) or not isinstance(data.get('jobs'), list)
+                    or not isinstance(data.get('hits'), int)):
+                raise ValueError('Unexpected Amazon search JSON schema')
+            return data['jobs'], data['hits']
+
+        while pages < self.args.max_pages:
+            items, total = page_for(offset)
+            pages += 1
+            if not items:
+                return 'partial', f'Amazon global search ended at {offset} of {total}'
+            identity = tuple(str(i.get('id_icims') or i.get('id')) for i in items)
+            if identity == previous:
+                return 'partial', 'Amazon global search repeated a page'
+            previous = identity
+            categories.update(str(i['business_category']) for i in items
+                              if i.get('business_category'))
+            self.add(items)
+            if len(self.jobs) >= self.max_jobs:
+                return 'partial', 'Amazon job cap reached'
+            offset += len(items)
+            if offset >= min(total, ceiling):
+                break
+        else:
+            return 'partial', 'Amazon page cap reached before the global list ended'
+        if total < ceiling:
+            return 'complete', ''
+        if not categories:
+            return 'partial', 'Amazon global list reached its ceiling without category values'
+
+        finished = 0
+        for category in sorted(categories, key=str.casefold):
+            offset = 0
+            previous = None
+            while pages < self.args.max_pages:
+                items, count = page_for(offset, category)
+                pages += 1
+                if not items:
+                    return 'partial', f'Amazon {category} stopped at {offset} of {count}'
+                identity = tuple(str(i.get('id_icims') or i.get('id')) for i in items)
+                if identity == previous:
+                    return 'partial', f'Amazon {category} repeated a page'
+                if any(str(i.get('business_category')) != category for i in items):
+                    return 'partial', f'Amazon {category} returned another category'
+                previous = identity
+                self.add(items)
+                if len(self.jobs) >= self.max_jobs:
+                    return 'partial', 'Amazon job cap reached during category search'
+                offset += len(items)
+                if offset >= count:
+                    break
+                if offset >= ceiling:
+                    return 'partial', f'Amazon {category} reached its own {ceiling}-result ceiling'
+            else:
+                return 'partial', f'Amazon page cap reached while reading {category}'
+            finished += 1
+        return 'partial', (f'Amazon global result ceiling; read {finished} observed '
+                           'business categories, but categories absent from the global list '
+                           'cannot be ruled out')
 
     def collect_html(self):
         source = self.source
@@ -595,7 +674,7 @@ class Collector:
             added = self.add(items)
             if not added and len(self.rejected) == rejected_before:
                 return 'partial', 'Repeated job page; pagination requires review'
-            if len(self.jobs) >= self.args.max_jobs:
+            if len(self.jobs) >= self.max_jobs:
                 return 'partial', 'Job cap reached; increase --max-jobs'
             next_link = soup.select_one('a[rel=next], a.next:not(.disabled), a[aria-label="Next"]')
             if not next_link:
@@ -636,6 +715,17 @@ class Collector:
                     mod = child.text
             if loc:
                 urls.append((loc, mod))
+        job_path = self.source.fields.get('sitemap_job_path')
+        if job_path:
+            # An Avature portal includes account, alert and application pages
+            # beside JobDetail URLs. Only numbered posting URLs are inventory.
+            host = urlsplit(self.source.access_url).netloc
+            urls = [(u, m) for u, m in urls
+                    if urlsplit(u).netloc == host
+                    and urlsplit(u).path.startswith(job_path)
+                    and re.search(r'/\d+/?$', urlsplit(u).path)]
+            if not urls:
+                return 'partial', 'Sitemap listed no numbered posting URLs'
         # Every advertised URL is still live even where the detail fetch is skipped.
         self.listed = {u for u, _ in urls}
         advertised = len(urls)
@@ -661,11 +751,37 @@ class Collector:
         # refetch its known rows too, rather than hiding interrupted updates.
         skipped = advertised - len(urls)
         errors = []
-        for url, lastmod in urls[:self.args.max_jobs]:
+        detail_limit = min(self.max_jobs, self.args.max_pages - 1) if job_path else self.max_jobs
+        for url, lastmod in urls[:detail_limit]:
             try:
                 detail = self.fetch(url)
+                if job_path and urlsplit(detail.url).path.rstrip('/') != urlsplit(url).path.rstrip('/'):
+                    raise ValueError('Detail redirected away from sitemap posting')
                 soup = BeautifulSoup(detail.text, 'html.parser')
                 items = list(jsonld(soup))
+                if job_path:
+                    h = soup.select_one('h1')
+                    if not h:
+                        raise ValueError('Sitemap posting has no visible title')
+                    title = h.get_text(' ', strip=True)
+                    fields = {}
+                    for field in soup.select('.article__content__view__field'):
+                        label = field.select_one('.article__content__view__field__label')
+                        value = field.select_one('.article__content__view__field__value')
+                        if label and value:
+                            fields[label.get_text(' ', strip=True)] = value.get_text(' ', strip=True)
+                    body = soup.select_one('main, [role=main]')
+                    if not body:
+                        raise ValueError('Sitemap posting has no readable body')
+                    if items and clean(items[0].get('title')) != title:
+                        raise ValueError('Sitemap posting title disagrees with JSON-LD')
+                    item = items[0] if items else {}
+                    item.update(title=title, url=url,
+                                source_job_id=html_job_id(url, self.source.provider_key),
+                                location=', '.join(filter(None,
+                                    (fields.get('City'), fields.get('Country/Region')))),
+                                description=body.get_text('\n', strip=True))
+                    items = [item]
                 if not items:
                     h = soup.select_one('h1')
                     if not h:
@@ -697,8 +813,10 @@ class Collector:
                     return 'partial', f'Detail collection stopped after 3 failures; {errors[0]}'
         if errors:
             return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
-        if len(urls) > self.args.max_jobs:
-            return 'partial', 'Job cap reached; increase --max-jobs'
+        if len(urls) > detail_limit:
+            return 'partial', ('Page cap reached; increase --max-pages' if job_path
+                               and detail_limit < self.max_jobs
+                               else 'Job cap reached; increase --max-jobs')
         return 'complete', (f'{skipped} already stored, not refetched' if skipped else '')
 
     def run(self):
@@ -755,7 +873,7 @@ class Collector:
                         location=', '.join(str(part) for part in
                                            (item.get('site'), item.get('country')) if part)))
                 self.add(prepared)
-                return ('partial', 'Job cap reached') if len(items) > self.args.max_jobs else ('complete', '')
+                return ('partial', 'Job cap reached') if len(items) > self.max_jobs else ('complete', '')
             if self.source.provider_key == 'ti_careers':
                 r = self.fetch(self.source.access_url)
                 base = BeautifulSoup(r.text, 'html.parser').select_one('base[data-apibaseurl]')
@@ -772,7 +890,8 @@ class Collector:
                 self.source = replace(self.source, provider_key='oracle_cloud', fields={'api_domain': urlsplit(base['data-apibaseurl']).netloc, 'site': base['data-sitenumber']})
             if self.source.provider_key in JSON_PROVIDERS:
                 status, detail = self.collect_json()
-            elif self.source.provider_key in {'akeana_careers', 'renesas_careers'}:
+            elif (self.source.provider_key in {'akeana_careers', 'renesas_careers'}
+                  or getattr(self.source, 'fields', {}).get('sitemap_job_path')):
                 status, detail = self.collect_sitemap()
             else:
                 status, detail = self.collect_html()
@@ -894,7 +1013,8 @@ def main():
     p.add_argument('--output', type=Path, default=None, help='Run directory; defaults to runs/<UTC timestamp>')
     p.add_argument('--company', action='append', help='Repeat to select company keys')
     p.add_argument('--max-pages', type=int, default=400)
-    p.add_argument('--max-jobs', type=int, default=10000)
+    p.add_argument('--max-jobs', type=int, default=None,
+                   help='Override the per-source job cap (normally 10,000; Amazon 30,000)')
     p.add_argument('--workers', type=int, default=1)
     p.add_argument('--timeout', type=float, default=25)
     p.add_argument('--delay', type=float, default=1.0, help='Minimum delay; Eightfold uses at least 2.5s and Microsoft 3s')
@@ -919,7 +1039,10 @@ def main():
     p.add_argument('--jsearch-max-seconds', type=float, default=0,
                    help='Stop paid paging cleanly after this many seconds; 0 has no runtime limit')
     args = p.parse_args()
-    if min(args.max_pages, args.max_jobs, args.workers, args.timeout, args.jsearch_timeout, args.fallback_queries) <= 0 or args.jsearch_budget < 0 or args.jsearch_max_seconds < 0 or args.delay < 0 or args.retries < 0:
+    if (min(args.max_pages, args.workers, args.timeout, args.jsearch_timeout,
+            args.fallback_queries) <= 0 or (args.max_jobs is not None and args.max_jobs <= 0)
+            or args.jsearch_budget < 0 or args.jsearch_max_seconds < 0
+            or args.delay < 0 or args.retries < 0):
         p.error('Caps and timeout must be positive; delay and budget must be nonnegative')
     settings, functional_queries = jsearch.load_plan(args.jsearch_config)
     if args.jsearch_pages is not None and (not args.jsearch_query or not 1 <= args.jsearch_pages <= 20):
@@ -1305,7 +1428,9 @@ def main():
             f.write(json.dumps(row, ensure_ascii=True)+'\n')
     write_csv(args.output/'jobs.csv', jobs, FIELDS)
     write_csv(args.output/'company_results.csv', reports, list(reports[0]) if reports else ['company_key'])
-    manifest = {'collected_at': datetime.now(timezone.utc).isoformat(), 'companies': len(sources), 'jobs': len(jobs), 'max_pages': args.max_pages, 'max_jobs': args.max_jobs, 'jsearch_requests': request_guard.attempts, 'complete_direct_sources': sum(r['direct_status']=='complete' and r['provider_key'] != 'jsearch' for r in reports), 'store_new': totals['new'], 'store_closed': totals['closed'], 'store_seen': totals['seen'], **search_stats}
+    source_job_caps = ({s.source_id: int(s.fields['max_jobs']) for s in sources
+                        if 'max_jobs' in s.fields} if args.max_jobs is None else {})
+    manifest = {'collected_at': datetime.now(timezone.utc).isoformat(), 'companies': len(sources), 'jobs': len(jobs), 'max_pages': args.max_pages, 'max_jobs': args.max_jobs or 10000, 'source_max_jobs': source_job_caps, 'jsearch_requests': request_guard.attempts, 'complete_direct_sources': sum(r['direct_status']=='complete' and r['provider_key'] != 'jsearch' for r in reports), 'store_new': totals['new'], 'store_closed': totals['closed'], 'store_seen': totals['seen'], **search_stats}
     (args.output/'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(json.dumps(manifest), flush=True)
     # A search the budget never reached is not a fault. Spending the budget is

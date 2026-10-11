@@ -5,6 +5,15 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: codex
+Scope: Repair the October 11 partial direct sources and use measured coverage gaps to expand relevant job discovery.
+Files: src/operation1million/{collector,store}.py, data/config/{schema.sql,jsearch_queries.toml,migrations/007_sandisk_avature.sql,migrations/008_amazon_partition.sql}, tests/{test_collect_sql_sources,test_jsearch}.py, tests/fixtures/{sandisk,amazon}_*redacted.*, tests/fixtures/direct-source-captures.md, docs/{agent-protocol,handoff,architecture,collection-rules,jsearch}.md; other source-specific files only if evidence requires them.
+Base commit: 39491c73b6697b12d5f98f67355744a09bd7188e
+Status: done -- SanDisk official sitemap 310/310 complete; Amazon 22,343 unique in 360 requests, safely partial; Qualcomm 2,067 complete after cooldown. Full offline suite: 1,275 run, 14 skipped, all pass.
+Next: Commit and install before the next 04:38 Pacific pass; measure incremental actionable yield from the 18 related-silicon query trials and new direct inventory.
+```
+
+```text
 Owner: claude
 Scope: User request (2026-10-09): read the Low relevance tab's titles and
        move the chip work in it to the main tabs by title rules; the tab stays.

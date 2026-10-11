@@ -22,6 +22,7 @@ from .paths import CONFIG, DATA, DB, ROOT
 MIGRATION = CONFIG / 'migrations/002_job_store.sql'
 # Applied after it, each once, as `catalog_migrations` records.
 LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass')
+SOURCE_MIGRATIONS = ('007_sandisk_avature', '008_amazon_partition')
 
 # Boards whose listing is strictly newest-first, verified by sampling offsets
 # across the whole result set. Only these may stop paginating early; a board
@@ -71,7 +72,11 @@ def migrate(path=DB):
         db.executescript(MIGRATION.read_text(encoding='utf-8'))
         db.executescript((CONFIG / 'migrations/003_job_identities.sql').read_text(encoding='utf-8'))
         applied = {r[0] for r in db.execute('SELECT migration_key FROM catalog_migrations')}
-        for key in LATER_MIGRATIONS:
+        catalog_tables = {row[0] for row in db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name IN ('company_sources', 'company_direct_sources')")}
+        has_catalog = catalog_tables == {'company_sources', 'company_direct_sources'}
+        for key in LATER_MIGRATIONS + (SOURCE_MIGRATIONS if has_catalog else ()):
             if key not in applied:
                 db.executescript((CONFIG / f'migrations/{key}.sql').read_text(encoding='utf-8'))
 

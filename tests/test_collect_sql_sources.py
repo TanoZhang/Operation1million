@@ -1,6 +1,7 @@
 """Offline contracts for pagination, attribution, and SQL rebuilds."""
 import argparse
 import csv
+import json
 import io
 import sqlite3
 import tempfile
@@ -22,6 +23,26 @@ from dataclasses import replace
 class Response:
     def __init__(self, data): self.data = data
     def json(self): return self.data
+
+
+class CatalogMigrationTests(unittest.TestCase):
+    def test_existing_catalog_gains_sandisk_and_amazon_depth(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'catalog.sqlite'
+            with closing(sqlite3.connect(path)) as db, db:
+                db.executescript((CONFIG / 'schema.sql').read_text(encoding='utf-8'))
+                db.execute("DELETE FROM company_sources WHERE source_instance_id='avature:avature.sandisk.com'")
+                db.execute("UPDATE company_direct_sources SET instance_fields_json=? WHERE direct_source_id='amazon_jobs:amazon'",
+                           ('{"locale":"en"}',))
+                db.commit()
+            with patch.object(store, 'ROOT', Path(temporary)):
+                store.migrate(path)
+                store.migrate(path)
+            with closing(sqlite3.connect(path)) as db:
+                source = db.execute("SELECT access_url FROM company_sources WHERE source_instance_id='avature:avature.sandisk.com'").fetchone()
+                amazon = db.execute("SELECT instance_fields_json FROM company_direct_sources WHERE direct_source_id='amazon_jobs:amazon'").fetchone()
+            self.assertEqual(source[0], 'https://avature.sandisk.com/Careers/sitemap.xml')
+            self.assertEqual(json.loads(amazon[0])['max_jobs'], 30000)
 
 class LedgerBeforeIndexTests(unittest.TestCase):
     """A source that could not be logged must not be left in the index.
@@ -266,6 +287,77 @@ class CollectionTests(unittest.TestCase):
         return Source('test', 'company_sources', 'sample', 'Sample Inc.', 'workday', 'https://sample.wd1.myworkdayjobs.com/External', {'tenant':'sample','site':'External','workday_host':'wd1'})
     def args(self):
         return argparse.Namespace(max_jobs=100,max_pages=10,delay=0,timeout=1,jsearch_timeout=1,fallback_queries=1)
+
+    def test_sandisk_official_sitemap_reads_a_job_detail(self):
+        """Redacted captures: Avature JSON-LD omits the JD and place."""
+        fixtures = Path(__file__).parent / 'fixtures'
+        sitemap = (fixtures / 'sandisk_sitemap_redacted.xml').read_bytes()
+        detail = (fixtures / 'sandisk_detail_redacted.html').read_bytes()
+        source = Source('avature:avature.sandisk.com', 'company_sources',
+                        'sandisk', 'SanDisk', 'avature',
+                        'https://avature.sandisk.com/Careers/sitemap.xml',
+                        {'sitemap_job_path': '/Careers/JobDetail/'})
+        args = self.args()
+        args.max_jobs = 1
+        c = Collector(source, args)
+        asked = []
+
+        def fetch(url, *unused):
+            asked.append(url)
+            body = sitemap if url == source.access_url else detail
+            return SimpleNamespace(content=body, text=body.decode('utf-8'), url=url)
+
+        c.fetch = fetch
+        status, reason = c.run()
+        self.assertEqual(status, 'partial')
+        self.assertIn('Job cap', reason)
+        self.assertGreater(len(c.listed), 300)
+        self.assertEqual(len(c.jobs), 1)
+        self.assertEqual(c.jobs[0]['source_job_id'], '10000')
+        self.assertEqual(c.jobs[0]['location'], 'Example City, Example Country')
+        self.assertIn('VLSI', c.jobs[0]['raw']['description'])
+        self.assertEqual(len(asked), 2)
+
+    def test_sandisk_page_cap_cannot_claim_sitemap_complete(self):
+        sitemap = (Path(__file__).parent / 'fixtures/sandisk_sitemap_redacted.xml').read_bytes()
+        source = Source('avature:avature.sandisk.com', 'company_sources',
+                        'sandisk', 'SanDisk', 'avature',
+                        'https://avature.sandisk.com/Careers/sitemap.xml',
+                        {'sitemap_job_path': '/Careers/JobDetail/'})
+        args = self.args()
+        args.max_pages = 1
+        c = Collector(source, args)
+        c.fetch = lambda url, *unused: SimpleNamespace(content=sitemap)
+        status, reason = c.run()
+        self.assertEqual(status, 'partial')
+        self.assertIn('Page cap', reason)
+        self.assertGreater(len(c.listed), 300)
+
+    def test_amazon_ceiling_spends_next_page_on_a_category(self):
+        """Redacted global and filtered response shapes cross the cap."""
+        fixtures = Path(__file__).parent / 'fixtures'
+        base = json.loads((fixtures / 'amazon_base_redacted.json').read_text(encoding='utf-8'))
+        advertising = json.loads((fixtures / 'amazon_advertising_redacted.json').read_text(encoding='utf-8'))
+        source = Source('amazon_jobs:amazon', 'company_direct_sources',
+                        'amazon', 'Amazon.com, Inc.', 'amazon_jobs',
+                        'https://www.amazon.jobs/en/search?base_query=&loc_query=',
+                        {'amazon_result_ceiling': 1, 'max_jobs': 30000})
+        args = self.args()
+        args.max_jobs = 30000
+        args.max_pages = 2
+        c = Collector(source, args)
+        asked = []
+
+        def fetch(url, *unused):
+            asked.append(url)
+            return Response(advertising if 'business_category' in url else base)
+
+        c.fetch = fetch
+        status, _ = c.run()
+        self.assertEqual(status, 'partial')
+        self.assertEqual(len(asked), 2)
+        self.assertIn('business_category', asked[1])
+        self.assertGreater(len(c.jobs), len(base['jobs']))
     def test_pagination_and_relative_dates(self):
         c = Collector(self.source(),self.args()); offsets=[]
         def fetch(url,method,payload):

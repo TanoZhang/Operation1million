@@ -106,8 +106,25 @@ The validator honors the same cooldowns. Obsolete bulk endpoint guessing is not
 part of the project.
 
 Defaults are 400 pages, 10,000 records per source, 25 seconds per direct request,
-and 90 seconds for JSearch. Caps are limits, not completeness claims. A 400-page
-cap accommodates the reported PCSX totals but future boards may exceed it.
+and 90 seconds for JSearch. Amazon's public search has a separate 30,000-record
+collector cap so category partitions can extend beyond its 10,000-result global
+search ceiling. Caps are limits, not completeness claims. A 400-page cap
+accommodates the reported PCSX totals but future boards may exceed it.
+
+The Amazon collector first reads the global search, then partitions by the
+`business_category` values it actually observed there. The public filtered
+route was captured and tested on 2026-10-11. This finds older postings past
+the global 10,000-result ceiling: a no-store pass that day read 22,343 unique
+jobs in 360 requests, within the 400-page cap. It remains partial even after
+every observed category ends: categories absent from the capped global slice
+may exist, and no closures can follow from this evidence.
+
+Sandisk's official site links to `avature.sandisk.com/Careers`. Its public
+sitemap lists numbered JobDetail URLs alongside portal pages. Collect only the
+numbered postings, bind each detail to its sitemap URL, and read the visible
+title, location and description because its JSON-LD omits the last two.
+The former SmartRecruiters inventory remains separate and behind the closure
+fuse; adding the Avature source does not retire its old postings.
 
 ## JSearch usage
 
@@ -118,14 +135,15 @@ functional discovery; configured company fallback runs last. Company fallback
 alone requires reviewed employer aliases; functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
-As of 2026-10-05, the user-authorized functional plan has 170 nationwide
-queries, with independent caps totaling 2,365 pages. The 123 nationwide trial
-queries each have a ten-page cap; the other 47 caps are unchanged. All twenty state splits
+As of 2026-10-11, the functional plan has 188 nationwide queries, with
+independent caps totaling 2,455 pages. The original 170 queries are unchanged;
+18 related silicon title trials each have a five-page cap. All twenty state splits
 are removed. Intern/Co-op runs first, then New Grad, Early Career and General;
 each tier pages round-robin. Follow the provider's `data.cursor`: a short page
 with a next cursor continues, and budget/deadline stops do not prove exhaustion.
 
-The daily cap is 400 page credits. The cycle operating target remains 9,600
+The daily cap is 570 page credits for the 2026-09-16 cycle, then 330 from
+the 2026-10-16 cycle. The cycle operating target remains 9,600
 of the 10,000 quota, independently enforced by RequestGuard. Every HTTP call
 reserves its credit before sending, including failures. The daily window resets
 at 04:38 America/Los_Angeles; the 30-day billing cycle counts UTC dates from

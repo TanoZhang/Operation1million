@@ -1,0 +1,15 @@
+{
+  "facets": {},
+  "hits": 10000,
+  "jobs": [
+    {
+      "id": "example-global-id",
+      "id_icims": "10000",
+      "job_path": "/en/jobs/10000/example-global-role",
+      "title": "Example Hardware Engineer",
+      "location": "US, Example City",
+      "posted_date": "October 10, 2026",
+      "business_category": "advertising"
+    }
+  ]
+}

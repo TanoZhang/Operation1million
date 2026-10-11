@@ -1,0 +1,15 @@
+{
+  "facets": {},
+  "hits": 525,
+  "jobs": [
+    {
+      "id": "example-category-id",
+      "id_icims": "10001",
+      "job_path": "/en/jobs/10001/example-category-role",
+      "title": "Example Silicon Engineer",
+      "location": "US, Example City",
+      "posted_date": "October 10, 2026",
+      "business_category": "advertising"
+    }
+  ]
+}

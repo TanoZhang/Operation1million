@@ -57,7 +57,7 @@ exclude_job_publishers = [
 # On 2026-10-05 the user raised the daily limit to 400 (570 for the rest of
 # that cycle and 330 after it, from 2026-10-09), removed all twenty
 # state splits, and requested much broader nationwide VLSI title coverage.
-# Keep all 170 nationwide queries. The user subsequently raised all 123
+# Keep the original 170 nationwide queries. The user subsequently raised all 123
 # three-page trial caps to ten; the other 47 caps stay unchanged. Caps total
 # 2,365, not reserved credits. RequestGuard limits actual spend to the daily budget per
 # Pacific budget day and 9,600 per UTC billing cycle.
@@ -1002,6 +1002,33 @@ query = "CPU Verification Co-op"
 tier = "intern"
 pages = 10
 
+# Related silicon work absent from the original title plan, 2026-10-11.
+# Five-page trials use the existing budget guard and provider cursor.
+[[query]]
+query = "Chiplet Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Advanced Packaging Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Signal Integrity Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "SerDes Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "PDK Intern"
+tier = "intern"
+pages = 5
+
 [[query]]
 query = "ASIC New Grad"
 tier = "new_grad"
@@ -1233,6 +1260,31 @@ pages = 10
 query = "Silicon Design New Grad"
 tier = "new_grad"
 pages = 10
+
+[[query]]
+query = "Chiplet New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Advanced Packaging New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "SerDes New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "PDK New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Memory Controller New Grad"
+tier = "new_grad"
+pages = 5
 
 [[query]]
 query = "Design Verification Entry Level"
@@ -1471,3 +1523,43 @@ pages = 10
 query = "Post Silicon Validation Engineer"
 tier = "A"
 pages = 10
+
+[[query]]
+query = "Chiplet Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Advanced Packaging Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "SerDes Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "PDK Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Memory Controller Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Signal Integrity Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Power Integrity Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "EDA Engineer"
+tier = "A"
+pages = 5

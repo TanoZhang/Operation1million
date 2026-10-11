@@ -1,3 +1,46 @@
+# Direct-source coverage and related silicon search - 2026-10-11 (codex)
+
+The October 11 installed pass (`bfb10bc`) used 361 paid JSearch pages over
+170 queries and yielded 242 new discovery records. The 400-page setting is a
+per-direct-source ceiling, not a paid-page target. The five partial direct
+sources were Qualcomm, Sandisk, Amazon, Microsoft and Rivos.
+
+The failing cases came first: the old SanDisk path read zero SmartRecruiters
+jobs despite an official Avature sitemap, and the old Amazon collector stopped
+at a reported 10,000 global hits without trying a filtered result. New offline
+regressions use redacted shapes from real public HTTP captures; originals stay
+ignored in `.local/direct-source-captures/`, never in this public repository.
+An initial full suite exposed four compatibility errors in the new per-source
+job-cap initialization; those were repaired before the final suite.
+
+Migration 007 adds SanDisk's official Avature sitemap as a separate source.
+The collector filters numbered JobDetail URLs and reads visible title, place
+and description, which the page's JSON-LD does not fully supply. A paced
+no-store run read all 310 listed jobs in 311 requests and finished complete.
+The old SmartRecruiters source and its 308 historical rows remain protected by
+the 25% closure fuse.
+
+Migration 008 makes Amazon's collector cap 30,000 jobs. It reads the global
+search and then every business category observed there. A paced no-store pass
+read 22,343 unique jobs in 360 requests, 12,343 more than the former 10,000
+global ceiling and within the 400-page cap. It still reports partial because
+categories missing from the capped global slice cannot be ruled out; it will
+not close older postings on that evidence.
+
+After the recorded 429 cooldown, a paced no-store Qualcomm pass on the same
+VPS exit read 2,067 jobs in 208 requests and finished complete. No new
+pagination change was justified. Microsoft listed 2,286 jobs, but the fuse
+blocked 1,535 proposed closures; Rivos still has no verified complete official
+board, and its former Lever path answers 404. Both remain partial rather than
+making unsupported closure claims.
+
+The original 170 JSearch queries remain intact. Eighteen five-page trials add
+missing chiplet, advanced packaging, SerDes, PDK and related silicon title
+phrases across intern, new-grad and general tiers. Their additional ceiling
+is 90 pages under the unchanged daily and billing-cycle guards. Incremental
+actionable yield awaits the next production pass.
+The final Windows offline suite ran 1,275 tests, skipped 14 and passed.
+
 # Chip titles out of Low relevance - 2026-10-09 (claude)
 
 The user: the Low relevance tab is "way irrelevant"; option 2 of two offered --

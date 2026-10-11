@@ -486,6 +486,16 @@ INSERT INTO company_sources (
     'verified'
 ),
 (
+    'avature:avature.sandisk.com',
+    'sandisk',
+    'avature',
+    'avature.sandisk.com',
+    'https://avature.sandisk.com/Careers/sitemap.xml',
+    '{"sitemap_job_path":"/Careers/JobDetail/"}',
+    1,
+    'verified'
+),
+(
     'workday:sifive:sifivecareers',
     'sifive',
     'workday',
@@ -575,7 +585,7 @@ INSERT INTO company_direct_sources (
     'https://www.amazon.jobs/en/search?base_query={keyword}&loc_query={location}',
     'base_query',
     'loc_query',
-    '{"locale":"en"}',
+    '{"locale":"en","max_jobs":30000}',
     1,
     'pending'
 ),

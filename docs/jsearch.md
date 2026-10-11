@@ -1,5 +1,18 @@
 # JSearch daily discovery
 
+## Related silicon title trials - 2026-10-11
+
+The October 11 pass used 361 of its 570 permitted paid pages. All 170 authored
+queries reached their provider cursor end or a guard, rather than a shared
+400-page limit. The plan had no explicit chiplet, advanced packaging, SerDes,
+PDK, memory-controller, signal-integrity, power-integrity or EDA title query,
+although the relevance model recognizes related chip work. Eighteen title
+trials now cover these gaps across intern, new-grad and general tiers. Each
+has a five-page cap, for at most 90 additional daily pages if every cursor
+continues that far. The daily and UTC-cycle RequestGuard limits still decide
+actual spend. Incremental accepted and actionable yield is unmeasured until a
+production pass runs this plan; keep or remove each trial based on its results.
+
 ## Daily budget by cycle - 2026-10-09
 
 At the user's request the daily budget is 570 for the rest of the 2026-09-16

@@ -303,7 +303,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 170)
+        self.assertEqual(len(self.plan), 188)
         self.assertEqual(self.settings['monthly_target'], 9600)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
         # day, then 330 from the next cycle on.
@@ -326,7 +326,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'A')},
-            {'intern': 970, 'new_grad': 615, 'early_career': 260, 'A': 520})
+            {'intern': 995, 'new_grad': 640, 'early_career': 260, 'A': 560})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -349,11 +349,19 @@ class DiscoveryTests(unittest.TestCase):
         actual = {q.query: (q.tier, q.pages) for q in self.plan}
         self.assertEqual({text: actual[text] for text in original}, original)
         added = {text: details for text, details in actual.items() if text not in original}
-        self.assertEqual(len(added), 108)
-        self.assertTrue(all(pages == 10 for tier, pages in added.values()))
-        self.assertEqual({tier: sum(value[0] == tier for value in added.values())
+        self.assertEqual(len(added), 126)
+        old_trials = {text: details for text, details in added.items() if details[1] == 10}
+        related_trials = {text: details for text, details in added.items() if details[1] == 5}
+        self.assertEqual(len(old_trials), 108)
+        self.assertEqual(len(related_trials), 18)
+        self.assertEqual({tier: sum(value[0] == tier for value in old_trials.values())
                           for tier in expected},
                          {'intern': 48, 'new_grad': 28, 'early_career': 16, 'A': 16})
+        self.assertEqual({tier: sum(value[0] == tier for value in related_trials.values())
+                          for tier in expected},
+                         {'intern': 5, 'new_grad': 5, 'early_career': 0, 'A': 8})
+        self.assertTrue({'Chiplet Intern', 'Advanced Packaging New Grad',
+                         'SerDes Engineer', 'PDK Engineer'} <= related_trials.keys())
         self.assertFalse(any(re.search(r' in (California|Texas|Massachusetts|Oregon|Arizona)$', text)
                              for text in actual))
         self.assertTrue({'Formal Verification Intern', 'Design for Test New Grad',
@@ -603,7 +611,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview["queries_planned"], 170)
+        self.assertEqual(preview["queries_planned"], 188)
         self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
@@ -1500,7 +1508,7 @@ class DiscoveryTests(unittest.TestCase):
             for i in range(10)])
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
-        self.assertEqual(len(plan), 170)
+        self.assertEqual(len(plan), 188)
         # The budget is never exceeded, whatever the caps add up to.
         self.assertLessEqual(guard.credits, settings['daily_budget'])
         self.assertEqual(stats['jsearch_pages_used'], guard.credits)
@@ -1556,7 +1564,7 @@ class DiscoveryTests(unittest.TestCase):
         # rebuilds from and what the commit step refuses to publish without.
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest["jsearch_queries_planned"], 170)
+        self.assertEqual(manifest["jsearch_queries_planned"], 188)
         self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
         self.assertEqual(manifest['jsearch_failures'], 0)
         # Paid results reached the store, and every one of them carries a score.
@@ -1641,7 +1649,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_small_budgets_go_to_internships_first(self):
         settings, plan = jsearch.load_plan()
         for cap, expected in [(24, {'intern': 24}),
-                              (994, {'intern': 970, 'new_grad': 24})]:
+                              (1019, {'intern': 995, 'new_grad': 24})]:
             with self.subTest(cap=cap):
                 guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
                 guard.interval = 0
@@ -1664,7 +1672,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual({q.tier: q.pages for q in deep},
                          {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 60})
         # These are depth ceilings, not an allocation; the sweep guard bounds spend.
-        self.assertEqual(sum(q.pages for q in deep), 9310)
+        self.assertEqual(sum(q.pages for q in deep), 10340)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
