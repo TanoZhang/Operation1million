@@ -1,0 +1,24 @@
+# Review over HTTPS for a phone, at the user's request (2026-10-11).
+#
+# The review server has no login of its own and hands its write token to
+# whoever can load the page, so nothing reaches it without the password
+# below. sslip.io resolves this name to the VPS's address at no cost, and
+# Caddy obtains and renews the certificate for it.
+#
+# The users file is outside both repositories and written on the box by
+# review-password.sh. If it is missing, Caddy refuses to start: the page is
+# never served without a password.
+40-160-142-175.sslip.io {
+	basic_auth {
+		import /etc/caddy/review-users
+	}
+	reverse_proxy 127.0.0.1:8765 {
+		# The review server answers only a local Host, as through the tunnel.
+		header_up Host localhost:8765
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		Referrer-Policy no-referrer
+		X-Robots-Tag "noindex, nofollow"
+	}
+}

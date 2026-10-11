@@ -1,3 +1,12 @@
+# Review from a phone - 2026-10-11 (claude)
+
+At the user's request and with their approval to expose it: Caddy serves
+https://40-160-142-175.sslip.io (free name for the VPS's address, free
+certificate), asks for a password, and forwards to the unchanged loopback
+review server. The user sets the login with deploy/vps/review-password.sh;
+only a bcrypt hash is kept, in /etc/caddy/review-users, and without it Caddy
+does not start. Ports 80/443 were reachable (refused, not filtered) before.
+
 # Staff, Architect and Expert are levels - 2026-10-11 (claude)
 
 Muse reported skipping 387 Review rows: 147 senior titles, 239 already in its

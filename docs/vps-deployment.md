@@ -125,11 +125,18 @@ Leave that running and open `http://localhost:8765`. The Host header the browser
 sends is `localhost:8765`, which is what the server already accepts, so nothing
 about the service changes.
 
-Opening it to the public internet is a different piece of work and has not been
-done: it needs authentication that survives someone finding the address,
-TLS, and a proxy in front. Until then a phone needs an ssh client that can hold
-a local forward, which is the awkward part of this arrangement and the reason to
-do the proxy properly rather than by loosening the bind address.
+From a phone (2026-10-11, at the user's request): `https://40-160-142-175.sslip.io`.
+Caddy (`deploy/vps/Caddyfile`) holds the certificate, asks for a password
+before anything reaches the review server, and forwards to `127.0.0.1:8765`
+with a `localhost` Host. The review server is unchanged and still binds to
+loopback; sslip.io is a free name that resolves to the address in it. The
+login is set on the box, never in a repository:
+
+    ssh -t -i ~/.ssh/op1m_vps ubuntu@<vps> sudo bash /opt/operation1million/code/deploy/vps/review-password.sh
+
+It stores only a bcrypt hash in `/etc/caddy/review-users`, installs the
+Caddyfile and restarts Caddy. Without that file Caddy refuses to start, so the
+page is never served without a password. Run it again to change the password.
 
 ## Backing it up to a workstation
 

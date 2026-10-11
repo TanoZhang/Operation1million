@@ -6,6 +6,18 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-11): reach Review from a phone at no cost --
+       Caddy with a sslip.io name, HTTPS and a password, in front of the
+       unchanged loopback review server. The user approved exposing it.
+Files: deploy/vps/{Caddyfile,review-password.sh} (new),
+       tests/test_review_proxy.py (new), docs/{vps-deployment,agent-protocol,handoff}.md
+Base commit: f101396
+Status: done -- pushed; Caddy waits for the user's login (review-password.sh)
+Next: The user sets the login; then check 401 without it and the page with it.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-11): Muse skipped 387 Review rows (147 senior
        titles, 239 already applied). Exclude Staff/Architect/Expert titles
        (the user's 2026-10-08 seniority rule); merge Muse's newer submissions.
