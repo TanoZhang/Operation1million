@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-11): Muse skipped 387 Review rows (147 senior
+       titles, 239 already applied). Exclude Staff/Architect/Expert titles
+       (the user's 2026-10-08 seniority rule); merge Muse's newer submissions.
+Files: data/config/jsearch_queries.toml, tests/test_review_rules.py,
+       docs/{agent-protocol,handoff}.md; private VPS ledgers (data only).
+Base commit: 87afaf1
+Status: done -- title rule committed and installed; CSV 1,383 -> 1,249 rows;
+        full suite 1,275 run, 14 skipped, all pass.
+Next: Muse merge 7 for submissions since 2026-10-09.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-11): check how the October 9-11 source fixes
        work. Amazon's business_category facet names every category, so a
        pass that reads them all may report complete.
@@ -18,6 +31,7 @@ Status: done -- no-store run here: 22,338 jobs, complete. Full suite 1,277
 Next: The first complete pass will trip the fuse (5,299 of 18,259, 29%);
       the second should close (~19% after the 9,378 new rows land).
 ```
+
 ```text
 Owner: codex
 Scope: Repair the October 11 partial direct sources and use measured coverage gaps to expand relevant job discovery.

@@ -29,9 +29,17 @@ class FilterPolicyTests(unittest.TestCase):
             with self.subTest(title=title):
                 row = {'title': title, 'raw': {'description': 'RTL ASIC FPGA UVM ' * 200}}
                 self.assertEqual(jsearch.rejection_reason(row, self.rules), 'excluded')
-        for title in ('Staff FPGA Engineer', 'SRAM Design Engineer'):
+        for title in ('SRAM Design Engineer', 'Member of Technical Staff, RTL Design',
+                      'Energy-Efficient Accelerator Architect Intern', 'CPU Architecture Engineer',
+                      'GPU Architect - New College Graduate 2027', 'HBM SoC Design Engineer/Architect New Grad',
+                      'Physical Design Engineer - Staffing Partner'):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.excluded(title, self.rules))
+        # Levels above senior since 2026-10-11 (the user's seniority rule).
+        for title in ('Staff FPGA Engineer', 'Silicon Engineer, Staff', 'SoC Architect',
+                      'CPU Performance Architect', 'Design Verification Expert'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.excluded(title, self.rules))
         self.assertEqual(jsearch.rejection_reason({
             'title': 'RTL Engineer', 'raw': {'description': 'Work with Senior engineers and a Manager.'}
         }, self.rules), '')
@@ -70,7 +78,7 @@ class FilterPolicyTests(unittest.TestCase):
         for title in ('Device Validation Engineer', 'Silicon Device Validation Engineer',
                       'Embedded Device Engineer', 'PCIe Device Engineer',
                       'Hardware Device Engineer', 'Device Driver Engineer',
-                      'Device Engineer', 'Staff Device Engineer'):
+                      'Device Engineer', 'Device Engineer II'):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.excluded(title, self.rules))
 
@@ -239,7 +247,8 @@ class SoftBlockTests(unittest.TestCase):
                       'ASIC Engineer, Leading-Edge Nodes'):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.excluded(title, self.rules))
-        self.assertFalse(jsearch.excluded('Staff Digital Verification Engineer', self.rules))
+        # Staff is a level too since 2026-10-11 (the user's seniority rule).
+        self.assertTrue(jsearch.excluded('Staff Digital Verification Engineer', self.rules))
 
 
 class AuditedWrongCatchTests(unittest.TestCase):

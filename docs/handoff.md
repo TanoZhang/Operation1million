@@ -1,3 +1,21 @@
+# Staff, Architect and Expert are levels - 2026-10-11 (claude)
+
+Muse reported skipping 387 Review rows: 147 senior titles, 239 already in its
+ledger, 1 defence. Measured on the 2026-10-11 15:45 review_queue.csv (1,383
+rows): 139 titles carry Staff (65), Architect (68) or Expert (6), which the
+title rules let through (Senior, Sr, Principal, Lead, Fellow, Distinguished,
+Manager and Director were already excluded); 118 rows match a Muse
+submission by company and title, 76 of them submitted on 2026-10-09, after
+merge 6. The user's seniority rule (2026-10-08, to Muse: "不投senior sr这种",
+which Muse widened to Staff and Architect) now reaches Review: 'staff'
+(not Member of Technical Staff, not staffing), 'architect' (not for an
+intern, co-op, new graduate or entry-level opening, nor "Lead & IC Engineers"),
+'expert'. On the CSV: 1,383 -> 1,249 rows (17 to review, 117 backlog).
+Five older tests that asserted Staff passes now assert the new rule. Full
+suite 1,275 run, 14 skipped, all pass (worktree, Codex's uncommitted
+collector work not included). Experience is not changed: Review already
+refuses a stated requirement over 2 years, stricter than Muse's 5.
+
 # Source fixes checked; Amazon proves completeness - 2026-10-11 (claude)
 
 Production, 10-10 and 10-11 (installed 33fd72b then bfb10bc): offline tests

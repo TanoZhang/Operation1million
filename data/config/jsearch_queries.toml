@@ -261,6 +261,16 @@ exclude_title_patterns = [
   # Verification Architect" passed when only the engineer and the member
   # were named (2026-10-01).
   '\bfellow\b', '\bdistinguished\b',
+  # Staff, architect and expert are levels above senior, at the user's
+  # request (2026-10-08 "不投senior sr这种", widened by Muse to Staff and
+  # Architect; 2026-10-11 Review still held 139 such titles that Muse then
+  # skipped). Not "Member of Technical Staff", the level a startup hires new
+  # graduates at, and not an architect opening for a student or a new
+  # graduate ("GPU Architect - New College Graduate 2027") or one hiring
+  # across levels ("CPU Micro-Architect/RTL; Lead & IC Engineers", as with lead).
+  '(?<!\btechnical\s)\bstaff\b(?!ing)',
+  '^(?!.*\b(?:interns?|internships?|co-?ops?|new\s+(?:college\s+)?grad\w*|NCG|graduates?|entry[-\s]level|ic\s+engineers?)\b).*\barchitect\b',
+  '\bexpert\b',
   # An MBA programme is open to MBA students, as a PhD one is to PhD
   # students: "MBA Internships" was on the Early career tab (2026-10-01).
   '\bMBA\b',

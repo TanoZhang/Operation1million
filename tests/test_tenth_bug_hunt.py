@@ -155,7 +155,7 @@ class TitleRuleTests(unittest.TestCase):
         for title in ('Digital IC, Account Technology Executive (ATX)', 'Cybersecurity Account Executive',
                       'Strategic Account Representative, Strategic Accounts'):
             self.assertTrue(refused(title), title)
-        self.assertFalse(refused('IC RTL2GDS Architect, AE'))
+        self.assertFalse(refused('IC RTL2GDS Application Engineer, AE'))
 
     def test_211_ip_design_and_digital_implementation(self):
         for title in ('Fabric IP Designer', 'Security IP Design Engineer', 'Ethernet IP Design Application Engineer',

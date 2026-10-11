@@ -1295,7 +1295,7 @@ class RelevanceScoringTests(unittest.TestCase):
         self.assertEqual(self.jsearch.rejection_reason(pharma, self.rules), 'off_domain')
 
     def test_a_truncated_description_is_never_evidence_against(self):
-        excerpt = self.posting('Staff Engineer', job_description='See full posting.')
+        excerpt = self.posting('Member of Technical Staff', job_description='See full posting.')
         self.assertEqual(self.jsearch.rejection_reason(excerpt, self.rules), '')
 
     def test_a_title_that_names_the_work_settles_it_either_way(self):
@@ -1348,9 +1348,13 @@ class HardExclusionTests(unittest.TestCase):
 
     def test_allowed_individual_contributor_titles_are_untouched(self):
         for title in ('RTL Design Engineer', 'Design Verification Engineer',
-                      'Staff Engineer, SoC', 'Staff FPGA Engineer'):
+                      'Member of Technical Staff, SoC'):
             with self.subTest(title=title):
                 self.assertFalse(self.jsearch.excluded(title, self.rules))
+        # Staff is a level above senior since 2026-10-11 (the user's seniority rule).
+        for title in ('Staff Engineer, SoC', 'Staff FPGA Engineer'):
+            with self.subTest(title=title):
+                self.assertTrue(self.jsearch.excluded(title, self.rules))
 
 
 class ScoreOnceTests(unittest.TestCase):
