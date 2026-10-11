@@ -1,3 +1,22 @@
+# Source fixes checked; Amazon proves completeness - 2026-10-11 (claude)
+
+Production, 10-10 and 10-11 (installed 33fd72b then bfb10bc): offline tests
+1,270 run, all pass, both days. Cisco complete both days (1,350; 1,346),
+Apple complete (4,401; 4,397), Qualcomm complete on 10-10 (2,047) but partial
+on 10-11 at 799 with three repeated pages in a row -- watch it; codex's later
+no-store pass read 2,067 complete. SanDisk, Amazon, Microsoft and Rivos were
+still on the old code then; 18323a6 (Avature, Amazon partition) first runs on
+2026-10-12.
+
+Amazon: the global search with `facets[]=business_category` names every
+category with board-wide counts (62, summing to 22,338 while `hits` says
+10,000), so collect_amazon now reads every category the facet names and
+reports complete when all are read to their counts. A no-store run from this
+machine read 22,338 jobs, complete, in 554 s. Against the VPS index that list
+would close 5,299 of 18,259 open Amazon rows (29%; last seen 09-17..10-11; 206
+are the same requisition under a retitled URL), so the first complete pass
+trips the fuse and adds 9,378 new rows; the second should close about 19%.
+
 # Direct-source coverage and related silicon search - 2026-10-11 (codex)
 
 The October 11 installed pass (`bfb10bc`) used 361 paid JSearch pages over

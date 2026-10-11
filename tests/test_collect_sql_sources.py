@@ -350,7 +350,9 @@ class CollectionTests(unittest.TestCase):
 
         def fetch(url, *unused):
             asked.append(url)
-            return Response(advertising if 'business_category' in url else base)
+            # The filter, not the facet request, which names the field too.
+            filtered = 'business_category%5B%5D=' in url or 'business_category[]=' in url
+            return Response(advertising if filtered else base)
 
         c.fetch = fetch
         status, _ = c.run()
@@ -358,6 +360,44 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(len(asked), 2)
         self.assertIn('business_category', asked[1])
         self.assertGreater(len(c.jobs), len(base['jobs']))
+    def amazon_by_facet(self, max_pages):
+        fixtures = Path(__file__).parent / 'fixtures'
+        base = json.loads((fixtures / 'amazon_facets_redacted.json').read_text(encoding='utf-8'))
+        category = json.loads((fixtures / 'amazon_advertising_redacted.json').read_text(encoding='utf-8'))
+        source = Source('amazon_jobs:amazon', 'company_direct_sources',
+                        'amazon', 'Amazon.com, Inc.', 'amazon_jobs',
+                        'https://www.amazon.jobs/en/search?base_query=&loc_query=',
+                        {'amazon_result_ceiling': 1, 'max_jobs': 30000})
+        args = self.args()
+        args.max_jobs = 30000
+        args.max_pages = max_pages
+        c = Collector(source, args)
+        asked = []
+
+        def fetch(url, *unused):
+            asked.append(url)
+            for name, number in (('advertising', 10001), ('no-business-category', 10002)):
+                if 'business_category%5B%5D=' + name in url or 'business_category[]=' + name in url:
+                    job = dict(category['jobs'][0], business_category=name, id_icims=str(number),
+                               id=f'id-{number}', job_path=f'/en/jobs/{number}/example')
+                    return Response(dict(category, hits=1, jobs=[job]))
+            return Response(base)
+
+        c.fetch = fetch
+        return c, asked
+
+    def test_amazon_categories_the_facet_names_complete_the_board(self):
+        """The facet names every category, including one absent from the capped list."""
+        c, asked = self.amazon_by_facet(max_pages=3)
+        status, _ = c.run()
+        self.assertEqual(status, 'complete')
+        self.assertIn('facets', asked[0])
+        self.assertEqual(len(c.jobs), 3)
+
+    def test_amazon_category_left_unread_stays_partial(self):
+        c, _ = self.amazon_by_facet(max_pages=2)
+        self.assertEqual(c.run()[0], 'partial')
+
     def test_pagination_and_relative_dates(self):
         c = Collector(self.source(),self.args()); offsets=[]
         def fetch(url,method,payload):

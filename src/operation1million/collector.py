@@ -571,16 +571,20 @@ class Collector:
         return 'partial', 'Page cap reached; increase --max-pages'
 
     def collect_amazon(self):
-        """Read the capped global list, then its observed business categories.
+        """Read the capped global list, then every business category.
 
         Amazon states 10,000 for the unfiltered list even when category searches
         reveal older jobs beyond it. Categories observed in those 10,000 may not
-        be exhaustive, so a partitioned pass still cannot claim board closure.
+        be exhaustive; the business_category facet is. Asked for on the first
+        page, it named 62 categories summing to 22,338 on 2026-10-11, against
+        the 22,343 a no-store pass read the day before. A pass that read every
+        category the facet names, each to its own count, read the board.
         """
         base = 'https://www.amazon.jobs/en/search.json'
         ceiling = int(self.source.fields.get('amazon_result_ceiling', 10000))
         pages = 0
         categories = set()
+        stated = set()
         offset = 0
         previous = None
 
@@ -588,10 +592,17 @@ class Collector:
             params = {'offset': offset, 'result_limit': 100, 'sort': 'recent'}
             if category is not None:
                 params['business_category[]'] = category
+            elif offset == 0:
+                params['facets[]'] = 'business_category'
             data = self.fetch(query_url(base, **params)).json()
             if (not isinstance(data, dict) or not isinstance(data.get('jobs'), list)
                     or not isinstance(data.get('hits'), int)):
                 raise ValueError('Unexpected Amazon search JSON schema')
+            facets = data.get('facets')
+            for entry in (facets.get('business_category_facet') or []) if isinstance(facets, dict) else []:
+                if isinstance(entry, dict):
+                    stated.update(str(name) for name, count in entry.items()
+                                  if isinstance(count, int) and count > 0)
             return data['jobs'], data['hits']
 
         while pages < self.args.max_pages:
@@ -615,6 +626,7 @@ class Collector:
             return 'partial', 'Amazon page cap reached before the global list ended'
         if total < ceiling:
             return 'complete', ''
+        categories |= stated
         if not categories:
             return 'partial', 'Amazon global list reached its ceiling without category values'
 
@@ -644,6 +656,8 @@ class Collector:
             else:
                 return 'partial', f'Amazon page cap reached while reading {category}'
             finished += 1
+        if stated:
+            return 'complete', f'Amazon read all {finished} business categories the facet names'
         return 'partial', (f'Amazon global result ceiling; read {finished} observed '
                            'business categories, but categories absent from the global list '
                            'cannot be ruled out')

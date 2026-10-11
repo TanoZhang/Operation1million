@@ -19,3 +19,11 @@ The Amazon boundary test lowers the source-local ceiling to one synthetic job
 so it crosses from the captured global response shape to the captured category
 response shape in two offline requests. Production uses the observed 10,000
 result ceiling.
+
+`amazon_facets_redacted.json` keeps the shape of the same global search with
+`facets[]=business_category`, captured 2026-10-11 UTC: `facets.business_category_facet`
+is a list of one-key objects, category to count, across the whole board (62
+categories summing to 22,338 while `hits` stayed 10,000). Jobs without a
+category are filed under `no-business-category`, and their own
+`business_category` field carries that string. Counts and job values are
+synthetic.

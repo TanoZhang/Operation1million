@@ -5,6 +5,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 
 ## Active claims
 ```text
+Owner: claude
+Scope: User request (2026-10-11): check how the October 9-11 source fixes
+       work. Amazon's business_category facet names every category, so a
+       pass that reads them all may report complete.
+Files: src/operation1million/collector.py (collect_amazon),
+       tests/test_collect_sql_sources.py, tests/fixtures/{amazon_facets_redacted.json,
+       direct-source-captures.md}, docs/{agent-protocol,handoff}.md
+Base commit: 87afaf1
+Status: done -- no-store run here: 22,338 jobs, complete. Full suite 1,277
+        run, 13 skipped, all pass (Windows).
+Next: The first complete pass will trip the fuse (5,299 of 18,259, 29%);
+      the second should close (~19% after the 9,378 new rows land).
+```
+```text
 Owner: codex
 Scope: Repair the October 11 partial direct sources and use measured coverage gaps to expand relevant job discovery.
 Files: src/operation1million/{collector,store}.py, data/config/{schema.sql,jsearch_queries.toml,migrations/007_sandisk_avature.sql,migrations/008_amazon_partition.sql}, tests/{test_collect_sql_sources,test_jsearch}.py, tests/fixtures/{sandisk,amazon}_*redacted.*, tests/fixtures/direct-source-captures.md, docs/{agent-protocol,handoff,architecture,collection-rules,jsearch}.md; other source-specific files only if evidence requires them.
