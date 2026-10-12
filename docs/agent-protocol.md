@@ -20,8 +20,11 @@ Base commit: ceb5583
 Status: done -- c79a7b7 installed and rescored; Japan boards (EdgeCortix,
         PFN, TSMC) committed with migration 009. Full suite 1,297 run, 13
         skipped, all pass (Windows).
-Next: Check the 2026-10-12 pass reads the three boards, and the 10-13..15
-      sweep spends in Japan.
+        Then Toshiba (HRMOS), Kioxia and Sony SCK (jposting), the resume-fit
+        gloss, JSearch Japan places and measured sweep phrases: 61be94d
+        installed; VPS test step 1,305 run, all pass.
+Next: Check the 2026-10-12 pass reads the six Japan boards, and the
+      10-13..15 sweep spends in Japan.
 ```
 
 ```text
