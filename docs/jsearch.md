@@ -11,6 +11,19 @@ before reset. Whatever Japan cannot absorb is left unspent. The daily pass
 (`country = "us"`, 3 days) is unchanged. Without sweep phrases the sweep falls
 back to the daily plan at backfill depth, as before.
 
+Measured the same day: one paid page per phrase in Japan, a month back, 60
+phrases, about 60 credits from the October 11 budget day. Bare trade words
+(デジタル回路設計, 論理設計, ASIC, RTL設計, 機能検証, 物理設計) and every English
+phrase returned nothing; a field with a role (論理回路 設計 エンジニア, ASIC 設計
+エンジニア, 検証エンジニア LSI, DFT 設計 エンジニア, 回路設計 新卒) returned
+full pages, mostly from Indeed Japan. The 28 kept phrases page to their own
+depth (`pages`, up to `backfill_max_pages_per_query`): 150 for the broad ones,
+100 for 「LSI 設計」 split by region, tier depth for the rest -- 3,210 pages of
+caps for the cycle's remainder. Two defects the measurement found, fixed:
+Japan's results leave city/state/country empty and write the place in
+`job_location` ("愛知県 • 提供元: Indeed.com"), so none was placed in Japan;
+and the resume-fit gate refused Japanese duties against its English profile.
+
 ## Related silicon title trials - 2026-10-11
 
 The October 11 pass used 361 of its 570 permitted paid pages. All 170 authored

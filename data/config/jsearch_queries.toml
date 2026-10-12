@@ -1603,113 +1603,145 @@ query = "EDA Engineer"
 tier = "A"
 pages = 5
 
-# Japan sweep phrases (2026-10-11), in Japanese and English: the boards there
-# publish both. Each pages to its tier's [backfill_tier_pages] depth.
+# Japan sweep phrases, chosen by measurement (2026-10-11): one paid page
+# per phrase in Japan, a month back, over 60 phrases. A bare trade word
+# (デジタル回路設計, 論理設計, ASIC, RTL設計) and every English phrase returned
+# nothing; a field and a role together (論理回路 設計 エンジニア, 検証エンジニア
+# LSI, ASIC 設計 エンジニア) returned full pages, mostly from Indeed Japan.
+# The best of them is also asked region by region, as the U.S. once was by
+# state, to surface more than one listing reaches. Each pages to its tier's
+# [backfill_tier_pages] depth, or its own `pages` up to the sweep's runaway
+# guard: the broad field-and-role phrases 150, the regional splits 100.
 
 [[sweep_query]]
 query = "半導体 インターン"
 tier = "intern"
 
 [[sweep_query]]
-query = "回路設計 インターン"
-tier = "intern"
-
-[[sweep_query]]
-query = "Hardware Engineering Intern"
-tier = "intern"
-
-[[sweep_query]]
-query = "ASIC Intern"
-tier = "intern"
-
-[[sweep_query]]
-query = "FPGA Intern"
-tier = "intern"
-
-[[sweep_query]]
-query = "新卒 デジタル回路設計"
+query = "回路設計 新卒"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "新卒 LSI設計"
+query = "回路設計 第二新卒"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "新卒 半導体 設計"
+query = "半導体 新卒"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "第二新卒 回路設計"
+query = "第二新卒 半導体"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "New Graduate Hardware Engineer"
+query = "LSI 未経験"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "New Graduate ASIC Engineer"
+query = "半導体 未経験 設計"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "デジタル回路設計"
+query = "論理回路 設計 エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "論理設計"
+query = "ASIC 設計 エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "LSI設計"
+query = "LSI 検証 エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "RTL設計"
+query = "検証エンジニア LSI"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "機能検証 エンジニア"
+query = "LSI 設計 エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "物理設計 エンジニア"
+query = "デジタル回路 設計 エンジニア"
 tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "DFT 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC 開発 エンジニア"
+tier = "A"
+pages = 150
 
 [[sweep_query]]
 query = "FPGA 開発 エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "SoC 設計"
+query = "FPGA エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "DFT 設計"
+query = "ハードウェアエンジニア 半導体"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "ASIC Engineer"
+query = "物理設計 エンジニア 半導体"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "RTL Design Engineer"
+query = "半導体 設計 エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "Design Verification Engineer"
+query = "検証エンジニア 半導体"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "Physical Design Engineer"
+query = "電子回路設計 エンジニア"
 tier = "A"
+pages = 150
 
 [[sweep_query]]
-query = "SoC Design Engineer"
+query = "LSI 設計 東京"
 tier = "A"
+pages = 100
 
 [[sweep_query]]
-query = "Digital Design Engineer"
+query = "LSI 設計 神奈川"
 tier = "A"
+pages = 100
 
 [[sweep_query]]
-query = "VLSI Engineer"
+query = "LSI 設計 大阪"
 tier = "A"
+pages = 100
+
+[[sweep_query]]
+query = "LSI 設計 京都"
+tier = "A"
+pages = 100
+
+[[sweep_query]]
+query = "LSI 設計 愛知"
+tier = "A"
+pages = 100
+
+[[sweep_query]]
+query = "LSI 設計 福岡"
+tier = "A"
+pages = 100

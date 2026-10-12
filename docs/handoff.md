@@ -53,6 +53,10 @@ U.S. a month back.
   board was not found; new-graduate portals (i-web for Kioxia 2027/2028,
   マイナビ for DNP LSI Design and Megachips, axol for Rapidus) require a
   login. `--jsearch-country jp` lets a paid diagnostic search Japan.
+- Sweep phrases rewritten from a paid measurement (docs/jsearch.md). Fixed
+  with it: JSearch Japan places come from `job_location`; resume_fit.glossed
+  adds English trade terms to Japanese duties (circuit design only beside a
+  chip word); jposting descriptions drop their links to other job families.
 
 # Muse merge 7 and a Gmail run - 2026-10-11 (claude)
 

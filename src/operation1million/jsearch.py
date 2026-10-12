@@ -206,7 +206,12 @@ def _read_plan(path):
         tier = row.get('tier', 'A')
         if not text or tier not in config['backfill_tier_pages'] or re.search(r'(^|\s)-\w', text):
             raise ValueError('Sweep queries require positive phrases and a backfill tier')
-        sweep.append(Query(text, config['backfill_tier_pages'][tier], tier))
+        # A phrase may page deeper than its tier, up to the sweep's runaway
+        # guard: Japan's few phrases have the whole remainder to spend.
+        pages = row.get('pages', config['backfill_tier_pages'][tier])
+        if type(pages) is not int or not 1 <= pages <= config['backfill_max_pages_per_query']:
+            raise ValueError('Sweep query pages must be within backfill_max_pages_per_query')
+        sweep.append(Query(text, pages, tier))
     if len({q.query.casefold() for q in sweep}) != len(sweep):
         raise ValueError('Duplicate sweep query configuration')
     config['sweep_queries'] = tuple(sweep)
@@ -522,10 +527,15 @@ def normalize_job(item, query, companies, rules=None):
         # It stays in raw as sent; the posting keeps everything else. Missing
         # publisher data is not held against a posting anywhere else either.
         posted = None
+    place = ', '.join(str(item[k]) for k in ('job_city', 'job_state', 'job_country') if item.get(k))
+    if not place and isinstance(item.get('job_location'), str):
+        # Japan's results (2026-10-11) leave city, state and country empty and
+        # write only "愛知県 • 提供元: Indeed.com" -- the place, then who
+        # published it. Every such posting was placed nowhere, so not in Japan.
+        place = re.split(r'\s*[•·]\s*', item['job_location'])[0].strip()
     row = normalize(source, {
         'title': item.get('job_title'), 'id': item.get('job_id'), 'url': link,
-        'location': ', '.join(str(item[k]) for k in ('job_city', 'job_state', 'job_country') if item.get(k)),
-        'posted_at': posted})
+        'location': place, 'posted_at': posted})
     row['raw'] = dict(item)
     row['title'] = clean_title(row['title'], row['location'])
     if not row['title']:

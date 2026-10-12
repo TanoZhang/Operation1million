@@ -100,6 +100,43 @@ class JapaneseResumeFitTests(unittest.TestCase):
         self.assertEqual(resume_fit.glossed('RTL design and verification'), 'RTL design and verification')
 
 
+class JapanSweepPlanTests(unittest.TestCase):
+    def test_measured_phrases_page_to_their_own_depth(self):
+        settings, _ = jsearch.load_plan()
+        depth = {q.query: q.pages for q in settings['sweep_queries']}
+        self.assertEqual(depth['論理回路 設計 エンジニア'], 150)
+        self.assertEqual(depth['LSI 設計 東京'], 100)
+        self.assertEqual(depth['回路設計 新卒'], settings['backfill_tier_pages']['new_grad'])
+        # A bare trade word and English returned nothing in Japan.
+        self.assertNotIn('デジタル回路設計', depth)
+        self.assertFalse(any(q.isascii() for q in depth))
+
+    def test_a_depth_past_the_runaway_guard_is_refused(self):
+        import tempfile
+        from pathlib import Path
+        from operation1million.paths import CONFIG
+        text = (CONFIG / 'jsearch_queries.toml').read_text(encoding='utf-8')
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'plan.toml'
+            path.write_text(text + '\n[[sweep_query]]\nquery = "LSI 深すぎ"\ntier = "A"\npages = 999\n',
+                            encoding='utf-8')
+            with self.assertRaises(ValueError):
+                jsearch.load_plan(path)
+
+
+class JapanSearchLocationTests(unittest.TestCase):
+    def test_a_result_placed_only_in_job_location_is_in_japan(self):
+        # JSearch in Japan, 2026-10-11: city, state and country empty, the
+        # place written with its publisher in job_location.
+        item = {'job_id': 'jp1', 'job_title': 'LSI論理回路設計・検証エンジニア', 'employer_name': 'Example',
+                'job_apply_link': 'https://jp.indeed.com/viewjob?jk=1', 'job_city': None,
+                'job_state': None, 'job_country': None,
+                'job_location': '愛知県     •  提供元: Indeed.com'}
+        row = jsearch.normalize_job(item, jsearch.Query('LSI 検証 エンジニア', 1, 'A'), {})
+        self.assertEqual(row['location'], '愛知県')
+        self.assertTrue(location.in_asia_tab(row['location']))
+
+
 class JapaneseExperienceTests(unittest.TestCase):
     def years(self, text):
         return experience.evaluate('エンジニア', text)['required_experience_years']

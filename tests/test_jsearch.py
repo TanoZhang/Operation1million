@@ -1828,7 +1828,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(observed['settings']['country'], 'jp')
         self.assertEqual(observed['settings']['date_posted'], 'month')
         self.assertEqual(observed['queries'], list(settings['sweep_queries']))
-        self.assertIn('デジタル回路設計', [q.query for q in observed['queries']])
+        self.assertIn('論理回路 設計 エンジニア', [q.query for q in observed['queries']])
         # The daily pass is unchanged.
         self.assertEqual(settings['country'], 'us')
 
