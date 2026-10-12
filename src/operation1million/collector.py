@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import codecs
 import csv
+import html
 import json
 import os
 import re
@@ -852,10 +853,17 @@ class Collector:
                     continue
                 place = re.sub(r'^[\s【][^】]*】\s*|^[\s◆●■・]+', '', str(job.get('location') or '')).split('\n')[0]
                 place = re.sub(r'^[◆●■・\s]+', '', place).strip()
+                # The description ends in escaped links to the board's other job
+                # families -- Kioxia's 「職種紹介をみる(製品開発・回路設計)」 -- which
+                # describe no duty of this posting; the links go, with their text.
+                prose = BeautifulSoup(html.unescape(str(job.get('description') or '')), 'html.parser')
+                for link in prose.select('a'):
+                    link.decompose()
+                item_prose = prose.get_text('\n', strip=True)
                 item = {'id': str(job['id']), 'title': job.get('name'),
                         'url': fields['detail'] + str(job['id']),
                         'location': ', '.join(filter(None, (place[:60], country))),
-                        'description': job.get('description') or '',
+                        'description': item_prose,
                         'category': category.get('name')}
                 if candidate({'title': item['title'] or ''}, rules):
                     try:
@@ -865,7 +873,7 @@ class Collector:
                         if '応募資格' not in text:
                             raise ValueError('jposting page has no 応募資格')
                         item['description'] = text[text.find('応募資格'):]
-                        item['description'] = (job.get('description') or '') + '\n\n' + item['description']
+                        item['description'] = item_prose + '\n\n' + item['description']
                     except (requests.RequestException, ValueError) as exc:
                         errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
                 items.append(item)

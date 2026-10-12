@@ -6,7 +6,7 @@ experience line was read as unknown.
 """
 import unittest
 
-from operation1million import experience, jsearch, location, ranking
+from operation1million import experience, jsearch, location, ranking, resume_fit
 
 
 class JapaneseTitleTests(unittest.TestCase):
@@ -68,6 +68,36 @@ class AsiaTabTests(unittest.TestCase):
                       'Austin, TX; Tokyo, Japan', 'Remote', '', 'Bangalore, India'):
             with self.subTest(place=place):
                 self.assertFalse(location.in_asia_tab(place))
+
+
+class JapaneseResumeFitTests(unittest.TestCase):
+    """A paid search in Japan (2026-10-11): 「LSI論理回路設計・検証エンジニア」 and
+    others were refused for naming no supported duty, the profile being English."""
+
+    PROFILE = {'version': 1, 'gaps': [], 'families': [
+        {'id': 'rtl', 'evidence': 'synthetic',
+         'all': [r'\b(?:RTL|logic\s+design|digital\s+(?:design|circuits?)|SoCs?)\b',
+                 r'\b(?:design\w*|verif\w*|validat\w*)\b']},
+        {'id': 'circuit', 'evidence': 'synthetic',
+         'all': [r'\bcircuit\s+design\b', r'\b(?:design|layout)\b']}]}
+    DUTIES = ('LSIの論理回路設計と機能検証を担当していただきます。仕様検討からRTL設計、'
+              'シミュレーションによる検証、試作後の評価まで一連の工程に携わります。' * 3)
+
+    def assess(self, text, title='LSI論理回路設計・検証エンジニア'):
+        return resume_fit.assess({'title': title, 'raw': {'description': text}}, self.PROFILE)
+
+    def test_japanese_duties_meet_the_english_profile(self):
+        result = self.assess(self.DUTIES)
+        self.assertEqual(result['verdict'], 'keep')
+        self.assertIn('rtl', result['evidence'])
+
+    def test_circuit_design_counts_only_beside_a_chip(self):
+        equipment = '製造装置の回路設計と制御基板の開発を担当していただきます。' * 6
+        self.assertNotIn('circuit design', resume_fit.glossed(equipment))
+        self.assertIn('circuit design', resume_fit.glossed('DRAMの回路設計を担当します。'))
+
+    def test_english_text_is_untouched(self):
+        self.assertEqual(resume_fit.glossed('RTL design and verification'), 'RTL design and verification')
 
 
 class JapaneseExperienceTests(unittest.TestCase):

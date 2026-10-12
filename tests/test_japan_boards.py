@@ -127,6 +127,8 @@ class JapanBoardTests(unittest.TestCase):
         self.assertTrue(location.in_asia_tab(chip['location']))
         self.assertEqual(experience.evaluate(chip['title'], chip['raw']['description'])['required_experience_years'], 5)
         self.assertNotIn('https://example.jposting.net/u/job.phtml?job_code=880', asked)
+        # The board's links to its other job families are not this posting's duties.
+        self.assertNotIn('職種紹介をみる', chip['raw']['description'])
 
     def test_a_talentio_home_listing_nothing_is_partial(self):
         source = Source('talentio:example', 'company_sources', 'preferred_networks', 'Preferred Networks',

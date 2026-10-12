@@ -104,6 +104,36 @@ def sections(raw):
     return '\n'.join(duties).strip(), '\n'.join(required).strip()
 
 
+# Japanese duties in the words the profile's patterns are written in. A paid
+# search in Japan (2026-10-11) returned 「LSI論理回路設計・検証エンジニア」 and
+# 「LSIデジタル回路設計(DFT設計)」, and every one was refused for naming no
+# supported duty: the profile is English, and "\bRTL\b" cannot match beside
+# kana. The English is added after the Japanese, not put in its place.
+GLOSSARY = (
+    ('論理回路設計|論理設計', 'logic design RTL design'), ('デジタル回路設計|デジタル設計', 'digital design'),
+    ('論理合成', 'synthesis'), ('物理設計', 'physical design'), ('レイアウト設計', 'layout design'),
+    ('タイミング(?:解析|検証|設計)', 'static timing'), ('機能検証|論理検証', 'design verification'),
+    ('検証', 'verification'), ('評価', 'validation test'),
+    ('設計', 'design'), ('開発', 'develop'), ('実装', 'implement'), ('シミュレーション', 'simulation'),
+    ('半導体', 'semiconductor'), ('(?<![A-Za-z])LSI(?![A-Za-z])', 'VLSI'), ('テストベンチ', 'testbench'),
+)
+_SCRIPT_EDGE = re.compile('(?<=[A-Za-z0-9])(?=[぀-ヿ一-鿿])'
+                          '|(?<=[぀-ヿ一-鿿])(?=[A-Za-z0-9])')
+
+
+def glossed(text):
+    """Japanese text with its English trade terms added; other text unchanged."""
+    if not text or not re.search('[぀-ヿ一-鿿]', text):
+        return text
+    found = [english for japanese, english in GLOSSARY if re.search(japanese, text)]
+    # Circuit design is the trade only on a chip: Kioxia's 「製造装置開発」 designs
+    # the circuits of fab equipment, and read as custom circuit design.
+    if re.search('回路設計', text) and re.search(
+            '(?<![A-Za-z])(?:LSI|SoC|ASIC|IC|DRAM|SRAM|NAND)(?![A-Za-z])|チップ|集積回路|メモリ', text):
+        found.append('circuit design')
+    return _SCRIPT_EDGE.sub(' ', text) + ('\n' + ' '.join(found) if found else '')
+
+
 def _matches(rule, text):
     return (all(re.search(p, text, re.I) for p in rule['all'])
             and (not rule.get('any') or any(re.search(p, text, re.I) for p in rule['any']))
@@ -116,8 +146,8 @@ def assess(row, profile):
         return {'verdict': 'unknown', 'reason': 'no_profile', 'evidence': []}
     raw = row.get('raw')
     raw = raw if isinstance(raw, dict) else {}
-    prose, required = sections(raw)
-    title = row.get('title') or ''
+    prose, required = (glossed(text) for text in sections(raw))
+    title = glossed(row.get('title') or '')
     for rule in profile.get('gaps', []):
         text = required if rule.get('scope') == 'requirements' else prose
         if text and _matches(rule, text if rule.get('scope') == 'requirements' else title + '\n' + text):
