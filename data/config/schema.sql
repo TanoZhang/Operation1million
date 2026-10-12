@@ -117,7 +117,10 @@ VALUES
     -- removed on 2026-09-16 and is back for its Yokohama design centre.
     ('edgecortix', 'EdgeCortix'),
     ('preferred_networks', 'Preferred Networks'),
-    ('tsmc', 'Taiwan Semiconductor Manufacturing Company')
+    ('tsmc', 'Taiwan Semiconductor Manufacturing Company'),
+    ('toshiba', 'Toshiba'),
+    ('kioxia', 'Kioxia'),
+    ('sony_semiconductor_manufacturing', 'Sony Semiconductor Manufacturing')
 ON CONFLICT(company_key) DO UPDATE SET
     name = excluded.name;
 
@@ -586,6 +589,36 @@ INSERT INTO company_sources (
     'careers.tsmc.com',
     'https://careers.tsmc.com/en_US/careers/sitemap.xml',
     '{"sitemap_job_path":"/en_US/careers/JobDetail/","max_pages":1200}',
+    1,
+    'verified'
+),
+(
+    'hrmos:toshiba',
+    'toshiba',
+    'hrmos',
+    'toshiba',
+    'https://hrmos.co/pages/toshiba/jobs',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:kioxia',
+    'kioxia',
+    'jposting',
+    'kioxia',
+    'https://jscudp.jcareers.com/kioxia/u/jobs.phtml',
+    '{"board":"https://kioxia.jposting.net/joblist/","detail":"https://kioxia.jposting.net/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:sonyck',
+    'sony_semiconductor_manufacturing',
+    'jposting',
+    'sonyck',
+    'https://jsdp03.jcareers.com/sonyck/u/sck/jobs.phtml',
+    '{"board":"https://jsd.jposting.net/sonyck/","detail":"https://js03.jposting.net/sonyck/u/sck/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
     1,
     'verified'
 )

@@ -686,7 +686,12 @@ class CollectionTests(unittest.TestCase):
         keys={r[0] for r in con.execute('select company_key from companies')}
         # Three Japan boards added 2026-10-11: EdgeCortix, Preferred Networks
         # and TSMC (back for its Yokohama design centre).
-        self.assertEqual(len(keys),48)
+        # And Toshiba (HRMOS), Kioxia and Sony Semiconductor Manufacturing
+        # (jposting) the same day.
+        self.assertEqual(len(keys),51)
+        self.assertEqual(dict(con.execute('select company_key, provider_key from company_sources where company_key in '
+                                          "('toshiba','kioxia','sony_semiconductor_manufacturing')")),
+                         {'toshiba': 'hrmos', 'kioxia': 'jposting', 'sony_semiconductor_manufacturing': 'jposting'})
         self.assertEqual(dict(con.execute('select company_key, provider_key from company_sources where company_key in '
                                           "('edgecortix','preferred_networks','tsmc')")),
                          {'edgecortix': 'bamboohr', 'preferred_networks': 'talentio', 'tsmc': 'avature'})

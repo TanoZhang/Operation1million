@@ -767,6 +767,113 @@ class Collector:
             return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
         return 'complete', ''
 
+    def collect_hrmos(self):
+        """An HRMOS board: its numbered list pages, then a likely posting's page.
+
+        Added for Toshiba (the Device & Storage chip roles share its board) on
+        2026-10-11. Each list entry gives the title (h2), the text and the tags;
+        the posting's own page carries JSON-LD with the whole description and
+        address, read only for titles worth it (`job_details.candidate`).
+        """
+        from .job_details import candidate
+        self.etag = self.last_modified = None
+        self.validator = False
+        rules = jsearch.load_plan()[0]['filter']
+        base = self.source.access_url.rstrip('/')
+        country = self.source.fields.get('country', 'Japan')
+        rows = {}
+        for page in range(1, self.args.max_pages + 1):
+            soup = BeautifulSoup(self.fetch(f'{base}?page={page}').text, 'html.parser')
+            found = 0
+            for link in soup.select(f'a[href^="{base}/"]'):
+                heading = link.select_one('h2')
+                if not heading or link['href'] in rows:
+                    continue
+                found += 1
+                tags = [tag.get_text(' ', strip=True) for tag in link.select('.sg-tags li')]
+                body = link.select_one('.pg-list-cassette-body')
+                rows[link['href']] = {
+                    'id': link['href'].rstrip('/').rsplit('/', 1)[-1], 'url': link['href'],
+                    'title': heading.get_text(' ', strip=True),
+                    'description': body.get_text(' ', strip=True) if body else '',
+                    'location': ', '.join([*tags[1:2], country]), 'tags': tags}
+            if not found:
+                break
+        else:
+            return 'partial', 'Page cap reached; increase --max-pages'
+        if not rows:
+            return 'partial', 'HRMOS board listed no postings'
+        errors = []
+        for item in rows.values():
+            if not candidate({'title': item['title']}, rules):
+                continue
+            try:
+                posting = next(jsonld(BeautifulSoup(self.fetch(item['url']).text, 'html.parser')))
+                item['description'] = posting.get('description') or item['description']
+                item['datePosted'] = posting.get('datePosted')
+                places = posting.get('jobLocation') or []
+                address = (places[0] if isinstance(places, list) and places else places or {}).get('address') or {}
+                if isinstance(address, dict) and (address.get('addressRegion') or address.get('addressLocality')):
+                    item['location'] = ', '.join(filter(None, (address.get('addressLocality'),
+                                                               address.get('addressRegion'), country)))
+            except (requests.RequestException, StopIteration, ValueError, AttributeError) as exc:
+                errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
+        self.add(list(rows.values()))
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
+    def collect_jposting(self):
+        """A jposting (NSD Jobsuite) board: its public HAL JSON list, then pages.
+
+        Added for Kioxia and Sony Semiconductor Manufacturing on 2026-10-11. The
+        list (`jobs.phtml?job_list=1`, asked with the board's own page as
+        Referer, as its browser does) gives every opening with its place and
+        description; the requirements (「応募資格」) are only on the posting's
+        page, served in EUC-JP, which is read for titles worth it.
+        """
+        from .job_details import candidate
+        self.etag = self.last_modified = None
+        self.validator = False
+        rules = jsearch.load_plan()[0]['filter']
+        fields = self.source.fields
+        self.session.headers['Referer'] = fields['board']
+        data = self.fetch(query_url(self.source.access_url, job_list=1) +
+                          '&job_items[]=location&job_items[]=description').json()
+        categories = (data.get('_embedded') or {}).get('job_category') if isinstance(data, dict) else None
+        if not isinstance(categories, dict):
+            raise ValueError('Unexpected jposting job list schema')
+        country = fields.get('country', 'Japan')
+        items, errors = [], []
+        for category in categories.values():
+            for job in ((category.get('_embedded') or {}).get('job') or {}).values():
+                if not isinstance(job, dict) or not present(job.get('id')):
+                    self.rejected.append({'reason': 'jposting job has no id', 'raw': job})
+                    continue
+                place = re.sub(r'^[\s【][^】]*】\s*|^[\s◆●■・]+', '', str(job.get('location') or '')).split('\n')[0]
+                place = re.sub(r'^[◆●■・\s]+', '', place).strip()
+                item = {'id': str(job['id']), 'title': job.get('name'),
+                        'url': fields['detail'] + str(job['id']),
+                        'location': ', '.join(filter(None, (place[:60], country))),
+                        'description': job.get('description') or '',
+                        'category': category.get('name')}
+                if candidate({'title': item['title'] or ''}, rules):
+                    try:
+                        page = self.fetch(item['url'])
+                        page.encoding = fields.get('encoding', 'euc-jp')
+                        text = BeautifulSoup(page.text, 'html.parser').get_text('\n', strip=True)
+                        if '応募資格' not in text:
+                            raise ValueError('jposting page has no 応募資格')
+                        item['description'] = text[text.find('応募資格'):]
+                        item['description'] = (job.get('description') or '') + '\n\n' + item['description']
+                    except (requests.RequestException, ValueError) as exc:
+                        errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
+                items.append(item)
+        self.add(items)
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
     def collect_html(self):
         source = self.source
         url = source.access_url
@@ -1010,6 +1117,10 @@ class Collector:
                 return self.collect_bamboohr()
             if self.source.provider_key == 'talentio':
                 return self.collect_talentio()
+            if self.source.provider_key == 'hrmos':
+                return self.collect_hrmos()
+            if self.source.provider_key == 'jposting':
+                return self.collect_jposting()
             if self.source.provider_key == 'ti_careers':
                 r = self.fetch(self.source.access_url)
                 base = BeautifulSoup(r.text, 'html.parser').select_one('base[data-apibaseurl]')
@@ -1162,6 +1273,7 @@ def main():
     p.add_argument('--jsearch-query', help='Run one positive phrase instead of the functional catalog')
     p.add_argument('--jsearch-pages', type=int, default=None, help='Pages for --jsearch-query only; default 1, maximum 20')
     p.add_argument('--date-posted', choices=['all', 'today', '3days', 'week', 'month'], help='Temporary JSearch time window; does not edit configuration')
+    p.add_argument('--jsearch-country', choices=['us', 'jp'], help='Temporary JSearch country, as the Japan sweep uses; does not edit configuration')
     p.add_argument('--jsearch-plan', action='store_true', help='Print the fixed plan without making requests')
     p.add_argument('--ignore-daily-limit', action='store_true',
                    help='Run now with a full run budget, whatever this budget day already spent; '
@@ -1211,6 +1323,8 @@ def main():
             p.error('--backfill requires durable storage; it cannot be combined with --no-store')
     if args.date_posted:
         settings['date_posted'] = args.date_posted
+    if args.jsearch_country:
+        settings['country'] = args.jsearch_country
     enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0 or args.backfill
     run_budget = min(args.jsearch_budget or settings['daily_budget'], settings['daily_budget']) if enabled else 0
     if not args.db.exists() and (args.jsearch_plan or not args.store):

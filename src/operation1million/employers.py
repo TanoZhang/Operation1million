@@ -45,6 +45,9 @@ GROUPS = (
     ('EdgeCortix', ('EdgeCortix Inc.',)), ('Preferred Networks', ('PFN', 'Preferred Networks, Inc.')),
     ('TSMC', ('Taiwan Semiconductor Manufacturing Company', 'Taiwan Semiconductor Manufacturing',
               'TSMC Design Technology Japan')),
+    ('Toshiba', ('株式会社東芝', 'Toshiba Electronic Devices & Storage', '東芝デバイス＆ストレージ')),
+    ('Kioxia', ('キオクシア', 'KIOXIA Corporation')),
+    ('Sony Semiconductor Manufacturing', ('ソニーセミコンダクタマニュファクチャリング',)),
 )
 
 

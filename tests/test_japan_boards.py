@@ -79,6 +79,55 @@ class JapanBoardTests(unittest.TestCase):
         self.assertIn('応募資格（歓迎）', description)
         self.assertIsNone(experience.evaluate(job['title'], description)['required_experience_years'])
 
+    def test_hrmos_pages_until_empty_and_reads_a_likely_posting(self):
+        source = Source('hrmos:example', 'company_sources', 'toshiba', 'Toshiba', 'hrmos',
+                        'https://hrmos.co/pages/example/jobs', {'country': 'Japan'})
+        c, asked = self.collector(source, {'?page=1': 'hrmos_list_redacted.html',
+                                           '?page=2': 'hrmos_empty_redacted.html',
+                                           '/jobs/300000016': 'hrmos_detail_redacted.html'})
+        self.assertEqual(c.run(), ('complete', ''))
+        jobs = {job['source_job_id']: job for job in c.jobs}
+        self.assertEqual(set(jobs), {'300000016', '000600001'})
+        chip = jobs['300000016']
+        self.assertEqual(chip['title'], 'AT-N1【神奈川】マイコン・システム LSIのデジタル設計エンジニア')
+        self.assertEqual(chip['location'], '川崎市幸区, 神奈川県, Japan')
+        self.assertEqual(experience.evaluate(chip['title'], chip['raw']['description'])['required_experience_years'], 3)
+        # Accounting is listed but not worth a detail request.
+        self.assertNotIn('https://hrmos.co/pages/example/jobs/000600001', asked)
+        self.assertEqual(jobs['000600001']['location'], '首都圏, Japan')
+
+    def test_jposting_lists_from_json_and_reads_requirements_from_the_page(self):
+        source = Source('jposting:example', 'company_sources', 'kioxia', 'Kioxia', 'jposting',
+                        'https://api.example.com/example/u/jobs.phtml',
+                        {'board': 'https://example.jposting.net/joblist/',
+                         'detail': 'https://example.jposting.net/u/job.phtml?job_code=',
+                         'encoding': 'euc-jp', 'country': 'Japan'})
+        detail = (FIXTURES / 'jposting_detail_redacted.html').read_bytes()
+
+        class Page:
+            encoding = None
+            @property
+            def text(self):
+                return detail.decode(self.encoding or 'latin-1')
+
+        c, asked = self.collector(source, {})
+
+        def fetch(url, *unused):
+            asked.append(url)
+            if 'jobs.phtml' in url:
+                return Response(text=fixture('jposting_list_redacted.json'))
+            return Page()
+        c.fetch = fetch
+        self.assertEqual(c.run(), ('complete', ''))
+        self.assertEqual(c.session.headers['Referer'], 'https://example.jposting.net/joblist/')
+        self.assertIn('job_items%5B%5D=description', asked[0].replace('[]', '%5B%5D'))
+        jobs = {job['source_job_id']: job for job in c.jobs}
+        chip = jobs['786']
+        self.assertEqual(chip['url'], 'https://example.jposting.net/u/job.phtml?job_code=786')
+        self.assertTrue(location.in_asia_tab(chip['location']))
+        self.assertEqual(experience.evaluate(chip['title'], chip['raw']['description'])['required_experience_years'], 5)
+        self.assertNotIn('https://example.jposting.net/u/job.phtml?job_code=880', asked)
+
     def test_a_talentio_home_listing_nothing_is_partial(self):
         source = Source('talentio:example', 'company_sources', 'preferred_networks', 'Preferred Networks',
                         'talentio', 'https://open.talentio.com/r/1/c/example',

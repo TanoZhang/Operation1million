@@ -1,0 +1,51 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://example.jposting.net/u/jobs.phtml"
+  }
+ },
+ "id": "/jobs",
+ "name": "Job Page List of ",
+ "author": "jobsuite:example",
+ "rights": "NSD Digital Solutions Co., Ltd.",
+ "api_version": "1.0",
+ "_embedded": {
+  "job_category": {
+   "job_category/21": {
+    "id": "21",
+    "name": "製品開発・回路設計",
+    "_embedded": {
+     "job": {
+      "job/786": {
+       "id": "786",
+       "is_new": false,
+       "name": "NANDコントローラLSI(SoC)の高速デジタル回路設計・検証_K2620",
+       "description": "【お任せする業務】\nSoCのRTL設計と検証。",
+       "location": "【Web面接実施中】\r\n◆横浜テクノロジーキャンパス（神奈川県横浜市栄区）\r\n・JR大船駅徒歩7分",
+       "job_tags": {
+        "2": "横浜テクノロジーキャンパス",
+        "21": "製品開発・回路設計"
+       }
+      }
+     }
+    }
+   },
+   "job_category/9": {
+    "id": "9",
+    "name": "管理系",
+    "_embedded": {
+     "job": {
+      "job/880": {
+       "id": "880",
+       "is_new": false,
+       "name": "経理（決算・内部統制）_Y2661",
+       "description": "経理業務。",
+       "location": "●四日市工場（三重県四日市市）",
+       "job_tags": {}
+      }
+     }
+    }
+   }
+  }
+ }
+}

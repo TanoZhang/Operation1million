@@ -39,8 +39,20 @@ U.S. a month back.
   such as 「応募資格（歓迎）」 now read as Preferred (PFN's 8 years is preferred).
 - Live after c79a7b7 and a rescore: the Japan / China tab held 67 related
   groups (16 in Japan, 19 early career) before the new boards.
-- Not collected: Sony (jposting), Kioxia, Socionext, DNP (マイナビ) -- new
-  graduate portals behind registration; their 2027 rounds are mostly closed.
+- Also collected (migration 010): Toshiba on HRMOS (`collect_hrmos`: list
+  pages `?page=N` until empty, h2 title, tags; JSON-LD of likely postings) --
+  its Device & Storage chip roles (AT-N1 digital LSI design, AT-L1, AT-E2 EDA)
+  are on it; Kioxia and Sony Semiconductor Manufacturing on jposting
+  (`collect_jposting`: the public HAL JSON list with descriptions, asked with
+  the board page as Referer as its browser does; 「応募資格」 only on the EUC-JP
+  posting page, read for likely titles). No-store: Kioxia 125, Toshiba 210,
+  Sony SCK 17, all complete; kept by the filters 26, 117, 8.
+- Not collected, and why: Socionext's server refuses Python's TLS handshake
+  (would need lowered security); Sony Group, Epson and Toshiba Device &
+  Storage answer 403 to the collector; Sony Semiconductor Solutions' own
+  board was not found; new-graduate portals (i-web for Kioxia 2027/2028,
+  マイナビ for DNP LSI Design and Megachips, axol for Rapidus) require a
+  login. `--jsearch-country jp` lets a paid diagnostic search Japan.
 
 # Muse merge 7 and a Gmail run - 2026-10-11 (claude)
 
