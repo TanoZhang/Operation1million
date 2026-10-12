@@ -483,6 +483,16 @@ def japanese_as_english(text):
     """
     if not re.search('[぀-ヿ一-鿿]', text):
         return text
+    # A section heading on its own line is a heading in English too: PFN's
+    # "Preferred Qualifications / 応募資格（歓迎）" over an "8年以上" that is not
+    # required, and 「必須要件」 over one that is.
+    def heading(found):
+        line = found.group(0)
+        if re.search('歓迎|尚可', line):
+            return 'Preferred qualifications'
+        return 'Required qualifications'
+    text = re.sub(r'(?m)^[ \t【■●◆\[]*[^\n]{0,30}(?:(?:応募資格|要件|資格|スキル|条件)[^\n]{0,4}(?:必須|歓迎|尚可)'
+                  r'|(?:必須|歓迎|尚可)[^\n]{0,4}(?:要件|資格|スキル|条件|経験))[^\n]{0,4}$', heading, text)
     text = re.sub(r'(\d{1,2})\s*年以上', r' \1+ years ', text)
     text = re.sub('(?:実務|業務|職務)?経験', ' experience ', text)
     text = re.sub('必須', ' required ', text)

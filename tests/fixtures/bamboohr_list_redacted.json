@@ -1,0 +1,47 @@
+{
+ "meta": {
+  "totalCount": 2
+ },
+ "result": [
+  {
+   "id": "25",
+   "jobOpeningName": "[Japan] Design Verification Engineer",
+   "departmentId": "1",
+   "departmentLabel": "Engineering",
+   "employmentStatusLabel": "Full-Time",
+   "employmentType": null,
+   "location": {
+    "city": "Kawasaki",
+    "state": "Kanagawa"
+   },
+   "atsLocation": {
+    "country": null,
+    "state": null,
+    "province": null,
+    "city": null
+   },
+   "isRemote": null,
+   "locationType": "0"
+  },
+  {
+   "id": "33",
+   "jobOpeningName": "[India] Design Verification Engineer",
+   "departmentId": "1",
+   "departmentLabel": "Engineering",
+   "employmentStatusLabel": "Full-Time",
+   "employmentType": null,
+   "location": {
+    "city": "Example City",
+    "state": "Telangana"
+   },
+   "atsLocation": {
+    "country": null,
+    "state": null,
+    "province": null,
+    "city": null
+   },
+   "isRemote": null,
+   "locationType": "0"
+  }
+ ]
+}

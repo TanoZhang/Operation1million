@@ -22,7 +22,7 @@ from .paths import CONFIG, DATA, DB, ROOT
 MIGRATION = CONFIG / 'migrations/002_job_store.sql'
 # Applied after it, each once, as `catalog_migrations` records.
 LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass')
-SOURCE_MIGRATIONS = ('007_sandisk_avature', '008_amazon_partition')
+SOURCE_MIGRATIONS = ('007_sandisk_avature', '008_amazon_partition', '009_japan_direct_sources')
 
 # Boards whose listing is strictly newest-first, verified by sampling offsets
 # across the whole result set. Only these may stop paginating early; a board

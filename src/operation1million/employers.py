@@ -41,6 +41,10 @@ GROUPS = (
     ('Two Sigma', ('Two Sigma Investments',)), ('GE HealthCare', ()),
     ('IBM', ('International Business Machines',)),
     ('Skyworks', ('Skyworks Solutions',)), ('Zipline', ()),
+    # Japan's chip boards (2026-10-11).
+    ('EdgeCortix', ('EdgeCortix Inc.',)), ('Preferred Networks', ('PFN', 'Preferred Networks, Inc.')),
+    ('TSMC', ('Taiwan Semiconductor Manufacturing Company', 'Taiwan Semiconductor Manufacturing',
+              'TSMC Design Technology Japan')),
 )
 
 

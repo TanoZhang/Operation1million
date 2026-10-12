@@ -27,3 +27,14 @@ categories summing to 22,338 while `hits` stayed 10,000). Jobs without a
 category are filed under `no-business-category`, and their own
 `business_category` field carries that string. Counts and job values are
 synthetic.
+
+Japan boards, captured 2026-10-11 UTC (originals ignored in `.local/jp-capture/`):
+
+| Redacted fixture | Captured public request | Preserved observation |
+| --- | --- | --- |
+| `bamboohr_list_redacted.json` | `https://edgecortix.bamboohr.com/careers/list` | `result[]` with string `id`, `jobOpeningName` prefixed "[Japan]"/"[India]", `location.city/state` and an empty `atsLocation` |
+| `bamboohr_detail_redacted.json` | `https://edgecortix.bamboohr.com/careers/<id>/detail` | `result.jobOpening.description` (HTML) and `datePosted` |
+| `talentio_home_redacted.html` | `https://open.talentio.com/r/1/c/preferred/homes/4679` | `data-react-props` JSON whose nested postings carry `name` and a `/pages/<id>` `publishedUrl` |
+| `talentio_page_redacted.html` | `https://open.talentio.com/r/1/c/preferred/pages/88336` | `recruitmentOpenPage.requisitionDetails[]` of `name`/`value`, required and preferred qualifications under their own names, and a location value written as a bracketed list string |
+| `tsmc_sitemap_redacted.xml` | `https://careers.tsmc.com/en_US/careers/sitemap.xml` | Each English JobDetail URL listed twice, beside other locales' copies and non-posting pages |
+| `tsmc_detail_redacted.html` | `https://careers.tsmc.com/en_US/careers/JobDetail/Physical-Design-Engineer-Taiwan/248` | No `h1`: the title is in `<title>` and JSON-LD; the place is one `Location` field ("Japan-Yokohama" on Yokohama pages) |

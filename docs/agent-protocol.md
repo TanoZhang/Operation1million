@@ -10,14 +10,18 @@ Scope: User request (2026-10-11): Japanese titles and descriptions read by the
        filters; Japan and China (with Hong Kong and Macau) on a Review tab of
        their own with the same filters and order; Taiwan no longer wanted; the
        closing JSearch sweep searches Japan (30 days) instead of the U.S.
-Files: data/config/jsearch_queries.toml, src/operation1million/{location,
+Files: data/config/{jsearch_queries.toml,schema.sql,migrations/009_japan_direct_sources.sql},
+       src/operation1million/{location,collector,store,employers,
        ranking,experience,applications,review,jsearch,collector}.py,
        review_static/{app.js,index.html}, tests/{test_japanese_postings (new),
        test_location,test_review_rules,test_review_payload,test_jsearch}.py,
        docs/{agent-protocol,handoff,jsearch,application-review}.md
 Base commit: ceb5583
-Status: active
-Next: Direct Japan sources (EdgeCortix BambooHR, PFN Talentio, TSMC Avature).
+Status: done -- c79a7b7 installed and rescored; Japan boards (EdgeCortix,
+        PFN, TSMC) committed with migration 009. Full suite 1,297 run, 13
+        skipped, all pass (Windows).
+Next: Check the 2026-10-12 pass reads the three boards, and the 10-13..15
+      sweep spends in Japan.
 ```
 
 ```text

@@ -318,6 +318,34 @@ class CollectionTests(unittest.TestCase):
         self.assertIn('VLSI', c.jobs[0]['raw']['description'])
         self.assertEqual(len(asked), 2)
 
+    def test_tsmc_page_without_h1_is_read_once_with_its_location(self):
+        """TSMC, 2026-10-11: no h1 on its Taiwan template, every English page
+        listed twice, and the place in one Location field."""
+        fixtures = Path(__file__).parent / 'fixtures'
+        sitemap = (fixtures / 'tsmc_sitemap_redacted.xml').read_bytes()
+        detail = (fixtures / 'tsmc_detail_redacted.html').read_bytes()
+        source = Source('avature:careers.example.com', 'company_sources', 'tsmc', 'TSMC', 'avature',
+                        'https://careers.example.com/en_US/careers/sitemap.xml',
+                        {'sitemap_job_path': '/en_US/careers/JobDetail/', 'max_pages': 1200})
+        args = self.args()
+        args.max_pages = 1
+        c = Collector(source, args)
+        asked = []
+
+        def fetch(url, *unused):
+            asked.append(url)
+            body = sitemap if url == source.access_url else detail
+            return SimpleNamespace(content=body, text=body.decode('utf-8'), url=url)
+
+        c.fetch = fetch
+        # The catalog row's max_pages, not --max-pages, bounds the detail reads.
+        self.assertEqual(c.run(), ('complete', ''))
+        self.assertEqual(len(asked), 2)
+        [job] = c.jobs
+        self.assertEqual(job['title'], 'Example Physical Design Engineer')
+        self.assertEqual(job['location'], 'Japan-Yokohama')
+        self.assertEqual(job['source_job_id'], '13457')
+
     def test_sandisk_page_cap_cannot_claim_sitemap_complete(self):
         sitemap = (Path(__file__).parent / 'fixtures/sandisk_sitemap_redacted.xml').read_bytes()
         source = Source('avature:avature.sandisk.com', 'company_sources',
@@ -656,7 +684,12 @@ class CollectionTests(unittest.TestCase):
         con=sqlite3.connect(':memory:');sql=(CONFIG/'schema.sql').read_text(encoding='utf-8')
         con.executescript(sql);con.executescript(sql)
         keys={r[0] for r in con.execute('select company_key from companies')}
-        self.assertEqual(len(keys),45)
+        # Three Japan boards added 2026-10-11: EdgeCortix, Preferred Networks
+        # and TSMC (back for its Yokohama design centre).
+        self.assertEqual(len(keys),48)
+        self.assertEqual(dict(con.execute('select company_key, provider_key from company_sources where company_key in '
+                                          "('edgecortix','preferred_networks','tsmc')")),
+                         {'edgecortix': 'bamboohr', 'preferred_networks': 'talentio', 'tsmc': 'avature'})
         # Added 2026-10-03 at the user's request, on boards this collector reads.
         added = dict(con.execute('select company_key, provider_key from company_sources where company_key in '
                                  "('anthropic','xai','sambanova','openai','d_matrix','quadric','kla',"
@@ -670,7 +703,7 @@ class CollectionTests(unittest.TestCase):
             'advantest', 'maxlinear', 'omnivision', 'infineon', 'achronix',
             'nexperia', 'nokia', 'semtech', 'onsemi', 'akeana',
             'microchip_technology', 'psiquantum', 'analog_devices', 'celestica',
-            'tsmc', 'rambus', 'ventana_micro',
+            'rambus', 'ventana_micro',
         })
         self.assertEqual(con.execute('pragma foreign_key_check').fetchall(),[])
         self.assertEqual(con.execute("select provider_key from company_sources where company_key='amd'").fetchone()[0], 'amd_careers')

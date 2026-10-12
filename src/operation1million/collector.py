@@ -230,6 +230,31 @@ def normalize(source, item):
     return dict(zip(FIELDS, [source.company_key, source.company_name, p, title, location_text(location), str(url), str(ident) if ident is not None else None, posted, item]))
 
 
+def talentio_props(text):
+    """The React props a Talentio open page carries in `data-react-props`."""
+    tag = BeautifulSoup(text, 'html.parser').select_one('[data-react-props]')
+    if tag is None:
+        raise ValueError('Talentio page has no React props')
+    props = json.loads(tag['data-react-props'])
+    if not isinstance(props, dict):
+        raise ValueError('Unexpected Talentio props')
+    return props
+
+
+def talentio_pages(props):
+    """Every posting a Talentio home lists: objects naming a `/pages/` URL."""
+    if isinstance(props, dict):
+        url = props.get('publishedUrl')
+        if isinstance(url, str) and '/pages/' in url and isinstance(props.get('name'), str):
+            yield {'publishedUrl': url, 'name': props['name']}
+            return
+        for value in props.values():
+            yield from talentio_pages(value)
+    elif isinstance(props, list):
+        for value in props:
+            yield from talentio_pages(value)
+
+
 def jsonld(soup):
     def walk(data):
         if isinstance(data, list):
@@ -662,6 +687,86 @@ class Collector:
                            'business categories, but categories absent from the global list '
                            'cannot be ruled out')
 
+    def collect_bamboohr(self):
+        """A BambooHR careers board: its public list, then each opening's detail.
+
+        Added for EdgeCortix (Kawasaki) on 2026-10-11, the user wanting Japan's
+        chip boards read directly. `/careers/list` names every opening with its
+        city and state only, so a title's own "[Japan]" or "[India]" stands in
+        for the country it leaves out; `/careers/<id>/detail` has the text.
+        """
+        # Neither response describes the board as a whole; keep no validator.
+        self.etag = self.last_modified = None
+        self.validator = False
+        base = self.source.access_url.rstrip('/')
+        data = self.fetch(base + '/list').json()
+        rows = data.get('result') if isinstance(data, dict) else None
+        if not isinstance(rows, list):
+            raise ValueError('Unexpected BambooHR careers JSON schema')
+        items, errors = [], []
+        for row in rows:
+            if not isinstance(row, dict) or not present(row.get('id')):
+                self.rejected.append({'reason': 'BambooHR opening has no id', 'raw': row})
+                continue
+            place = row.get('location') if isinstance(row.get('location'), dict) else {}
+            ats = row.get('atsLocation') if isinstance(row.get('atsLocation'), dict) else {}
+            named = re.match(r'\s*\[([^\]]+)\]', str(row.get('jobOpeningName') or ''))
+            country = ats.get('country') or (named.group(1) if named else None)
+            item = dict(row, id=str(row['id']), title=row.get('jobOpeningName'),
+                        url=f"{base}/{row['id']}",
+                        location=', '.join(str(part) for part in
+                                           (place.get('city'), place.get('state'), country) if part))
+            try:
+                opening = self.fetch(f"{base}/{row['id']}/detail").json()['result']['jobOpening']
+                item['description'] = opening.get('description') or ''
+                item['datePosted'] = opening.get('datePosted')
+            except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+                errors.append(f"{row['id']}: {type(exc).__name__}: {exc}")
+            items.append(item)
+        self.add(items)
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
+    def collect_talentio(self):
+        """Talentio open pages: each configured home's postings, then each page.
+
+        Added for Preferred Networks on 2026-10-11 (homes for experienced hires
+        and for new graduates). Both pages carry their data as React props, a
+        JSON object in an HTML attribute; the posting's requirement sections
+        are joined under their own headings, so 「応募資格（歓迎）」 reads as
+        preferred and 「応募資格（必須）」 as required.
+        """
+        self.etag = self.last_modified = None
+        self.validator = False
+        pages = {}
+        for home in self.source.fields['homes']:
+            props = talentio_props(self.fetch(home).text)
+            for found in talentio_pages(props):
+                pages.setdefault(found['publishedUrl'], found['name'])
+        if not pages:
+            return 'partial', 'Talentio homes listed no postings'
+        items, errors = [], []
+        for url, name in pages.items():
+            item = {'id': url.rstrip('/').rsplit('/', 1)[-1], 'title': name, 'url': url,
+                    'location': self.source.fields.get('location', '')}
+            try:
+                page = talentio_props(self.fetch(url).text)['recruitmentOpenPage']
+                details = [entry for entry in page.get('requisitionDetails') or []
+                           if isinstance(entry, dict) and entry.get('value')]
+                item['description'] = '\n\n'.join(f"{entry.get('name', '')}\n{entry['value']}"
+                                                  for entry in details)
+                for entry in details:
+                    if re.search(r'location|勤務地', str(entry.get('name')), re.I):
+                        item['location'] = re.sub(r"^\[\s*'|'\s*\]$", '', str(entry['value'])).strip()
+            except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+                errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
+            items.append(item)
+        self.add(items)
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
     def collect_html(self):
         source = self.source
         url = source.access_url
@@ -740,6 +845,8 @@ class Collector:
                     and re.search(r'/\d+/?$', urlsplit(u).path)]
             if not urls:
                 return 'partial', 'Sitemap listed no numbered posting URLs'
+            # TSMC's sitemap lists each English page twice (2026-10-11); read once.
+            urls = list({u: m for u, m in reversed(urls)}.items())[::-1]
         # Every advertised URL is still live even where the detail fetch is skipped.
         self.listed = {u for u, _ in urls}
         advertised = len(urls)
@@ -765,7 +872,10 @@ class Collector:
         # refetch its known rows too, rather than hiding interrupted updates.
         skipped = advertised - len(urls)
         errors = []
-        detail_limit = min(self.max_jobs, self.args.max_pages - 1) if job_path else self.max_jobs
+        # A board may need more detail pages than --max-pages allows: TSMC lists
+        # 751 postings (2026-10-11), each its own page. Its catalog row says so.
+        pages_cap = int(self.source.fields.get('max_pages', self.args.max_pages))
+        detail_limit = min(self.max_jobs, pages_cap - 1) if job_path else self.max_jobs
         for url, lastmod in urls[:detail_limit]:
             try:
                 detail = self.fetch(url)
@@ -775,9 +885,14 @@ class Collector:
                 items = list(jsonld(soup))
                 if job_path:
                     h = soup.select_one('h1')
-                    if not h:
+                    # TSMC's Taiwan template has no h1 at all, only the page
+                    # title (Physical Design Engineer (Taiwan), 248, 2026-10-11);
+                    # its Yokohama one has both. The JSON-LD title, then.
+                    title = (h.get_text(' ', strip=True) if h
+                             else clean((items[0].get('title') if items else '')
+                                        or (soup.title.get_text(' ', strip=True) if soup.title else '')))
+                    if not title:
                         raise ValueError('Sitemap posting has no visible title')
-                    title = h.get_text(' ', strip=True)
                     fields = {}
                     for field in soup.select('.article__content__view__field'):
                         label = field.select_one('.article__content__view__field__label')
@@ -787,13 +902,16 @@ class Collector:
                     body = soup.select_one('main, [role=main]')
                     if not body:
                         raise ValueError('Sitemap posting has no readable body')
-                    if items and clean(items[0].get('title')) != title:
+                    if h and items and items[0].get('title') and clean(items[0].get('title')) != title:
                         raise ValueError('Sitemap posting title disagrees with JSON-LD')
                     item = items[0] if items else {}
+                    # SanDisk labels City and Country/Region; TSMC one Location
+                    # ("Japan-Yokohama").
                     item.update(title=title, url=url,
                                 source_job_id=html_job_id(url, self.source.provider_key),
                                 location=', '.join(filter(None,
-                                    (fields.get('City'), fields.get('Country/Region')))),
+                                    (fields.get('City'), fields.get('Country/Region'))))
+                                         or fields.get('Location', ''),
                                 description=body.get_text('\n', strip=True))
                     items = [item]
                 if not items:
@@ -888,6 +1006,10 @@ class Collector:
                                            (item.get('site'), item.get('country')) if part)))
                 self.add(prepared)
                 return ('partial', 'Job cap reached') if len(items) > self.max_jobs else ('complete', '')
+            if self.source.provider_key == 'bamboohr':
+                return self.collect_bamboohr()
+            if self.source.provider_key == 'talentio':
+                return self.collect_talentio()
             if self.source.provider_key == 'ti_careers':
                 r = self.fetch(self.source.access_url)
                 base = BeautifulSoup(r.text, 'html.parser').select_one('base[data-apibaseurl]')

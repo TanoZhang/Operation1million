@@ -24,12 +24,23 @@ U.S. a month back.
 - Sweep: `backfill_country = "jp"` and 27 `[[sweep_query]]` phrases (Japanese
   and English) at their tier's backfill depth (1,560 pages of caps); the
   daily U.S. pass is unchanged. It first runs October 13-15 UTC.
-- Direct Japan boards found (not yet collected): EdgeCortix on BambooHR
-  (`/careers/list` JSON: Kawasaki DV, Accelerator IP ASIC/RTL, Internship),
-  PFN on Talentio (MN-Core ASIC front end, 2027 new graduates), TSMC on
-  Avature (sitemap; Japan-Yokohama design centre roles incl. New Graduates);
-  TSMC was removed from the catalog by the user on 2026-09-16. Renesas Japan
-  (171 open) and Micron Japan (234) are already collected.
+- Direct Japan boards, now collected (migration 009): EdgeCortix on BambooHR
+  (`collect_bamboohr`: `/careers/list`, then `/careers/<id>/detail`; the
+  title's "[Japan]" supplies the country), Preferred Networks on Talentio
+  (`collect_talentio`: React props of each configured home, then each page;
+  requirement sections keep their own headings), TSMC on Avature (its
+  sitemap; pages without an h1 take the JSON-LD or page title, the place from
+  a `Location` field, each URL read once, and the row's `max_pages: 1200`
+  lets all ~751 detail pages be read). TSMC was removed by the user on
+  2026-09-16 and is back for its Yokohama design centre, at the user's
+  request to widen Japan's boards. No-store trials here: EdgeCortix 19 and
+  PFN 46, both complete; TSMC 30 under a 30-job cap, parsed. Renesas Japan
+  (171 open) and Micron Japan (234) were already collected. Japanese headings
+  such as 「応募資格（歓迎）」 now read as Preferred (PFN's 8 years is preferred).
+- Live after c79a7b7 and a rescore: the Japan / China tab held 67 related
+  groups (16 in Japan, 19 early career) before the new boards.
+- Not collected: Sony (jposting), Kioxia, Socionext, DNP (マイナビ) -- new
+  graduate portals behind registration; their 2027 rounds are mostly closed.
 
 # Muse merge 7 and a Gmail run - 2026-10-11 (claude)
 

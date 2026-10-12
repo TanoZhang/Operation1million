@@ -1,0 +1,17 @@
+{
+ "meta": {},
+ "result": {
+  "jobOpening": {
+   "jobOpeningShareUrl": "https://example.bamboohr.com/careers/25",
+   "jobOpeningName": "[Japan] Design Verification Engineer",
+   "jobOpeningStatus": "Open",
+   "description": "<p><strong>Requirements</strong></p><ul><li>Experience with SystemVerilog and UVM</li></ul>",
+   "datePosted": "2026-09-01",
+   "minimumExperience": null,
+   "location": {
+    "city": "Kawasaki",
+    "state": "Kanagawa"
+   }
+  }
+ }
+}

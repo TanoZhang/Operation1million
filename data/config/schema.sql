@@ -112,7 +112,12 @@ VALUES
     ('synopsys', 'Synopsys, Inc.'),
     ('tenstorrent', 'Tenstorrent Inc.'),
     ('teradyne', 'Teradyne, Inc.'),
-    ('texas_instruments', 'Texas Instruments Incorporated')
+    ('texas_instruments', 'Texas Instruments Incorporated'),
+    -- Japan's chip boards, read directly (the user, 2026-10-11). TSMC was
+    -- removed on 2026-09-16 and is back for its Yokohama design centre.
+    ('edgecortix', 'EdgeCortix'),
+    ('preferred_networks', 'Preferred Networks'),
+    ('tsmc', 'Taiwan Semiconductor Manufacturing Company')
 ON CONFLICT(company_key) DO UPDATE SET
     name = excluded.name;
 
@@ -141,7 +146,6 @@ WHERE company_key IN (
     'psiquantum',
     'analog_devices',
     'celestica',
-    'tsmc',
     'rambus',
     'ventana_micro'
 );
@@ -554,6 +558,36 @@ INSERT INTO company_sources (
     '{"career_domain":"jobs.teradyne.com","query":"","q2":"","title":"","location":"","department":"","facility":""}',
     1,
     'pending'
+),
+(
+    'bamboohr:edgecortix',
+    'edgecortix',
+    'bamboohr',
+    'edgecortix',
+    'https://edgecortix.bamboohr.com/careers',
+    '{"subdomain":"edgecortix"}',
+    1,
+    'verified'
+),
+(
+    'talentio:preferred',
+    'preferred_networks',
+    'talentio',
+    'preferred',
+    'https://open.talentio.com/r/1/c/preferred',
+    '{"homes":["https://open.talentio.com/r/1/c/preferred/homes/4678","https://open.talentio.com/r/1/c/preferred/homes/4679"],"location":"Tokyo, Japan"}',
+    1,
+    'verified'
+),
+(
+    'avature:careers.tsmc.com',
+    'tsmc',
+    'avature',
+    'careers.tsmc.com',
+    'https://careers.tsmc.com/en_US/careers/sitemap.xml',
+    '{"sitemap_job_path":"/en_US/careers/JobDetail/","max_pages":1200}',
+    1,
+    'verified'
 )
 ON CONFLICT(source_instance_id) DO UPDATE SET
     company_key = excluded.company_key,
