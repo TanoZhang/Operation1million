@@ -12,8 +12,10 @@ Scope: User request (2026-10-11): reach Review from a phone at no cost --
 Files: deploy/vps/{Caddyfile,review-password.sh} (new),
        tests/test_review_proxy.py (new), docs/{vps-deployment,agent-protocol,handoff}.md
 Base commit: f101396
-Status: done -- pushed; Caddy waits for the user's login (review-password.sh)
-Next: The user sets the login; then check 401 without it and the page with it.
+Status: done -- login set by the user 2026-10-11 23:59 UTC; Let's Encrypt
+        certificate to 2027-01-09; no password, a wrong one and /api/queue
+        all 401; http redirects 308 to https.
+Next: The user confirms the page opens on the phone with the right password.
 ```
 
 ```text
