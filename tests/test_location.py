@@ -87,14 +87,21 @@ class ReportedBugTests(unittest.TestCase):
 
 
 class AllowedAbroadTests(unittest.TestCase):
-    """The user (2026-10-08): the U.S., Japan, China and Taiwan all pass."""
+    """The user (2026-10-08): the U.S., Japan and China pass; Taiwan no longer
+    does (2026-10-11, "不要台湾")."""
 
-    def test_japan_china_and_taiwan_pass(self):
+    def test_japan_and_china_pass(self):
         for text in ('Hiroshima, Japan', 'Tokyo', 'JP, Kumamoto', 'Shanghai, China', 'CN, Shanghai',
-                     'Beijing', 'Taichung City, Taichung City, Taiwan', 'Hsinchu', 'TW, Zhubei',
-                     'Hong Kong', 'Tianjin (Weiwu)', 'Hsinchu City, Taiwan; Seoul, Korea, Republic of'):
+                     'Beijing', 'Hong Kong', 'Tianjin (Weiwu)'):
             with self.subTest(text=text):
                 self.assertFalse(outside_allowed(text))
+
+    def test_taiwan_is_outside_however_it_is_written(self):
+        for text in ('Taichung City, Taichung City, Taiwan', 'Hsinchu', 'TW, Zhubei',
+                     'Hsinchu City, Taiwan; Seoul, Korea, Republic of',
+                     'Taipei, Taiwan, Republic of China'):
+            with self.subTest(text=text):
+                self.assertTrue(outside_allowed(text))
 
     def test_elsewhere_abroad_is_still_outside(self):
         for text in ('IN, KA, Bengaluru', 'GB, London', 'Singapore, Singapore', 'Seoul, Korea, Republic of',

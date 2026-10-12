@@ -145,11 +145,14 @@ class ClientSourceContractTests(unittest.TestCase):
                       'the early career tab lists less related postings')
         self.assertIn("[['backlog', state.backlog.filter(experienced)]]", body,
                       'the backlog tab still lists less related postings')
-        self.assertIn("[['less', [...state.pending, ...state.backlog].filter(group => group.less_related)]]",
+        self.assertIn("[['less', [...state.pending, ...state.backlog].filter(group => group.less_related && home(group))]]",
                       body, 'less related postings have no tab of their own')
         render = script.split('function render() {')[1]
-        self.assertIn("$('#remaining').textContent = open.length;", render,
+        # Remaining counts the Japan / China tab's related postings too
+        # (2026-10-11), and still no less related ones.
+        self.assertIn("$('#remaining').textContent = open.length + asiaOpen.length;", render,
                       'Remaining still counts less related postings')
+        self.assertIn('const asiaRelated = group => group.asia && !group.less_related;', script)
         self.assertIn('const open = [...state.pending, ...state.backlog].filter(related);', script)
         self.assertIn('data-tab="less"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('less_related', review.GROUP_FIELDS)
@@ -164,12 +167,24 @@ class ClientSourceContractTests(unittest.TestCase):
         self.assertIn("[['recent', state.pending.filter(early)], ['backlog', state.backlog.filter(early)]]",
                       body, 'early career postings have no tab of their own')
         self.assertIn('const experienced = group => related(group) && !group.early_career;', script)
-        self.assertIn("$('#remaining').textContent = open.length;", script,
+        self.assertIn("$('#remaining').textContent = open.length + asiaOpen.length;", script,
                       'Remaining stops counting one of the two review tabs')
-        self.assertIn("['pending', 'early', 'backlog', 'less'].includes(tab)", script,
+        self.assertIn("['pending', 'early', 'backlog', 'less', 'asia'].includes(tab)", script,
                       'the early career tab cannot mark a posting applied or skipped')
         self.assertIn('data-tab="early"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('early_career', review.GROUP_FIELDS)
+
+    def test_japan_and_china_have_a_tab_of_their_own(self):
+        """Asked for on 2026-10-11: postings in Japan or China (with Hong Kong
+        and Macau) on one tab, with the same filters and order, and on no other tab."""
+        script = self.script()
+        body = script.split('function filtered() {')[1].split('\n}\n')[0]
+        self.assertIn('const related = group => !group.less_related && home(group);', script,
+                      'the U.S. tabs still list postings abroad')
+        self.assertIn("} else if (tab === 'asia') {", body)
+        self.assertIn("['less', open.filter(group => group.asia && group.less_related)]", body)
+        self.assertIn('data-tab="asia"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
+        self.assertIn('asia', review.GROUP_FIELDS)
 
     def test_the_backlog_tab_leaves_early_career_to_its_own_tab(self):
         """Asked for on 2026-09-26: an older intern / NG posting was on the

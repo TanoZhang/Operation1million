@@ -192,6 +192,24 @@ def _read_plan(path):
         queries.append(Query(text, pages, tier))
     if len({q.query.casefold() for q in queries}) != len(queries):
         raise ValueError('Duplicate JSearch query configuration')
+    # The cycle's closing sweep searches Japan instead of re-reading the U.S.
+    # a month back (the user, 2026-10-11): its own country, its own phrases,
+    # the same month window and the same guards. The daily pass is unchanged.
+    config.setdefault('backfill_country', 'us')
+    if config['backfill_country'] not in {'us', 'jp'}:
+        raise ValueError('backfill_country must be us or jp')
+    sweep = []
+    for row in config.get('sweep_query', []):
+        if not row.get('enabled', True):
+            continue
+        text = row.get('query', '').strip()
+        tier = row.get('tier', 'A')
+        if not text or tier not in config['backfill_tier_pages'] or re.search(r'(^|\s)-\w', text):
+            raise ValueError('Sweep queries require positive phrases and a backfill tier')
+        sweep.append(Query(text, config['backfill_tier_pages'][tier], tier))
+    if len({q.query.casefold() for q in sweep}) != len(sweep):
+        raise ValueError('Duplicate sweep query configuration')
+    config['sweep_queries'] = tuple(sweep)
     for budget in (config['daily_budget'], *config['cycle_daily_budget'].values()):
         validate_budget(queries, budget)
     # Caps may sum past the daily budget. Many queries reach their final cursor far

@@ -6,6 +6,22 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-11): Japanese titles and descriptions read by the
+       filters; Japan and China (with Hong Kong and Macau) on a Review tab of
+       their own with the same filters and order; Taiwan no longer wanted; the
+       closing JSearch sweep searches Japan (30 days) instead of the U.S.
+Files: data/config/jsearch_queries.toml, src/operation1million/{location,
+       ranking,experience,applications,review,jsearch,collector}.py,
+       review_static/{app.js,index.html}, tests/{test_japanese_postings (new),
+       test_location,test_review_rules,test_review_payload,test_jsearch}.py,
+       docs/{agent-protocol,handoff,jsearch,application-review}.md
+Base commit: ceb5583
+Status: active
+Next: Direct Japan sources (EdgeCortix BambooHR, PFN Talentio, TSMC Avature).
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-11): reach Review from a phone at no cost --
        Caddy with a sslip.io name, HTTPS and a password, in front of the
        unchanged loopback review server. The user approved exposing it.

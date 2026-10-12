@@ -301,23 +301,69 @@ def outside_us(location):
     return country(location) == 'foreign'
 
 
-# Abroad but wanted (the user, 2026-10-08): Japan, China with Hong Kong and
-# Macau, and Taiwan. The cities are the ones FOREIGN_CITIES lists there.
+# Abroad but wanted (the user, 2026-10-08): Japan, and China with Hong Kong
+# and Macau. Taiwan was wanted too until 2026-10-11 ("不要台湾"). The cities
+# are the ones FOREIGN_CITIES lists there.
 ALLOWED_ABROAD = (
-    'japan', 'china', "people's republic of china", 'taiwan', 'hong kong', 'macau', 'macao',
+    'japan', 'china', "people's republic of china", 'hong kong', 'macau', 'macao',
     'tokyo', 'osaka', 'yokohama', 'hiroshima', 'kyoto', 'nagoya', 'kumamoto',
     'shanghai', 'beijing', 'shenzhen', 'suzhou', 'nanjing', 'hangzhou', 'chengdu', 'wuhan',
     "xi'an", 'xian', 'guangzhou', 'dalian', 'hefei', 'tianjin', 'chongqing', 'wuxi', 'xiamen',
-    'taipei', 'new taipei', 'hsinchu', 'taichung', 'tainan', 'kaohsiung', 'zhubei', 'jubei', 'taoyuan',
 )
 # Not "mo" for Macau: it is Missouri.
-ALLOWED_CODES = {'jp', 'cn', 'tw', 'hk'}
+ALLOWED_CODES = {'jp', 'cn', 'hk'}
 _ALLOWED = _words(ALLOWED_ABROAD)
+# Taiwan is not wanted, even where it is written "Republic of China".
+_TAIWAN = _words(('taiwan', 'taipei', 'new taipei', 'hsinchu', 'taichung', 'tainan',
+                  'kaohsiung', 'zhubei', 'jubei', 'taoyuan'))
 
 
 def _allowed_part(text):
+    if _TAIWAN.search(text) or any(part.strip().lower() == 'tw' for part in text.split(',')):
+        return False
     return bool(_ALLOWED.search(text)) or any(
         part.strip().lower() in ALLOWED_CODES for part in text.split(','))
+
+
+# Japan on its own, for the Review tab of its own (the user, 2026-10-11).
+# Japanese boards often name only the city -- EdgeCortix "Kawasaki", Renesas
+# "Kodaira" and "Takasaki" -- or write it in Japanese: 「東京都」.
+JAPAN_PLACES = (
+    'japan', 'tokyo', 'osaka', 'yokohama', 'shin-yokohama', 'hiroshima', 'kyoto', 'nagoya',
+    'kumamoto', 'kawasaki', 'kanagawa', 'kodaira', 'takasaki', 'fukuoka', 'sendai',
+    'sapporo', 'kobe', 'tsukuba', 'kyushu', 'hitachinaka', 'yokkaichi', 'kitakami',
+    'musashi-kosugi', 'toyosu', 'oita', 'nagasaki', 'kitakyushu', 'saitama',
+)
+_JAPAN = _words(JAPAN_PLACES)
+# Kana, or a prefecture's own suffix: 東京都, 神奈川県, 大阪府, 北海道.
+_JAPANESE_PLACE = re.compile('[぀-ヿ]|[一-鿿](?:都|道|府|県)')
+
+
+def in_japan(location):
+    """Placed in Japan and nowhere in the U.S.; an unreadable place is not."""
+    if country(location) == 'us':
+        return False
+    text = _unaccented(str(location or ''))
+    for part in re.split(r'\s*[;|•]\s*|\s+/\s+', text):
+        if _JAPAN.search(part) or _JAPANESE_PLACE.search(part) or any(
+                piece.strip().lower() == 'jp' for piece in part.split(',')):
+            return True
+    return False
+
+
+def in_asia_tab(location):
+    """Japan, China with Hong Kong and Macau, or Taiwan, and nowhere in the U.S.
+
+    The user (2026-10-11): those postings are kept, on a Review tab of their
+    own with the same filters and ordering, instead of mixed into the U.S.
+    lists. A place this cannot read stays where it was.
+    """
+    if country(location) == 'us':
+        return False
+    if in_japan(location):
+        return True
+    text = _unaccented(str(location or ''))
+    return any(_allowed_part(part) for part in re.split(r'\s*[;|•]\s*|\s+/\s+', text) if part.strip())
 
 
 def outside_allowed(location):

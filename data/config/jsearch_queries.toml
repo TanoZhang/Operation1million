@@ -33,6 +33,10 @@ max_pages_per_query = 40
 # A backfill sweep spends credits that expire with the cycle, so it pages far
 # deeper than a daily pass before its own runaway guard binds.
 backfill_max_pages_per_query = 200
+# The closing sweep searches Japan (the user, 2026-10-11): the end-of-cycle
+# U.S. sweep that spent what the month left is cancelled, and that remainder
+# goes to the [[sweep_query]] phrases below in Japan, posted within 30 days.
+backfill_country = "jp"
 
 employment_types = ["FULLTIME", "INTERN"]
 
@@ -271,6 +275,13 @@ exclude_title_patterns = [
   '(?<!\btechnical\s)\bstaff\b(?!ing)',
   '^(?!.*\b(?:interns?|internships?|co-?ops?|new\s+(?:college\s+)?grad\w*|NCG|graduates?|entry[-\s]level|ic\s+engineers?)\b).*\barchitect\b',
   '\bexpert\b',
+  # The same levels in Japanese titles, and the Japan track's mid-career
+  # hiring (2026-10-11). No \b: a kana or kanji is a word character, so there
+  # is no boundary between it and the next.
+  'シニア', 'リーダー', 'マネージャ', '管理職', '課長', '部長', '主任', '主幹',
+  'エキスパート', '経験者(?:採用)?', 'キャリア採用', '中途(?:採用)?',
+  # Functions that are not the trade: sales, HR, accounting, legal.
+  '営業', '人事', '経理', '法務',
   # An MBA programme is open to MBA students, as a PhD one is to PhD
   # students: "MBA Internships" was on the Early career tab (2026-10-01).
   '\bMBA\b',
@@ -386,6 +397,10 @@ strong_terms = [
   '\bpost-?silicon\b', '\btape-?out\b', '\bbring-?up\b', '\bwafer\b',
   '(?<!azure\sai\s)(?<!\bai\s)(?<!azure\s)(?<!palantir\s)\bfoundry\b(?!\s+(?:local|iq|agents?|models?|portal|ontology)\b)',
   '\bTSMC\b',
+  # Japanese postings (2026-10-11): the trade's own words, as above.
+  '論理合成', '論理設計', 'デジタル回路', '機能検証', '物理設計', 'テープアウト',
+  'タイミング(?:解析|検証|設計)', 'ハードウェア記述言語', '(?<![A-Za-z])LSI(?![A-Za-z])',
+  '(?<![A-Za-z])(?:ASIC|RTL|FPGA)(?![A-Za-z])',
 ]
 
 # Relevant but ordinary English. Worth a point, never proof on its own.
@@ -395,6 +410,7 @@ common_terms = [
   '\bGPU\b', '\bNPU\b', '\baccelerator\b', '\bsemiconductor\b', '\bchip\b',
   '\bintegrated\s+circuit\b', '\bembedded\b', '\blow\s+power\b', '\bdebug\b',
   '\bsimulation\b',
+  '半導体', '検証', '設計', 'ハードウェア', 'プロセッサ', '回路',
 ]
 
 # Titles that settle the question on their own, before any scoring runs.
@@ -410,6 +426,13 @@ keep_title_patterns = [
   # Mixed-signal verification is the trade, as rejection_reason's docstring
   # says; only "design verification" was named (2026-09-27).
   '\b(?:ams|mixed[-\s]signal)\s+(?:design\s+)?verification\b',
+  # Japanese titles (2026-10-11): digital, logic, LSI, SoC, ASIC and FPGA
+  # design, functional and logic verification, physical design.
+  '(?:デジタル|論理|LSI|SoC|ASIC|FPGA)(?:回路)?設計', '(?:機能|論理|LSI|SoC|RTL)検証',
+  '物理設計', 'デジタル回路', '論理合成', '(?<![A-Za-z])LSI(?![A-Za-z])',
+  # \basic\b misses "ASICフロントエンド設計エンジニア" (PFN): no boundary
+  # between C and フ.
+  '(?<![A-Za-z])(?:ASIC|RTL|FPGA)(?![A-Za-z])',
 ]
 
 # Applied after explicit title keeps and before relevance scoring.
@@ -418,6 +441,9 @@ reject_title_patterns = [
   '\bpower\s+electronics\b', '\bprocess\s+engineer\b',
   '\bmanufacturing\s+engineer\b', '\byield\s+engineer\b',
   '\brecruit', '\bquality\s+engineer\b',
+  # The same in Japanese titles: analog, process, manufacturing, quality,
+  # board design and yield.
+  'アナログ', 'プロセス(?:エンジニア|技術|開発)', '製造', '品質', '基板設計', '歩留',
   # The plural too, "Field Applications Engineer", and its initials (2026-09-27).
   '\bfield\s+applications?\b', '\bFAE\b', '\bclinical\b',
   '\bpharmaceutic', '\bbiolog', '\bmechanical\s+engineer\b',
@@ -606,6 +632,8 @@ hardware_title_terms = [
   # Not subjects, but at the companies this collects from a "Product
   # Validation" or "Product Engineer - Verification" title is silicon work.
   '\bvalidation\b', '\bverification\b',
+  '半導体', '回路', 'チップ', 'プロセッサ', 'メモリ', 'ハードウェア', '組込', 'ファームウェア',
+  '(?<![A-Za-z])LSI(?![A-Za-z])',
 ]
 # The role half: engineering work, or an early-career opening of any kind.
 role_title_terms = [
@@ -613,6 +641,7 @@ role_title_terms = [
   '\btest\b', '\bcharacteri[sz]ation\b', '\bdevelopment\b', '\bdeveloper\b',
   '\bintern', '\bco-?op\b', '\bnew\s+college\s+grad', '\bnew\s+grad', '\bgraduate\b',
   '\bearly\s+career\b', '\bstudent\b', '\bapprentice',
+  'エンジニア', '設計', '開発', '検証', '評価', 'インターン', '新卒',
 ]
 
 [[query]]
@@ -1573,3 +1602,114 @@ pages = 5
 query = "EDA Engineer"
 tier = "A"
 pages = 5
+
+# Japan sweep phrases (2026-10-11), in Japanese and English: the boards there
+# publish both. Each pages to its tier's [backfill_tier_pages] depth.
+
+[[sweep_query]]
+query = "半導体 インターン"
+tier = "intern"
+
+[[sweep_query]]
+query = "回路設計 インターン"
+tier = "intern"
+
+[[sweep_query]]
+query = "Hardware Engineering Intern"
+tier = "intern"
+
+[[sweep_query]]
+query = "ASIC Intern"
+tier = "intern"
+
+[[sweep_query]]
+query = "FPGA Intern"
+tier = "intern"
+
+[[sweep_query]]
+query = "新卒 デジタル回路設計"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "新卒 LSI設計"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "新卒 半導体 設計"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "第二新卒 回路設計"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "New Graduate Hardware Engineer"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "New Graduate ASIC Engineer"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "デジタル回路設計"
+tier = "A"
+
+[[sweep_query]]
+query = "論理設計"
+tier = "A"
+
+[[sweep_query]]
+query = "LSI設計"
+tier = "A"
+
+[[sweep_query]]
+query = "RTL設計"
+tier = "A"
+
+[[sweep_query]]
+query = "機能検証 エンジニア"
+tier = "A"
+
+[[sweep_query]]
+query = "物理設計 エンジニア"
+tier = "A"
+
+[[sweep_query]]
+query = "FPGA 開発 エンジニア"
+tier = "A"
+
+[[sweep_query]]
+query = "SoC 設計"
+tier = "A"
+
+[[sweep_query]]
+query = "DFT 設計"
+tier = "A"
+
+[[sweep_query]]
+query = "ASIC Engineer"
+tier = "A"
+
+[[sweep_query]]
+query = "RTL Design Engineer"
+tier = "A"
+
+[[sweep_query]]
+query = "Design Verification Engineer"
+tier = "A"
+
+[[sweep_query]]
+query = "Physical Design Engineer"
+tier = "A"
+
+[[sweep_query]]
+query = "SoC Design Engineer"
+tier = "A"
+
+[[sweep_query]]
+query = "Digital Design Engineer"
+tier = "A"
+
+[[sweep_query]]
+query = "VLSI Engineer"
+tier = "A"

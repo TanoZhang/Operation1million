@@ -472,6 +472,24 @@ def entry_level(title, text):
     return False
 
 
+def japanese_as_english(text):
+    """A Japanese posting's experience terms in the words the rules below read.
+
+    Renesas's Japanese postings (2026-10-11) write 「アナログ回路設計経験3年以上」,
+    「3年以上の実務経験」, 「技術開発経験（5年以上）」 and 「経験が3年以上」, and
+    none was read: every one came out unknown. "N年以上" is "N+ years", 経験 is
+    experience, 必須 required, and 歓迎 or 尚可 preferred; the same parsing then
+    applies to both languages.
+    """
+    if not re.search('[぀-ヿ一-鿿]', text):
+        return text
+    text = re.sub(r'(\d{1,2})\s*年以上', r' \1+ years ', text)
+    text = re.sub('(?:実務|業務|職務)?経験', ' experience ', text)
+    text = re.sub('必須', ' required ', text)
+    text = re.sub('(?:尚)?歓迎|尚可', ' preferred ', text)
+    return text
+
+
 def evaluate(title, description):
     """Return auditable facts. Unknown experience is None, never assumed zero.
 
@@ -481,6 +499,7 @@ def evaluate(title, description):
     """
     # Compatibility forms too: a full-width "５＋ years" (2026-09-27).
     text = unicodedata.normalize('NFKC', repair_mojibake(html.unescape(description or '')))
+    text = japanese_as_english(text)
     # "5 yrs. of experience": the point ended the sentence (2026-09-27).
     text = re.sub(r'\b(yrs?|exp)\.(?=\s)', r'\1', text, flags=re.I)
     text = re.sub(r'\b([BM])\.\s*S\.', r'\1S', text, flags=re.I)

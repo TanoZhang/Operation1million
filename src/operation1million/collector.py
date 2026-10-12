@@ -1073,6 +1073,7 @@ def main():
         # back, pages far deeper than a daily pass, and is not held to the daily
         # slice -- that slice exists only to pace the month it is now ending.
         settings['date_posted'] = 'month'
+        settings['country'] = settings['backfill_country']
         settings['max_pages_per_query'] = settings['backfill_max_pages_per_query']
         # The daily plan gives each broad query its own cap. A month-wide sweep
         # restates those caps with its separate per-tier backfill depths.
@@ -1080,7 +1081,10 @@ def main():
             return replace(query, pages=settings['backfill_tier_pages'].get(
                 query.tier, settings['max_pages_per_query']))
         if not args.jsearch_query:
-            functional_queries = [sweep_depth(q) for q in functional_queries]
+            # A sweep with phrases of its own (Japan, 2026-10-11) asks those,
+            # already at their tier's backfill depth; otherwise the daily ones.
+            functional_queries = (list(settings['sweep_queries']) if settings['sweep_queries']
+                                  else [sweep_depth(q) for q in functional_queries])
         if not args.store:
             p.error('--backfill requires durable storage; it cannot be combined with --no-store')
     if args.date_posted:

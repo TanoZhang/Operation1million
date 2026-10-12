@@ -1,3 +1,36 @@
+# Japan: filters, its own tab, the closing sweep - 2026-10-11 (claude)
+
+The user: Japanese postings are read by the same filters; Japan and China
+(Hong Kong, Macau) go to their own Review tab with the same filters and order
+and are not dropped; Taiwan is no longer wanted ("不要台湾"); the closing
+JSearch sweep searches Japan, posted within 30 days, instead of re-reading the
+U.S. a month back.
+
+- Titles: no term was Japanese, so 「デジタル回路設計」 scored 0. Added
+  Japanese keeps, strong/common terms, subjects and roles, levels and
+  mid-career (シニア, 課長, 経験者採用, キャリア採用, 中途...), other functions
+  (営業, 人事...), and analog/process/manufacturing rejects as in English.
+  `\b` cannot be used next to kana or kanji (they are word characters), so
+  ASIC/RTL/FPGA/LSI are matched with Latin-letter lookarounds.
+- Bands: ranking.CORE_CJK and EARLY_CAREER_CJK (新卒, インターン, N年卒).
+- Experience: experience.japanese_as_english maps N年以上, 経験, 必須 and
+  歓迎/尚可 onto the English parser. Renesas's four real forms read 3, 3, 5, 3;
+  before, all were unknown.
+- Tab: location.in_asia_tab; applications.queue marks a group `asia` when
+  every listing is in Japan or China; Review's "Japan / China" tab lists them
+  (early career, new, backlog, low relevance) and no other tab does.
+  Remaining counts them.
+- Taiwan: removed from ALLOWED_ABROAD, also when written "Republic of China".
+- Sweep: `backfill_country = "jp"` and 27 `[[sweep_query]]` phrases (Japanese
+  and English) at their tier's backfill depth (1,560 pages of caps); the
+  daily U.S. pass is unchanged. It first runs October 13-15 UTC.
+- Direct Japan boards found (not yet collected): EdgeCortix on BambooHR
+  (`/careers/list` JSON: Kawasaki DV, Accelerator IP ASIC/RTL, Internship),
+  PFN on Talentio (MN-Core ASIC front end, 2027 new graduates), TSMC on
+  Avature (sitemap; Japan-Yokohama design centre roles incl. New Graduates);
+  TSMC was removed from the catalog by the user on 2026-09-16. Renesas Japan
+  (171 open) and Micron Japan (234) are already collected.
+
 # Muse merge 7 and a Gmail run - 2026-10-11 (claude)
 
 The user: bring Muse's applied positions into Review and check that each match

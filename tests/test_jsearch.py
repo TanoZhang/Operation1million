@@ -1783,7 +1783,8 @@ class DiscoveryTests(unittest.TestCase):
             patch.object(collector, 'RequestGuard', return_value=self.guard),
             patch.object(collector, 'load_credentials'),
             patch.object(jsearch, 'load_plan',
-                         return_value=(self.settings, [replace(self.plan[0], pages=1)])),
+                         return_value=(dict(self.settings, sweep_queries=()),
+                                       [replace(self.plan[0], pages=1)])),
             patch.object(jsearch.requests, 'Session', return_value=self.session),
             patch.object(store, 'now', return_value=STAMP),
             patch('sys.argv', argv),
@@ -1792,22 +1793,64 @@ class DiscoveryTests(unittest.TestCase):
             collector.main()
         self.assertEqual(asked, [self.plan[0].query])
 
-    def test_backfill_uses_the_deeper_query_guard(self):
-        observed = []
+    def sweep(self, settings=None):
+        """The queries and settings a --backfill run hands to jsearch.collect."""
+        observed = {}
         configs = {'discovery_queries.toml': {},
                    'sources_search.toml': {'search': {'jsearch': SEARCH}}}
         argv = ['collector', '--backfill', '--jsearch-budget', '320',
                 '--db', str(self.db_path), '--output', str(self.root / 'deep-sweep')]
 
-        def capture(queries, *args, **kwargs):
-            observed.extend(q.pages for q in queries)
+        def capture(queries, client, given, *args, **kwargs):
+            observed.update(queries=list(queries), settings=dict(given))
             return [], {'jsearch_queries_planned': len(queries)}
 
+        plan = (settings, self.plan) if settings is not None else jsearch.load_plan()
         with (
             patch.object(collector, 'load_sources', return_value=[]),
             patch.object(collector, 'config', side_effect=configs.__getitem__),
             patch.object(collector, 'RequestGuard', return_value=self.guard),
             patch.object(collector, 'load_credentials'),
+            patch.object(jsearch, 'load_plan', return_value=plan),
+            patch.object(jsearch, 'collect', side_effect=capture),
+            patch.object(store, 'now', return_value=STAMP),
+            patch('sys.argv', argv),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            collector.main()
+        return observed
+
+    def test_the_closing_sweep_searches_japan_a_month_back(self):
+        """The user, 2026-10-11: the end-of-cycle U.S. sweep is cancelled and
+        what the cycle left goes to Japan, posted within 30 days."""
+        settings, _ = jsearch.load_plan()
+        observed = self.sweep()
+        self.assertEqual(observed['settings']['country'], 'jp')
+        self.assertEqual(observed['settings']['date_posted'], 'month')
+        self.assertEqual(observed['queries'], list(settings['sweep_queries']))
+        self.assertIn('デジタル回路設計', [q.query for q in observed['queries']])
+        # The daily pass is unchanged.
+        self.assertEqual(settings['country'], 'us')
+
+    def test_backfill_uses_the_deeper_query_guard(self):
+        observed = []
+
+        def capture(queries, *args, **kwargs):
+            observed.extend(q.pages for q in queries)
+            return [], {'jsearch_queries_planned': len(queries)}
+
+        # Without sweep phrases of its own, the daily plan at backfill depth.
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        argv = ['collector', '--backfill', '--jsearch-budget', '320',
+                '--db', str(self.db_path), '--output', str(self.root / 'deep-sweep')]
+        with (
+            patch.object(collector, 'load_sources', return_value=[]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(jsearch, 'load_plan',
+                         return_value=(dict(self.settings, sweep_queries=(), backfill_country='us'), self.plan)),
             patch.object(jsearch, 'collect', side_effect=capture),
             patch.object(store, 'now', return_value=STAMP),
             patch('sys.argv', argv),

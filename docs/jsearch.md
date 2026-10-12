@@ -1,5 +1,16 @@
 # JSearch daily discovery
 
+## Closing sweep in Japan - 2026-10-11
+
+At the user's request the end-of-cycle sweep no longer re-reads the U.S. a
+month back. `backfill_country = "jp"` sends it to Japan, `date_posted` stays
+`month` (30 days), and it asks the `[[sweep_query]]` phrases -- Japanese and
+English, each at its tier's `[backfill_tier_pages]` depth -- instead of the
+daily plan. The budget is unchanged: what the cycle left, spread over the days
+before reset. Whatever Japan cannot absorb is left unspent. The daily pass
+(`country = "us"`, 3 days) is unchanged. Without sweep phrases the sweep falls
+back to the daily plan at backfill depth, as before.
+
 ## Related silicon title trials - 2026-10-11
 
 The October 11 pass used 361 of its 570 permitted paid pages. All 170 authored

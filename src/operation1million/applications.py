@@ -980,6 +980,10 @@ def queue(db_path=DB, path=None, now=None):
     for group in result['pending'] + result['backlog']:
         group['less_related'] = group['bucket'] == 4 and group['confidence'] < minimum
         group['early_career'] = ranking.early_career(group.get('title'))
+        # Japan, China and Taiwan on a tab of their own, under the same filters
+        # and order (the user, 2026-10-11): every listing there, none in the U.S.
+        group['asia'] = bool(group['jobs']) and all(
+            location.in_asia_tab(job.get('location')) for job in group['jobs'])
     for key, event in group_states.items():
         if event['status'] != 'pending':
             group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))

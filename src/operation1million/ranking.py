@@ -150,7 +150,20 @@ RELATED = re.compile(r"""\b(?:
 # The same neighbourhood in Chinese, where no word boundary separates one term
 # from the next: 芯片 (chip), 集成电路 (integrated circuit), 硅后 (post-silicon),
 # as in "模拟芯片测试工程师" and "硅后验证工程师" (2026-10-09).
-RELATED_CJK = re.compile('芯片|集成电路|硅后')
+RELATED_CJK = re.compile('芯片|集成电路|硅后'
+                         # And Japanese (2026-10-11): semiconductor, circuit,
+                         # embedded, firmware, hardware.
+                         '|半導体|回路|組込|ファームウェア|ハードウェア')
+
+# The trade in Japanese titles, where \b fails the same way: Renesas's
+# 「SoC機能検証エンジニア」, PFN's 「ASICフロントエンド設計エンジニア」
+# (2026-10-11). The Latin names only where no Latin letter touches them.
+CORE_CJK = re.compile('(?<![A-Za-z])(?:ASIC|RTL|FPGA|LSI|DFT)(?![A-Za-z])'
+                      '|デジタル回路|論理設計|論理合成|機能検証|物理設計')
+
+# New graduates, second-year graduates (第二新卒), interns and a graduating
+# class (「2027年卒」) in Japanese titles.
+EARLY_CAREER_CJK = re.compile('新卒|インターン|\\d{2,4}年卒')
 
 
 # Openings an application without a degree in hand can actually reach.
@@ -202,6 +215,8 @@ OPENING = re.compile(r"""\b(?:
 
 
 def _early(title):
+    if EARLY_CAREER_CJK.search(title):
+        return True
     if not EARLY_CAREER.search(title):
         return False
     return not SENIOR.search(title) or bool(OPENING.search(title))
@@ -243,7 +258,7 @@ def bucket(title):
     core = [found.group(0) for found in CORE.finditer(title)]
     if SECURITY_OPERATIONS.search(title):
         core = [word for word in core if not re.search(r'\bsoc\b', word, re.I)]
-    if core:
+    if core or CORE_CJK.search(title):
         return 0 if early else 2
     if RELATED.search(title) or RELATED_CJK.search(title):
         return 1 if early else 3
