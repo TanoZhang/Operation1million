@@ -1,3 +1,13 @@
+# Japan sweep measured, phrases revised - 2026-10-13 (claude)
+
+The user: see how the Japan JSearch change did, then update the phrases.
+First sweep (data e8f51dd manifest): 28 phrases, all to the provider's last
+page, 96 pages, 303 accepted, 81 stored; detail in docs/jsearch.md. Phrases
+now 16 kept + 15 trials (31); the trials are measured by the October 14-15
+sweep days once deployed. Seen, not changed: the 経験者歓迎 exclusion also
+drops postings that welcome 微経験者 / 第二新卒 (アルプス技研), and many
+stored postings are staffing-firm duplicates.
+
 # Japan: filters, its own tab, the closing sweep - 2026-10-11 (claude)
 
 The user: Japanese postings are read by the same filters; Japan and China

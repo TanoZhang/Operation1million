@@ -105,8 +105,12 @@ class JapanSweepPlanTests(unittest.TestCase):
         settings, _ = jsearch.load_plan()
         depth = {q.query: q.pages for q in settings['sweep_queries']}
         self.assertEqual(depth['論理回路 設計 エンジニア'], 150)
-        self.assertEqual(depth['LSI 設計 東京'], 100)
         self.assertEqual(depth['回路設計 新卒'], settings['backfill_tier_pages']['new_grad'])
+        # The first sweep (2026-10-13) found nothing under the regional splits
+        # and filtered out everything 半導体 新卒 returned.
+        self.assertFalse(any(q.startswith('LSI 設計 ') and not q.endswith('エンジニア') for q in depth))
+        self.assertNotIn('半導体 新卒', depth)
+        self.assertEqual(depth['LSI 第二新卒'], settings['backfill_tier_pages']['new_grad'])
         # A bare trade word and English returned nothing in Japan.
         self.assertNotIn('デジタル回路設計', depth)
         self.assertFalse(any(q.isascii() for q in depth))

@@ -1608,14 +1608,17 @@ pages = 5
 # (デジタル回路設計, 論理設計, ASIC, RTL設計) and every English phrase returned
 # nothing; a field and a role together (論理回路 設計 エンジニア, 検証エンジニア
 # LSI, ASIC 設計 エンジニア) returned full pages, mostly from Indeed Japan.
-# The best of them is also asked region by region, as the U.S. once was by
-# state, to surface more than one listing reaches. Each pages to its tier's
-# [backfill_tier_pages] depth, or its own `pages` up to the sweep's runaway
-# guard: the broad field-and-role phrases 150, the regional splits 100.
-
-[[sweep_query]]
-query = "半導体 インターン"
-tier = "intern"
+# Each pages to its tier's [backfill_tier_pages] depth, or its own `pages`
+# up to the sweep's runaway guard (150 for the broad field-and-role phrases).
+#
+# Revised from the first sweep (2026-10-13, 96 pages, every phrase to the
+# provider's last page): the 16 below kept postings. Dropped: the six
+# 「LSI 設計 <region>」 splits, 半導体 インターン and 半導体 未経験 設計 (no
+# results), 半導体 新卒, 第二新卒 半導体 and 物理設計 エンジニア 半導体 (every
+# result filtered out: process, equipment and sales roles) and
+# ハードウェアエンジニア 半導体 (two postings). 「LSI 未経験」 alone kept 25 new
+# postings, so the trial phrases further down pair the field with
+# 新卒 / 第二新卒 / 未経験 as well as with a role.
 
 [[sweep_query]]
 query = "回路設計 新卒"
@@ -1626,19 +1629,7 @@ query = "回路設計 第二新卒"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "半導体 新卒"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "第二新卒 半導体"
-tier = "new_grad"
-
-[[sweep_query]]
 query = "LSI 未経験"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "半導体 未経験 設計"
 tier = "new_grad"
 
 [[sweep_query]]
@@ -1692,16 +1683,6 @@ tier = "A"
 pages = 150
 
 [[sweep_query]]
-query = "ハードウェアエンジニア 半導体"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "物理設計 エンジニア 半導体"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
 query = "半導体 設計 エンジニア"
 tier = "A"
 pages = 150
@@ -1716,32 +1697,74 @@ query = "電子回路設計 エンジニア"
 tier = "A"
 pages = 150
 
-[[sweep_query]]
-query = "LSI 設計 東京"
-tier = "A"
-pages = 100
+# Trials added 2026-10-13, not yet measured: the field with an entry
+# level, and the role words the first sweep's postings used
+# (論理検証, バックエンド, RTL 設計).
 
 [[sweep_query]]
-query = "LSI 設計 神奈川"
-tier = "A"
-pages = 100
+query = "インターン 回路設計"
+tier = "intern"
 
 [[sweep_query]]
-query = "LSI 設計 大阪"
-tier = "A"
-pages = 100
+query = "LSI 新卒"
+tier = "new_grad"
 
 [[sweep_query]]
-query = "LSI 設計 京都"
-tier = "A"
-pages = 100
+query = "LSI 第二新卒"
+tier = "new_grad"
 
 [[sweep_query]]
-query = "LSI 設計 愛知"
-tier = "A"
-pages = 100
+query = "FPGA 未経験"
+tier = "new_grad"
 
 [[sweep_query]]
-query = "LSI 設計 福岡"
+query = "FPGA 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "回路設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "デジタル回路 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "論理検証 エンジニア"
 tier = "A"
-pages = 100
+pages = 150
+
+[[sweep_query]]
+query = "ASIC 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "LSI バックエンド エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "FPGA 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "RTL 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "論理設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 回路設計 エンジニア"
+tier = "A"
+pages = 150

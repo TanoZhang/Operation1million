@@ -1,5 +1,26 @@
 # JSearch daily discovery
 
+## Japan sweep, first run and revised phrases - 2026-10-13
+
+The first Japan sweep (manifest 2026-10-13, 13:10 UTC) asked all 28 phrases
+and every one reached the provider's last page: 96 of 3,210 capped pages,
+706 rows, 303 accepted, 81 new postings stored. Japan's month of JSearch
+results is small; depth is not what limits it. Rejections: 169 resume fit,
+136 experience over two years, 77 excluded (mostly 経験者歓迎 and leader
+titles), 19 title. About half the stored postings come from staffing and
+dispatch firms (スタッフサービス, テクノプロ, メイテック, BREXA, ヒップ), many
+twice through different publishers; chip employers are few (Sony
+Interactive, YITOA, エイブリック, Sandisk, Advantest).
+
+Phrases revised from it: 16 kept (each kept postings); 12 dropped -- the six
+regional 「LSI 設計」 splits, 半導体 インターン and 半導体 未経験 設計 returned
+nothing; 半導体 新卒, 第二新卒 半導体 and 物理設計 エンジニア 半導体 were all
+filtered out; ハードウェアエンジニア 半導体 added two. 15 trials added: the
+field with 新卒 / 第二新卒 / 未経験 (「LSI 未経験」 alone kept 25 new postings)
+and the role words the postings used (論理検証, バックエンド, RTL 設計). An
+exhausted phrase's cursor stays exhausted for the cycle, so the remaining
+sweep days ask only the new phrases. 31 phrases, 3,660 pages of caps.
+
 ## Closing sweep in Japan - 2026-10-11
 
 At the user's request the end-of-cycle sweep no longer re-reads the U.S. a
