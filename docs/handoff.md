@@ -1,3 +1,37 @@
+# Muse merge 8 (already-applied counts), sweeps, Gmail by hand - 2026-10-13 (claude)
+
+Pass by hand (op1m-us-month-20261013): the U.S. 30 days back used 793 of
+2,000 credits (all 188 queries reached their last page; 4,192 rows, 797
+accepted). The Japan sweep that followed used 304 (139 phrases, 124 finished;
+1,869 rows, 683 accepted and stored). About 1,961 credits left in the cycle.
+
+The user asked why positions Muse found already applied (Cisco 2024667 and
+2026026) were not Applied. Muse logs "Portal: already applied" as
+application-duplicate, duplicate-verified-no-action, skipped-duplicate,
+skipped-already-applied or status "duplicate"; the merge read those as soft
+skips. Merge 8 (.local/muse_merge8.py, VPS /tmp/muse_merge8.py) counts them as
+Applied ("Already applied, found by Muse"), reads numbers Muse wrote only in
+notes ("job 2024667", "Job ID 155222", "JR108051") and `url`/`ts`. The two
+Cisco postings were already covered by merge 7's same-title entries. Each of
+the 103 matches was checked by number or link; titles differ only by wording.
+Written: 99 open marked applied, 116 created, 2 open and 90 created hard skips
+(52 no sponsorship, 17 senior, 14 U.S. person, 6 transcript, 3 5+ years); one
+Marvell record matching two postings was left. Ledger 1,707 -> 2,014;
+backups /opt/operation1million/*.before-muse-merge8-20261013T233715Z.ndjson.
+
+Gmail Unsorted (90) read: declines written only where the email's own number
+matched the Applied entry -- Broadcom Senior IC Validation x4 (R027173,
+R027204, R027205, R027206), R&D Engineer IC Design 4 (R026646), NVIDIA
+Physical Design Intern JR2025022, Altera R03171. Title-only matches were
+wrong six times (Broadcom R026738 vs R026980, R024629 vs R024630, R026760 vs
+R024221; NVIDIA JR2012573 vs JR2020640; Synopsys 18767 and 18505 vs
+18811/18812), so title alone writes nothing. Left: Micron (index ids, mail JR
+numbers), Etched (two same-title entries), about 30 Synopsys and 12 Intel
+rejections for positions with no Applied entry, Advantest profile reminders,
+MatX survey, Optiver login code, IMC info request. Not a decline: NVIDIA's
+2027 campus HackerRank test (ASIC) on 10/15. Outcomes 231 -> 238; backup
+/opt/operation1million/application_outcomes.before-hand-sort-*.ndjson.
+
 # U.S. month run, 139 Japan phrases, 経験者歓迎 allowed - 2026-10-13 (claude)
 
 The user: relax the 経験者歓迎 exclusion, add many Japan phrases, spend before
