@@ -75,6 +75,18 @@ class UnpublishedProgressTests(unittest.TestCase):
         self.assertIn('workflow_state "$CODE/.local/jsearch_usage.sqlite"', branch)
         self.assertIn('workflow_state operational/jsearch_usage.sqlite', branch)
 
+    def test_a_pass_by_hand_may_carry_its_own_budget_and_window(self):
+        # "Today 2,000, a month back" (2026-10-13): only the main collection
+        # takes them, and the sweep keeps its own budget and window.
+        script = (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
+        self.assertIn('--jsearch-budget=[1-9]*) ONCE+=', script)
+        self.assertIn('--date-posted=month)', script)
+        main = next(line for line in script.splitlines()
+                    if line.startswith('job-collect --workers 3'))
+        self.assertIn('"${ONCE[@]}"', main)
+        sweep = next(line for line in script.splitlines() if '--backfill' in line and 'job-collect' in line)
+        self.assertNotIn('ONCE', sweep)
+
     def test_the_offline_tests_run_without_the_production_environment(self):
         # With OPERATION1MILLION_STORE exported they read the production resume
         # profile: 61 failures and 5 errors on the VPS, 2026-10-09.

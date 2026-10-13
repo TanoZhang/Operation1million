@@ -4,11 +4,14 @@ version = 1
 monthly_quota = 10000
 target_utilization = 0.96
 operating_days = 30
-daily_budget = 330
+daily_budget = 350
 # A cycle's own daily budget, keyed by the cycle's first day; other cycles use
 # daily_budget. On 2026-10-09 the user spread what was left of the 2026-09-16
 # cycle (4,673 credits to the 9,600 target, six passes to go) at about 4,000/7,
-# and asked for 330 again from the 2026-10-16 cycle.
+# and asked for 330 again from the 2026-10-16 cycle (350 since 2026-10-13,
+# the user's "回到350每天top"). The user's one 2,000-credit U.S. run 30 days
+# back on 2026-10-13 is a run now (--ignore-daily-limit --jsearch-budget
+# 2000), not a change to this budget.
 cycle_daily_budget = { "2026-09-16" = 570 }
 # The plan renews every 30 days from this date, not on a day of the month.
 cycle_start = "2026-09-16"
@@ -279,7 +282,11 @@ exclude_title_patterns = [
   # hiring (2026-10-11). No \b: a kana or kanji is a word character, so there
   # is no boundary between it and the next.
   'シニア', 'リーダー', 'マネージャ', '管理職', '課長', '部長', '主任', '主幹',
-  'エキスパート', '経験者(?:採用)?', 'キャリア採用', '中途(?:採用)?',
+  # 経験者 only where it hires the experienced: 経験者採用, 経験者募集,
+  # 経験者むけ. Not 経験者歓迎 (experience welcome), not 微経験者 or 未経験者
+  # (little or none), at the user's request (2026-10-13): the years the
+  # description requires still decide those.
+  'エキスパート', '(?<![微未])経験者(?!\s*(?:歓迎|も\s*可|OK|尚可))', 'キャリア採用', '中途(?:採用)?',
   # Functions that are not the trade: sales, HR, accounting, legal.
   '営業', '人事', '経理', '法務',
   # An MBA programme is open to MBA students, as a PhD one is to PhD
@@ -1766,5 +1773,511 @@ pages = 150
 
 [[sweep_query]]
 query = "半導体 回路設計 エンジニア"
+tier = "A"
+pages = 150
+
+# Widened 2026-10-13 at the user's request to spend what the cycle leaves
+# before it resets on 2026-10-16 ("多花 大大的搜索"): every chip field and
+# block with a role word, and each field with an entry level. Unmeasured;
+# a phrase JSearch has nothing for costs one page.
+
+[[sweep_query]]
+query = "インターン LSI"
+tier = "intern"
+
+[[sweep_query]]
+query = "インターン FPGA"
+tier = "intern"
+
+[[sweep_query]]
+query = "インターン 半導体 設計"
+tier = "intern"
+
+[[sweep_query]]
+query = "長期インターン 回路設計"
+tier = "intern"
+
+[[sweep_query]]
+query = "インターンシップ 半導体 設計"
+tier = "intern"
+
+[[sweep_query]]
+query = "ASIC 新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ASIC 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ASIC 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "SoC 新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "SoC 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "FPGA 新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "FPGA 設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "デジタル回路 新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "デジタル回路 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "論理回路 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "論理回路 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 設計 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 設計 新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI ポテンシャル"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "回路設計 ポテンシャル"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "FPGA ポテンシャル"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "半導体 設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "半導体 設計 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "半導体 設計 新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 検証 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "検証エンジニア 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "検証 第二新卒 LSI"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "回路設計 若手"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 若手"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "FPGA 若手"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "電子回路設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "電子回路設計 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "回路設計 20代"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 20代"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "集積回路 新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "半導体 回路設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ハードウェア設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ハードウェア設計 第二新卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "集積回路 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "IC 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "デジタルIC 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ロジック設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ロジック回路 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "論理回路設計 FPGA"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "論理設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "RTL エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "RTL 設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "Verilog エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "Verilog 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SystemVerilog 検証"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "UVM 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "機能検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "論理検証 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "LSI 評価 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 評価 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "LSI テスト エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 テスト エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "DFT エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "テスト設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "タイミング設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "STA エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "論理合成 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "物理設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "レイアウト設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "LSI レイアウト エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "バックエンド設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "配置配線 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ASIC 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ASIC 検証"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "FPGA 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "FPGA 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "FPGA 開発"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "FPGA 論理設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "CPU 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "GPU 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "プロセッサ 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "マイコン 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "メモリ 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "DRAM 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "NAND 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "イメージセンサー 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "イメージセンサ 回路設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "画像処理 LSI 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "車載 LSI 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "車載 SoC 開発"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "通信 LSI 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "AI チップ 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "AI 半導体 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "カスタムLSI 開発"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "LSI 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 ハードウェア エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 エンジニア 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "回路設計 エンジニア 半導体"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "デジタル 回路設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "デジタル設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ハードウェア設計 FPGA"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ハードウェア設計 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "EDA エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "設計環境 LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 IP 開発"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "高速インターフェース 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SerDes 設計"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "PCIe 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "DDR 設計 エンジニア"
 tier = "A"
 pages = 150

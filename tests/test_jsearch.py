@@ -306,13 +306,13 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(len(self.plan), 188)
         self.assertEqual(self.settings['monthly_target'], 9600)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
-        # day, then 330 from the next cycle on.
+        # day, then 330 from the next cycle on (350 since 2026-10-13).
         on = lambda day: jsearch.load_plan(today=date.fromisoformat(day))[0]['daily_budget']
         self.assertEqual([on(day) for day in ('2026-10-09', '2026-10-15', '2026-10-16', '2026-11-15')],
-                         [570, 570, 330, 330])
+                         [570, 570, 350, 350])
         # Daily pacing may exceed a uniform monthly slice; the independent
         # monthly guard still binds at 9,600 credits.
-        self.assertGreater(on('2026-10-15') * 30, self.settings['monthly_target'])
+        self.assertGreater(on('2026-10-16') * 30, self.settings['monthly_target'])
         # A 30-day cycle, not a day of the month: a calendar anchor would drift
         # against the provider every time a period crosses a short month.
         self.assertEqual(self.settings['cycle_start'], '2026-09-16')
@@ -1883,6 +1883,26 @@ class DiscoveryTests(unittest.TestCase):
                 collector.main()
                 self.assertEqual(guard.call_args.kwargs['ignore_daily_limit'], ignored)
                 self.assertIsNotNone(guard.call_args.kwargs['run_limit'], 'a run now is still capped')
+
+    def test_a_run_now_may_be_given_more_than_a_day(self):
+        """2026-10-13: "today the U.S., 2,000 credits"; a scheduled run stays at its day."""
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        day = jsearch.load_plan()[0]['daily_budget']
+        for extra, expected in ((['--ignore-daily-limit', '--jsearch-budget', '2000'], 2000),
+                                (['--jsearch-budget', '2000'], day)):
+            with self.subTest(extra=extra), (
+                patch.object(collector, 'load_sources', return_value=[])), (
+                patch.object(collector, 'config', side_effect=configs.__getitem__)), (
+                patch.object(collector, 'RequestGuard', return_value=self.guard)) as guard, (
+                patch.object(collector, 'load_credentials')), (
+                patch.object(jsearch, 'collect', return_value=([], {}))), (
+                patch.object(store, 'now', return_value=STAMP)), (
+                patch('sys.argv', ['collector', '--jsearch', '--jsearch-only', '--db', str(self.db_path),
+                                   '--output', str(self.root / f'budget-{expected}'), *extra])), (
+                patch('sys.stdout', new_callable=io.StringIO)):
+                collector.main()
+                self.assertEqual(guard.call_args.kwargs['run_limit'], expected)
 
     def test_backfill_rejects_no_store_before_any_paid_request(self):
         with patch('sys.argv', ['collector', '--backfill', '--no-store']), \

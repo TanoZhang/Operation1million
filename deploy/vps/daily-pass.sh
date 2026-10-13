@@ -24,12 +24,20 @@ ENV_FILE=${OPERATION1MILLION_ENV_FILE:-/etc/operation1million/env}
 load_env_file "$ENV_FILE"
 PREFLIGHT=0
 NOW=
+ONCE=()
 for argument in "$@"; do
   case "$argument" in
     --no-heartbeat) unset HEALTHCHECK_URL ;;
     # "Cancel the autorun and run it now" (2026-10-06): a full run budget now,
     # not what is left of a budget day that ends at 04:38 Pacific.
     --ignore-daily-limit) NOW=--ignore-daily-limit ;;
+    # One run's own paid budget and window, for a pass started by hand:
+    # "today 2,000, a month back instead of three days" (2026-10-13). Only
+    # with --ignore-daily-limit may the budget exceed a day's; the monthly
+    # target binds either way. The scheduled pass never passes these.
+    --jsearch-budget=[1-9]*) ONCE+=("--jsearch-budget" "${argument#*=}") ;;
+    --date-posted=today|--date-posted=3days|--date-posted=week|--date-posted=month)
+      ONCE+=("--date-posted" "${argument#*=}") ;;
     # Everything the pass depends on, checked in the order the pass depends on
     # it, and then stop before spending a credit or writing a row. This exists
     # because the rest of this file runs unattended at 04:38 against the
@@ -269,7 +277,7 @@ job-collect --jsearch-only --jsearch-plan || note_problem 'the JSearch plan prev
 rm -f "$READY"
 collect_started=1
 set +e
-job-collect --workers 3 --delay 1.0 --jsearch-max-seconds 6000 --jsearch-timeout 90 $NOW --jsearch
+job-collect --workers 3 --delay 1.0 --jsearch-max-seconds 6000 --jsearch-timeout 90 $NOW "${ONCE[@]}" --jsearch
 collect_code=$?
 set -e
 if [ "$collect_code" -eq 2 ]; then
@@ -289,7 +297,8 @@ PY
 )
 if [ "$days_until_reset" -le 3 ]; then
   set +e
-  job-collect --jsearch-only --backfill --workers 1 --delay 1.0 --jsearch-max-seconds 3000
+  # 6000 s since 2026-10-13: the Japan sweep asks 139 phrases.
+  job-collect --jsearch-only --backfill --workers 1 --delay 1.0 --jsearch-max-seconds 6000
   sweep_code=$?
   set -e
 fi

@@ -1,3 +1,12 @@
+# U.S. month run, 139 Japan phrases, 経験者歓迎 allowed - 2026-10-13 (claude)
+
+The user: relax the 経験者歓迎 exclusion, add many Japan phrases, spend before
+the 2026-10-16 reset; today only, the U.S. gets 2,000 credits 30 days back;
+October 14-15 stay 570 a day; 350 a day from the next cycle. Live balance
+before: 6,542 used, 3,058 to the target. Details in docs/jsearch.md.
+daily-pass.sh takes --jsearch-budget=N and --date-posted=... for a pass by
+hand (main collection only, not the sweep).
+
 # Japan sweep measured, phrases revised - 2026-10-13 (claude)
 
 The user: see how the Japan JSearch change did, then update the phrases.

@@ -1334,7 +1334,11 @@ def main():
     if args.jsearch_country:
         settings['country'] = args.jsearch_country
     enabled = args.jsearch or args.jsearch_plan or args.jsearch_budget > 0 or args.backfill
-    run_budget = min(args.jsearch_budget or settings['daily_budget'], settings['daily_budget']) if enabled else 0
+    # A run now (--ignore-daily-limit) may be given more than a day's budget:
+    # "today the U.S., 2,000 credits, 30 days back" (the user, 2026-10-13).
+    # The monthly target still binds it, in the guard.
+    ceiling = args.jsearch_budget if args.ignore_daily_limit and args.jsearch_budget else settings['daily_budget']
+    run_budget = min(args.jsearch_budget or settings['daily_budget'], ceiling) if enabled else 0
     if not args.db.exists() and (args.jsearch_plan or not args.store):
         # Preview authored sources without creating or replaying private state.
         # B55: `--no-store` promises the job store is left alone, and building

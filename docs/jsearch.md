@@ -1,5 +1,20 @@
 # JSearch daily discovery
 
+## One U.S. month run, a wider Japan sweep - 2026-10-13
+
+The user, three days before reset: spend what is left. One pass by hand
+today with `daily-pass.sh --ignore-daily-limit --jsearch-budget=2000
+--date-posted=month` searches the U.S. 30 days back with 2,000 credits; a run
+now may now be given more than a day's budget (the monthly 9,600 target
+still binds). October 14-15 keep the 570, 3-day daily pass; the next cycle's
+daily budget is 350 (was 330). The Japan sweep asks 139 phrases (112 added:
+every chip field and block with a role word, each field with 新卒 / 第二新卒 /
+未経験 / ポテンシャル / 若手; analog left out, the filters refuse it), unmeasured,
+with 6,000 s instead of 3,000 s. 経験者 in a Japanese title now refuses only
+hiring of the experienced (経験者採用, 経験者募集, 経験者むけ), not 経験者歓迎 or
+微経験者 / 未経験者. Expected spend: about 1,058 left after the U.S. run, so the
+Japan sweep gets roughly what the two daily passes leave.
+
 ## Japan sweep, first run and revised phrases - 2026-10-13
 
 The first Japan sweep (manifest 2026-10-13, 13:10 UTC) asked all 28 phrases

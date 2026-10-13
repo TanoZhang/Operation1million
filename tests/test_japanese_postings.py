@@ -33,6 +33,17 @@ class JapaneseTitleTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(self.reason(title), 'excluded')
 
+    def test_experience_welcome_is_not_mid_career_hiring(self):
+        """2026-10-13: 経験者歓迎 welcomes experience; it does not require it."""
+        for title in ('LSIエンジニア/年間休日120日以上/経験者歓迎/設計・開発エンジニア(半導体)',
+                      '【【つくばエリア】電気系エンジニア(微経験者・第二新卒)】電気・電子回路設計エンジニア',
+                      '【未経験者歓迎】FPGA設計エンジニア'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
+        for title in ('電気電子エンジニア/回路・LSI/経験者むけ/業界最大手', '【正社員】経験者募集。LSI設計エンジニア'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.excluded(title, self.rules))
+
     def test_analog_process_and_manufacturing_are_refused_as_in_english(self):
         for title in ('アナログ回路設計エンジニア', '製造技術エンジニア', '半導体プロセスエンジニア'):
             with self.subTest(title=title):
@@ -108,7 +119,7 @@ class JapanSweepPlanTests(unittest.TestCase):
         self.assertEqual(depth['回路設計 新卒'], settings['backfill_tier_pages']['new_grad'])
         # The first sweep (2026-10-13) found nothing under the regional splits
         # and filtered out everything 半導体 新卒 returned.
-        self.assertFalse(any(q.startswith('LSI 設計 ') and not q.endswith('エンジニア') for q in depth))
+        self.assertFalse({f'LSI 設計 {region}' for region in ('東京', '神奈川', '大阪', '京都', '愛知', '福岡')} & set(depth))
         self.assertNotIn('半導体 新卒', depth)
         self.assertEqual(depth['LSI 第二新卒'], settings['backfill_tier_pages']['new_grad'])
         # A bare trade word and English returned nothing in Japan.
