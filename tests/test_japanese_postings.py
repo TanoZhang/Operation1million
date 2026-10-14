@@ -121,7 +121,10 @@ class JapanSweepPlanTests(unittest.TestCase):
         # and filtered out everything 半導体 新卒 returned.
         self.assertFalse({f'LSI 設計 {region}' for region in ('東京', '神奈川', '大阪', '京都', '愛知', '福岡')} & set(depth))
         self.assertNotIn('半導体 新卒', depth)
-        self.assertEqual(depth['LSI 第二新卒'], settings['backfill_tier_pages']['new_grad'])
+        # Kept by the second sweep (2026-10-13): 「<field> 未経験」 did best;
+        # no インターン phrase found anything in Japan.
+        self.assertEqual(depth['SoC 未経験'], settings['backfill_tier_pages']['new_grad'])
+        self.assertFalse(any('インターン' in q for q in depth))
         # A bare trade word and English returned nothing in Japan.
         self.assertNotIn('デジタル回路設計', depth)
         self.assertFalse(any(q.isascii() for q in depth))

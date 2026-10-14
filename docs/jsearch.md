@@ -1,5 +1,24 @@
 # JSearch daily discovery
 
+## Entry levels only, chosen by measurement - 2026-10-14
+
+The user: the U.S. plan searches intern, new grad and early career only,
+never a phrase without one; spend the cycle's last credits finding the best
+phrases. From the 2026-10-13 month run (793 pages, 188 queries): intern 0.61
+new postings a page, new grad 0.54, general 0.36, entry level 0.31. Removed:
+the 33 general queries and 45 that accepted nothing in 30 days. Raised: nine
+that stopped at their cap with new postings (Validation Intern 15 -> 30, the
+Engineer I and Timing phrases 10 -> 20). A paid no-store test of 110 new
+phrasings (337 pages, 30 days back) found 65 postings the index lacked; the
+37 phrasings that found one or more were added (Embedded Hardware Engineering
+Intern 5, Hardware Engineer 0-2 years 5, Hardware Engineer Intern 4, ...).
+The plan is 147 queries (76 intern, 51 new grad, 20 early career).
+
+Japan, second sweep (304 pages, 683 stored): 「<field> 未経験」 did best (SoC
+28 new, LSI 設計 22, 回路設計 19); every インターン phrase and most 新卒 /
+ポテンシャル / 若手 pairs found nothing. The 65 phrases that accepted nothing
+were removed; 74 remain for the next cycle's sweep.
+
 ## One U.S. month run, a wider Japan sweep - 2026-10-13
 
 The user, three days before reset: spend what is left. One pass by hand

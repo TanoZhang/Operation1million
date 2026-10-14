@@ -687,11 +687,6 @@ tier = "intern"
 pages = 15
 
 [[query]]
-query = "SoC Intern"
-tier = "intern"
-pages = 40
-
-[[query]]
 query = "Physical Design Intern"
 tier = "intern"
 pages = 10
@@ -717,7 +712,7 @@ pages = 15
 [[query]]
 query = "Validation Intern"
 tier = "intern"
-pages = 15
+pages = 30
 
 # Added 2026-10-03 at the user's request, on trial.
 [[query]]
@@ -737,11 +732,6 @@ pages = 15
 
 [[query]]
 query = "Computer Engineering Co-op"
-tier = "intern"
-pages = 15
-
-[[query]]
-query = "ASIC Co-op"
 tier = "intern"
 pages = 15
 
@@ -777,16 +767,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "Pre-Silicon Verification Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Emulation Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Design Verification Co-op"
 tier = "intern"
 pages = 10
@@ -794,18 +774,12 @@ pages = 10
 [[query]]
 query = "Validation Co-op"
 tier = "intern"
-pages = 10
+pages = 20
 
 [[query]]
 query = "FPGA Co-op"
 tier = "intern"
 pages = 10
-
-[[query]]
-query = "RTL Co-op"
-tier = "intern"
-pages = 10
-
 
 # Nationwide VLSI breadth trials, 2026-10-05: ten pages per query (raised at the user's request).
 [[query]]
@@ -820,16 +794,6 @@ pages = 10
 
 [[query]]
 query = "ASIC Verification Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "SoC Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "SoC Verification Intern"
 tier = "intern"
 pages = 10
 
@@ -871,12 +835,7 @@ pages = 10
 [[query]]
 query = "Timing Engineer Intern"
 tier = "intern"
-pages = 10
-
-[[query]]
-query = "Place and Route Intern"
-tier = "intern"
-pages = 10
+pages = 20
 
 [[query]]
 query = "CPU Design Intern"
@@ -914,11 +873,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "SRAM Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Analog IC Design Intern"
 tier = "intern"
 pages = 10
@@ -946,7 +900,7 @@ pages = 10
 [[query]]
 query = "Design Verification Internship"
 tier = "intern"
-pages = 10
+pages = 20
 
 [[query]]
 query = "Digital IC Design Intern"
@@ -955,11 +909,6 @@ pages = 10
 
 [[query]]
 query = "Silicon Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "VLSI Co-op"
 tier = "intern"
 pages = 10
 
@@ -974,42 +923,12 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "SoC Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "SoC Verification Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "RTL Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "FPGA Design Co-op"
 tier = "intern"
 pages = 10
 
 [[query]]
 query = "Physical Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "DFT Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Formal Verification Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Silicon Validation Co-op"
 tier = "intern"
 pages = 10
 
@@ -1028,52 +947,8 @@ query = "Analog Layout Co-op"
 tier = "intern"
 pages = 10
 
-[[query]]
-query = "Mixed Signal IC Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Digital Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Memory Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "CPU Verification Co-op"
-tier = "intern"
-pages = 10
-
 # Related silicon work absent from the original title plan, 2026-10-11.
 # Five-page trials use the existing budget guard and provider cursor.
-[[query]]
-query = "Chiplet Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "Advanced Packaging Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "Signal Integrity Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "SerDes Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "PDK Intern"
-tier = "intern"
-pages = 5
 
 [[query]]
 query = "ASIC New Grad"
@@ -1116,20 +991,11 @@ tier = "new_grad"
 pages = 15
 
 [[query]]
-query = "Digital Design New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
 query = "DFT New Grad"
 tier = "new_grad"
 pages = 5
 
 # Added 2026-10-03 at the user's request, on trial.
-[[query]]
-query = "Hardware New College Grad"
-tier = "new_grad"
-pages = 15
 
 # Added 2026-10-03 at the user's request, on trial.
 [[query]]
@@ -1144,10 +1010,6 @@ tier = "new_grad"
 pages = 15
 
 # Added 2026-10-03 at the user's request, on trial.
-[[query]]
-query = "Hardware University Graduate"
-tier = "new_grad"
-pages = 15
 
 # Title-synonym trials requested 2026-10-04: ten daily pages each (raised 2026-10-05).
 [[query]]
@@ -1163,8 +1025,7 @@ pages = 10
 [[query]]
 query = "Silicon Validation New Grad"
 tier = "new_grad"
-pages = 10
-
+pages = 20
 
 # Nationwide VLSI breadth trials, 2026-10-05: ten pages per query (raised at the user's request).
 [[query]]
@@ -1203,16 +1064,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Design for Test New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "Physical Implementation New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
 query = "Static Timing Analysis New Grad"
 tier = "new_grad"
 pages = 10
@@ -1220,12 +1071,7 @@ pages = 10
 [[query]]
 query = "Timing Engineer New Grad"
 tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "Place and Route New Grad"
-tier = "new_grad"
-pages = 10
+pages = 20
 
 [[query]]
 query = "CPU Design New Grad"
@@ -1268,11 +1114,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Custom Layout New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
 query = "Post Silicon Validation New Grad"
 tier = "new_grad"
 pages = 10
@@ -1280,12 +1121,12 @@ pages = 10
 [[query]]
 query = "ASIC Design Engineer I"
 tier = "new_grad"
-pages = 10
+pages = 20
 
 [[query]]
 query = "Design Verification Engineer I"
 tier = "new_grad"
-pages = 10
+pages = 20
 
 [[query]]
 query = "Physical Design Engineer I"
@@ -1308,27 +1149,12 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Chiplet New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Advanced Packaging New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
 query = "SerDes New Grad"
 tier = "new_grad"
-pages = 5
+pages = 10
 
 [[query]]
 query = "PDK New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Memory Controller New Grad"
 tier = "new_grad"
 pages = 5
 
@@ -1362,30 +1188,10 @@ query = "Silicon Entry Level"
 tier = "early_career"
 pages = 15
 
-
 # Nationwide VLSI breadth trials, 2026-10-05: ten pages per query (raised at the user's request).
-[[query]]
-query = "VLSI Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "RTL Design Entry Level"
-tier = "early_career"
-pages = 10
 
 [[query]]
 query = "ASIC Verification Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "SoC Design Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "SoC Verification Entry Level"
 tier = "early_career"
 pages = 10
 
@@ -1405,36 +1211,6 @@ tier = "early_career"
 pages = 10
 
 [[query]]
-query = "Static Timing Analysis Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "Silicon Validation Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "CPU Verification Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "Memory Design Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "Analog IC Design Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "Analog Layout Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
 query = "Junior RTL Design Engineer"
 tier = "early_career"
 pages = 10
@@ -1444,171 +1220,198 @@ query = "Junior Design Verification Engineer"
 tier = "early_career"
 pages = 10
 
-[[query]]
-query = "Design Verification Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "RTL Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "ASIC Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "Digital Design Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "FPGA Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "Hardware Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "Silicon Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "Physical Design Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
-query = "DFT Engineer"
-tier = "A"
-pages = 40
-
 # Nationwide VLSI breadth trials, 2026-10-05: ten pages per query (raised at the user's request).
+
+# Added 2026-10-13 from a paid test (337 pages, 30 days back, no-store):
+# 110 new intern / new-grad / early-career phrasings, each kept here only if
+# it found at least one accepted posting the index did not hold. The test
+# found 65 such postings in all; the plan above already covered the rest.
+# A phrase that filled its five test pages with 2+ new postings gets 15.
+
 [[query]]
-query = "Formal Verification Engineer"
-tier = "A"
+query = "Embedded Hardware Engineering Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "Design for Test Engineer"
-tier = "A"
+query = "Hardware Engineer 0-2 years"
+tier = "early_career"
+pages = 15
+
+[[query]]
+query = "Hardware Engineer Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "Semiconductor Intern"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "Hardware Engineering Intern Summer 2027"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "Graduate Hardware Engineer"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Validation Engineer Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "Physical Implementation Engineer"
-tier = "A"
+query = "Verification Intern 2027"
+tier = "intern"
+pages = 15
+
+[[query]]
+query = "DFT Engineering Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "Static Timing Analysis Engineer"
-tier = "A"
+query = "Hardware Design Engineer I"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Hardware Validation Engineer I"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Graduate ASIC Engineer"
+tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Place and Route Engineer"
-tier = "A"
+query = "Computer Architecture Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "CPU Design Engineer"
-tier = "A"
+query = "Validation Engineer New Grad"
+tier = "new_grad"
+pages = 15
+
+[[query]]
+query = "Post-Silicon Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "CPU Verification Engineer"
-tier = "A"
+query = "Masters Hardware Engineering Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "GPU Verification Engineer"
-tier = "A"
+query = "RTL Design Engineer I"
+tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "IP Verification Engineer"
-tier = "A"
+query = "Circuit Design Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "Memory Design Engineer"
-tier = "A"
+query = "ASIC Engineering Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "SRAM Design Engineer"
-tier = "A"
+query = "Verification Engineer I"
+tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Analog IC Design Engineer"
-tier = "A"
+query = "Entry Level Hardware Engineer"
+tier = "early_career"
 pages = 10
 
 [[query]]
-query = "Mixed Signal IC Design Engineer"
-tier = "A"
+query = "Silicon Engineer New Grad"
+tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Analog Layout Engineer"
-tier = "A"
+query = "Junior Hardware Engineer"
+tier = "early_career"
 pages = 10
 
 [[query]]
-query = "Custom Layout Engineer"
-tier = "A"
+query = "Junior Digital Design Engineer"
+tier = "early_career"
 pages = 10
 
 [[query]]
-query = "Post Silicon Validation Engineer"
-tier = "A"
+query = "Semiconductor Engineering Intern"
+tier = "intern"
 pages = 10
 
 [[query]]
-query = "Chiplet Engineer"
-tier = "A"
-pages = 5
+query = "Characterization Intern"
+tier = "intern"
+pages = 10
 
 [[query]]
-query = "Advanced Packaging Engineer"
-tier = "A"
-pages = 5
+query = "Digital Circuit Design Intern"
+tier = "intern"
+pages = 10
 
 [[query]]
-query = "SerDes Engineer"
-tier = "A"
-pages = 5
+query = "Test Engineering Intern Semiconductor"
+tier = "intern"
+pages = 10
 
 [[query]]
-query = "PDK Engineer"
-tier = "A"
-pages = 5
+query = "ASIC Engineering Co-op"
+tier = "intern"
+pages = 10
 
 [[query]]
-query = "Memory Controller Engineer"
-tier = "A"
-pages = 5
+query = "ASIC Intern Summer 2027"
+tier = "intern"
+pages = 10
 
 [[query]]
-query = "Signal Integrity Engineer"
-tier = "A"
-pages = 5
+query = "Performance Modeling New Grad"
+tier = "new_grad"
+pages = 10
 
 [[query]]
-query = "Power Integrity Engineer"
-tier = "A"
-pages = 5
+query = "Test Engineer I Semiconductor"
+tier = "new_grad"
+pages = 10
 
 [[query]]
-query = "EDA Engineer"
-tier = "A"
-pages = 5
+query = "Associate Hardware Engineer"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Entry Level Electrical Engineer Semiconductor"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Hardware Engineer Rotational Program"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "University Hire Hardware Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Campus Hire ASIC"
+tier = "early_career"
+pages = 10
 
 # Japan sweep phrases, chosen by measurement (2026-10-11): one paid page
 # per phrase in Japan, a month back, over 60 phrases. A bare trade word
@@ -1709,18 +1512,6 @@ pages = 150
 # (論理検証, バックエンド, RTL 設計).
 
 [[sweep_query]]
-query = "インターン 回路設計"
-tier = "intern"
-
-[[sweep_query]]
-query = "LSI 新卒"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "LSI 第二新卒"
-tier = "new_grad"
-
-[[sweep_query]]
 query = "FPGA 未経験"
 tier = "new_grad"
 
@@ -1743,11 +1534,6 @@ pages = 150
 
 [[sweep_query]]
 query = "ASIC 検証 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "LSI バックエンド エンジニア"
 tier = "A"
 pages = 150
 
@@ -1778,51 +1564,20 @@ pages = 150
 
 # Widened 2026-10-13 at the user's request to spend what the cycle leaves
 # before it resets on 2026-10-16 ("多花 大大的搜索"): every chip field and
-# block with a role word, and each field with an entry level. Unmeasured;
-# a phrase JSearch has nothing for costs one page.
-
-[[sweep_query]]
-query = "インターン LSI"
-tier = "intern"
-
-[[sweep_query]]
-query = "インターン FPGA"
-tier = "intern"
-
-[[sweep_query]]
-query = "インターン 半導体 設計"
-tier = "intern"
-
-[[sweep_query]]
-query = "長期インターン 回路設計"
-tier = "intern"
-
-[[sweep_query]]
-query = "インターンシップ 半導体 設計"
-tier = "intern"
-
-[[sweep_query]]
-query = "ASIC 新卒"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "ASIC 第二新卒"
-tier = "new_grad"
+# block with a role word, and each field with an entry level. Measured by the
+# second sweep the same night (304 pages, 683 stored): the phrases kept below
+# accepted at least one posting. Removed, having accepted none: every
+# インターン phrase, 新卒 / ポテンシャル / 若手 / 20代 beside most fields,
+# English tool words (Verilog, UVM, STA, SerDes, PCIe, DDR) and narrow
+# fields (DRAM, NAND, 車載 LSI, 画像処理 LSI). 「<field> 未経験」 did best
+# (SoC 28 new, LSI 設計 22, 回路設計 19, ハードウェア設計 18).
 
 [[sweep_query]]
 query = "ASIC 未経験"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "SoC 新卒"
-tier = "new_grad"
-
-[[sweep_query]]
 query = "SoC 未経験"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "FPGA 新卒"
 tier = "new_grad"
 
 [[sweep_query]]
@@ -1842,10 +1597,6 @@ query = "論理回路 未経験"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "論理回路 第二新卒"
-tier = "new_grad"
-
-[[sweep_query]]
 query = "LSI 設計 未経験"
 tier = "new_grad"
 
@@ -1855,18 +1606,6 @@ tier = "new_grad"
 
 [[sweep_query]]
 query = "LSI 設計 新卒"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "LSI ポテンシャル"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "回路設計 ポテンシャル"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "FPGA ポテンシャル"
 tier = "new_grad"
 
 [[sweep_query]]
@@ -1894,31 +1633,11 @@ query = "検証 第二新卒 LSI"
 tier = "new_grad"
 
 [[sweep_query]]
-query = "回路設計 若手"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "LSI 若手"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "FPGA 若手"
-tier = "new_grad"
-
-[[sweep_query]]
 query = "電子回路設計 未経験"
 tier = "new_grad"
 
 [[sweep_query]]
 query = "電子回路設計 第二新卒"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "回路設計 20代"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "LSI 20代"
 tier = "new_grad"
 
 [[sweep_query]]
@@ -1948,27 +1667,7 @@ tier = "A"
 pages = 150
 
 [[sweep_query]]
-query = "デジタルIC 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
 query = "ロジック設計 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "ロジック回路 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "論理回路設計 FPGA"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "論理設計 LSI"
 tier = "A"
 pages = 150
 
@@ -1978,37 +1677,7 @@ tier = "A"
 pages = 150
 
 [[sweep_query]]
-query = "RTL 設計 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "Verilog エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "Verilog 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "SystemVerilog 検証"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "UVM 検証 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
 query = "機能検証 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "論理検証 LSI"
 tier = "A"
 pages = 150
 
@@ -2038,52 +1707,7 @@ tier = "A"
 pages = 150
 
 [[sweep_query]]
-query = "テスト設計 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "タイミング設計 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "STA エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "論理合成 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "物理設計 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "レイアウト設計 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
 query = "LSI レイアウト エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "バックエンド設計 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "配置配線 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "SoC 設計"
 tier = "A"
 pages = 150
 
@@ -2093,32 +1717,7 @@ tier = "A"
 pages = 150
 
 [[sweep_query]]
-query = "ASIC 開発 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "ASIC 検証"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "FPGA 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
 query = "FPGA 検証 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "FPGA 開発"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "FPGA 論理設計"
 tier = "A"
 pages = 150
 
@@ -2148,57 +1747,12 @@ tier = "A"
 pages = 150
 
 [[sweep_query]]
-query = "DRAM 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "NAND 設計 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
 query = "イメージセンサー 設計 エンジニア"
 tier = "A"
 pages = 150
 
 [[sweep_query]]
-query = "イメージセンサ 回路設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "画像処理 LSI 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "車載 LSI 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "車載 SoC 開発"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "通信 LSI 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "AI チップ 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
 query = "AI 半導体 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "カスタムLSI 開発"
 tier = "A"
 pages = 150
 
@@ -2209,11 +1763,6 @@ pages = 150
 
 [[sweep_query]]
 query = "半導体 開発 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "半導体 ハードウェア エンジニア"
 tier = "A"
 pages = 150
 
@@ -2234,50 +1783,5 @@ pages = 150
 
 [[sweep_query]]
 query = "デジタル設計 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "ハードウェア設計 FPGA"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "ハードウェア設計 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "EDA エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "設計環境 LSI"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "半導体 IP 開発"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "高速インターフェース 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "SerDes 設計"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "PCIe 設計 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "DDR 設計 エンジニア"
 tier = "A"
 pages = 150

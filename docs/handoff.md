@@ -1,3 +1,12 @@
+# U.S. plan to entry levels only; Japan sweep pruned - 2026-10-14 (claude)
+
+Measured and changed as in docs/jsearch.md: 147 U.S. queries, every one an
+intern, new grad or early-career phrase (a test asserts it); 74 Japan sweep
+phrases. Test run op1m-candtest-20261013 (VPS runs/candtest-20261013, no
+store) spent 337 credits. Also found for the user: HPE screening questionnaires
+due 10/16 (Electrical Hardware Engineer I - Graduate), 10/20, 10/21, 10/24, and
+NVIDIA's campus test on 10/15 19:00 Beijing (20-minute login window).
+
 # Muse merge 8 (already-applied counts), sweeps, Gmail by hand - 2026-10-13 (claude)
 
 Pass by hand (op1m-us-month-20261013): the U.S. 30 days back used 793 of
