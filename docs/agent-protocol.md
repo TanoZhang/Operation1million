@@ -9,8 +9,10 @@ Owner: codex
 Scope: Put open Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon Review positions together on one referalble tab, without duplicate open-tab listings.
 Files: src/operation1million/review_static/{app.js,index.html,style.css}, tests/{review-company-tab.cjs,test_review_payload.py}, docs/{agent-protocol,handoff,application-review}.md
 Base commit: ff0604f2d2a0fcc4554c852d85152c7b195d4bbc
-Status: review -- routing test passed; full offline suite: 1,308 run, 14 skipped, all pass.
-Next: Deploy and verify the installed commit and Review page.
+Status: done -- 8f5acc6 passed the routing test and full offline suite
+        (1,308 run, 14 skipped); installed on the VPS, Review service active,
+        and the served page contains the referalble tab.
+Next: None.
 ```
 
 ```text

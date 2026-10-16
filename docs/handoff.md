@@ -4,9 +4,9 @@ The Review UI now groups open Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon p
 in one referalble tab. They are removed from the other open tabs, with
 low-relevance entries still excluded from Remaining. Applied and Skipped keep
 their existing status tabs. The tab shares search, sort, export and decision
-controls. Offline routing and Review payload tests passed. The full offline
-suite ran 1,308 tests, with 14 skipped and no failures. Production deployment
-is pending.
+controls. Commit 8f5acc6 passed the offline routing test and full suite
+(1,308 tests, 14 skipped). The VPS installed 8f5acc6; the Review service was
+active and its served page contained the referalble tab.
 
 # U.S. plan to entry levels only; Japan sweep pruned - 2026-10-14 (claude)
 
