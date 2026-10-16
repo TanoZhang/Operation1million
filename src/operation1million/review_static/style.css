@@ -19,6 +19,7 @@ main{max-width:none;padding:16px 20px 12px}
 .job{padding:14px 16px;min-height:104px}
 .job.selected{padding-left:13px}
 .detail{padding:20px 22px}
+.tabs{min-width:0;max-width:100%;overflow-x:auto}
 .actions{padding-bottom:18px}
 .locations{margin-top:18px}
 .description-head{margin-top:20px}

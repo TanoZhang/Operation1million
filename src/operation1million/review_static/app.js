@@ -301,14 +301,16 @@ const outcomeOf = group => OUTCOME_LABELS[group.outcome] ? group.outcome : 'wait
 // intern, a new grad or the early career (the server's `early_career`) on
 // Early career, and everything else -- "Master's plus 2 years" -- on To review.
 // Since 2026-09-26 the Backlog tab leaves early career postings to their tab.
-// Since 2026-10-11 Japan, China and Taiwan (the server's `asia`: every listing
-// there) are on a tab of their own, with the same filters and the same order,
-// and on no other tab.
-const home = group => !group.asia;
+// Since 2026-10-11 Japan and China (the server's `asia`) have their own tab.
+// The six referable employers have one tab across all locations and relevance
+// levels. Match the normalized display name exactly so a namesake stays put.
+const selectedCompany = group => ['tesla', 'tiktok', 'nvidia', 'renesas', 'cisco', 'amazon']
+  .includes((group.company || '').trim().toLowerCase());
+const home = group => !group.asia && !selectedCompany(group);
 const related = group => !group.less_related && home(group);
 const early = group => related(group) && group.early_career;
 const experienced = group => related(group) && !group.early_career;
-const asiaRelated = group => group.asia && !group.less_related;
+const asiaRelated = group => group.asia && !group.less_related && !selectedCompany(group);
 function filtered() {
   const text = $('#search').value.trim().toLowerCase();
   const match = group => `${group.company} ${group.title}`.toLowerCase().includes(text);
@@ -321,12 +323,18 @@ function filtered() {
     sections = [['backlog', state.backlog.filter(experienced)]];
   } else if (tab === 'less') {
     sections = [['less', [...state.pending, ...state.backlog].filter(group => group.less_related && home(group))]];
+  } else if (tab === 'companies') {
+    const open = [...state.pending, ...state.backlog].filter(selectedCompany);
+    sections = [['early', open.filter(group => group.early_career && !group.less_related)],
+                ['recent', state.pending.filter(group => selectedCompany(group) && !group.early_career && !group.less_related)],
+                ['backlog', state.backlog.filter(group => selectedCompany(group) && !group.early_career && !group.less_related)],
+                ['less', open.filter(group => group.less_related)]];
   } else if (tab === 'asia') {
     const open = [...state.pending, ...state.backlog];
     sections = [['early', open.filter(group => asiaRelated(group) && group.early_career)],
                 ['recent', state.pending.filter(group => asiaRelated(group) && !group.early_career)],
                 ['backlog', state.backlog.filter(group => asiaRelated(group) && !group.early_career)],
-                ['less', open.filter(group => group.asia && group.less_related)]];
+                ['less', open.filter(group => group.asia && group.less_related && !selectedCompany(group))]];
   } else if (tab === 'applied') {
     sections = ['passed', 'declined', 'waiting']
       .filter(name => !outcomeFilter || name === outcomeFilter)
@@ -354,7 +362,8 @@ function render() {
   if (!loaded) return;
   const open = [...state.pending, ...state.backlog].filter(related);
   const asiaOpen = [...state.pending, ...state.backlog].filter(asiaRelated);
-  $('#remaining').textContent = open.length + asiaOpen.length;
+  const companyOpen = [...state.pending, ...state.backlog].filter(selectedCompany);
+  $('#remaining').textContent = open.length + asiaOpen.length + companyOpen.filter(group => !group.less_related).length;
   $('#applied').textContent = state.applied.length;
   $('#skipped').textContent = state.skipped.length;
   $('#pending-count').textContent = open.filter(experienced).length;
@@ -362,6 +371,7 @@ function render() {
   $('#backlog-count').textContent = state.backlog.filter(experienced).length;
   $('#less-count').textContent = [...state.pending, ...state.backlog].filter(group => group.less_related && home(group)).length;
   $('#asia-count').textContent = asiaOpen.length;
+  $('#companies-count').textContent = companyOpen.length;
   const groups = filtered();
   const appliedMode = tab === 'applied';
   renderGmail();
@@ -442,7 +452,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less', 'asia'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : (tab === 'applied' ? `<button id="outcome-passed" class="${group.outcome === 'passed' ? 'primary' : ''}">Passed</button><button id="outcome-declined" class="${group.outcome === 'declined' ? 'primary' : ''}">Declined</button>${group.outcome ? '<button id="outcome-clear">Clear outcome</button>' : ''}` : '') + '<button id="reopen">Move to review</button>'}</div>${group.application_limit ? `<p class="limit">${escapeText(group.application_limit)}</p>` : ''}${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less', 'asia', 'companies'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : (tab === 'applied' ? `<button id="outcome-passed" class="${group.outcome === 'passed' ? 'primary' : ''}">Passed</button><button id="outcome-declined" class="${group.outcome === 'declined' ? 'primary' : ''}">Declined</button>${group.outcome ? '<button id="outcome-clear">Clear outcome</button>' : ''}` : '') + '<button id="reopen">Move to review</button>'}</div>${group.application_limit ? `<p class="limit">${escapeText(group.application_limit)}</p>` : ''}${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';

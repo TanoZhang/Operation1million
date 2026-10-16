@@ -1,3 +1,13 @@
+# referalble Review tab - 2026-10-16 (codex)
+
+The Review UI now groups open Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon positions
+in one referalble tab. They are removed from the other open tabs, with
+low-relevance entries still excluded from Remaining. Applied and Skipped keep
+their existing status tabs. The tab shares search, sort, export and decision
+controls. Offline routing and Review payload tests passed. The full offline
+suite ran 1,308 tests, with 14 skipped and no failures. Production deployment
+is pending.
+
 # U.S. plan to entry levels only; Japan sweep pruned - 2026-10-14 (claude)
 
 Measured and changed as in docs/jsearch.md: 147 U.S. queries, every one an

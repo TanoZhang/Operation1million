@@ -150,9 +150,9 @@ class ClientSourceContractTests(unittest.TestCase):
         render = script.split('function render() {')[1]
         # Remaining counts the Japan / China tab's related postings too
         # (2026-10-11), and still no less related ones.
-        self.assertIn("$('#remaining').textContent = open.length + asiaOpen.length;", render,
+        self.assertIn("$('#remaining').textContent = open.length + asiaOpen.length + companyOpen.filter(group => !group.less_related).length;", render,
                       'Remaining still counts less related postings')
-        self.assertIn('const asiaRelated = group => group.asia && !group.less_related;', script)
+        self.assertIn('const asiaRelated = group => group.asia && !group.less_related && !selectedCompany(group);', script)
         self.assertIn('const open = [...state.pending, ...state.backlog].filter(related);', script)
         self.assertIn('data-tab="less"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('less_related', review.GROUP_FIELDS)
@@ -167,9 +167,9 @@ class ClientSourceContractTests(unittest.TestCase):
         self.assertIn("[['recent', state.pending.filter(early)], ['backlog', state.backlog.filter(early)]]",
                       body, 'early career postings have no tab of their own')
         self.assertIn('const experienced = group => related(group) && !group.early_career;', script)
-        self.assertIn("$('#remaining').textContent = open.length + asiaOpen.length;", script,
+        self.assertIn("$('#remaining').textContent = open.length + asiaOpen.length + companyOpen.filter(group => !group.less_related).length;", script,
                       'Remaining stops counting one of the two review tabs')
-        self.assertIn("['pending', 'early', 'backlog', 'less', 'asia'].includes(tab)", script,
+        self.assertIn("['pending', 'early', 'backlog', 'less', 'asia', 'companies'].includes(tab)", script,
                       'the early career tab cannot mark a posting applied or skipped')
         self.assertIn('data-tab="early"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('early_career', review.GROUP_FIELDS)
@@ -182,7 +182,7 @@ class ClientSourceContractTests(unittest.TestCase):
         self.assertIn('const related = group => !group.less_related && home(group);', script,
                       'the U.S. tabs still list postings abroad')
         self.assertIn("} else if (tab === 'asia') {", body)
-        self.assertIn("['less', open.filter(group => group.asia && group.less_related)]", body)
+        self.assertIn("['less', open.filter(group => group.asia && group.less_related && !selectedCompany(group))]", body)
         self.assertIn('data-tab="asia"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('asia', review.GROUP_FIELDS)
 

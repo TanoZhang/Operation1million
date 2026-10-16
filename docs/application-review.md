@@ -30,6 +30,13 @@ postings appear on that tab only, never under To review or Backlog, and
 Remaining does not count them. They can still be marked applied or skipped
 there.
 
+**referalble** holds open Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon positions
+in one tab, across recent, early-career, backlog, Japan / China and low-relevance
+groups. They do not appear again on other open tabs. The tab uses the same
+search, sort, export and decision controls. Its low-relevance section does not
+contribute to Remaining, while its other positions do. Applied and skipped
+positions continue to appear in their status tabs.
+
 **Places** (2026-10-08): a listing placed only outside the U.S., Japan,
 China (with Hong Kong and Macau) and Taiwan is not shown
 (`location.outside_allowed`); one listing in any of them keeps the posting, and
