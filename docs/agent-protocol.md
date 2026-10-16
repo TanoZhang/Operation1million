@@ -15,8 +15,12 @@ Files: docs/{agent-protocol,handoff,application-review,jsearch}.md,
        .local/{september-audit,query-audit,profile-tests,photo-titles,muse-inspect,cycle-audit}.py,
        private data repository operational/review_queue.csv.
 Base commit: 206cc08158cb3f4533fea64025665ac0247c8b2b
-Status: claimed
-Next: Verify the 10,000 target and closing-sweep behavior, mark the Muse CSV, and deploy after tests.
+Status: done -- code commit 8720c37 passed the 1,311-test offline suite
+        (14 skipped) and was installed on the VPS; private Muse data commit
+        740517f contains 115 marked listings out of 1,929. The Review service
+        is active and the current-cycle balance was verified read-only.
+Next: Measure new-cycle query yield and final-day Japan-first/U.S. fallback
+      when those scheduled runs occur.
 ```
 
 ```text

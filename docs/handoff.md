@@ -1,3 +1,53 @@
+# JSearch cycle audit, full quota, and Muse marker - 2026-10-16 (codex)
+
+The user's "last month" meant the prior 30-day API billing period, 2026-09-16
+through 2026-10-15 UTC, not calendar September. The request ledger records
+8,400 page reservations plus a 218-credit baseline: 8,618 conservatively used,
+982 below the former 9,600 target and 1,382 below the provider's 10,000 quota.
+The October 13 Japan sweep used 304 pages. On October 14 and 15, 72 of 74
+retained Japan phrases were exhausted; each day used only two empty pages.
+Earlier budget days also left credits. A short page is not proof of exhaustion;
+these conclusions use the provider continuation state and run records.
+
+Commit 8720c37 raises the new cycle's target to 10,000. The daily allowance
+stays 350 from 04:38 Pacific. On the final UTC billing date, the closing sweep
+runs Japan first, then uses the existing U.S. intern/new-grad plan with a month
+lookback if the same billing period still has balance. The same RequestGuard
+reserves every page and enforces the 10,000-credit cap. At 2026-10-16 23:38 UTC,
+the new cycle had used 343 and had 9,657 to its target; that Pacific budget day
+had seven credits left. No paid request was made for this audit.
+
+The previous billing period's Review ledger has 1,807 applied events across
+1,801 group IDs. Ledger timestamps include October 6-8 imports, so they are
+not reliable application submission dates. Among the 1,801 latest groups,
+581 have intern/co-op titles, 45 graduate/entry, 180 verification, 94 physical
+design, 279 digital hardware, 128 validation/test, 48 analog/RF, 35 embedded
+or firmware, and 411 other titles. The supplied image mostly repeats broad
+role families already in the entry-level plan. DMA and other specialist titles
+were deliberately not added as paid standalone searches; inspect their actual
+yield before promoting one. The latest U.S. run had 147 phrases, used 343 pages,
+and found 108 run-unique jobs with 364 accepted listings. Marginal yield depends
+on query order, so zero marginal yield alone does not justify removing a phrase.
+
+The Review tab already groups open Tesla, TikTok, NVIDIA, Renesas, Cisco and
+Amazon positions under the user's spelling `referalble`. Commit 8720c37 also
+adds that exact boolean CSV column to the Muse queue export, using canonical
+employer identity. The VPS rebuilt and pushed private data commit 740517f:
+1,929 listings, 115 `true`, 1,814 `false`. The private data repository still has
+two pre-existing untracked generated paths, untouched by this work. Its tracked
+files are clean. The Review service is active and the installed code commit is
+8720c37. A normal future queue export will retain the new column.
+
+The existing test suite had 1,308 tests and no exact duplicate test bodies.
+Three costly full-plan JSearch tests now use one distinct listing per page
+while still exercising pagination, reservation and store behavior; the
+JSearch module ran in 76.715 s versus an 88.633 s baseline. The browser Review
+render computes the filtered groups once instead of twice. The full offline
+suite on 8720c37 passed: 1,311 tests, no failures or errors, 14 skipped. The
+Review tab routing test and VPS shell syntax check passed. The daily offline
+suite does not spend API credits. Keep its safety coverage and measure other
+hotspots before deleting tests.
+
 # referalble Review tab - 2026-10-16 (codex)
 
 The Review UI now groups open Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon positions
