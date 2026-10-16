@@ -2,7 +2,7 @@
 # one page at a time, and follows the provider cursor until it ends or a guard stops it.
 version = 1
 monthly_quota = 10000
-target_utilization = 0.96
+target_utilization = 1.0
 operating_days = 30
 daily_budget = 350
 # A cycle's own daily budget, keyed by the cycle's first day; other cycles use
@@ -36,9 +36,9 @@ max_pages_per_query = 40
 # A backfill sweep spends credits that expire with the cycle, so it pages far
 # deeper than a daily pass before its own runaway guard binds.
 backfill_max_pages_per_query = 200
-# The closing sweep searches Japan (the user, 2026-10-11): the end-of-cycle
-# U.S. sweep that spent what the month left is cancelled, and that remainder
-# goes to the [[sweep_query]] phrases below in Japan, posted within 30 days.
+# The closing sweep searches Japan first (the user, 2026-10-11). On the final
+# UTC billing date, a separate U.S. entry-level fallback may use any balance
+# left after the Japan sweep.
 backfill_country = "jp"
 
 employment_types = ["FULLTIME", "INTERN"]
@@ -64,10 +64,10 @@ exclude_job_publishers = [
 # On 2026-10-05 the user raised the daily limit to 400 (570 for the rest of
 # that cycle and 330 after it, from 2026-10-09), removed all twenty
 # state splits, and requested much broader nationwide VLSI title coverage.
-# Keep the original 170 nationwide queries. The user subsequently raised all 123
-# three-page trial caps to ten; the other 47 caps stay unchanged. Caps total
-# 2,365, not reserved credits. RequestGuard limits actual spend to the daily budget per
-# Pacific budget day and 9,600 per UTC billing cycle.
+# The original 170-query expansion and its caps are historical. The 2026-10-14
+# measured pruning left 147 U.S. intern/new-grad/early-career queries. Caps are
+# ceilings, not reserved credits. RequestGuard limits actual spend to the daily
+# budget per Pacific budget day and 10,000 per UTC billing cycle.
 # Search terms discover candidates; the existing JD filters decide eligibility.
 # Every query gets one page per round within its tier. A missing next cursor,
 # repeated page/cursor or another guard ends paging; short pages can continue.

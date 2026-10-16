@@ -249,7 +249,9 @@ def write(path, entries):
 # only as the index plus the ledger. One plain CSV of what Remaining counts,
 # rewritten in place each pass, is the whole interface: no SQLite in the
 # repository, and a day's change costs Git a compressed diff.
-OPEN_COLUMNS = tuple(name for name, _ in COLUMNS if name not in ('Decided', 'Reason'))
+REFERALBLE_COMPANIES = frozenset(employers.identity(name) for name in
+                                ('Tesla', 'TikTok', 'NVIDIA', 'Renesas', 'Cisco', 'Amazon'))
+OPEN_COLUMNS = tuple(name for name, _ in COLUMNS if name not in ('Decided', 'Reason')) + ('referalble',)
 
 
 def open_entries(state):
@@ -263,13 +265,16 @@ def write_csv(path, entries):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     keep = [index for index, (name, _) in enumerate(COLUMNS) if name in OPEN_COLUMNS]
+    company_column = [name for name, _ in COLUMNS].index('Company')
     table = rows(entries)
     handle, temporary = tempfile.mkstemp(prefix='.review-queue-', suffix='.csv', dir=path.parent)
     try:
         with os.fdopen(handle, 'w', encoding='utf-8', newline='') as out:
             writer = csv.writer(out, lineterminator='\n')
             writer.writerow(OPEN_COLUMNS)
-            writer.writerows([('' if row[i] is None else row[i]) for i in keep] for row in table)
+            writer.writerows([('' if row[i] is None else row[i]) for i in keep] +
+                             ['true' if employers.identity(row[company_column]) in REFERALBLE_COMPANIES else 'false']
+                             for row in table)
         os.replace(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)

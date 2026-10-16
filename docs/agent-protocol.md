@@ -6,6 +6,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: codex
+Scope: Analyze the previous 30-day JSearch billing cycle and current balance, raise the new cycle's target to 10,000 and resolve unused closing credits, assess the supplied role image without narrow paid keywords, mark the six referalble employers in Muse's private queue, and remove demonstrated redundant work.
+Files: docs/{agent-protocol,handoff,application-review,jsearch}.md,
+       data/config/jsearch_queries.toml,
+       src/operation1million/{collector.py,export.py,review_static/app.js},
+       deploy/vps/daily-pass.sh,
+       tests/{test_jsearch,test_prelaunch_fixes,test_review_export}.py,
+       .local/{september-audit,query-audit,profile-tests,photo-titles,muse-inspect,cycle-audit}.py,
+       private data repository operational/review_queue.csv.
+Base commit: 206cc08158cb3f4533fea64025665ac0247c8b2b
+Status: claimed
+Next: Verify the 10,000 target and closing-sweep behavior, mark the Muse CSV, and deploy after tests.
+```
+
+```text
+Owner: codex
 Scope: Put open Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon Review positions together on one referalble tab, without duplicate open-tab listings.
 Files: src/operation1million/review_static/{app.js,index.html,style.css}, tests/{review-company-tab.cjs,test_review_payload.py}, docs/{agent-protocol,handoff,application-review}.md
 Base commit: ff0604f2d2a0fcc4554c852d85152c7b195d4bbc

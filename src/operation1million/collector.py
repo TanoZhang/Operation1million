@@ -1288,6 +1288,8 @@ def main():
                         'the monthly target still applies')
     p.add_argument('--backfill', action='store_true',
                    help="Month-wide sweep of the cycle's remaining credits; run it after a daily pass")
+    p.add_argument('--backfill-us-fallback', action='store_true',
+                   help='Use the existing U.S. entry-level plan for the final-day fallback after Japan')
     p.add_argument('--jsearch-config', type=Path, default=CONFIG / 'jsearch_queries.toml')
     p.add_argument('--jsearch-budget', type=int, default=0, help='Page-credit cap; 0 uses config with --jsearch, otherwise disables paid discovery')
     p.add_argument('--jsearch-timeout', type=float, default=90,
@@ -1295,6 +1297,8 @@ def main():
     p.add_argument('--jsearch-max-seconds', type=float, default=0,
                    help='Stop paid paging cleanly after this many seconds; 0 has no runtime limit')
     args = p.parse_args()
+    if args.backfill_us_fallback and (not args.backfill or args.jsearch_query):
+        p.error('--backfill-us-fallback requires --backfill and cannot use --jsearch-query')
     if (min(args.max_pages, args.workers, args.timeout, args.jsearch_timeout,
             args.fallback_queries) <= 0 or (args.max_jobs is not None and args.max_jobs <= 0)
             or args.jsearch_budget < 0 or args.jsearch_max_seconds < 0
@@ -1315,7 +1319,7 @@ def main():
         # back, pages far deeper than a daily pass, and is not held to the daily
         # slice -- that slice exists only to pace the month it is now ending.
         settings['date_posted'] = 'month'
-        settings['country'] = settings['backfill_country']
+        settings['country'] = 'us' if args.backfill_us_fallback else settings['backfill_country']
         settings['max_pages_per_query'] = settings['backfill_max_pages_per_query']
         # The daily plan gives each broad query its own cap. A month-wide sweep
         # restates those caps with its separate per-tier backfill depths.
@@ -1325,7 +1329,8 @@ def main():
         if not args.jsearch_query:
             # A sweep with phrases of its own (Japan, 2026-10-11) asks those,
             # already at their tier's backfill depth; otherwise the daily ones.
-            functional_queries = (list(settings['sweep_queries']) if settings['sweep_queries']
+            functional_queries = (list(settings['sweep_queries'])
+                                  if settings['sweep_queries'] and not args.backfill_us_fallback
                                   else [sweep_depth(q) for q in functional_queries])
         if not args.store:
             p.error('--backfill requires durable storage; it cannot be combined with --no-store')

@@ -286,13 +286,13 @@ elif [ "$collect_code" -ne 0 ]; then
   exit "$collect_code"
 fi
 
-days_until_reset=$(python - <<'PY'
+read -r days_until_reset sweep_period < <(python - <<'PY'
 from operation1million import jsearch
 from operation1million.jsearch_access import RequestGuard
 settings, _ = jsearch.load_plan()
 guard = RequestGuard(target_limit=settings['monthly_target'],
                      cycle_start=settings['cycle_start'], cycle_days=settings['cycle_days'])
-print(guard.days_until_reset())
+print(guard.days_until_reset(), guard.period()[0])
 PY
 )
 if [ "$days_until_reset" -le 3 ]; then
@@ -303,6 +303,24 @@ if [ "$days_until_reset" -le 3 ]; then
   set -e
 fi
 if [ "$sweep_code" -ne 0 ]; then exit "$sweep_code"; fi
+if [ "$days_until_reset" -le 1 ]; then
+  # The measured Japan plan reached its provider end before the previous cycle
+  # ran out of credits. Give Japan first use; on the final UTC date only, use
+  # the existing U.S. entry-level plan for any remaining credits.
+  read -r fallback_period fallback_left < <(python - <<'PY'
+from operation1million import jsearch
+from operation1million.jsearch_access import RequestGuard
+settings, _ = jsearch.load_plan()
+guard = RequestGuard(target_limit=settings['monthly_target'],
+                     cycle_start=settings['cycle_start'], cycle_days=settings['cycle_days'])
+print(guard.period()[0], guard.balance()['period_remaining'])
+PY
+)
+  if [ "$fallback_period" = "$sweep_period" ] && [ "$fallback_left" -gt 0 ]; then
+    job-collect --jsearch-only --backfill --backfill-us-fallback \
+      --workers 1 --delay 1.0 --jsearch-max-seconds 6000
+  fi
+fi
 run_clean=1
 if [ "$problems" -eq 1 ]; then
   echo 'WARNING: the pass completed, but a check failed; see the warning above.' >&2

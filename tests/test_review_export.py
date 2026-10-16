@@ -123,6 +123,17 @@ class OpenQueueCsvTests(unittest.TestCase):
         self.assertEqual(table[2][0], 'Backlog')
         self.assertEqual([path.name for path in self.path.parent.iterdir()], ['review_queue.csv'])
 
+    def test_referalble_marks_only_the_six_requested_employers(self):
+        names = ('Tesla', 'TikTok', 'NVIDIA', 'Renesas Electronics America',
+                 'Cisco Systems', 'Amazon Web Services (AWS)', 'NVIDIA Staffing')
+        entries = [('pending', dict(GROUP, company=name, id=str(index)))
+                   for index, name in enumerate(names)]
+        export.write_csv(self.path, entries)
+        with self.path.open(encoding='utf-8', newline='') as handle:
+            table = list(csv.DictReader(handle))
+        self.assertEqual([row['referalble'] for row in table],
+                         ['true'] * 6 + ['false'])
+
     def test_the_daily_pass_publishes_it(self):
         script = (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
         publish = script.split('publish_state() {')[1].split('\n}\n')[0]

@@ -338,6 +338,16 @@ class DailyPassKeepsGoingTests(unittest.TestCase):
     def script(self):
         return (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
 
+    def test_us_fallback_waits_for_japan_and_the_final_billing_day(self):
+        script = self.script()
+        japan = script.index('job-collect --jsearch-only --backfill --workers 1')
+        fallback = script.index('job-collect --jsearch-only --backfill --backfill-us-fallback')
+        self.assertLess(japan, fallback)
+        before_fallback = script[japan:fallback]
+        self.assertIn('if [ "$days_until_reset" -le 1 ]; then', before_fallback)
+        self.assertIn('"$fallback_period" = "$sweep_period"', before_fallback)
+        self.assertIn('"$fallback_left" -gt 0', before_fallback)
+
     def test_a_failing_suite_is_reported_and_the_pass_carries_on(self):
         self.assertIn("python -m unittest discover -s tests || note_problem", self.script())
 

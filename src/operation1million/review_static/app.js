@@ -27,10 +27,9 @@ function batchOptions(total) {
   select.value = chosen !== '' && Number(chosen) < count ? chosen : '';
   select.disabled = total === 0;
 }
-function updateSelection() {
+function updateSelection(matches = filtered()) {
   const valid = new Set(allGroups().map(group => group.id));
   for (const id of checkedJobs) if (!valid.has(id)) checkedJobs.delete(id);
-  const matches = filtered();
   batchOptions(matches.length);
   if ($('#batch').value !== '') {
     const index = Number($('#batch').value);
@@ -378,7 +377,7 @@ function render() {
   $('.outcome-control').hidden = !appliedMode;
   $('#manual-form button[type=submit]:not(#manual-applied)').textContent = appliedMode ? 'Add to Applied' : 'Add job and score';
   $('#manual-applied').hidden = appliedMode;
-  updateSelection();
+  updateSelection(groups);
   if (!groups.some(group => group.id === selected)) selected = groups[0]?.id ?? null;
   $('#count').textContent = `${groups.length} positions` + bandSummary(groups);
   $('#list').replaceChildren();

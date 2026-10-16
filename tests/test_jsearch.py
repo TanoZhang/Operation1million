@@ -263,6 +263,16 @@ class DiscoveryTests(unittest.TestCase):
         response.json.side_effect = payload
         return response
 
+    def continuing_response(self, jobs=None):
+        """A minimal short page using the observed data.cursor response shape."""
+        if jobs is None:
+            params = parse_qs(urlsplit(self.session.get.call_args.args[0]).query)
+            jobs = [job(f'{params["query"][0]}-{params.get("cursor", ["1"])[0]}',
+                        job_description='RTL design and verification.')]
+        response = self.response(jobs)
+        response.json.return_value['data']['cursor'] = '__next__'
+        return response
+
     def per_query(self, *responses):
         """One response per query.
 
@@ -304,14 +314,14 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_fixed_catalog_and_budget_math(self):
         self.assertEqual(len(self.plan), 147)
-        self.assertEqual(self.settings['monthly_target'], 9600)
+        self.assertEqual(self.settings['monthly_target'], 10000)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
         # day, then 330 from the next cycle on (350 since 2026-10-13).
         on = lambda day: jsearch.load_plan(today=date.fromisoformat(day))[0]['daily_budget']
         self.assertEqual([on(day) for day in ('2026-10-09', '2026-10-15', '2026-10-16', '2026-11-15')],
                          [570, 570, 350, 350])
         # Daily pacing may exceed a uniform monthly slice; the independent
-        # monthly guard still binds at 9,600 credits.
+        # provider quota still binds at 10,000 credits.
         self.assertGreater(on('2026-10-16') * 30, self.settings['monthly_target'])
         # A 30-day cycle, not a day of the month: a calendar anchor would drift
         # against the provider every time a period crosses a short month.
@@ -1470,15 +1480,9 @@ class DiscoveryTests(unittest.TestCase):
         # seconds of a test suite that sends nothing.
         guard.interval = 0
         client = jsearch.Client(SEARCH, settings, guard, session=self.session)
-        # Every page full, so only the budget or a cap can stop a query. The
-        # descriptions are short because what is under test is how the budget
-        # and the guards behave across the plan, not how a posting scores --
-        # and scoring a full one costs about twenty milliseconds.
-        self.session.get.side_effect = lambda url, **kw: self.response([
-            job(f'{parse_qs(urlsplit(url).query)["query"][0]}'
-                f'-{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}-{i}',
-                job_description='RTL design and verification.')
-            for i in range(10)])
+        # A short page can still have a continuation cursor. One lightweight
+        # unique job per page is enough to prove how the plan spends its budget.
+        self.session.get.side_effect = lambda url, **kw: self.continuing_response()
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
         self.assertEqual(len(plan), 147)
@@ -1488,8 +1492,8 @@ class DiscoveryTests(unittest.TestCase):
         for q in stats['jsearch_queries']:
             cap = next(query.pages for query in plan if query.query == q['query'])
             self.assertLessEqual(q['pages_used'], cap, q['query'])
-        # Every page full, so the caps outrun the day: the tiers that were
-        # reached are a prefix of the priority order, internships always among them.
+        # Every page continues, so the caps outrun the day: the tiers reached
+        # are a prefix of the priority order, internships always among them.
         reached = [t for t in ('intern', 'new_grad', 'early_career', 'A')
                    if any(q['pages_used'] for q in stats['jsearch_queries'] if q['tier'] == t)]
         self.assertEqual(reached, ['intern', 'new_grad', 'early_career', 'A'][:len(reached)])
@@ -1511,10 +1515,10 @@ class DiscoveryTests(unittest.TestCase):
         board = Mock(jobs=[], rejected=[], requests=1, etag=None,
                      last_modified=None, listed=None, source=source)
         board.run.return_value = ('complete', '')
-        self.session.get.side_effect = lambda url, **kw: self.response([
+        self.session.get.side_effect = lambda url, **kw: self.continuing_response([
             job(f'{parse_qs(urlsplit(url).query)["query"][0]}-'
-                f'{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}-{i}',
-                job_description='RTL design and verification.') for i in range(10)])
+                f'{parse_qs(urlsplit(url).query).get("cursor", ["1"])[0]}',
+                job_description='RTL design and verification.')])
         configs = {'discovery_queries.toml': {},
                    'sources_search.toml': {'search': {'jsearch': SEARCH}}}
         self.guard.interval = 0
@@ -1627,9 +1631,7 @@ class DiscoveryTests(unittest.TestCase):
                 guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
                 guard.interval = 0
                 client = jsearch.Client(SEARCH, settings, guard, session=self.session)
-                self.session.get.side_effect = lambda url, **kw: self.response([
-                    job(f'{url}-{i}', job_description='RTL design and verification.')
-                    for i in range(10)])
+                self.session.get.side_effect = lambda url, **kw: self.continuing_response()
                 _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
                 spent = {}
                 for query in stats['jsearch_queries']:
@@ -1766,13 +1768,13 @@ class DiscoveryTests(unittest.TestCase):
             collector.main()
         self.assertEqual(asked, [self.plan[0].query])
 
-    def sweep(self, settings=None):
+    def sweep(self, settings=None, extra=()):
         """The queries and settings a --backfill run hands to jsearch.collect."""
         observed = {}
         configs = {'discovery_queries.toml': {},
                    'sources_search.toml': {'search': {'jsearch': SEARCH}}}
         argv = ['collector', '--backfill', '--jsearch-budget', '320',
-                '--db', str(self.db_path), '--output', str(self.root / 'deep-sweep')]
+                '--db', str(self.db_path), '--output', str(self.root / 'deep-sweep'), *extra]
 
         def capture(queries, client, given, *args, **kwargs):
             observed.update(queries=list(queries), settings=dict(given))
@@ -1804,6 +1806,14 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn('論理回路 設計 エンジニア', [q.query for q in observed['queries']])
         # The daily pass is unchanged.
         self.assertEqual(settings['country'], 'us')
+
+    def test_last_day_fallback_uses_the_existing_us_entry_plan(self):
+        observed = self.sweep(extra=('--backfill-us-fallback',))
+        self.assertEqual(observed['settings']['country'], 'us')
+        self.assertEqual(observed['settings']['date_posted'], 'month')
+        self.assertEqual([q.query for q in observed['queries']], [q.query for q in self.plan])
+        self.assertEqual([q.pages for q in observed['queries']],
+                         [self.settings['backfill_tier_pages'][q.tier] for q in self.plan])
 
     def test_backfill_uses_the_deeper_query_guard(self):
         observed = []

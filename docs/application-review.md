@@ -55,8 +55,11 @@ applied entries in the window, or for Amazon those not marked Declined.
 pass, so Muse can read it through the GitHub API (`python -m
 operation1million.export <csv>`). One row per listing, To review / Early career
 new postings first, then Backlog; the columns are the Excel export's less
-Decided and Reason. It is a once-a-day picture: anything decided or applied
-since that pass is still listed.
+Decided and Reason, plus `referalble` (`true` or `false`). The marker uses exact
+employer identities and their confirmed aliases for Tesla, TikTok, NVIDIA,
+Renesas, Cisco and Amazon. Muse can filter that column to identify positions on
+the Review page's referalble tab. It is a once-a-day picture: anything decided
+or applied since that pass is still listed.
 
 A position is one requisition: the provider's own job id, and the URL only where
 a provider publishes no id. The id is scoped the way the store scopes

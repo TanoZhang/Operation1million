@@ -1,5 +1,26 @@
 # JSearch daily discovery
 
+## Full provider quota - 2026-10-16
+
+The user raised the operating target from 9,600 to the 10,000-credit provider
+quota for the new billing cycle. The daily budget remains 350 per Pacific budget
+day. The previous cycle's target and usage measurements below are historical.
+The request guard still reserves every paid page before dispatch and refuses
+requests above the provider quota.
+
+The previous cycle left 1,382 credits below the provider quota. Its October 13
+Japan sweep used 304 pages; on October 14 and 15, 72 of 74 retained phrases
+were already exhausted, and the remaining two used one empty page each day.
+The residual therefore came from finite search results, not the request guard
+stopping a productive Japan query. Earlier days also used less than their
+allowance. The new 350-credit daily plan and its 147 entry-level phrases should
+be measured across the new cycle; a daily ceiling is not a spending guarantee.
+The closing pass asks Japan first. On the final UTC billing date, if that pass
+leaves credits and the billing period has not changed, it uses the existing U.S.
+entry-level plan with a month lookback and deeper sweep caps. Both passes use
+the same guarded ledger and the 10,000-credit cap. A finite provider result set
+can still leave credits unused; this fallback adds no broad or unmeasured terms.
+
 ## Entry levels only, chosen by measurement - 2026-10-14
 
 The user: the U.S. plan searches intern, new grad and early career only,
@@ -256,9 +277,9 @@ Requests use `/jsearch/search-v2`, `country=us`, `date_posted=3days`, and
 and no negative search terms. The twenty October 4 state splits were withdrawn
 on October 5; all current queries are nationwide.
 
-The quota is 10,000 page credits per billing period. The operating target is
-`floor(10000 * 0.96) = 9600`; the configured daily ceiling is 400. At sustained
-400-credit use the monthly guard can stop the cycle before its last day.
+The quota and current operating target are 10,000 page credits per billing period.
+The configured daily ceiling is 350. At sustained daily use the monthly guard
+can stop the cycle before its last day.
 `cycle_start` is `2026-09-16` and periods roll every 30 UTC dates from that
 anchor. The daily budget resets at 04:38 `America/Los_Angeles`, following
 daylight saving time. Timestamped reservations are counted within that window,
@@ -479,10 +500,9 @@ limits are held structurally rather than by hoping:
   many workers a run uses -- 20% under the provider's limit. One page per call
   raised a daily pass from about 30 requests to as many as 320, which is 80
   seconds of throttle and no closer to the limit.
-- `monthly_target` stops the guard at 9,600 of the 10,000 the plan includes, so
-  no request is ever the one that starts being charged. The provider's own FAQ
-  names "automated retries" as the usual cause of an overage bill; a failed page
-  here is charged once and never retried.
+- `monthly_target` now equals the provider's 10,000-credit quota, per the user's
+  2026-10-16 instruction. `RequestGuard` reserves each request before dispatch
+  and refuses a request that would exceed that cap. Failed pages remain reserved.
 
 A 429 or 503 pauses the account for 15 minutes and a 401 or 403 for 24 hours,
 both persisted, so a cooldown outlives the runner that earned it. Either one
