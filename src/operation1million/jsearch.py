@@ -175,6 +175,13 @@ def _read_plan(path):
                 raise ValueError(f'{name}.{tier} must be between 1 and {ceiling}')
     config.setdefault('country', 'us')
     config.setdefault('date_posted', 'today')
+    # A query rests between searches only while its window still covers the
+    # days it rested: a 3-day window allows every second day, not every third.
+    config.setdefault('rotation_days', 1)
+    window = WINDOW_DAYS.get(config['date_posted'])
+    if (type(config['rotation_days']) is not int or config['rotation_days'] < 1
+            or (config['rotation_days'] > 1 and (window is None or config['rotation_days'] >= window))):
+        raise ValueError('rotation_days must be 1, or fewer days than the date_posted window')
     config.setdefault('employment_types', ['FULLTIME', 'INTERN'])
     if config['country'] != 'us' or not config['employment_types'] or not set(config['employment_types']) <= {'FULLTIME', 'INTERN'}:
         raise ValueError('Functional discovery requires US full-time/intern settings')
@@ -268,6 +275,30 @@ def _read_plan(path):
     if not 1 <= rules['min_confidence'] <= 100:
         raise ValueError('Filter min_confidence must fall between 1 and 100')
     return config, queries
+
+
+WINDOW_DAYS = {'today': 1, '3days': 3, 'week': 7, 'month': 30}
+
+
+def due_queries(queries, last_searched, day, rotation_days):
+    """The queries a daily pass on budget day `day` searches, and those resting.
+
+    Within each tier, queries take turns by their place in the plan, so each
+    day carries about the same share of every tier. A query whose last
+    finished search is `rotation_days` or more ago runs whatever its turn: a
+    pass that failed or stopped short is made up the next day, and the window
+    is never left uncovered. One never finished runs too.
+    """
+    if rotation_days <= 1:
+        return list(queries), []
+    due, resting, places = [], [], {}
+    for query in queries:
+        place = places[query.tier] = places.get(query.tier, -1) + 1
+        last = last_searched.get(query.key)
+        overdue = last is None or (day - date.fromisoformat(last)).days >= rotation_days
+        (due if overdue or place % rotation_days == day.toordinal() % rotation_days
+         else resting).append(query)
+    return due, resting
 
 
 def validate_budget(queries, budget):
@@ -1415,7 +1446,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     stats['jsearch_queries_completed'] += 1
                     detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
                     detail['reason'] = f'Runaway guard stopped paging at {query.pages} pages'
-                    entry['done'] = True
+                    entry['done'] = entry['ended'] = True
                     active.remove(query)
                     continue
                 before = client.guard.credits
@@ -1506,6 +1537,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                         detail['status'] = 'partial' if detail['malformed'] else 'query_limited'
                         if looping or cursor_looping:
                             detail['reason'] = 'Provider repeated a page; stopped advancing'
+                        entry['ended'] = True
                     entry['done'] = True
                     active.remove(query)
 
@@ -1525,6 +1557,10 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             detail['reason'] = (f'Not reached: {stop_reason}' if stop_reason
                                 else 'Not reached before the run ended')
         detail['jobs_accepted'] = len(rows)
+        # Searched to its end or its cap, nothing lost on the way: what the
+        # two-day rotation counts as searched. A budget, clock or provider
+        # stop, or an unreadable record, has it searched again tomorrow.
+        detail['finished'] = bool(entry.get('ended')) and detail['status'] == 'query_limited'
         stats['jsearch_jobs_rejected'] += detail['rejected']
         stats['jsearch_jobs_malformed'] += detail['malformed']
         persist(query, rows, detail)

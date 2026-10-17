@@ -1,3 +1,9 @@
+# JSearch: two-day rotation, accelerators, jd_text - 2026-10-17 (claude)
+
+See the newest section of `docs/jsearch.md`. Gmail fix ee0b847 installed on the VPS the same day.
+The 10-16/17 query analysis read the private manifests from a partial clone of the data repo
+(`../Operation1million-data`, manifests only).
+
 # Gmail: "continue to apply" and stale stars - 2026-10-17 (claude)
 
 The user: SharkNinja was not changed, and "continue to apply for" was read

@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-17): remove Test Engineer I Semiconductor and
+       timing queries, add accelerator queries, two-day query rotation,
+       a jd_text query family.
+Files: data/config/jsearch_queries.toml, src/operation1million/{jsearch,
+       jsearch_access,collector,workflow_state}.py, tests/test_jsearch.py,
+       docs/{jsearch,handoff,agent-protocol}.md
+Base commit: ee0b847
+Status: done -- 1,272 run, 13 skipped, pass. Not installed.
+Next: Install; measure rotation spend and jd_text yield from the manifests.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-17): Gmail Passed/Declined reads -- a SharkNinja
        reply identified wrong; invitations told as instructions, courtesy
        conditions, short-title and sender-domain matching, --explain.

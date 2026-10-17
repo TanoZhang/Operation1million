@@ -1373,6 +1373,21 @@ def main():
         request_guard.run_limit = run_budget
         print(f'backfill: {left} credits left in the cycle, {days} days to reset, '
               f'spending up to {run_budget}', flush=True)
+    # The two-day rotation (the user, 2026-10-17): a scheduled pass searches
+    # the queries due today. A run now, a sweep, one manual phrase or a
+    # temporary window or country searches everything it was given.
+    space = jsearch.search_space(settings)
+    rotation = None
+    if (enabled and functional_queries and settings['rotation_days'] > 1 and not args.backfill
+            and not args.jsearch_query and not args.ignore_daily_limit
+            and not args.date_posted and not args.jsearch_country):
+        last = request_guard.searched(q.key + ':' + space for q in functional_queries)
+        functional_queries, resting = jsearch.due_queries(
+            functional_queries, {q.key: last.get(q.key + ':' + space) for q in functional_queries},
+            request_guard.budget_day(), settings['rotation_days'])
+        rotation = {'days': settings['rotation_days'], 'due': len(functional_queries),
+                    'resting': [q.query for q in resting]}
+        print(f'rotation: {len(functional_queries)} queries due today, {len(resting)} resting', flush=True)
     args.jsearch_guard = request_guard
     args.decided_urls = frozenset()
     if args.store and sources:
@@ -1580,6 +1595,12 @@ def main():
                 deadline=deadline, record_seen=record_seen)
         finally:
             client.close()
+        if args.store:
+            # Only results kept count: a --no-store run must not rest a query.
+            request_guard.mark_searched(detail['source_id'] + ':' + space
+                                        for detail in search_stats.get('jsearch_queries', ()) if detail.get('finished'))
+        if rotation is not None:
+            search_stats['jsearch_rotation'] = rotation
         # One line that has to add up: everything fetched was either seen for
         # the first time or seen again, and was either accepted or rejected.
         search_stats.update(

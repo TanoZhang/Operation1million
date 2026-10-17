@@ -112,6 +112,11 @@ class RequestGuard:
             db.execute('CREATE TABLE IF NOT EXISTS backfill_tokens ('
                        'period TEXT NOT NULL, query_key TEXT NOT NULL, token TEXT, '
                        'PRIMARY KEY(period, query_key))')
+            # The budget day each daily query last searched to its end, keyed
+            # like a cursor by query and search space: the two-day rotation
+            # rests a query only while its last search still covers the window.
+            db.execute('CREATE TABLE IF NOT EXISTS query_searched ('
+                       'query_key TEXT PRIMARY KEY, day TEXT NOT NULL)')
             # Existing one-page reservations have no date. Charge them to the
             # first known billing period rather than silently erasing usage.
             if not db.execute('SELECT 1 FROM credit_usage LIMIT 1').fetchone():
@@ -251,6 +256,21 @@ class RequestGuard:
             db.execute('INSERT INTO backfill_tokens VALUES (?, ?, ?) '
                        'ON CONFLICT(period, query_key) DO UPDATE SET token=excluded.token',
                        (period, query_key, token))
+
+    def searched(self, keys):
+        """The budget day each of these keys last searched to its end."""
+        keys = list(keys)
+        with connect(self.path) as db:
+            rows = db.execute('SELECT query_key, day FROM query_searched').fetchall()
+        wanted = set(keys)
+        return {key: day for key, day in rows if key in wanted}
+
+    def mark_searched(self, keys, day=None):
+        day = day or self.budget_day().isoformat()
+        with connect(self.path, timeout=120) as db:
+            db.executemany('INSERT INTO query_searched VALUES (?, ?) '
+                           'ON CONFLICT(query_key) DO UPDATE SET day=MAX(day, excluded.day)',
+                           [(key, day) for key in keys])
 
     def balance(self):
         """What is spent and what is left, right now, from durable state."""

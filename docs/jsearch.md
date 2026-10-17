@@ -1,5 +1,42 @@
 # JSearch daily discovery
 
+## Two-day rotation, accelerators and a description-text family - 2026-10-17 (claude)
+
+The user, on the 10-16/17 analysis: delete Test Engineer I Semiconductor and
+every timing query, leave the other low-yield queries alone, add
+accelerators, search each phrase every other day since the window is three
+days, and add a whole different search with what that frees.
+
+- Removed: Test Engineer I Semiconductor (5 pages, 41 results, none
+  accepted), Timing Engineer Intern, Timing Engineer New Grad, Static Timing
+  Analysis New Grad (31 pages, 11 accepted, none run-unique).
+- Added, five pages each: AI / Hardware / ML Accelerator Intern, AI /
+  Hardware Accelerator New Grad. No accelerator phrase was asked before.
+- `rotation_days = 2`: within each tier, queries alternate by their place in
+  the plan, so each day carries about half of every tier. A query whose last
+  finished search (`detail['finished']`: reached its end or cap, no budget,
+  clock or provider stop, no unreadable record) is two or more budget days old
+  runs whatever its turn, so a failed or short pass is made up the next day.
+  Recorded in the guard ledger's `query_searched`, keyed by query and search
+  space; `workflow_state` rewinds it with the cursors when a run's history is
+  not published, and a `--no-store` run records nothing. A run now, a
+  temporary window or country, a manual phrase and the sweeps are not
+  rotated. `load_plan` refuses a rotation not shorter than the window. The
+  first pass after install searches everything (nothing recorded yet).
+- Tier `jd_text`, 14 queries at ten pages, served after early career: what a
+  description says rather than a title. A field with "0-2 years" (ASIC,
+  Design Verification, RTL Design, FPGA, Physical Design, Silicon Validation,
+  Analog IC Design), the shape of Hardware Engineer 0-2 years, which stopped
+  at its 15-page cap on 10-16 still finding postings; and a tool with an entry
+  level (SystemVerilog Intern, SystemVerilog UVM New Grad, Verilog Intern /
+  New Grad, Cadence Virtuoso New Grad, Tapeout New Grad, Silicon Bring-up New
+  Grad), never asked in the U.S. Every phrase still names an entry level.
+
+Plan: 156 queries (intern 72, new grad 51, early career 19, jd_text 14).
+Expected spend, unmeasured: about half the 10-16/17 pages (343, 308) for the
+title families plus whatever jd_text finds. Measure jd_text per page against
+the title tiers before widening it. Suite: 1,272 run, 13 skipped, pass.
+
 ## Query yield, a closing-sweep reserve, pruning - 2026-10-16 (claude)
 
 Measured from the private run logs, whose JSearch records name every query

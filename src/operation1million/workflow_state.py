@@ -10,24 +10,35 @@ def _has_cursors(db):
     return db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_cursor'").fetchone()
 
 
+def _has(db, table):
+    return db.execute("SELECT 1 FROM sqlite_master WHERE name=?", (table,)).fetchone()
+
+
 def restore_cursors(ledger, baseline):
     """Discard unpublished progress without refunding credits or cooldowns."""
-    rows, tokens = [], []
+    rows, tokens, searched = [], [], []
     if Path(baseline).exists():
         with closing(sqlite3.connect(baseline)) as db:
             if _has_cursors(db):
                 rows = db.execute('SELECT * FROM backfill_cursor').fetchall()
-            if db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_tokens'").fetchone():
+            if _has(db, 'backfill_tokens'):
                 tokens = db.execute('SELECT * FROM backfill_tokens').fetchall()
+            if _has(db, 'query_searched'):
+                searched = db.execute('SELECT * FROM query_searched').fetchall()
     if not Path(ledger).exists():
         return
     with closing(sqlite3.connect(ledger)) as db, db:
         if _has_cursors(db):
             db.execute('DELETE FROM backfill_cursor')
             db.executemany('INSERT INTO backfill_cursor VALUES (?, ?, ?, ?, ?)', rows)
-        if db.execute("SELECT 1 FROM sqlite_master WHERE name='backfill_tokens'").fetchone():
+        if _has(db, 'backfill_tokens'):
             db.execute('DELETE FROM backfill_tokens')
             db.executemany('INSERT INTO backfill_tokens VALUES (?, ?, ?)', tokens)
+        # The daily rotation too: a query counted as searched whose results
+        # were never published would rest the next day with them lost.
+        if _has(db, 'query_searched'):
+            db.execute('DELETE FROM query_searched')
+            db.executemany('INSERT INTO query_searched VALUES (?, ?)', searched)
 
 
 def main():

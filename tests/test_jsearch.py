@@ -2,6 +2,7 @@
 import gzip
 import io
 import json
+import os
 import re
 import csv
 import sqlite3
@@ -19,6 +20,7 @@ import requests
 from operation1million import collector, jsearch, store
 from operation1million import jsearch_access
 from operation1million.jsearch_access import RequestGuard, QuotaExhausted
+from operation1million.paths import CONFIG
 from operation1million.validate_sources import Source
 
 SEARCH = {'endpoint_template': 'https://api.openwebninja.com/jsearch/search-v2',
@@ -313,7 +315,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 141)
+        self.assertEqual(len(self.plan), 156)
         self.assertEqual(self.settings['monthly_target'], 10000)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
         # day, then 330 from the next cycle on (350 since 2026-10-13).
@@ -335,8 +337,8 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.settings['daily_pages_cap'], worst)
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
-             for tier in ('intern', 'new_grad', 'early_career', 'A')},
-            {'intern': 865, 'new_grad': 715, 'early_career': 230, 'A': 0})
+             for tier in ('intern', 'new_grad', 'early_career', 'jd_text', 'A')},
+            {'intern': 860, 'new_grad': 685, 'early_career': 230, 'jd_text': 140, 'A': 0})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -1615,9 +1617,9 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(sum(q.pages for q in plan), settings['daily_pages_cap'])
         deep = [replace(q, pages=settings['backfill_tier_pages'][q.tier]) for q in plan]
         self.assertEqual({q.tier: q.pages for q in deep},
-                         {'intern': 60, 'new_grad': 50, 'early_career': 40})
+                         {'intern': 60, 'new_grad': 50, 'early_career': 40, 'jd_text': 40})
         # These are depth ceilings, not an allocation; the sweep guard bounds spend.
-        self.assertEqual(sum(q.pages for q in deep), 70 * 60 + 52 * 50 + 19 * 40)
+        self.assertEqual(sum(q.pages for q in deep), 72 * 60 + 51 * 50 + 19 * 40 + 14 * 40)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
@@ -1898,6 +1900,131 @@ class DiscoveryTests(unittest.TestCase):
                 patch('sys.stdout', new_callable=io.StringIO)):
                 collector.main()
                 self.assertEqual(guard.call_args.kwargs['run_limit'], expected)
+
+    def daily(self, extra=(), finished=None):
+        """The queries a scheduled pass hands to jsearch.collect; each one
+        named in `finished` reports that it searched to its end."""
+        observed = []
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+
+        def capture(queries, *args, **kwargs):
+            observed.extend(queries)
+            done = finished if finished is not None else [q.query for q in queries]
+            return [], {'jsearch_queries': [{'source_id': q.key, 'query': q.query,
+                                             'finished': q.query in done} for q in queries]}
+
+        with (
+            patch.object(collector, 'load_sources', return_value=[]),
+            patch.object(collector, 'config', side_effect=configs.__getitem__),
+            patch.object(collector, 'RequestGuard', return_value=self.guard),
+            patch.object(collector, 'load_credentials'),
+            patch.object(jsearch, 'collect', side_effect=capture),
+            patch.object(store, 'now', return_value=STAMP),
+            patch('sys.argv', ['collector', '--jsearch', '--jsearch-only', '--db', str(self.db_path),
+                               '--output', str(self.root / f'daily-{len(os.listdir(self.root))}'), *extra]),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            collector.main()
+        return [q.query for q in observed]
+
+    def test_each_query_is_searched_every_other_day(self):
+        """The user, 2026-10-17: a 3-day window read every two days misses
+        nothing, so half the plan rests each day."""
+        plan = [q.query for q in jsearch.load_plan()[1]]
+        start = date(2026, 10, 18)
+        today = [start]
+        with patch.object(self.guard, 'budget_day', side_effect=lambda: today[0]):
+            # Nothing recorded yet: the first pass searches everything.
+            self.assertEqual(self.daily(), plan)
+            today[0] = start + timedelta(days=1)
+            first = self.daily()
+            today[0] = start + timedelta(days=2)
+            second = self.daily()
+            # Two passes: every query once, half each day, every tier split.
+            self.assertEqual(sorted(first + second), sorted(plan))
+            self.assertLessEqual(abs(len(first) - len(second)), 4)
+            tiers = {q.query: q.tier for q in jsearch.load_plan()[1]}
+            for tier in set(tiers.values()):
+                self.assertTrue(any(tiers[q] == tier for q in first), tier)
+                self.assertTrue(any(tiers[q] == tier for q in second), tier)
+            # A day whose queries did not finish (budget, failure): they are
+            # searched again the next day, with that day's own turn.
+            today[0] = start + timedelta(days=3)
+            self.assertEqual(set(self.daily(finished=())), set(first))
+            today[0] = start + timedelta(days=4)
+            self.assertEqual(set(self.daily()), set(plan), 'an unfinished day left queries uncovered')
+
+    def test_a_missed_day_is_caught_up_and_the_turns_come_back(self):
+        plan = [q.query for q in jsearch.load_plan()[1]]
+        start = date(2026, 10, 18)
+        today = [start]
+        with patch.object(self.guard, 'budget_day', side_effect=lambda: today[0]):
+            self.daily()
+            today[0] = start + timedelta(days=1)
+            odd = set(self.daily())
+            # No pass on day 2. Day 3: the day-2 half is overdue and runs with
+            # its own turn; nothing goes three days unsearched.
+            today[0] = start + timedelta(days=3)
+            self.assertEqual(set(self.daily()), set(plan))
+            today[0] = start + timedelta(days=4)
+            self.assertEqual(len(set(self.daily())), len(plan) - len(odd))
+
+    def test_a_run_now_a_manual_phrase_and_no_store_do_not_rotate_or_rest(self):
+        plan = [q.query for q in jsearch.load_plan()[1]]
+        with patch.object(self.guard, 'budget_day', return_value=date(2026, 10, 18)):
+            self.daily()
+        with patch.object(self.guard, 'budget_day', return_value=date(2026, 10, 19)):
+            self.assertEqual(self.daily(extra=['--ignore-daily-limit']), plan)
+            self.assertEqual(self.daily(extra=['--date-posted', 'week']), plan)
+            self.assertEqual(self.daily(extra=['--jsearch-query', 'ASIC Intern']), ['ASIC Intern'])
+        # A --no-store run keeps nothing, so it counts as no search.
+        guard = RequestGuard(self.root / 'nostore.sqlite', daily_limit=350)
+        self.guard = guard
+        with patch.object(guard, 'budget_day', return_value=date(2026, 10, 18)):
+            self.daily(extra=['--no-store'])
+        with patch.object(guard, 'budget_day', return_value=date(2026, 10, 19)):
+            self.assertEqual(self.daily(), plan)
+
+    def test_rotation_must_stay_inside_the_window(self):
+        text = (CONFIG / 'jsearch_queries.toml').read_text(encoding='utf-8')
+        for window, days, ok in (('3days', 2, True), ('3days', 3, False), ('today', 2, False),
+                                 ('week', 6, True), ('3days', 0, False)):
+            path = self.root / f'rotation-{window}-{days}.toml'
+            path.write_text(text.replace('rotation_days = 2', f'rotation_days = {days}')
+                                .replace('date_posted = "3days"', f'date_posted = "{window}"'), encoding='utf-8')
+            with self.subTest(window=window, days=days):
+                if ok:
+                    self.assertEqual(jsearch.load_plan(path)[0]['rotation_days'], days)
+                else:
+                    with self.assertRaises(ValueError):
+                        jsearch.load_plan(path)
+
+    def test_only_a_query_searched_to_its_end_is_finished(self):
+        settings, _ = jsearch.load_plan()
+        plan = [jsearch.Query('Ended Intern', 3, 'intern'), jsearch.Query('Cut Intern', 3, 'intern')]
+        pages = {plan[0].query: [([job(job_id='a1')], True)],
+                 plan[1].query: [([job(job_id='b1')], False), ([job(job_id='b2')], False)]}
+        client = Mock(guard=Mock(credits=0), cursor_loops=set(), page_cursors={})
+
+        def fetch(query, page):
+            if client.guard.credits >= 2:
+                raise jsearch.SearchFailure('budget', stop=True, budget=True)
+            client.guard.credits += 1
+            return pages[query.query].pop(0)
+
+        client.fetch_page.side_effect = fetch
+        _, stats = jsearch.collect(plan, client, settings, {}, lambda *args: None)
+        self.assertEqual({d['query']: d['finished'] for d in stats['jsearch_queries']},
+                         {'Ended Intern': True, 'Cut Intern': False})
+
+    def test_an_unpublished_run_forgets_what_it_searched(self):
+        from operation1million import workflow_state
+        before = self.root / 'before.sqlite'
+        RequestGuard(before).mark_searched(['k1'], '2026-10-17')
+        self.guard.mark_searched(['k1', 'k2'], '2026-10-18')
+        workflow_state.restore_cursors(self.guard.path, before)
+        self.assertEqual(self.guard.searched(['k1', 'k2']), {'k1': '2026-10-17'})
 
     def test_backfill_rejects_no_store_before_any_paid_request(self):
         with patch('sys.argv', ['collector', '--backfill', '--no-store']), \

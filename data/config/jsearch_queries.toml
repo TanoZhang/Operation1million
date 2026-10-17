@@ -39,6 +39,14 @@ budget_timezone = "America/Los_Angeles"
 budget_day_resets_at = "04:38"
 country = "us"
 date_posted = "3days"
+# Each daily query is searched every other budget day (the user, 2026-10-17):
+# a 3-day window read every two days still sees every posting, with a day to
+# spare, at half the pages. Half the plan rests each day, alternating within
+# each tier; a query whose last finished search is two or more days old runs
+# whatever its turn, so a failed or short pass is caught up the next day.
+# Must stay below the window's days. A run now (--ignore-daily-limit), a
+# temporary window and a sweep search everything.
+rotation_days = 2
 # Runaway guard only: the ceiling no tier's depth may exceed.
 max_pages_per_query = 40
 
@@ -85,6 +93,7 @@ exclude_job_publishers = [
 intern = 60
 new_grad = 50
 early_career = 40
+jd_text = 40
 A = 60
 
 [filter]
@@ -812,11 +821,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "Timing Engineer Intern"
-tier = "intern"
-pages = 20
-
-[[query]]
 query = "CPU Design Intern"
 tier = "intern"
 pages = 10
@@ -1011,16 +1015,6 @@ pages = 10
 query = "Formal Verification New Grad"
 tier = "new_grad"
 pages = 10
-
-[[query]]
-query = "Static Timing Analysis New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "Timing Engineer New Grad"
-tier = "new_grad"
-pages = 20
 
 [[query]]
 query = "CPU Design New Grad"
@@ -1323,11 +1317,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Test Engineer I Semiconductor"
-tier = "new_grad"
-pages = 10
-
-[[query]]
 query = "Associate Hardware Engineer"
 tier = "new_grad"
 pages = 10
@@ -1406,6 +1395,119 @@ pages = 5
 query = "CAD Engineer New Grad"
 tier = "new_grad"
 pages = 5
+
+# The user, 2026-10-17: no timing queries (Timing Engineer Intern, Timing
+# Engineer New Grad, Static Timing Analysis New Grad: 31 pages on 10-16/17,
+# 11 accepted, none that no other query found) and no Test Engineer I
+# Semiconductor (5 pages, 41 results, none accepted). Accelerators asked
+# for the first time, five pages each.
+[[query]]
+query = "AI Accelerator Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Hardware Accelerator Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "ML Accelerator Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "AI Accelerator New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Hardware Accelerator New Grad"
+tier = "new_grad"
+pages = 5
+
+# What a description says, not a title (tier jd_text, 2026-10-17). The user
+# asked for a whole different search, efficient and deep, paid for by the
+# two-day rotation. Every other phrase is a title family. Two shapes that
+# reach postings whose titles none of those name:
+# - a field with an experience range, the shape of the best early-career
+#   query: "Hardware Engineer 0-2 years" stopped at its 15-page cap on 10-16
+#   still finding postings, so the range matches the description's
+#   requirements line and runs deep;
+# - a tool with an entry level. These words are almost only in chip
+#   descriptions ("Electrical Engineer New Grad": 239 results, 5 accepted).
+#   Never asked in the U.S.; the Japanese tool phrases (SystemVerilog 検証,
+#   UVM 検証 エンジニア, Verilog 設計) found nothing in Japan's sweep.
+# Ten pages each, served after early career. Unmeasured.
+[[query]]
+query = "ASIC Engineer 0-2 years"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Design Verification Engineer 0-2 years"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "RTL Design Engineer 0-2 years"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "FPGA Engineer 0-2 years"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Physical Design Engineer 0-2 years"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Silicon Validation Engineer 0-2 years"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Analog IC Design Engineer 0-2 years"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "SystemVerilog Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "SystemVerilog UVM New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Verilog Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Verilog New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Cadence Virtuoso New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Tapeout New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Silicon Bring-up New Grad"
+tier = "jd_text"
+pages = 10
 
 # Japan sweep phrases, chosen by measurement (2026-10-11): one paid page
 # per phrase in Japan, a month back, over 60 phrases. A bare trade word
