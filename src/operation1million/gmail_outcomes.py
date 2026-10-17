@@ -210,6 +210,17 @@ DECLINE_HEDGES = (' if ', ' unless ', 'whether', 'in the event', 'should we', 's
 # look: these cancel a plain invitation phrase, not a vague mention.
 PORTAL = ('candidate portal', 'portal', 'create an account', 'create your account')
 NEGATION = re.compile(r"\b(?:not|cannot|unable|unfortunately|regret|no longer)\b|n't\b")
+# A courtesy condition inside an invitation, not a condition on the invitation:
+# "If you're still interested, book a time here", "If none of these times
+# work, share your availability", "If you have any questions, reply". Blanked
+# before the hedges are read, so the "if" that hands out the slot does not
+# hide the slot (2026-10-17).
+COURTESY_CONDITIONS = re.compile(
+    r"\bif (?:you(?:'re| are)?(?: still)? interested|interested|you have any questions|"
+    r"none of (?:these|those|the)|(?:these|those|the) times?|(?:this|that) (?:time|works|does not work|doesn't work)|"
+    r"you (?:need|prefer|would prefer|cannot|can't|are unable|have trouble|have (?:any )?(?:issues|difficulty)))\b[^.;!?]*?(?:,|\bthen\b|$)"
+    # "Let us know whether Tuesday works": asking which slot, not whether to offer one.
+    r"|\bwhether (?:\w+ ){0,5}?(?:works?|suits?|is convenient|is possible)\b")
 CONFIRMATION = (
     'thank you for applying', 'thanks for applying', 'thank you for your application',
     'thanks for your application', 'received your application', 'application received',
@@ -299,6 +310,34 @@ def _found(pattern, line):
     return {match.group(1) for match in _OVERLAPPING[pattern].finditer(line)}
 
 
+def explain(subject, body):
+    """Why `classify` answers as it does: the verdict and the sentences that
+    decided it, for the user reading one email the pass got wrong."""
+    lines = _sentences(str(subject or '') + '\n' + str(body or ''))
+    lowered = [' ' + _plain(line) + ' ' for line in lines]
+    notes = []
+    for raw, line in zip(lines, lowered):
+        found = []
+        if _PASSED.search(line):
+            found.append('invitation: ' + _PASSED.search(line).group(0).strip())
+            if _HEDGES.search(_unhedged(line)):
+                found.append('hedged by: ' + _HEDGES.search(_unhedged(line)).group(0).strip())
+            if NEGATION.search(line):
+                found.append('negated by: ' + NEGATION.search(line).group(0))
+            if _PORTAL.search(line):
+                found.append('portal')
+        hits = _found(_DECLINED, line) - DECLINED_WEAK if not _DECLINE_HEDGES.search(line) else set()
+        if hits:
+            found.append('rejection: ' + ', '.join(sorted(hits)))
+        if not _DECLINE_HEDGES.search(line) and any(p.search(line) for p in DECLINED_PATTERNS):
+            found.append('rejection pattern')
+        if _CONFIRMATION.search(line):
+            found.append('confirmation: ' + _CONFIRMATION.search(line).group(0).strip())
+        if found:
+            notes.append((raw.strip()[:120], found))
+    return classify(subject, body), notes
+
+
 def classify(subject, body):
     """'passed', 'declined', 'unclear' (look at it), 'unknown' (no rule
     recognises it: look at it) or None (known to be nothing to do).
@@ -311,8 +350,7 @@ def classify(subject, body):
     """
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
-    passed = any(_PASSED.search(line) and not _HEDGES.search(line) and not _PORTAL.search(line)
-                 and not NEGATION.search(line) for line in lowered)
+    passed = any(_invites(line) for line in lowered)
     plain = [line for line in lowered if not _DECLINE_HEDGES.search(line)]
     hits = set().union(*(_found(_DECLINED, line) for line in plain)) if plain else set()
     patterned = any(pattern.search(line) for line in plain for pattern in DECLINED_PATTERNS)
@@ -340,11 +378,39 @@ _DESCRIPTIVE, _CONFIRMATION, _PORTAL = _phrases(DESCRIPTIVE), _phrases(CONFIRMAT
 _NOISE = _phrases(NOISE)
 
 
+# An invitation told as an instruction. "As a next step in our process,
+# please complete a short video interview" was read as a description of the
+# process, because "our process" is how a confirmation describes one; a
+# sentence that tells the reader to do the thing is offering it (2026-10-17).
+IMPERATIVE = re.compile(r"\b(?:please|kindly) (?:\w+ ){0,3}?(?:complete|schedule|book|select|choose|pick|use|click|"
+                        r"follow|visit|start|begin|record|submit|take|share|provide|let us know|reply)\b"
+                        r"|\byou (?:have been|are|'ve been|were) invited\b|\bwe (?:would like|'d like|want) (?:you )?to (?:invite|schedule|set up)\b")
+PROCESS_HEDGES = _phrases(('our process', 'hiring process', 'recruiting process', 'interview process',
+                           'interview process may', 'typical', 'next steps if', 'prepare for', 'how to'))
+
+
+def _unhedged(line):
+    """The sentence with the phrases that are not conditions on it blanked."""
+    line = COURTESY_CONDITIONS.sub(' ', line)
+    if IMPERATIVE.search(line):
+        line = PROCESS_HEDGES.sub(' ', line)
+    return ' ' + line + ' '
+
+
+def _invites(line):
+    """Whether one lowered sentence plainly offers an interview, assessment or offer."""
+    if not _PASSED.search(line) or _PORTAL.search(line) or NEGATION.search(line):
+        return False
+    return not _HEDGES.search(_unhedged(line))
+
+
 # ---------------------------------------------------------------- matching --
 
 TAIL = {'inc', 'incorporated', 'corp', 'corporation', 'llc', 'ltd', 'limited', 'co', 'company',
         'plc', 'com', 'ai', 'io', 'technology', 'technologies', 'systems', 'group', 'holdings',
-        'international', 'labs', 'semiconductor', 'semiconductors', 'usa', 'us', 'america'}
+        'international', 'labs', 'semiconductor', 'semiconductors', 'usa', 'us', 'america',
+        # "SharkNinja Operating LLC", "Acme Careers", "Acme Talent Acquisition" (2026-10-17).
+        'operating', 'operations', 'careers', 'recruiting', 'talent', 'acquisition', 'hr'}
 ALIASES = {'advanced micro devices': ['amd'], 'international business machines': ['ibm'],
            'taiwan semiconductor manufacturing': ['tsmc'], 'hewlett packard enterprise': ['hpe'],
            'amazon': ['amazon', 'aws'], 'meta platforms': ['meta'], 'alphabet': ['google'],
@@ -414,7 +480,11 @@ def match(groups, message, company_only=False):
     for group in eligible:
         for name in company_names(group.get('company')):
             by_company.setdefault(name, []).append(group)
-    named = {name for name in by_company if _has(name, head)}
+    # The sender's own domain names the company too: careers@sharkninja.com
+    # with no "SharkNinja" in the subject (2026-10-17).
+    sender = _sender(message)
+    named = {name for name in by_company
+             if _has(name, head) or (sender and len(sender) >= 5 and name.replace(' ', '') == sender)}
     if not named:
         named = {name for name in by_company if len(name) >= 4 and _has(name, body)}
     candidates = {id(group): group for name in named for group in by_company[name]}
@@ -445,7 +515,12 @@ def match(groups, message, company_only=False):
         # Return multiple copies only with a shared, actually mentioned identifier.
         shared = set.intersection(*(ids[id(group)] for group in by_id))
         return by_id if any(_has(value, text) for value in shared) else []
-    by_title = [group for group in candidates if len(_words(group.get('title'))) >= 6
+    # A title names its application when the email carries it whole. Six
+    # letters was the floor, which no title fails; what matters is that it is
+    # a title and not one word, so "Hardware Engineer Intern" counts and a bare
+    # "Engineer" does not (2026-10-17).
+    by_title = [group for group in candidates if len(_words(group.get('title')).split()) >= 2
+                and len(_words(group.get('title'))) >= 6
                 and _has(_words(group.get('title')), text)]
     # A title found only inside a longer one found is not the one named:
     # Optiver's "FPGA Engineer Intern (Summer 2027 - Austin)" also contains
@@ -456,13 +531,37 @@ def match(groups, message, company_only=False):
                            for other in by_title)]
     if len(by_title) == 1:
         return by_title
-    if len(candidates) == 1 and not _names_a_role(message):
+    if len(candidates) == 1 and (not _names_a_role(message)
+                                 or _names_this_role(candidates[0], text)):
         return candidates
     return []
 
 
-ROLE_WORDS = re.compile(r'\b(?:intern|internship|co-?op|engineer|engineering|developer|designer|'
-                        r'scientist|analyst|technician|graduate|associate)\b')
+def _names_this_role(group, text):
+    """Whether the role the email names is this application's, written
+    differently: "EE Intern, Summer 2027" for "Electrical Engineering Intern".
+    Most of the title's distinguishing words have to be there; the role words
+    every title shares ("engineer", "intern") do not count on their own."""
+    words = [word for word in _words(group.get('title')).split()
+             if len(word) > 2 and not ROLE_WORDS.fullmatch(word)]
+    if not words:
+        return False
+    present = sum(1 for word in words if _has(word, text))
+    if present / len(words) >= 0.6:
+        return True
+    # Or their initials beside a role word: "EE Intern" for "Electrical
+    # Engineering Intern". Only there, since two letters alone are a word.
+    initials = ''.join(word[0] for word in _words(group.get('title')).split()
+                       if len(word) > 2 and word not in OPENING_WORDS)
+    return len(initials) >= 2 and re.search(
+        r'(?<![a-z0-9])%s(?: \w+)? (?:%s)\b' % (re.escape(initials), ROLE_ALTERNATION), text) is not None
+
+
+ROLE_ALTERNATION = (r'intern|internship|co-?op|engineer|engineering|developer|designer|'
+                    r'scientist|analyst|technician|graduate|associate')
+ROLE_WORDS = re.compile(r'\b(?:%s)\b' % ROLE_ALTERNATION)
+# The opening's kind, which every title at a company may share.
+OPENING_WORDS = {'intern', 'internship', 'co-op', 'coop', 'graduate', 'associate', 'summer', 'fall', 'spring'}
 
 
 def _names_a_role(message):
@@ -827,6 +926,28 @@ def read_unsorted(directory=None):
     return sorted(items, key=lambda item: item.get('at', ''), reverse=True) if isinstance(items, list) else []
 
 
+def explain_cached(needle, db, ledger, directory=None):
+    """Print why the pass read each cached email naming `needle` as it did."""
+    cache = _load(Path(directory or gmail_dir()) / 'messages.json', {})
+    needle = needle.casefold()
+    chosen = [m for m in cache.values() if 'text' in m
+              and needle in (m.get('subject', '') + ' ' + m.get('from', '')).casefold()]
+    if not chosen:
+        print(f'No cached email names {needle!r}; run the pass first.')
+        return 1
+    groups = manual_intake.augment_queue(applications.queue(db, ledger), ledger, db)['applied']
+    for m in sorted(chosen, key=lambda item: item['at']):
+        verdict, notes = explain(m['subject'], m['text'])
+        print(f"{m['at'][:16]}  {m['from']}\n  {m['subject']}\n  verdict: {verdict}")
+        for sentence, found in notes:
+            print(f'    {sentence}\n      ' + '; '.join(found))
+        found = match(groups, m)
+        guess = found or match(groups, m, company_only=True)
+        print('  matched:', ', '.join(f"{g['company']} | {g['title']}" for g in found) or
+              ('none; same company: ' + ', '.join(g['title'] for g in guess) if guess else 'no applied position'))
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--db', type=Path, default=DB)
@@ -834,7 +955,12 @@ def main():
     parser.add_argument('--capture', type=Path, help='Write the first raw IMAP responses here (private).')
     parser.add_argument('--preview', action='store_true',
                         help='Read and decide, write no marks and star nothing; print what would happen.')
+    parser.add_argument('--explain', metavar='TEXT',
+                        help='For each cached email whose subject or sender contains TEXT, print the verdict, '
+                             'the sentences that decided it and which application it matched.')
     args = parser.parse_args()
+    if args.explain:
+        return explain_cached(args.explain, args.db, args.ledger or applications.ledger_path())
     local_config.load_credentials()
     address, password = os.environ.get('GMAIL_ADDRESS', ''), os.environ.get('GMAIL_APP_PASSWORD', '')
     if not address or not password:

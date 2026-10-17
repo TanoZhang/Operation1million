@@ -6,6 +6,19 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-17): Gmail Passed/Declined reads -- a SharkNinja
+       reply identified wrong; invitations told as instructions, courtesy
+       conditions, short-title and sender-domain matching, --explain.
+Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,
+       docs/{agent-protocol,handoff}.md
+Base commit: 99e2016
+Status: done -- suite 1,262 run, 2 skipped, pass; not committed.
+Next: On the VPS, `python -m operation1million.gmail_outcomes --explain sharkninja`
+      and paste the output if the verdict is still wrong.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-16, external review): remove three features that
        cannot run -- company fallback search (company_fallbacks = []), the
        legacy search_queries catalog, and the newest-first incremental

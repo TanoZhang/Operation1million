@@ -595,3 +595,62 @@ class GmailRegressionTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CourtesyAndShortTitleTests(unittest.TestCase):
+    """The pass read an invitation as a hedge, and could not tie a short title
+    to its application (the user, 2026-10-17: a SharkNinja reply went wrong)."""
+
+    def test_a_courtesy_condition_does_not_hedge_the_invitation(self):
+        for body in ("If you're still interested, please book a time with me here: https://calendly.com/acme/30min.",
+                     'If none of these times work, share your availability and we will find another.',
+                     'Let us know whether Tuesday or Wednesday works for a 30 minute phone screen.',
+                     'If you have any questions, reply to this email. Start your interview: https://acme.hirevue.com/x'):
+            self.assertEqual(gmail.classify('Acme', body), 'passed', body)
+
+    def test_an_instruction_to_interview_is_not_a_process_description(self):
+        body = ('Thank you for applying to the Electrical Engineering Intern role at SharkNinja! As a next '
+                'step in our process, please complete a short on-demand video interview using the link '
+                'below within 5 days.')
+        self.assertEqual(gmail.classify('Next steps for your SharkNinja application', body), 'passed')
+        # Described, not offered: still nothing.
+        self.assertIsNone(gmail.classify('Thanks for applying', 'Our process has three steps: a video '
+                                         'interview, a technical screen and an onsite. We will be in touch.'))
+
+    def test_a_real_condition_still_hedges(self):
+        self.assertIsNone(gmail.classify('Acme', 'Thank you for applying. If you are selected for an '
+                                                 'interview, a recruiter will contact you.'))
+        self.assertEqual(gmail.classify('Acme', 'Should your profile match, we may invite you to interview.'), 'unknown')
+
+    def test_a_short_title_named_whole_matches_its_application(self):
+        groups = [group('g1', 'SharkNinja Operating LLC', 'Electrical Engineering Intern'),
+                  group('g2', 'SharkNinja Operating LLC', 'Supply Chain Analyst')]
+        found = gmail.match(groups, message('Your SharkNinja application',
+                                            'Thank you for applying to the Electrical Engineering Intern '
+                                            'position. We have decided to move forward with other candidates.',
+                                            sender='Careers <sharkninja@myworkday.com>'))
+        self.assertEqual([g['id'] for g in found], ['g1'])
+
+    def test_the_legal_tail_and_the_senders_domain_name_the_company(self):
+        self.assertEqual(gmail.company_key('SharkNinja Operating LLC'), 'sharkninja')
+        groups = [group('g1', 'SharkNinja Operating LLC', 'Electrical Engineering Intern')]
+        found = gmail.match(groups, message('Next steps for your application',
+                                            'Please complete your HireVue for the EE Intern, Summer 2027 role.',
+                                            sender='Talent <careers@sharkninja.com>'))
+        self.assertEqual([g['id'] for g in found], ['g1'])
+
+    def test_one_application_and_an_email_naming_another_role_stay_apart(self):
+        groups = [group('g1', 'SharkNinja Operating LLC', 'Electrical Engineering Intern')]
+        found = gmail.match(groups, message('Your SharkNinja application',
+                                            'Thank you for applying to the Supply Chain Analyst position. '
+                                            'We have decided to move forward with other candidates.',
+                                            sender='Careers <sharkninja@myworkday.com>'))
+        self.assertEqual(found, [])
+
+    def test_explain_names_the_deciding_sentence(self):
+        verdict, notes = gmail.explain('Acme', "If you're still interested, book a time here: https://calendly.com/acme")
+        self.assertEqual(verdict, 'passed')
+        self.assertEqual(notes[0][1], ['invitation: book a time'])
+        verdict, notes = gmail.explain('Acme', 'Unfortunately we have decided to move forward with other candidates.')
+        self.assertEqual(verdict, 'declined')
+        self.assertTrue(any(note.startswith('rejection') for note in notes[0][1]))

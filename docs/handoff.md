@@ -1,3 +1,28 @@
+# Gmail: invitations told as instructions, short titles, SharkNinja - 2026-10-17 (claude)
+
+The user: a SharkNinja reply was identified wrong and Passed must land in
+Passed. The cached mail is on the VPS, so the shape was reproduced offline
+and the pass's reading made inspectable (`gmail_outcomes.py`, tests in
+`tests/test_gmail_outcomes.py::CourtesyAndShortTitleTests`):
+- "As a next step in our process, please complete a short on-demand video
+  interview" read as nothing: "our process" is a hedge for process
+  descriptions. A sentence that instructs ("please complete / schedule /
+  book", "you have been invited") now ignores the process hedges.
+- "If you're still interested, book a time", "if none of these times work",
+  "whether Tuesday works" are courtesies inside an invitation, no longer
+  conditions on it. "If you are selected" still is.
+- A title named whole in the mail now matches at any length ("Electrical
+  Engineering Intern"; the floor was six words, which no title met), and
+  "EE Intern" matches by initials beside a role word. An email naming a
+  different role at a company with one application still matches nothing.
+- Legal tails "Operating", "Careers", "Talent Acquisition" no longer keep a
+  company from matching; careers@sharkninja.com names the company by itself.
+- `python -m operation1million.gmail_outcomes --explain sharkninja` prints,
+  for each cached email naming it, the verdict, the deciding sentences and
+  the application it matched. Run it on the VPS to see the real email.
+
+Suite on 99e2016 plus this: 1,262 run, 2 skipped, pass (Linux). Not committed.
+
 # Three features that could not run, removed - 2026-10-16 (claude)
 
 On d2b80e7 (pushed, not installed; the VPS runs 7c7ff44), from the external
