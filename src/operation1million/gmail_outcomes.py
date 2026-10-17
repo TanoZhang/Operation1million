@@ -4,7 +4,8 @@ Asked for on 2026-10-05: the user would rather not click Passed or Declined
 by hand except where this misses. It reads the mailbox over IMAP with a Gmail
 app password (GMAIL_ADDRESS, GMAIL_APP_PASSWORD). It never marks a message
 read; the one change it makes is to star each reply it reads as Passed, once,
-so one the user unstars stays unstarred.
+so one the user unstars stays unstarred, and to take its own star off a reply
+it no longer reads as Passed.
 
 An email becomes a mark only when its wording is plain and it names one
 position. A hand-made mark is never overridden. Everything this cannot settle
@@ -184,6 +185,12 @@ HEDGES = (
     'should you', 'should your', 'if we ', 'if there', 'if our', 'if you meet', 'if you match',
     'if you qualify', 'if you pass', 'if successful', 'successful candidates', 'if you move',
     'if you advance', 'next steps if', 'qualifications match', 'experience matches',
+    # An invitation to keep applying is the close of a rejection, not an
+    # interview: "we would like to invite you to continue to apply for
+    # positions with us" was Passed (the user, 2026-10-17).
+    'continue to apply', 'continue applying', 'continue to explore', 'continue exploring',
+    'reapply', 're-apply', 'apply again', 'invite you to apply', 'invite you to explore',
+    'invite you to visit', 'invite you to keep', 'invite you to stay',
     ' might ', 'whether', 'in the event', 'will be in touch',
     'will contact', 'will reach out', 'be contacted', 'reach out to you', 'get back to you',
     'selected candidates', 'qualified candidates', 'candidates who', 'applicants who',
@@ -802,9 +809,10 @@ def fetch(address, password, since, known, capture=None):
             pass
 
 
-def star(address, password, message_ids):
-    """Star these messages (Gmail's star is IMAP's \\Flagged). Returns the ids
-    starred; one Gmail no longer has is skipped."""
+def star(address, password, message_ids, remove=False):
+    """Star these messages (Gmail's star is IMAP's \\Flagged), or with
+    `remove` unstar them. Returns the ids changed; one Gmail no longer has is
+    skipped."""
     if not message_ids:
         return []
     connection = imaplib.IMAP4_SSL('imap.gmail.com', timeout=60)
@@ -817,7 +825,7 @@ def star(address, password, message_ids):
         for message_id in message_ids:
             status, data = connection.uid('SEARCH', 'X-GM-MSGID', message_id)
             uids = data[0].split() if status == 'OK' and data and data[0] else []
-            if uids and connection.uid('STORE', uids[0], '+FLAGS', '(\\Flagged)')[0] == 'OK':
+            if uids and connection.uid('STORE', uids[0], '-FLAGS' if remove else '+FLAGS', '(\\Flagged)')[0] == 'OK':
                 done.append(message_id)
         return done
     finally:
@@ -877,6 +885,12 @@ def _inputs(ledger):
     return out
 
 
+def _stale_stars(starred, cache):
+    """The replies this pass starred that it no longer reads as Passed."""
+    return sorted(message_id for message_id in starred
+                  if 'text' in cache.get(message_id, {}) and cache[message_id].get('outcome') != 'passed')
+
+
 def run(db, ledger, address, password, directory=None, capture=None, preview=False):
     """One pass. With `preview`, everything is read and decided and nothing is
     written or starred: the returned summary carries what would have been.
@@ -921,7 +935,9 @@ def run(db, ledger, address, password, directory=None, capture=None, preview=Fal
                            'title': by_id[group_id]['title'], 'email': cache[message_id]['subject'],
                            'from': cache[message_id]['from'], 'at': cache[message_id]['at']}
                           for group_id, verdict, message_id in writes],
-                'list': unsorted, 'stars': [cache[message_id]['subject'] for message_id in stars]}
+                'list': unsorted, 'stars': [cache[message_id]['subject'] for message_id in stars],
+                'unstars': [cache[message_id]['subject'] for message_id in
+                            _stale_stars(set(_load(directory / 'starred.json', [])), cache)]}
     _save(cache_path, cache)
     for group_id, verdict, message_id in writes:
         applications.append_outcome(outcomes, group_id, verdict, by='gmail', message=message_id)
@@ -937,10 +953,15 @@ def run(db, ledger, address, password, directory=None, capture=None, preview=Fal
     starred = set(_load(starred_path, []))
     to_star = [message_id for message_id in stars if message_id not in starred]
     newly = star(address, password, to_star)
-    _save(starred_path, sorted(starred | set(newly)))
+    # A star this pass gave a reply it now reads otherwise comes off with the
+    # mark: SharkNinja's confirmation stayed starred after its Passed was
+    # cleared (2026-10-17). Forgotten too, so a later Passed stars it again.
+    stale = _stale_stars(starred, cache)
+    unstarred = star(address, password, stale, remove=True)
+    _save(starred_path, sorted((starred | set(newly)) - set(unstarred)))
     summary = {'at': datetime.now(timezone.utc).isoformat(), 'applied': len(groups),
                'checked': len(cache), 'written': len(writes), 'unsorted': len(unsorted),
-               'starred': len(newly)}
+               'starred': len(newly), 'unstarred': len(unstarred)}
     _save(directory / 'last-run.json', dict(summary, inputs=_inputs(ledger)))
     return summary
 
@@ -1011,6 +1032,7 @@ def main():
         for item in summary['list']:
             print(f"  {item['outcome']:9} {item['at'][:10]} {item['company'] or '-'} | {item['subject']}")
         print('\nWould star:', *summary['stars'], sep='\n  ')
+        print('\nWould unstar:', *summary['unstars'], sep='\n  ')
         return 0
     print(json.dumps(summary))
     return 0

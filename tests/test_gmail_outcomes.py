@@ -526,7 +526,7 @@ class GmailRegressionTests(unittest.TestCase):
              patch.object(gmail, 'fetch', return_value=mails), \
              patch.object(gmail, 'last_events', return_value=current or {}), \
              patch.object(gmail.applications, 'append_outcome'), \
-             patch.object(gmail, 'star', side_effect=lambda a, p, ids: ids) as star:
+             patch.object(gmail, 'star', side_effect=lambda a, p, ids, remove=False: ids) as star:
             result = gmail.run('unused', Path(directory) / 'ledger.ndjson', 'dummy', 'dummy',
                                directory=directory, preview=preview)
             return result, star.call_args_list
@@ -554,7 +554,7 @@ class GmailRegressionTests(unittest.TestCase):
              patch.object(gmail, 'fetch', return_value=mails) as fetch, \
              patch.object(gmail, 'last_events', return_value={}), \
              patch.object(gmail.applications, 'append_outcome'), \
-             patch.object(gmail, 'star', side_effect=lambda a, p, ids: ids):
+             patch.object(gmail, 'star', side_effect=lambda a, p, ids, remove=False: ids):
             result = gmail.run('unused', Path(folder) / 'ledger.ndjson', 'dummy', 'dummy', directory=folder)
             return result, queue.called, fetch.call_args.args[2]
 
@@ -692,3 +692,43 @@ prior to your interview or submission of any video response for alternative opti
         verdict, notes = gmail.explain('Acme', 'Unfortunately we have decided to move forward with other candidates.')
         self.assertEqual(verdict, 'declined')
         self.assertTrue(any(note.startswith('rejection') for note in notes[0][1]))
+
+
+class KeepApplyingAndStaleStarTests(unittest.TestCase):
+    """The user, 2026-10-17: "continue to apply for" was read as Passed, and
+    SharkNinja's confirmation stayed as it was after its rule was fixed."""
+
+    def test_an_invitation_to_keep_applying_is_not_an_interview(self):
+        for body in ('We would like to invite you to continue to apply for positions with us.',
+                     'We invite you to continue applying for roles that match your interests.',
+                     "We'd like to invite you to reapply in the next cycle.",
+                     'Please continue to apply for internships that interest you; select your preferred location.'):
+            self.assertNotEqual(gmail.classify('Your application', body), 'passed', body)
+        self.assertEqual(gmail.classify('Your Acme application',
+            'Thank you for your interest in the Firmware Intern role. The position has been filled. We would '
+            'like to invite you to continue to apply for positions with us.'), 'declined')
+        # An interview offered in the same email is still found.
+        self.assertEqual(gmail.classify('Acme', 'We would like to invite you to interview for the role. '
+                                                'Please select a time on calendly.com/acme.'), 'passed')
+
+    def test_a_fixed_rule_clears_the_mark_and_the_star_it_made(self):
+        groups = [group('s1', 'SharkNinja Operating LLC', 'Engineering & Technology Co-op Opportunities')]
+        mail = message('Thank you for applying to SharkNinja', CourtesyAndShortTitleTests.SHARKNINJA,
+                       sender='SharkNinja <careers@sharkninja.com>', mid='shark')
+        current = {'s1': {'by': 'gmail', 'outcome': 'passed', 'message': 'shark'}}
+        with tempfile.TemporaryDirectory() as folder:
+            gmail._save(Path(folder) / 'starred.json', ['shark', 'gone'])
+            with patch.object(gmail.applications, 'queue', return_value={'applied': groups}), \
+                 patch.object(gmail.manual_intake, 'augment_queue', side_effect=lambda q, l, d=None: q), \
+                 patch.object(gmail, 'fetch', return_value=[mail]), \
+                 patch.object(gmail, 'last_events', return_value=current), \
+                 patch.object(gmail.applications, 'append_outcome') as append, \
+                 patch.object(gmail, 'star', side_effect=lambda a, p, ids, remove=False: ids) as star:
+                result = gmail.run('unused', Path(folder) / 'ledger.ndjson', 'dummy', 'dummy', directory=folder)
+            append.assert_called_once()
+            self.assertEqual(append.call_args.args[1:3], ('s1', ''))
+            self.assertEqual(star.call_args_list[-1].args[2], ['shark'])
+            self.assertTrue(star.call_args_list[-1].kwargs['remove'])
+            self.assertEqual(result['unstarred'], 1)
+            # A star on mail not held is not touched, and an unstarred reply is forgotten.
+            self.assertEqual(gmail._load(Path(folder) / 'starred.json', None), ['gone'])

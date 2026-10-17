@@ -1,3 +1,22 @@
+# Gmail: "continue to apply" and stale stars - 2026-10-17 (claude)
+
+The user: SharkNinja was not changed, and "continue to apply for" was read
+as an approval.
+- SharkNinja: on c44f2c6 the real email reads as None, still matches its
+  application, and `decide` clears the old Passed mark (checked offline
+  through `run`). The VPS had not been installed since the fix. The pass
+  also never took off a star it had given, so the email would have stayed
+  starred: a reply in `starred.json` that no longer reads Passed is now
+  unstarred and forgotten (`--preview` lists it under "Would unstar").
+- "We would like to invite you to continue to apply for positions with us"
+  was Passed on "like to invite"; "select your preferred location" too.
+  "continue to apply/applying", "reapply", "apply again", "invite you to
+  apply/explore/visit/keep/stay" now hedge an invitation phrase. A
+  rejection closing that way reads Declined; an interview offered in the
+  same email is still Passed.
+Tests: `KeepApplyingAndStaleStarTests`, both failing before the fix.
+Suite: 1,266 run, 13 skipped (no index on this laptop; POSIX-only), pass.
+
 # Gmail: invitations told as instructions, short titles, SharkNinja - 2026-10-17 (claude)
 
 The user: a SharkNinja reply was identified wrong and Passed must land in
