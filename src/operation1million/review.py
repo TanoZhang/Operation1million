@@ -11,7 +11,8 @@ import sqlite3
 import threading
 from urllib.parse import urlsplit, parse_qs
 
-from . import applications, export, ranking, jsearch, manual_intake, collection_policy, gmail_outcomes, resume_fit
+from . import (applications, application_limits, export, ranking, jsearch, manual_intake,
+               collection_policy, gmail_outcomes, resume_fit)
 from .queue_snapshot import QueueSnapshot
 from .job_text import display_description, readable_text
 from .paths import DB
@@ -35,7 +36,9 @@ GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
                 'early_career', 'asia', 'outcome', 'outcome_at', 'outcome_by',
                 # A capped employer's slots (2026-10-08).
-                'application_limit')
+                'application_limit',
+                # Set by `slim` itself, only on a referable employer's group.
+                'referalble')
 JOB_FIELDS = ('url', 'location', 'provider_key', 'first_seen', 'posted_at',
               'posted_before', 'publisher', 'employer_site', 'official_link', 'third_party_site',
               # How an imported entry's index posting was found (2026-10-08).
@@ -66,6 +69,9 @@ def slim(state):
             continue
         trimmed[key] = [
             dict({name: group[name] for name in GROUP_FIELDS if name in group},
+                 # The referalble tab reads the server's answer, not a list of
+                 # its own; sent only where true, to keep the payload small.
+                 **({'referalble': True} if export.referalble(group.get('company')) else {}),
                  jobs=[dict({name: job[name] for name in JOB_FIELDS if name in job},
                             third_party_site=export.third_party_site(job))
                        for job in group.get('jobs', [])])
@@ -154,7 +160,9 @@ def make_server(db, ledger, port=8765, export_path=None):
                 datetime.now(timezone.utc).date(),
                 jsearch.filter_fingerprint(jsearch.load_plan()[0]['filter']),
                 fingerprint(manual_intake.path_for(ledger)),
-                fingerprint(resume_fit.profile_path(ledger)))
+                fingerprint(resume_fit.profile_path(ledger)),
+                # The caps decide what the queue keeps (application_limits.apply).
+                fingerprint(application_limits.PATH))
 
     def record_decision(before, state, source, group, written):
         """Move a just-decided group in the cached queue instead of rebuilding it.

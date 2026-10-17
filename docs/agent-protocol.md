@@ -6,6 +6,26 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-16): three rounds of an external review --
+       bugs, compaction, the "Third-party site" meaning (job-board apply),
+       and skip reasons on the Skipped tab.
+Files: data/config/migrations/011_jobs_requisition.sql, .github/workflows/collect-backup.yml,
+       src/operation1million/{store,manual_intake,applications,gmail_outcomes,
+       jsearch,jsearch_access,location,collector,export,experience,ranking,
+       review,apple,collection_policy,job_details}.py,
+       src/operation1million/review_static/{app.js,index.html,style.css},
+       tests/{test_external_review,test_review_export,test_manual_intake,
+       test_workflow_state,test_apple_details,test_collect_sql_sources}.py,
+       tests/review-company-tab.cjs,
+       docs/{agent-protocol,handoff,architecture,application-review}.md
+Base commit: 7c7ff44
+Status: done -- pushed, not installed (the user, 2026-10-16); Windows suite 1,256 run, 13 skipped, pass.
+Next: Install on the VPS when the user asks; the "Not done" list
+      in the newest handoff.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-16): fill the JDs missing from Applied entries
        (mostly Muse submissions) -- the detail pass also reads postings with a
        decision, whatever their title; and Muse's daily-new files.

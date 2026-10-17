@@ -118,7 +118,16 @@ function renderGmail() {
 const statusBadge = group => OUTCOME_LABELS[group.outcome]
   ? `<div class="status-badge status-${group.outcome}">${OUTCOME_LABELS[group.outcome].toUpperCase()}${group.outcome_by === 'gmail' ? ' <span>from Gmail</span>' : ''}</div>` : '';
 const topBadge = group => tab === 'applied'
-  ? `${statusBadge(group)}<span class="applied-date">${escapeText(appliedDate(group))}</span>` : chips(group);
+  ? `${statusBadge(group)}<span class="applied-date">${escapeText(appliedDate(group))}</span>`
+  : `${tab === 'skipped' ? skipReason(group) : ''}${chips(group)}`;
+// Why it was skipped, on its row (the user, 2026-10-16): "expired", "no
+// sponsorship". A long reason is cut short here; the detail shows all of it.
+const skipReason = group => {
+  const reason = String(group.reason ?? '').trim().replace(/\s+/g, ' ');
+  if (!reason) return '';
+  const short = reason.length > 60 ? reason.slice(0, 59) + '…' : reason;
+  return `<span class="skip-reason" title="${escapeText(reason)}">${escapeText(short)}</span>`;
+};
 // All three, the same in the list and in the detail.
 const chips = group => `${bandChip(group)}${flagChip(group)}${internChip(group)}${group.jobs.some(thirdParty) ? '<span class="third-party-warning">Third-party site</span>' : ''}`;
 const $ = selector => document.querySelector(selector);
@@ -301,10 +310,10 @@ const outcomeOf = group => OUTCOME_LABELS[group.outcome] ? group.outcome : 'wait
 // Early career, and everything else -- "Master's plus 2 years" -- on To review.
 // Since 2026-09-26 the Backlog tab leaves early career postings to their tab.
 // Since 2026-10-11 Japan and China (the server's `asia`) have their own tab.
-// The six referable employers have one tab across all locations and relevance
-// levels. Match the normalized display name exactly so a namesake stays put.
-const selectedCompany = group => ['tesla', 'tiktok', 'nvidia', 'renesas', 'cisco', 'amazon']
-  .includes((group.company || '').trim().toLowerCase());
+// The referable employers have one tab across all locations and relevance
+// levels. The server decides which (export.referalble, by employer identity),
+// so a namesake stays put and the list is kept in one place.
+const selectedCompany = group => group.referalble === true;
 const home = group => !group.asia && !selectedCompany(group);
 const related = group => !group.less_related && home(group);
 const early = group => related(group) && group.early_career;
@@ -603,6 +612,10 @@ $('#search').oninput = () => {
   searchTimer = setTimeout(() => { visibleLimit = PAGE; render(); }, 120);
 };
 $('#cancel-skip').onclick = () => { skipTarget = null; $('#skip-dialog').close(); };
+// A common reason in one click; the text stays editable.
+document.querySelectorAll('[data-skip-reason]').forEach(button => {
+  button.onclick = () => { $('#reason').value = button.dataset.skipReason; $('#reason').focus(); };
+});
 $('#skip-form').onsubmit = event => { event.preventDefault(); decide('skipped', $('#reason').value, skipTarget); };
 refresh();
 

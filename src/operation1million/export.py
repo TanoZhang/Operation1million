@@ -34,7 +34,14 @@ COLUMNS = (('Status', 16), ('Company', 28), ('Title', 60), ('Location', 32), ('P
 
 
 def third_party_site(job):
-    """User marker for third-party listings except LinkedIn and Handshake."""
+    """Whether the listing is applied for through a job board, except LinkedIn
+    and Handshake.
+
+    The user, 2026-10-16: "Third-party site" means applied through a job board,
+    not found by paid search. The queue names a `publisher` only for such a
+    route: a paid listing whose apply link is not the employer's own, or a
+    pasted link on a known board.
+    """
     try:
         host = (urlsplit(job.get('url') or '').hostname or '').lower()
     except ValueError:
@@ -45,7 +52,7 @@ def third_party_site(job):
     publisher = re.sub(r'[^a-z0-9]', '', str(job.get('publisher') or '').lower())
     if publisher in ('linkedin', 'linkedincom', 'handshake', 'joinhandshake', 'joinhandshakecom'):
         return False
-    return bool(job.get('publisher')) or job.get('provider_key') == 'jsearch'
+    return bool(job.get('publisher'))
 
 # XML 1.0 has no place for most control characters, and a provider's text
 # sometimes carries them.
@@ -251,9 +258,18 @@ def write(path, entries):
 # only as the index plus the ledger. One plain CSV of what Remaining counts,
 # rewritten in place each pass, is the whole interface: no SQLite in the
 # repository, and a day's change costs Git a compressed diff.
+# ByteDance with TikTok (the user, 2026-10-16): a separate identity in the
+# alias table, and its postings were not marked.
 REFERALBLE_COMPANIES = frozenset(employers.identity(name) for name in
-                                ('Tesla', 'TikTok', 'NVIDIA', 'Renesas', 'Cisco', 'Amazon'))
+                                ('Tesla', 'TikTok', 'ByteDance', 'NVIDIA', 'Renesas', 'Cisco', 'Amazon'))
 OPEN_COLUMNS = tuple(name for name, _ in COLUMNS if name not in ('Decided', 'Reason')) + ('referalble',)
+
+
+def referalble(company):
+    """Whether an employer is one the user can be referred to, by identity:
+    the CSV's mark and the Review tab both ask this, so a namesake ("NVIDIA
+    Staffing") is never one."""
+    return employers.identity(company) in REFERALBLE_COMPANIES
 
 
 def open_entries(state):
@@ -267,7 +283,7 @@ def open_table(entries):
     keep = [index for index, (name, _) in enumerate(COLUMNS) if name in OPEN_COLUMNS]
     company_column = [name for name, _ in COLUMNS].index('Company')
     return [[('' if row[i] is None else row[i]) for i in keep] +
-            ['true' if employers.identity(row[company_column]) in REFERALBLE_COMPANIES else 'false']
+            ['true' if referalble(row[company_column]) else 'false']
             for row in rows(entries)]
 
 

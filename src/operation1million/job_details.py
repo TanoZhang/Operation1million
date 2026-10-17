@@ -60,8 +60,8 @@ def embedded_titles(text):
 
 
 def read(collector, row):
+    from .validate_sources import request_for
     if collector.source.provider_key == 'eightfold':
-        from .validate_sources import request_for
         parts = urlsplit(request_for(collector.source)[0])
         domain = parse_qs(parts.query)['domain'][0]
         query = urlencode({'position_id': row['source_job_id'], 'domain': domain, 'hl': 'en'})
@@ -69,7 +69,6 @@ def read(collector, row):
         with collector.fetch(endpoint) as response:
             return eightfold_fields(response.json(), row['source_job_id'])
     if collector.source.provider_key == 'smartrecruiters':
-        from .validate_sources import request_for
         endpoint = request_for(collector.source)[0].split('?')[0].rstrip('/')
         with collector.fetch(endpoint + '/' + str(row['source_job_id'])) as response:
             return smartrecruiters_fields(response.json(), row['source_job_id'])

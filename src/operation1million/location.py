@@ -114,6 +114,8 @@ FOREIGN_CITIES = (
     'rousset', 'crolles', 'munchen', 'nurnberg', 'zurich',
     # Unplaced in the live queue on 2026-10-02 (#262).
     'saclay', 'sibiu', 'espoo', 'rawabi',
+    # The country of Georgia's cities; see _GEORGIAN_CITIES below.
+    'tbilisi', 'batumi', 'kutaisi',
 )
 # ISO 3166 codes that lead "IN, KA, Bengaluru"-style strings.
 FOREIGN_CODES = {
@@ -197,6 +199,10 @@ _FOREIGN_COUNTRIES = _words(FOREIGN_COUNTRIES)
 _FOREIGN_CITIES = _words(FOREIGN_CITIES)
 _PROVINCES = _words(CANADIAN_PROVINCES)
 _LEADING_CODE = re.compile(r'^\s*([a-z]{2})\s*,', re.I)
+# Georgia is a state and a country. Beside one of the country's cities it is
+# the country: "Tbilisi, Georgia" read as the U.S. (external review,
+# 2026-10-16), while "Atlanta, Georgia" stays the state.
+_GEORGIAN_CITIES = _words(('tbilisi', 'batumi', 'kutaisi'))
 # A part that is a two-letter code, and a region after a leading country code.
 _CODE = re.compile(r'[A-Za-z]{2}')
 _REGION = re.compile(r'[A-Za-z]{2,3}')
@@ -219,8 +225,10 @@ def _place(text):
     parts = [_ZIP.sub('', part.strip()) for part in text.split(',') if part.strip()]
     codes = [part.lower() for part in parts if _CODE.fullmatch(part)]
     state_codes = [code for code in codes if code in US_STATE_CODES]
-    if (_US_WORDS.search(text) or re.match(r'^\s*US\b', text) or 'us' in codes
-            or any(part.lower() in US_STATES for part in parts)):
+    states = {part.lower() for part in parts} & US_STATES.keys()
+    if _GEORGIAN_CITIES.search(text):
+        states.discard('georgia')
+    if _US_WORDS.search(text) or re.match(r'^\s*US\b', text) or 'us' in codes or states:
         return 'us'
     # The country written first, then a region: "IN, TN, Chennai", "IT, MI,
     # Milan". The region is often also a state code (Tamil Nadu, Milano), and

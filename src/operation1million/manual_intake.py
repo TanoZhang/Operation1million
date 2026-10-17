@@ -505,6 +505,21 @@ def link_postings(state, db):
     return state
 
 
+def latest_imports(path):
+    """The latest import record per group id in manual_jobs.ndjson.
+
+    A damaged line, or one without a group and its postings, is skipped: one
+    bad line took the whole review page down (external review, 2026-10-16).
+    """
+    latest = {}
+    with applications.locked(path):
+        for event in applications.read_records(path):
+            group = event.get('group')
+            if isinstance(group, dict) and isinstance(group.get('id'), str) and group.get('jobs'):
+                latest[group['id']] = event
+    return latest
+
+
 def decided_urls(ledger, db):
     """Every posting with an Applied or Skipped decision, as the index holds it.
 
@@ -528,15 +543,9 @@ def decided_urls(ledger, db):
     path = path_for(ledger)
     if path.exists():
         decided = set(final)
-        latest = {}
-        with applications.locked(path):
-            for line in path.read_text(encoding='utf-8').splitlines():
-                if line.strip():
-                    event = json.loads(line)
-                    latest[event['group']['id']] = event['group']
         state = {'pending': [], 'backlog': [], 'skipped': [],
-                 'applied': [dict(group, jobs=list(group['jobs'])) for ident, group in latest.items()
-                             if ident in decided]}
+                 'applied': [dict(event['group'], jobs=list(event['group']['jobs']))
+                             for ident, event in latest_imports(path).items() if ident in decided]}
         link_postings(state, db)
         urls |= {job['url'] for group in state['applied'] for job in group['jobs']}
     return frozenset(urls)
@@ -550,15 +559,10 @@ def augment_queue(state, ledger, db=None):
     face `application_limits`.
     """
     from .employers import label_queue
-    latest = {}
     path = path_for(ledger)
     if not path.exists():
         return label_queue(state)
-    with applications.locked(path):
-        for line in path.read_text(encoding='utf-8').splitlines():
-            if line.strip():
-                event = json.loads(line)
-                latest[event['group']['id']] = event
+    latest = latest_imports(path)
     with applications.locked(ledger):
         decisions = applications.read_events(ledger)
     superseded = {ident for event in latest.values() for ident in event.get('replaced_ids', [])}

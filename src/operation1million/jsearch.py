@@ -182,7 +182,6 @@ def _read_plan(path):
     if not isinstance(publishers, list) or any(
             not isinstance(name, str) or not name.strip() or ',' in name for name in publishers):
         raise ValueError('exclude_job_publishers must be an array of publisher names without commas')
-    config['max_pages_per_query_daily'] = config['max_pages_per_query']
     queries = []
     for row in config.get('query', []):
         if not row.get('enabled', True):
@@ -747,11 +746,15 @@ def account_walled(url, raw, rules):
     return walled and open_apply_option(raw, rules) is None
 
 
-def employer_excluded(row, rules):
+def employer_of(row):
+    """The employer's name as the row carries it, '' when it names none."""
     raw = row.get('raw') if isinstance(row.get('raw'), dict) else {}
-    employer = row.get('company_name') or row.get('company') or raw.get('employer_name') or ''
+    return row.get('company_name') or row.get('company') or raw.get('employer_name') or ''
+
+
+def employer_excluded(row, rules):
     combined = any_of(rules.get('exclude_employer_patterns', []))
-    return bool(combined and combined.search(str(employer)))
+    return bool(combined and combined.search(str(employer_of(row))))
 
 
 def relevance(row, rules, description=None):
@@ -961,7 +964,8 @@ def software_jd_rejection(row, rules=None, *, fit_assessment=None):
 def experience_debug(row, text=None):
     from .experience import evaluate
     return evaluate(row.get('title'),
-                    description_text(row, structured=True) if text is None else text)
+                    description_text(row, structured=True) if text is None else text,
+                    employer_of(row))
 
 
 def us_person_required(text, rules):
@@ -1062,7 +1066,7 @@ def preferred_spans(text):
     # Character ranges under a preferred heading or on a preference-labelled
     # line. "Preferred Qualifications: - Must be a U.S. citizen" is not this
     # posting's requirement, and was a hard pass (2026-09-27).
-    spans, start, optional, offset = [], None, False, 0
+    spans, optional, offset = [], False, 0
     for line in text.splitlines(keepends=True):
         stripped = line.replace(SECTION_END, '').strip(' \t\r\n-*')
         if SECTION_END in line:
@@ -1457,9 +1461,14 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # Asked again once, after the rest of the round, from the
                     # same page: the query is not over because the server was.
                     stats['jsearch_failures'] += 1
-                    entry['retried'] = True
+                    entry['retried'] = entry['retrying'] = True
                     detail['reason'] = f'{failure}; retried once'
                     continue
+                if failure is None and entry.pop('retrying', False):
+                    # The retry was answered: the server's hiccup is not the
+                    # query's failure, and its note would land in the manifest
+                    # and company_results as one (external review, 2026-10-16).
+                    detail['reason'] = ''
                 if failure is not None:
                     if not failure.budget:
                         stats['jsearch_failures'] += 1

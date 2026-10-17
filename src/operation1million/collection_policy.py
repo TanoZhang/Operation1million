@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import math
 from pathlib import Path
-import re
 import sqlite3
 import time
 from urllib.parse import urlsplit

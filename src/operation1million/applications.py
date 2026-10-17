@@ -26,6 +26,27 @@ def links_path(ledger):
     return Path(ledger).with_name('listing_links.ndjson')
 
 
+def read_records(path):
+    """Each JSON object in an append-only file, in order.
+
+    For the convenience files beside the ledger -- links, outcomes, imports --
+    a damaged line is skipped rather than refusing the whole page; the ledger
+    itself (`read_events`) is the record that must not bend. A missing file
+    has no records.
+    """
+    path = Path(path)
+    if not path.exists():
+        return
+    with path.open(encoding='utf-8-sig') as handle:
+        for line in handle:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(event, dict):
+                yield event
+
+
 def read_links(path):
     """The latest company link recorded for each listing address.
 
@@ -34,22 +55,13 @@ def read_links(path):
     these are conveniences, and the ledger is the record that must not bend.
     """
     links = {}
-    path = Path(path)
-    if not path.exists():
-        return links
-    with path.open(encoding='utf-8-sig') as handle:
-        for line in handle:
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if not (isinstance(event, dict) and isinstance(event.get('url'), str)
-                    and isinstance(event.get('link'), str)):
-                continue
-            if event['link']:
-                links[event['url']] = event['link']
-            else:
-                links.pop(event['url'], None)
+    for event in read_records(path):
+        if not (isinstance(event.get('url'), str) and isinstance(event.get('link'), str)):
+            continue
+        if event['link']:
+            links[event['url']] = event['link']
+        else:
+            links.pop(event['url'], None)
     return links
 
 
@@ -87,22 +99,13 @@ def read_outcomes(path):
     clears it. A damaged line is skipped, as with the company links.
     """
     outcomes = {}
-    path = Path(path)
-    if not path.exists():
-        return outcomes
-    with path.open(encoding='utf-8-sig') as handle:
-        for line in handle:
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if not (isinstance(event, dict) and isinstance(event.get('id'), str)
-                    and event.get('outcome') in (*OUTCOMES, '')):
-                continue
-            if event['outcome']:
-                outcomes[event['id']] = event
-            else:
-                outcomes.pop(event['id'], None)
+    for event in read_records(path):
+        if not (isinstance(event.get('id'), str) and event.get('outcome') in (*OUTCOMES, '')):
+            continue
+        if event['outcome']:
+            outcomes[event['id']] = event
+        else:
+            outcomes.pop(event['id'], None)
     return outcomes
 
 
@@ -229,7 +232,11 @@ def _vague(place):
     """A place that names no city: "US", "3 Locations", "Various Locations", or a
     bare state, which is how JobServe places a listing it cannot place."""
     city, plain = _city(place), _plain(place)
-    return (city in VAGUE_PLACES or bool(MANY_PLACES.match(plain)) or 'various' in plain.split()
+    # "Remote - US", "Remote (US)", "United States (Remote)": remote within the
+    # country names no city either (external review, 2026-10-16).
+    country = ' '.join(word for word in plain.split() if word != 'remote')
+    return (city in VAGUE_PLACES or country in VAGUE_PLACES
+            or bool(MANY_PLACES.match(plain)) or 'various' in plain.split()
             # "Alabama, US" but not "New York": a state named alone may be its city.
             or city in location.US_STATES and plain != city
             and plain[len(city):].strip() in VAGUE_PLACES)
@@ -822,7 +829,8 @@ def queue(db_path=DB, path=None, now=None):
                     if (linked == (job['company_key'], job['title'].casefold())
                             or copies_workday_requisition(job, raw)):
                         continue
-                filter_row = {'title': job['title'], 'raw': raw}
+                # The employer too: its own years are not the applicant's.
+                filter_row = {'title': job['title'], 'company_name': job.get('company'), 'raw': raw}
                 fit_assessment = resume_fit.lazy_assessment(filter_row, rules)
                 # Generic software titles now reach this point too. Refuse
                 # missing/off-domain JD before parsing experience across that

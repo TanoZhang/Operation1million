@@ -46,6 +46,9 @@ main{max-width:none;padding:16px 20px 12px}
 .job-check{margin:0 0 0 14px;width:18px;height:18px;flex-shrink:0;cursor:pointer;accent-color:#286747}
 .job-row .job{flex:1;min-width:0;border-bottom:0}
 .third-party-warning{display:inline-block;margin:0 6px 6px 0;padding:3px 6px;border-radius:3px;background:#fff0df;color:#94551c;font-size:10px;font-weight:600}
+.skip-reason{display:inline-block;max-width:100%;margin:0 6px 6px 0;padding:3px 6px;border-radius:3px;background:#eef1f4;color:#374151;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.skip-reasons{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.skip-reasons button{font-size:12px;padding:4px 8px}
 
 .manual-intake {padding:16px; margin-bottom:16px; border:1px solid #d9dde5; border-radius:8px;}
 .manual-intake label {display:block; margin:8px 0;}

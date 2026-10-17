@@ -601,7 +601,10 @@ def parse(raw, message_id):
     if not text.strip() and html:
         text = BeautifulSoup('\n'.join(html), 'html.parser').get_text('\n')
     try:
-        at = parsedate_to_datetime(parsed['Date']).astimezone(timezone.utc).isoformat()
+        at = parsedate_to_datetime(parsed['Date'])
+        # "-0000" is UTC with no zone given; a naive value would be read in
+        # the machine's local time.
+        at = (at if at.tzinfo else at.replace(tzinfo=timezone.utc)).astimezone(timezone.utc).isoformat()
     except (TypeError, ValueError, IndexError):
         at = datetime.now(timezone.utc).isoformat()
     name, address = parseaddr(_header(parsed['From']))
@@ -704,19 +707,8 @@ def star(address, password, message_ids):
 
 def last_events(path):
     """The last outcome event per group, hand-made or not, clears included."""
-    last = {}
-    path = Path(path)
-    if not path.exists():
-        return last
-    with path.open(encoding='utf-8-sig') as handle:
-        for line in handle:
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(event, dict) and isinstance(event.get('id'), str):
-                last[event['id']] = event
-    return last
+    return {event['id']: event for event in applications.read_records(path)
+            if isinstance(event.get('id'), str)}
 
 
 def _load(path, default):

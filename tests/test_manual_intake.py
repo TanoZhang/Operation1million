@@ -88,7 +88,8 @@ class ManualTests(unittest.TestCase):
 
     def test_http_company_link_replaces_matching_third_party(self):
         old = intake.create_group('https://third.example/1', intake.posting_metadata('', {'title': 'RTL Engineer', 'company': 'Example', 'source_job_id': 'R1'}))
-        old['jobs'][0]['provider_key'] = 'jsearch'
+        # A paid listing applied through a board: the queue names its publisher.
+        old['jobs'][0].update(provider_key='jsearch', publisher='JobLeads')
         fixture = empty(); fixture['pending'].append(old)
         with patch.object(review.applications, 'queue', side_effect=lambda *args: copy.deepcopy(fixture)):
             server = review.make_server(Path(self.temp.name)/'missing.sqlite', self.ledger, port=0)

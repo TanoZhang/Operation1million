@@ -21,7 +21,7 @@ from .paths import CONFIG, DATA, DB, ROOT
 
 MIGRATION = CONFIG / 'migrations/002_job_store.sql'
 # Applied after it, each once, as `catalog_migrations` records.
-LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass')
+LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass', '011_jobs_requisition')
 SOURCE_MIGRATIONS = ('007_sandisk_avature', '008_amazon_partition', '009_japan_direct_sources',
                      '010_japan_hrmos_jposting')
 
@@ -231,10 +231,6 @@ def plan(source, state):
             or row.get('last_status') not in (None, 'complete', 'unchanged')):
         # Retry incomplete work before allowing an older checkpoint to skip it.
         # This also recovers state written before partial validators were gated.
-        return 'full', None
-    # Older state may carry an ETag from an incomplete inventory. Retry it in
-    # full rather than letting a 304 permanently hide the unprocessed rows.
-    if row.get('last_status') not in (None, 'complete', 'unchanged'):
         return 'full', None
     if row.get('etag'):
         return 'conditional', row['etag']

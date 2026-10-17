@@ -433,6 +433,9 @@ OTHER_PEOPLES_YEARS = re.compile(
     r'|\b(?:engineers|mentors|colleagues|experts|leaders|managers?|peers|veterans|professionals|'
     r'people|team)\s+(?:who\s+have\s+|with\s+)(?:an?\s+average\s+of\s+|over\s+|more\s+than\s+)?$'
     r"|\b(?:we\s+have|we've|backed\s+by|built\s+on|founded\s+on)\s+(?:over\s+|more\s+than\s+)?$"
+    # "Acme brings a decade of experience shipping chips" (external review,
+    # 2026-10-16). Not "has": "Has 3+ years of RTL" is a requirement bullet.
+    r'|\b\w+\s+(?:brings|boasts)\s+(?:over\s+|more\s+than\s+|nearly\s+|almost\s+)?$'
     r'|\baverag(?:e|es|ing)\s+(?:of\s+)?$', re.I)
 # Unless the sentence is asking for that person.
 ASKING = re.compile(r'\b(?:looking\s+for|seeking|hiring|searching\s+for|someone|somebody|'
@@ -500,12 +503,29 @@ def japanese_as_english(text):
     return text
 
 
-def evaluate(title, description):
+def _employer_voice(text, employer):
+    """The employer speaking of itself, as "we have": "Acme: a decade of
+    experience shipping chips" and "Acme has 15 years in mixed-signal" are the
+    company's years, not the applicant's (external review, 2026-10-16). Only
+    after the employer's own name, so "Requirements:" and a bullet "Has 5+
+    years" still ask for the years."""
+    from .employers import display
+    names = {name for name in (' '.join(str(employer or '').split()), display(employer))
+             if len(name) >= 3}
+    if not names:
+        return text
+    pattern = '|'.join(re.escape(name) for name in sorted(names, key=len, reverse=True))
+    return re.sub(r'\b(?:%s)(?:\s*:|\s+(?:has|have|brings|boasts))\s+' % pattern,
+                  'We have ', text, flags=re.I)
+
+
+def evaluate(title, description, employer=None):
     """Return auditable facts. Unknown experience is None, never assumed zero.
 
     Standalone experience requirements are mandatory unless marked optional.
     Separate mandatory requirements use the maximum lower bound. Only an
     explicit BS/MS alternative selects the stated MS path, never a degree bonus.
+    `employer`, when given, is how the posting may name its own company.
     """
     # Compatibility forms too: a full-width "５＋ years" (2026-09-27).
     text = unicodedata.normalize('NFKC', repair_mojibake(html.unescape(description or '')))
@@ -524,6 +544,7 @@ def evaluate(title, description):
     # "A decade of experience" is ten years, and read as none (#259, 2026-10-02).
     text = re.sub(r'\b(?:a|one)\s+decade\b', '10 years', text, flags=re.I)
     text = re.sub(r'\b(two|2)\s+decades\b', '20 years', text, flags=re.I)
+    text = _employer_voice(text, employer)
     # "Three plus (3+) years": the digits in brackets after the plus (#285).
     text = re.sub(r'\b(?:%s)\s*(?:\+|plus)\s*\(\s*(\d{1,2})\s*\+?\s*\)' % '|'.join(NUMBER_WORDS),
                   r'\1+', text, flags=re.I)

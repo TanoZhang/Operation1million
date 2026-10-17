@@ -12,7 +12,6 @@ import sqlite3
 import tempfile
 import threading
 import time
-import unicodedata
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing, nullcontext
@@ -29,8 +28,9 @@ except ImportError:
     import tomli as tomllib
 
 from .validate_sources import Source, request_for, json_items
-from .paths import ROOT, CONFIG, DB, RUNS
-from .jsearch_access import RequestGuard, load_credentials
+from .paths import CONFIG, DB, RUNS
+from .jsearch_access import RequestGuard
+from .local_config import load_credentials
 from .collection_policy import SourcePolicy, SourcePaused, retry_after_seconds, html_challenge, STATE as SOURCE_STATE
 from . import store
 from . import jsearch
@@ -573,7 +573,6 @@ class Collector:
             if p in {'greenhouse', 'ashby'}:
                 return ('partial', 'Job cap reached') if len(items) > self.max_jobs else ('complete', '')
             if isinstance(stated_total, (int, float)) and offset >= stated_total:
-                total = stated_total
                 return 'complete', ''
             # B54: nothing accepted from a page is a repeat only if nothing on
             # it was refused either. A page of malformed records also adds
@@ -1398,8 +1397,6 @@ def main():
         return 0
     run_stamp = store.now()
     started = time.monotonic()
-    if args.store and store.sealed(run_stamp):
-        p.error('That UTC day is over and sealed in the persistent store; refusing to modify it')
     load_credentials()
     if args.store:
         store.migrate(args.db)

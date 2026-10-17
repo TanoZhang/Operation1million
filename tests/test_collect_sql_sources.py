@@ -13,10 +13,10 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from unittest.mock import patch, Mock
 from operation1million import collector
-from operation1million.collector import (Collector, Source, ROOT, employer_matches,
+from operation1million.collector import (Collector, Source, employer_matches,
                                 html_items, fallback, config, normalize,
                                 reported_total, source_lock)
-from operation1million.paths import CONFIG
+from operation1million.paths import CONFIG, ROOT
 from operation1million import store
 from dataclasses import replace
 

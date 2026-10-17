@@ -1,3 +1,96 @@
+# Five bugs from an external review - 2026-10-16 (claude)
+
+The user pasted an outside review of 7c7ff44: five bugs, five cleanups. Each
+bug was reproduced red first (`tests/test_external_review.py`, 8 of 9 checks
+failing on 7c7ff44) and passes now:
+
+1. A direct board's steady-state `record_source` was quadratic: one alias
+   lookup per requisition with only `(company_key, closed_at)` indexed.
+   Migration `011_jobs_requisition` (in `LATER_MIGRATIONS`, so existing
+   indexes get it; `--bootstrap` reads every migration file) adds
+   `jobs(provider_key, source_job_id)`. Measured on Windows, synthetic Ashby
+   board: 4,000 rows 1.09 s -> 0.22 s, 8,000 rows 4.35 s -> 0.46 s. The
+   review's own numbers (2.5 s / 10.1 s) were not reproduced exactly.
+2. A `{broken` line in `manual_jobs.ndjson` failed `augment_queue` and
+   `decided_urls`. `applications.read_records` is now the one tolerant
+   reader for the files beside the ledger (links, outcomes, Gmail outcome
+   events, imports); `manual_intake.latest_imports` also skips a record with
+   no group. `read_events` (the ledger) still refuses a damaged line.
+3. A JSearch 504 retried successfully kept "JSearch HTTP 504; retried once" as
+   the query's reason, so manifest/company_results showed it as
+   failure_reason/next_step. Cleared when the retry is answered;
+   `jsearch_failures` still counts the failed request.
+4. `RequestGuard._get_locked` read the account pause after the budget checks,
+   so a pause on a spent day raised `QuotaExhausted`, not `AccountPaused`.
+   The pause is read first; the two monthly checks are one (with baseline).
+5. "Tbilisi, Georgia" read as the U.S. Beside Tbilisi, Batumi or Kutaisi,
+   Georgia is the country; "Atlanta, Georgia" and "Atlanta, GA" stay U.S.
+
+Cleanups, no behavior change: the repeated status check in `store.plan`;
+`max_pages_per_query_daily` (written, never read); the collector's seal check
+right after `run_stamp = store.now()`, which could only fire if UTC midnight
+fell between two adjacent calls (a day ending mid-run is still reported at
+the end of the pass).
+
+"Third-party site" (the user, 2026-10-16: 通过求职网站投递) means applied
+through a job board, not found by paid search. `export.third_party_site` now
+marks a listing only when the queue names a publisher (a paid listing whose
+apply link is not direct, or a pasted board link); LinkedIn and Handshake stay
+exempt. A paid listing applying on the employer's site loses the column
+value and the Review badge, and a pasted official link no longer replaces it
+(it is already the employer's). Red first in tests/test_review_export.py.
+
+Second and third rounds from the same reviewer, same day. Fixed, each red
+first in `tests/test_external_review.py`:
+- `applications._vague`: "Remote - US", "US - Remote", "Remote (US)",
+  "United States (Remote)" name no city, like "Remote, US"; an application to
+  such a copy now covers the same requisition in Austin.
+- `ranking.EARLY_CAREER`: "Students" as well as "Student".
+- `ranking.posted_day`: a trailing clock time ("Oct 1, 2026 12:00:00 PM").
+- `gmail_outcomes.parse`: a "-0000" mail date is UTC, not local time.
+- `review.queue_key` fingerprints `application_limits.toml`; a cap edit no
+  longer waits for another input to change.
+- Company years: the employer's own years are not the applicant's.
+  `experience.evaluate` now takes the employer's name (`jsearch.employer_of`;
+  the Review queue's filter row now carries it too) and reads "Acme: ...",
+  "Acme has/brings/boasts ..." as "we have"; "Requirements: a decade ..." and
+  a bullet "Has 5+ years" still ask for the years. The numeral form
+  ("Acme: 10 years of ...") failed the same way, so the decade rewrite was
+  not the cause. Side effect: Review now also applies
+  `exclude_employer_patterns` to direct-board postings by catalog name, as
+  paid intake does; on the local index none of the 50 direct employers with
+  open postings matches, so nothing changes today.
+- ByteDance is referable with TikTok (the user). `export.referalble` is the
+  one answer: the CSV mark, and `/api/queue` sends `referalble: true` on such
+  groups, which the page's tab now reads instead of its own name list.
+  Checked in the browser on a fixture: ByteDance and TikTok on the tab,
+  "NVIDIA Staffing" not. tests/review-company-tab.cjs updated, not run (no
+  Node here).
+- Backup workflow: `--jsearch-timeout 90` as on the VPS (was 30); the two
+  `github.event_name == 'schedule'` branches removed (manual trigger only).
+- Third-party site: done above; this also removes the chip from paid
+  direct-apply groups on the page.
+- Skipped tab (the user): each row shows its skip reason; the Skip dialog
+  offers Expired, No sponsorship, Too senior, Not VLSI, Location. Checked in
+  the browser on a fixture ledger; the Node page tests cannot run here.
+Compaction done: unused `apple` candidate import (its test now reads
+`job_details.candidate`), `collection_policy` re, collector unicodedata and
+ROOT (`load_credentials` from `local_config`), `total = stated_total`, the
+unused `start` in `preferred_spans`, the doubled `request_for` import; bug 2
+of round two was the ndjson helper above.
+
+Not done, with reasons:
+- Zero cycle budget: docs/jsearch.md says a budget below the query count is
+  refused at load; nothing documents 0 as a way to zero a cycle.
+- The `since` strategy and `collector.fallback`: unreachable in production
+  but documented and tested on purpose; removing them is a design choice.
+- Double HTML parse, the other 12 compactions, handoff archive, inline
+  query tables, PYTHONPATH vs pip -e, Node tests wiring, DNS re-resolution,
+  nightly test fingerprint: not started.
+
+Base 7c7ff44, working tree; full Windows suite 1,256 run, 13 skipped, all
+pass. POSIX-only tests not run here. Pushed, not installed on the VPS (the user).
+
 # Each day's new listings for Muse - 2026-10-16 (claude)
 
 Muse asked for each day's new listings on their own instead of re-reading the

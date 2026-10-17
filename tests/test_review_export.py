@@ -48,9 +48,18 @@ class WorkbookTests(unittest.TestCase):
     def test_third_party_marker_has_explicit_site_exceptions(self):
         for url in ('https://www.linkedin.com/jobs/1', 'https://app.joinhandshake.com/jobs/1'):
             self.assertFalse(export.third_party_site({'url': url, 'provider_key': 'jsearch'}))
-        self.assertTrue(export.third_party_site({'url': 'https://indeed.com/1', 'provider_key': 'jsearch'}))
-        self.assertTrue(export.third_party_site({'url': 'https://linkedin.com.other.test/1', 'provider_key': 'jsearch'}))
+        self.assertTrue(export.third_party_site({'url': 'https://indeed.com/1', 'provider_key': 'jsearch',
+                                                 'publisher': 'Indeed'}))
+        self.assertTrue(export.third_party_site({'url': 'https://linkedin.com.other.test/1', 'provider_key': 'jsearch',
+                                                 'publisher': 'Other'}))
         self.assertFalse(export.third_party_site({'url': 'https://company.test/1', 'provider_key': 'workday'}))
+
+    def test_a_paid_listing_applied_on_the_employer_s_site_is_not_third_party(self):
+        """"Third-party site" means applied through a job board (the user,
+        2026-10-16), not found by paid search: the queue names a publisher
+        only when JSearch's apply link is not the employer's own."""
+        self.assertFalse(export.third_party_site({'url': 'https://careers.company.test/1',
+                                                  'provider_key': 'jsearch'}))
 
     def test_workbook_declares_the_excel_normal_style(self):
         with zipfile.ZipFile(BytesIO(export.workbook_bytes([]))) as book:

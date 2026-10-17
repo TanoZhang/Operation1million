@@ -96,9 +96,8 @@ jobs:
         env:
           OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}
-          # Scheduled runs perform paid discovery. Manual runs are free unless
-          # enable_jsearch is explicitly selected in workflow_dispatch.
-          ENABLE_JSEARCH: ${{ github.event_name == 'schedule' || inputs.enable_jsearch }}
+          # Manual only (no schedule), and free unless enable_jsearch is selected.
+          ENABLE_JSEARCH: ${{ inputs.enable_jsearch }}
         # Sources are committed to the store one at a time, so a timeout or a
         # cancelled run still keeps every board it finished.
         run: |
@@ -106,7 +105,9 @@ jobs:
             --workers "${{ inputs.workers || '3' }}"
             --delay 1.0
             --jsearch-max-seconds 6000
-            --jsearch-timeout 30
+            # As the VPS pass: the provider routinely takes 30-60 s, and a
+            # timed-out page still costs its credit.
+            --jsearch-timeout 90
           )
           if [ "$ENABLE_JSEARCH" = 'true' ]; then
             job-collect --jsearch-only --jsearch-plan
@@ -153,7 +154,7 @@ jobs:
         continue-on-error: true
         # A dry run discards what it collected, so a sweep under one would
         # spend the cycle's remaining credits and throw the results away.
-        if: ${{ steps.sweep_window.outputs.run == 'true' && inputs.dry_run != true && (github.event_name == 'schedule' || inputs.enable_jsearch) }}
+        if: ${{ steps.sweep_window.outputs.run == 'true' && inputs.dry_run != true && inputs.enable_jsearch }}
         env:
           OPERATION1MILLION_STORE: ${{ github.workspace }}/data-repo
           JSEARCH_API_KEY: ${{ secrets.JSEARCH_API_KEY }}

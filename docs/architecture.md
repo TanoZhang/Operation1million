@@ -274,6 +274,25 @@ Nothing reads that text.
 
 ## Bugs found and fixed
 
+### Five from an external review, 2026-10-16 UTC
+
+Tests in `tests/test_external_review.py`, red on `7c7ff44`. A direct board's
+pass looked up each requisition's other URLs with only
+`(company_key, closed_at)` indexed, so it grew with the square of the board;
+migration `011_jobs_requisition` adds `jobs(provider_key, source_job_id)`.
+One damaged line in `manual_jobs.ndjson` took Review down; the convenience
+files beside the ledger now share `applications.read_records`, which skips
+damaged lines (the ledger itself still refuses them). A JSearch retry that
+succeeded left "HTTP 504; retried once" as the query's failure reason. A paused
+account on a spent day reported budget completion; the pause is read first.
+"Tbilisi, Georgia" read as the U.S. state. Its second round, same file:
+"Remote - US" and its spellings were a city to `_vague`; "Students" was not
+early career on the page; a date with a clock time was no date; a "-0000"
+mail date was local time; `queue_key` ignored `application_limits.toml`;
+"Acme: a decade of experience" was a ten-year requirement (the parser now
+gets the employer's name); ByteDance was not referable, and the page kept
+its own list of referable names.
+
 ### Ten autofill DOM boundary defects, 2026-10-01 America/Los_Angeles
 
 Bug tracker #217-226, reproduced before fixing on `9d3e5ae9138116033a8271fa8172b3a8abd00404`.

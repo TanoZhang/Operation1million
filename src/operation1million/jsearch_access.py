@@ -280,20 +280,21 @@ class RequestGuard:
             db.execute('BEGIN IMMEDIATE')
             used, last = db.execute('SELECT used, last_sent FROM usage WHERE id=1').fetchone()
             time.sleep(max(0, last + self.interval - time.time()))
+            # The pause first: a provider refusal is a failure, and a day that
+            # is also spent must not report it as budget completion.
+            pause = db.execute('SELECT retry_at FROM account_pause WHERE id=1').fetchone()
+            if pause and pause[0] > time.time():
+                raise AccountPaused('JSearch account cooldown is active; no request sent')
             period, day = self.period()
-            monthly = db.execute('SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?', (period,)).fetchone()[0]
+            monthly = db.execute(
+                'SELECT (SELECT COALESCE(SUM(used), 0) FROM credit_usage WHERE period=?)'
+                ' + (SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?)',
+                (period, period)).fetchone()[0]
             _, daily = self.daily_used(db)
             over_daily = (not self.ignore_daily_limit and self.daily_limit is not None
                           and daily + credits > self.daily_limit)
             over_run = self.run_limit is not None and self.credits + credits > self.run_limit
             if monthly + credits > self.target_limit or over_daily or over_run:
-                raise QuotaExhausted('JSearch page-credit budget reached; no request sent')
-            pause = db.execute('SELECT retry_at FROM account_pause WHERE id=1').fetchone()
-            if pause and pause[0] > time.time():
-                raise AccountPaused('JSearch account cooldown is active; no request sent')
-            monthly_base = db.execute(
-                'SELECT COALESCE(SUM(used), 0) FROM credit_baseline WHERE period=?', (period,)).fetchone()[0]
-            if monthly + monthly_base + credits > self.target_limit:
                 raise QuotaExhausted('JSearch page-credit budget reached; no request sent')
             db.execute('UPDATE usage SET used=used+?, last_sent=? WHERE id=1', (credits, time.time()))
             db.execute('INSERT INTO credit_usage VALUES (?, ?, ?) ON CONFLICT(period, day) DO UPDATE SET used=used+excluded.used', (period, day, credits))

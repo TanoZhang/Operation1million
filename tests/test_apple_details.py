@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from operation1million import apple, applications, collector, jsearch, store
+from operation1million import apple, applications, collector, job_details, jsearch, store
 from operation1million.collection_policy import SourcePaused
 
 
@@ -82,9 +82,9 @@ class AppleDetailTests(unittest.TestCase):
     def test_detail_reads_prioritize_relevant_inventory(self):
         rules = jsearch.load_plan()[0]['filter']
         for title in ('Retail Specialist', 'Existing job', 'Senior RTL Engineer'):
-            self.assertFalse(apple.candidate({'title': title}, rules))
-        self.assertTrue(apple.candidate({'title': 'RTL Engineer'}, rules))
-        self.assertTrue(apple.candidate({'title': 'ASIC Software Engineer'}, rules))
+            self.assertFalse(job_details.candidate({'title': title}, rules))
+        self.assertTrue(job_details.candidate({'title': 'RTL Engineer'}, rules))
+        self.assertTrue(job_details.candidate({'title': 'ASIC Software Engineer'}, rules))
 
     def test_shell_and_wrong_requisition_supply_no_evidence(self):
         for page, url in [('<html>Please enable Javascript</html>', self.url),

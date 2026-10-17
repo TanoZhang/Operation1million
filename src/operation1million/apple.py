@@ -6,7 +6,6 @@ from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 
 from .job_text import readable_text
-from .job_details import candidate
 
 HYDRATION = re.compile(r'window\.__staticRouterHydrationData\s*=\s*JSON\.parse\(')
 DETAIL_FIELDS = {

@@ -9,15 +9,15 @@ const script = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert.match(html, /data-tab="companies"/);
 assert.match(html, /data-tab="companies"[^>]*>referalble /);
-assert.match(html, /Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon/);
+assert.match(html, /Tesla, TikTok, ByteDance, NVIDIA, Renesas, Cisco and Amazon/);
 const routing = script.slice(script.indexOf('const selectedCompany = group =>'), script.indexOf('// Bands 0 and 1'));
 const groups = [
-  {id: 'tesla', company: 'Tesla', early_career: false, asia: false, less_related: false},
-  {id: 'tiktok', company: 'TikTok', early_career: true, asia: false, less_related: false},
-  {id: 'nvidia', company: 'NVIDIA', early_career: false, asia: true, less_related: false},
-  {id: 'renesas', company: 'Renesas', early_career: false, asia: false, less_related: true},
-  {id: 'cisco', company: 'Cisco', early_career: false, asia: false, less_related: false},
-  {id: 'amazon', company: 'Amazon', early_career: false, asia: false, less_related: false},
+  {id: 'tesla', referalble: true, company: 'Tesla', early_career: false, asia: false, less_related: false},
+  {id: 'tiktok', referalble: true, company: 'TikTok', early_career: true, asia: false, less_related: false},
+  {id: 'nvidia', referalble: true, company: 'NVIDIA', early_career: false, asia: true, less_related: false},
+  {id: 'renesas', referalble: true, company: 'Renesas', early_career: false, asia: false, less_related: true},
+  {id: 'cisco', referalble: true, company: 'Cisco', early_career: false, asia: false, less_related: false},
+  {id: 'amazon', referalble: true, company: 'Amazon', early_career: false, asia: false, less_related: false},
   {id: 'other', company: 'Other Semiconductor', early_career: false, asia: false, less_related: false},
   {id: 'fake', company: 'NVIDIA Staffing', early_career: false, asia: false, less_related: false},
 ];

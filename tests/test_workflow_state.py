@@ -49,14 +49,13 @@ class WorkflowStateTests(unittest.TestCase):
         step = workflow.split('- name: Backfill sweep', 1)[1].split('- name:', 1)[0]
         condition = next(line for line in step.splitlines() if line.strip().startswith('if:'))
         expression = condition.split('${{', 1)[1].split('}}', 1)[0].strip()
-        for event in ('schedule', 'workflow_dispatch'):
-            for enabled in (False, True):
-                for dry in (False, True):
-                    evaluated = (expression.replace('steps.sweep_window.outputs.run', "'true'")
-                                 .replace('github.event_name', repr(event))
-                                 .replace('inputs.enable_jsearch', repr(enabled))
-                                 .replace('inputs.dry_run', repr(dry))
-                                 .replace('!= true', '!= True')
-                                 .replace('&&', 'and').replace('||', 'or'))
-                    self.assertEqual(bool(eval(evaluated, {'__builtins__': {}})),
-                                     not dry and (event == 'schedule' or enabled))
+        # workflow_dispatch is the only trigger; there is no schedule.
+        for enabled in (False, True):
+            for dry in (False, True):
+                evaluated = (expression.replace('steps.sweep_window.outputs.run', "'true'")
+                             .replace('inputs.enable_jsearch', repr(enabled))
+                             .replace('inputs.dry_run', repr(dry))
+                             .replace('!= true', '!= True')
+                             .replace('&&', 'and').replace('||', 'or'))
+                self.assertEqual(bool(eval(evaluated, {'__builtins__': {}})),
+                                 not dry and enabled)

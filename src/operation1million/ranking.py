@@ -189,7 +189,7 @@ EARLY_CAREER = re.compile(r"""\b(?:
     | trainees? | undergrad\w*
     # "Campus" as the opening, not the place: "Campus Network Engineer"
     # (2026-09-27).
-    | entry[-\s]? level | early[-\s]? career | student
+    | entry[-\s]? level | early[-\s]? career | students?
     | campus \s+ (?:hire|hiring|graduate|recruit\w*|program\w*|intern\w*)
     | (?<=\() \s* campus (?=\s*\))
     | \d{4} \s+ grad(?:uate)?s?
@@ -287,6 +287,7 @@ ORDINAL = re.compile(r'\b(\d{1,2})(?:st|nd|rd|th)\b', re.I)
 # which ISO_DAY's two digits do not read (#307).
 YEAR_FIRST = re.compile(r'^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$')
 SHORT_YEAR = re.compile(r'^\d{1,2}/\d{1,2}/\d{2}$')
+CLOCK = re.compile(r'(?<=\d)\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]\.?m\.?)?$', re.I)
 
 
 def month_text(text):
@@ -300,6 +301,8 @@ def posted_day(value):
     """The calendar day a stamp names, or None if it names nothing usable."""
     text = month_text(' '.join(str(value or '').split()))
     text = ORDINAL.sub(r'\1', WEEKDAY.sub('', text))
+    # "Oct 1, 2026 12:00:00 PM": the time says nothing about the day.
+    text = CLOCK.sub('', text)
     if not text:
         return None
     found = ISO_DAY.match(text) or YEAR_FIRST.match(text)

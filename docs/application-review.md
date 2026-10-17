@@ -30,8 +30,8 @@ postings appear on that tab only, never under To review or Backlog, and
 Remaining does not count them. They can still be marked applied or skipped
 there.
 
-**referalble** holds open Tesla, TikTok, NVIDIA, Renesas, Cisco and Amazon positions
-in one tab, across recent, early-career, backlog, Japan / China and low-relevance
+**referalble** holds open Tesla, TikTok, ByteDance, NVIDIA, Renesas, Cisco and Amazon
+positions in one tab (the server's `export.referalble` decides, by employer identity), across recent, early-career, backlog, Japan / China and low-relevance
 groups. They do not appear again on other open tabs. The tab uses the same
 search, sort, export and decision controls. Its low-relevance section does not
 contribute to Remaining, while its other positions do. Applied and skipped
@@ -56,8 +56,8 @@ pass, so Muse can read it through the GitHub API (`python -m
 operation1million.export <csv>`). One row per listing, To review / Early career
 new postings first, then Backlog; the columns are the Excel export's less
 Decided and Reason, plus `referalble` (`true` or `false`). The marker uses exact
-employer identities and their confirmed aliases for Tesla, TikTok, NVIDIA,
-Renesas, Cisco and Amazon. Muse can filter that column to identify positions on
+employer identities and their confirmed aliases for Tesla, TikTok, ByteDance
+(since 2026-10-16), NVIDIA, Renesas, Cisco and Amazon. Muse can filter that column to identify positions on
 the Review page's referalble tab. It is a once-a-day picture: anything decided
 or applied since that pass is still listed.
 
@@ -255,8 +255,12 @@ positions when none are checked. It no longer silently saves to a VPS path.
 The download endpoint requires the same page token and creates workbook bytes
 in memory, without replacing or locking the existing server export file.
 Third-party badges and the Excel Third-party site column share one classification
-in export.third_party_site. LinkedIn and Handshake are user-requested exceptions;
-other paid/third-party listings are marked. Direct company-board rows are not.
+in export.third_party_site. It means applied through a job board (the user,
+2026-10-16), not found by paid search: a listing is marked when the queue names
+a publisher -- a paid listing whose apply link is not the employer's own, or a
+pasted link on a known board. LinkedIn and Handshake are user-requested
+exceptions. Direct company-board rows, and paid listings that apply on the
+employer's site, are not marked.
 
 ## Pasted links (2026-10-02)
 
