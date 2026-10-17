@@ -41,8 +41,8 @@ country = "us"
 date_posted = "3days"
 # Each daily query is searched every other budget day (the user, 2026-10-17):
 # a 3-day window read every two days still sees every posting, with a day to
-# spare, at half the pages. Half the plan rests each day, alternating within
-# each tier; a query whose last finished search is two or more days old runs
+# spare, at half the pages. Half the plan rests each day: the same number of
+# queries both days, and half of every tier; a query whose last finished search is two or more days old runs
 # whatever its turn, so a failed or short pass is caught up the next day.
 # Must stay below the window's days. A run now (--ignore-daily-limit), a
 # temporary window and a sweep search everything.
@@ -93,6 +93,7 @@ exclude_job_publishers = [
 intern = 60
 new_grad = 50
 early_career = 40
+ai_auto = 20
 jd_text = 40
 A = 60
 
@@ -796,11 +797,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "FPGA Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "FPGA Verification Intern"
 tier = "intern"
 pages = 10
@@ -826,7 +822,7 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "CPU Verification Intern"
+query = "CPU Intern"
 tier = "intern"
 pages = 10
 
@@ -836,7 +832,7 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "GPU Verification Intern"
+query = "GPU Intern"
 tier = "intern"
 pages = 10
 
@@ -857,11 +853,6 @@ pages = 10
 
 [[query]]
 query = "Analog Layout Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Custom Layout Intern"
 tier = "intern"
 pages = 10
 
@@ -1007,11 +998,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "FPGA Design New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
 query = "Formal Verification New Grad"
 tier = "new_grad"
 pages = 10
@@ -1022,12 +1008,12 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "CPU Verification New Grad"
+query = "CPU New Grad"
 tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "GPU Verification New Grad"
+query = "GPU New Grad"
 tier = "new_grad"
 pages = 10
 
@@ -1426,19 +1412,700 @@ query = "Hardware Accelerator New Grad"
 tier = "new_grad"
 pages = 5
 
-# What a description says, not a title (tier jd_text, 2026-10-17). The user
-# asked for a whole different search, efficient and deep, paid for by the
-# two-day rotation. Every other phrase is a title family. Two shapes that
-# reach postings whose titles none of those name:
-# - a field with an experience range, the shape of the best early-career
-#   query: "Hardware Engineer 0-2 years" stopped at its 15-page cap on 10-16
-#   still finding postings, so the range matches the description's
-#   requirements line and runs deep;
-# - a tool with an entry level. These words are almost only in chip
-#   descriptions ("Electrical Engineer New Grad": 239 results, 5 accepted).
-#   Never asked in the U.S.; the Japanese tool phrases (SystemVerilog 検証,
-#   UVM 検証 エンジニア, Verilog 設計) found nothing in Japan's sweep.
-# Ten pages each, served after early career. Unmeasured.
+# The user, 2026-10-17, on the 10-04..17 measurement (postings no other query
+# found, per ten pages): Static Timing Analysis is back (3.8, mean score 67;
+# "Timing Engineer" was the weak one at 0.8); Custom Layout (1.5), FPGA Design
+# (0.5, FPGA asks it already), Place and Route (0.5) and Physical
+# Implementation (0) go; CPU and GPU stay without their "Verification"
+# suffix (CPU Verification 0.4).
+[[query]]
+query = "Static Timing Analysis Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Static Timing Analysis New Grad"
+tier = "new_grad"
+pages = 10
+
+# The general queries are back (the user, 2026-10-17), reversing the
+# entry-level-only rule of 2026-10-13: without a level word they found the
+# most postings no other query did, 4.3 per ten pages against intern's 3.9,
+# mean score 58. Removed with them then; the depths are theirs from before,
+# less the phrases the user dropped today (Physical Implementation, Place and
+# Route, Custom Layout) and with CPU and GPU Verification asked as CPU and GPU.
+# Served last (tier A): the filter keeps the experience rules, and a short day
+# gives them what the entry levels leave.
+[[query]]
+query = "Design Verification Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "RTL Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "ASIC Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "Digital Design Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "FPGA Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "Hardware Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "Silicon Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "Physical Design Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "DFT Engineer"
+tier = "A"
+pages = 40
+
+[[query]]
+query = "Formal Verification Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Design for Test Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Static Timing Analysis Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "CPU Design Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "CPU Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "GPU Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "IP Verification Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Memory Design Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "SRAM Design Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Analog IC Design Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Mixed Signal IC Design Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Analog Layout Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Post Silicon Validation Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Chiplet Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Advanced Packaging Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "SerDes Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "PDK Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Memory Controller Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Signal Integrity Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Power Integrity Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "EDA Engineer"
+tier = "A"
+pages = 5
+
+# AI, car and robotics companies (tier ai_auto, the user, 2026-10-17): the
+# chip makers are read directly from their own boards and by the title
+# families, so what the two-day rotation frees goes to employers that build
+# silicon and hardware but are not chip companies and have no direct feed.
+# OpenAI, Anthropic, xAI, Google, Microsoft, Amazon and Apple are read
+# directly and are not asked here. Already reached by title phrases since
+# 2026-09-19 (JSearch results seen / accepted): Meta 530 / 408, Tesla 168 / 54,
+# General Motors 103 / 25, Rivian 73 / 48, Zoox 32 / 19, Apptronik 34 / 26,
+# Ford 30 / 5, Lucid 14 / 4; Waymo, Aurora, Mobileye, Figure and Boston
+# Dynamics hardly at all. Eight domain phrases reach the smaller ones. Five
+# pages each, every phrase with an entry level. Unmeasured.
+[[query]]
+query = "Autonomous Vehicle Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Autonomous Driving Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "ADAS Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Automotive Silicon New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "EV Hardware Engineering Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Robotics Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Robotics Hardware Engineer New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "AI Infrastructure Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Tesla Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Tesla Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Rivian Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Rivian Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Lucid Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Lucid Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "General Motors Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "General Motors Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Ford Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Ford Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Waymo Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Waymo Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Zoox Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Zoox Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Aurora Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Aurora Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Nuro Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Nuro Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Mobileye Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Mobileye Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Toyota Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Toyota Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Honda Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Honda Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Meta Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Meta Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Apptronik Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Apptronik Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Figure AI Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Figure AI Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Boston Dynamics Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Boston Dynamics Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+# More of the same, so a rotated day still asks about 140 queries as the
+# whole plan did (the user, 2026-10-17: "before it was 140, 98 is too few").
+# Car makers, suppliers and robotics with chip or hardware teams; AI clouds;
+# and AI-chip startups with no direct feed, whose openings are mostly
+# hardware already. Unmeasured.
+[[query]]
+query = "Data Center Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Data Center Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "AI Server Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Vehicle Compute Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Lidar Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Humanoid Robot Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Autonomous Vehicle Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "ADAS Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "EV Hardware Engineering New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Robotics Hardware Co-op"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Hyundai Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Hyundai Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Mercedes-Benz Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Mercedes-Benz Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "BMW Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "BMW Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Volkswagen Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Volkswagen Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Stellantis Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Stellantis Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Polestar Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Polestar Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Motional Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Motional Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Kodiak Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Kodiak Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Agility Robotics Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Agility Robotics Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "1X Technologies Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "1X Technologies Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "CoreWeave Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "CoreWeave Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Oracle Cloud Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Oracle Cloud Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Bosch Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Bosch Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Aptiv Hardware Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Aptiv Hardware New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Groq Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Groq New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "SiMa.ai Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "SiMa.ai New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Positron AI Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Positron AI New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Eliyan Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Eliyan New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Ayar Labs Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Ayar Labs New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Celestial AI Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Celestial AI New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Enfabrica Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Enfabrica New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Recogni Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Recogni New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Mythic Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Mythic New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Rain AI Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Rain AI New Grad"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Untether AI Intern"
+tier = "ai_auto"
+pages = 5
+
+[[query]]
+query = "Untether AI New Grad"
+tier = "ai_auto"
+pages = 5
+
+# A field with an experience range (tier jd_text, 2026-10-17): the provider
+# matches phrases against the description, and "Hardware Engineer 0-2 years"
+# stopped at its 15-page cap on 10-16 still finding postings. One trial
+# version; the user expects little from it. Ten pages each. Unmeasured.
 [[query]]
 query = "ASIC Engineer 0-2 years"
 tier = "jd_text"
@@ -1474,6 +2141,11 @@ query = "Analog IC Design Engineer 0-2 years"
 tier = "jd_text"
 pages = 10
 
+# A tool with an entry level (tier jd_text, 2026-10-17; kept by the user as
+# one more trial): these words are almost only in chip descriptions, where
+# "Electrical Engineer New Grad" returned 239 results and 5 accepted. Never
+# asked in the U.S.; the Japanese tool phrases (SystemVerilog 検証, UVM 検証
+# エンジニア, Verilog 設計) found nothing in Japan's sweep. Unmeasured.
 [[query]]
 query = "SystemVerilog Intern"
 tier = "jd_text"
@@ -1506,6 +2178,127 @@ pages = 10
 
 [[query]]
 query = "Silicon Bring-up New Grad"
+tier = "jd_text"
+pages = 10
+
+# More tools, the same trial (2026-10-17).
+[[query]]
+query = "SystemVerilog New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "SystemVerilog Co-op"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "UVM Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "UVM New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Verilog Co-op"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Cadence Virtuoso Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Innovus Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Innovus New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Calibre Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Spectre Simulation Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "HSPICE New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Vivado Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Vivado New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Quartus Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Chisel Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "JasperGold New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Synopsys VCS New Grad"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Xcelium Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Tapeout Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Silicon Bring-up Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Cocotb Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "SystemC Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "High-Level Synthesis Intern"
+tier = "jd_text"
+pages = 10
+
+[[query]]
+query = "Verilog Simulation New Grad"
 tier = "jd_text"
 pages = 10
 

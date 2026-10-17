@@ -70,6 +70,24 @@ SEEN_COLUMNS = ['provider_key', 'source_job_id', 'url', 'title', 'employer',
                 'first_seen', 'last_seen', 'decision', 'confidence', 'filter_version']
 
 
+QUERY_RUNS = 'operational/jsearch_query_runs.ndjson'
+
+
+def append_query_runs(records, root=None):
+    """Add one line per JSearch query of a run to the data repository's query record.
+
+    Append-only and kept whole, unlike a day's manifest (its last run only) or
+    the fourteen-day log: which phrases are worth their pages is a question
+    asked across weeks.
+    """
+    path = (Path(root) if root is not None else LOG) / QUERY_RUNS
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [json.dumps(record, ensure_ascii=False, sort_keys=True) + '\n' for record in records]
+    with path.open('a', encoding='utf-8', newline='\n') as handle:
+        handle.writelines(lines)
+    return len(lines)
+
+
 def export_seen(db, root=None):
     """Write the whole seen table to the data repository, for a machine that dies.
 

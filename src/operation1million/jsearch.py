@@ -283,17 +283,20 @@ WINDOW_DAYS = {'today': 1, '3days': 3, 'week': 7, 'month': 30}
 def due_queries(queries, last_searched, day, rotation_days):
     """The queries a daily pass on budget day `day` searches, and those resting.
 
-    Within each tier, queries take turns by their place in the plan, so each
-    day carries about the same share of every tier. A query whose last
+    Queries take turns by their place in the plan, tier by tier and counted
+    straight through, so the two days hold the same number of queries (the
+    user, 2026-10-17), one apart at most, and half of every tier. A query whose last
     finished search is `rotation_days` or more ago runs whatever its turn: a
     pass that failed or stopped short is made up the next day, and the window
     is never left uncovered. One never finished runs too.
     """
     if rotation_days <= 1:
         return list(queries), []
-    due, resting, places = [], [], {}
-    for query in queries:
-        place = places[query.tier] = places.get(query.tier, -1) + 1
+    due, resting = [], []
+    ordered = sorted(range(len(queries)), key=lambda index: (tier_rank(queries[index].tier), index))
+    places = {index: place for place, index in enumerate(ordered)}
+    for index, query in enumerate(queries):
+        place = places[index]
         last = last_searched.get(query.key)
         overdue = last is None or (day - date.fromisoformat(last)).days >= rotation_days
         (due if overdue or place % rotation_days == day.toordinal() % rotation_days
@@ -1240,7 +1243,12 @@ HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'excluded_publishe
 # was every day: across the two passes that plan ran, 144 page credits were
 # spent, all 144 of them inside tier A, and the eleven internship queries had
 # never once been sent.
-TIER_ORDER = ('intern', 'new_grad', 'early_career', 'A')
+# The trials of 2026-10-17 come after everything measured: the entry levels,
+# then the general queries the user brought back that day (the most postings
+# no other query found, 4.3 per ten pages), then AI, car and robotics
+# employers and experience ranges and tools, unmeasured. Named here so their
+# order is fixed; an unknown tier ranks last.
+TIER_ORDER = ('intern', 'new_grad', 'early_career', 'A', 'ai_auto', 'jd_text')
 
 
 def search_space(settings):
@@ -1312,6 +1320,8 @@ def collect(queries, client, settings, companies, persist, backfill=False,
              'jsearch_rejections': {},
              'jsearch_queries': []}
     unique = set()
+    # Which queries accepted each posting this run, by address.
+    found_by = {}
     all_rows = []
     stop = False
     # Why the rotation ended, for the queries it never reached. Three unrelated
@@ -1353,7 +1363,15 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                        'pages_cap': query.pages, 'pages_used': 0, 'jobs_raw': 0,
                        'resumed_from': start,
                        'jobs_accepted': 0, 'jobs_unique': 0, 'rejected': 0,
-                       'malformed': 0, 'status': 'skipped', 'reason': ''}}
+                       'malformed': 0, 'status': 'skipped', 'reason': '',
+                       # What a query is worth, kept per query and per run so
+                       # phrases can be compared later (the user, 2026-10-17):
+                       # never seen before, never seen and accepted, accepted
+                       # by no other query this run, why the rest were refused,
+                       # and how well what it found scored.
+                       'new': 0, 'new_accepted': 0, 'only_this': 0,
+                       'rejections': {}, 'score_mean': None}}
+        state[query.key]['scores'] = []
 
     def take(query, items):
         """Normalize, filter and keep one page's worth of a query's results."""
@@ -1398,6 +1416,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 'filter_version': filter_version})
             if reason:
                 detail['rejected'] += 1
+                detail['rejections'][reason] = detail['rejections'].get(reason, 0) + 1
                 stats['jsearch_rejections'][reason] = stats['jsearch_rejections'].get(reason, 0) + 1
                 key = ('jsearch_rejected_hard'
                        if reason in HARD_REJECTIONS else 'jsearch_rejected_other')
@@ -1411,6 +1430,8 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                 detail['jobs_unique'] += 1
             unique.update(identities)
             stats['jsearch_confidence'].append(confidence)
+            entry['scores'].append(confidence)
+            found_by.setdefault(row['url'], set()).add(query.key)
             rows.append(row)
 
     original_order = {query.key: index for index, query in enumerate(queries)}
@@ -1499,7 +1520,10 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # move past them. A crash after this callback may repeat a
                     # page, but it cannot skip jobs that existed only in memory.
                     if record_seen is not None and new_seen:
-                        record_seen(new_seen)
+                        counted = record_seen(new_seen)
+                        if isinstance(counted, dict):
+                            detail['new'] += counted.get('new', 0)
+                            detail['new_accepted'] += counted.get('new_accepted', 0)
                     if checkpoint is not None:
                         checkpoint(query, entry['rows'][before_rows:], detail)
                 entry['page'] += 1
@@ -1557,6 +1581,9 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             detail['reason'] = (f'Not reached: {stop_reason}' if stop_reason
                                 else 'Not reached before the run ended')
         detail['jobs_accepted'] = len(rows)
+        detail['only_this'] = sum(1 for keys in found_by.values() if keys == {query.key})
+        if entry['scores']:
+            detail['score_mean'] = round(sum(entry['scores']) / len(entry['scores']), 1)
         # Searched to its end or its cap, nothing lost on the way: what the
         # two-day rotation counts as searched. A budget, clock or provider
         # stop, or an unreadable record, has it searched again tomorrow.

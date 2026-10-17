@@ -1,4 +1,4 @@
-# JSearch: two-day rotation, accelerators, jd_text - 2026-10-17 (claude)
+# JSearch: two-day rotation, query record, plan by measurement - 2026-10-17 (claude)
 
 See the newest section of `docs/jsearch.md`. Gmail fix ee0b847 installed on the VPS the same day.
 The 10-16/17 query analysis read the private manifests from a partial clone of the data repo

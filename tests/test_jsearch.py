@@ -315,7 +315,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 156)
+        self.assertEqual(len(self.plan), 309)
         self.assertEqual(self.settings['monthly_target'], 10000)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
         # day, then 330 from the next cycle on (350 since 2026-10-13).
@@ -337,8 +337,8 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.settings['daily_pages_cap'], worst)
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
-             for tier in ('intern', 'new_grad', 'early_career', 'jd_text', 'A')},
-            {'intern': 860, 'new_grad': 685, 'early_career': 230, 'jd_text': 140, 'A': 0})
+             for tier in ('intern', 'new_grad', 'early_career', 'ai_auto', 'jd_text', 'A')},
+            {'intern': 850, 'new_grad': 685, 'early_career': 230, 'ai_auto': 500, 'jd_text': 380, 'A': 530})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -347,11 +347,12 @@ class DiscoveryTests(unittest.TestCase):
         # The user, 2026-10-13: intern, new grad and early career only, never a
         # phrase without one. The 33 general queries went, with 45 that accepted
         # nothing 30 days back; 37 phrasings were added from a paid test of 110.
+        # 2026-10-17: the general queries are back, in tier A and only there.
         marker = re.compile(r'\b(?:interns?|internships?|co-?op|new grad|new college grad|graduate'
                             r'|engineer I|junior|entry level|early career|associate|0-2 years'
                             r'|rotational|university hire|campus hire|apprentice|NCG)\b', re.I)
-        self.assertEqual([q.query for q in self.plan if not marker.search(q.query)], [])
-        self.assertNotIn('A', {q.tier for q in self.plan})
+        self.assertEqual([q.query for q in self.plan if q.tier != 'A' and not marker.search(q.query)], [])
+        self.assertEqual([q.query for q in self.plan if q.tier == 'A' and marker.search(q.query)], [])
 
     def test_more_queries_than_credits_refused_before_transport(self):
         """The tail of an oversized plan would be unreachable every day."""
@@ -1582,7 +1583,7 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_internships_are_asked_before_the_wider_synonyms(self):
         """Internships precede every other functional tier."""
-        self.assertEqual(list(jsearch.TIER_ORDER), ['intern', 'new_grad', 'early_career', 'A'])
+        self.assertEqual(list(jsearch.TIER_ORDER), ['intern', 'new_grad', 'early_career', 'A', 'ai_auto', 'jd_text'])
         self.session.get.return_value = self.response([job()])
         plan = [jsearch.Query('general query', 1, 'A'),
                 jsearch.Query('intern query', 1, 'intern'),
@@ -1617,9 +1618,9 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(sum(q.pages for q in plan), settings['daily_pages_cap'])
         deep = [replace(q, pages=settings['backfill_tier_pages'][q.tier]) for q in plan]
         self.assertEqual({q.tier: q.pages for q in deep},
-                         {'intern': 60, 'new_grad': 50, 'early_career': 40, 'jd_text': 40})
+                         {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 60, 'ai_auto': 20, 'jd_text': 40})
         # These are depth ceilings, not an allocation; the sweep guard bounds spend.
-        self.assertEqual(sum(q.pages for q in deep), 72 * 60 + 51 * 50 + 19 * 40 + 14 * 40)
+        self.assertEqual(sum(q.pages for q in deep), 71 * 60 + 51 * 50 + 19 * 40 + 30 * 60 + 100 * 20 + 38 * 40)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
@@ -1943,7 +1944,9 @@ class DiscoveryTests(unittest.TestCase):
             second = self.daily()
             # Two passes: every query once, half each day, every tier split.
             self.assertEqual(sorted(first + second), sorted(plan))
-            self.assertLessEqual(abs(len(first) - len(second)), 4)
+            # The same number of queries both days (the user, 2026-10-17).
+            self.assertLessEqual(abs(len(first) - len(second)), 1)
+            self.assertGreaterEqual(len(first), 140, 'a rotated day asks at least as many as the old whole plan')
             tiers = {q.query: q.tier for q in jsearch.load_plan()[1]}
             for tier in set(tiers.values()):
                 self.assertTrue(any(tiers[q] == tier for q in first), tier)
@@ -2017,6 +2020,55 @@ class DiscoveryTests(unittest.TestCase):
         _, stats = jsearch.collect(plan, client, settings, {}, lambda *args: None)
         self.assertEqual({d['query']: d['finished'] for d in stats['jsearch_queries']},
                          {'Ended Intern': True, 'Cut Intern': False})
+
+    def test_each_query_reports_what_it_was_worth(self):
+        """The user, 2026-10-17: keep every query's numbers for later analysis."""
+        settings, _ = jsearch.load_plan()
+        plan = [jsearch.Query('Silicon Intern', 1, 'intern'), jsearch.Query('ASIC Intern', 1, 'intern')]
+        shared = job(job_id='s1', job_apply_link='https://example.com/shared')
+        alone = job(job_id='a1', job_apply_link='https://example.com/alone')
+        pages = {'Silicon Intern': [shared, alone], 'ASIC Intern': [shared]}
+        client = Mock(guard=Mock(credits=0), cursor_loops=set(), page_cursors={})
+
+        def fetch(query, page):
+            client.guard.credits += 1
+            return pages[query.query], True
+
+        client.fetch_page.side_effect = fetch
+        known = set()
+
+        def record_seen(rows):
+            new = [r for r in rows if r['url'] not in known]
+            known.update(r['url'] for r in rows)
+            return {'new': len(new), 'new_accepted': sum(1 for r in new if not r['decision'])}
+
+        _, stats = jsearch.collect(plan, client, settings, {}, lambda *args: None, record_seen=record_seen)
+        by = {d['query']: d for d in stats['jsearch_queries']}
+        accepted = by['Silicon Intern']['jobs_accepted']
+        self.assertEqual(accepted + by['Silicon Intern']['rejected'], 2)
+        self.assertEqual(sum(by['Silicon Intern']['rejections'].values()), by['Silicon Intern']['rejected'])
+        self.assertEqual(by['Silicon Intern']['new'], 2)
+        self.assertEqual(by['ASIC Intern']['new'], 0, 'the same posting is new once')
+        if accepted == 2 and by['ASIC Intern']['jobs_accepted'] == 1:
+            self.assertEqual((by['Silicon Intern']['only_this'], by['ASIC Intern']['only_this']), (1, 0))
+            self.assertIsNotNone(by['Silicon Intern']['score_mean'])
+
+    def test_the_query_record_keeps_every_run(self):
+        records = [{'query': 'Silicon Intern', 'pages_used': 2}, {'query': 'ASIC Intern', 'pages_used': 1}]
+        self.assertEqual(store.append_query_runs(records, root=self.root), 2)
+        store.append_query_runs(records[:1], root=self.root)
+        lines = (self.root / store.QUERY_RUNS).read_text(encoding='utf-8').splitlines()
+        self.assertEqual([json.loads(line)['query'] for line in lines],
+                         ['Silicon Intern', 'ASIC Intern', 'Silicon Intern'])
+
+    def test_a_daily_pass_appends_one_record_per_query(self):
+        with patch.object(store, 'append_query_runs') as append, \
+             patch.object(self.guard, 'budget_day', return_value=date(2026, 10, 18)):
+            asked = self.daily()
+        written = list(append.call_args.args[0])
+        self.assertEqual([r['query'] for r in written], asked)
+        self.assertEqual({r['kind'] for r in written}, {'daily'})
+        self.assertEqual({(r['date_posted'], r['budget_day']) for r in written}, {('3days', '2026-10-18')})
 
     def test_an_unpublished_run_forgets_what_it_searched(self):
         from operation1million import workflow_state

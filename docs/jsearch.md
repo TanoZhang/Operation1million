@@ -1,41 +1,70 @@
 # JSearch daily discovery
 
-## Two-day rotation, accelerators and a description-text family - 2026-10-17 (claude)
+## Two-day rotation, a per-query record, the plan by measurement - 2026-10-17 (claude)
 
-The user, on the 10-16/17 analysis: delete Test Engineer I Semiconductor and
-every timing query, leave the other low-yield queries alone, add
-accelerators, search each phrase every other day since the window is three
-days, and add a whole different search with what that frees.
+The user, on the 10-16/17 analysis: most of a daily pass re-bought postings
+already seen; search every other day, keep every query's numbers, choose
+phrases by what past searches found, and widen to AI and car companies.
 
-- Removed: Test Engineer I Semiconductor (5 pages, 41 results, none
-  accepted), Timing Engineer Intern, Timing Engineer New Grad, Static Timing
-  Analysis New Grad (31 pages, 11 accepted, none run-unique).
-- Added, five pages each: AI / Hardware / ML Accelerator Intern, AI /
-  Hardware Accelerator New Grad. No accelerator phrase was asked before.
-- `rotation_days = 2`: within each tier, queries alternate by their place in
-  the plan, so each day carries about half of every tier. A query whose last
-  finished search (`detail['finished']`: reached its end or cap, no budget,
-  clock or provider stop, no unreadable record) is two or more budget days old
-  runs whatever its turn, so a failed or short pass is made up the next day.
-  Recorded in the guard ledger's `query_searched`, keyed by query and search
-  space; `workflow_state` rewinds it with the cursors when a run's history is
-  not published, and a `--no-store` run records nothing. A run now, a
-  temporary window or country, a manual phrase and the sweeps are not
-  rotated. `load_plan` refuses a rotation not shorter than the window. The
-  first pass after install searches everything (nothing recorded yet).
-- Tier `jd_text`, 14 queries at ten pages, served after early career: what a
-  description says rather than a title. A field with "0-2 years" (ASIC,
-  Design Verification, RTL Design, FPGA, Physical Design, Silicon Validation,
-  Analog IC Design), the shape of Hardware Engineer 0-2 years, which stopped
-  at its 15-page cap on 10-16 still finding postings; and a tool with an entry
-  level (SystemVerilog Intern, SystemVerilog UVM New Grad, Verilog Intern /
-  New Grad, Cadence Virtuoso New Grad, Tapeout New Grad, Silicon Bring-up New
-  Grad), never asked in the U.S. Every phrase still names an entry level.
+Measured first (private manifests and run logs, 10-04..10-17):
+- On every 3-day day, 67-72% of the results paid for were already seen
+  (`seen_existing / seen_fetched`): the window returns each posting about
+  three times.
+- Per phrase word, postings no other query found per ten pages (pages from
+  the day manifests, which keep only a day's last run; finds from every run
+  in the logs) and the filter's mean score of what was accepted. Levels:
+  no level word 4.3 (score 58), intern 3.9 (50), entry level 3.9 (40), new
+  grad 2.7 (55), engineer I 1.4 (59), co-op 0.7 (41). Fields: silicon 10.4,
+  RTL 7.8, hardware 5.5, FPGA 4.5, design verification 4.3, physical design
+  3.9, ASIC 3.8, static timing analysis 3.8 (67), DFT 3.5; weak: electrical
+  1.0 (28), custom layout 1.5, Timing Engineer 0.8, FPGA design 0.5, place
+  and route 0.5, CPU verification 0.4, physical implementation 0.
+- AI and car employers already reached by title phrases since 09-19 (seen /
+  accepted): Meta 530 / 408, Tesla 168 / 54, GM 103 / 25, Rivian 73 / 48,
+  Zoox 32 / 19; Waymo, Aurora, Mobileye, Figure, Boston Dynamics hardly.
 
-Plan: 156 queries (intern 72, new grad 51, early career 19, jd_text 14).
-Expected spend, unmeasured: about half the 10-16/17 pages (343, 308) for the
-title families plus whatever jd_text finds. Measure jd_text per page against
-the title tiers before widening it. Suite: 1,272 run, 13 skipped, pass.
+The plan, as the user chose (309 queries, 155 / 154 a rotated day):
+- Removed: Test Engineer I Semiconductor, Timing Engineer Intern / New Grad,
+  Custom Layout Intern, FPGA Design Intern / New Grad. Kept back: Static
+  Timing Analysis Intern / New Grad. CPU and GPU Verification are asked as
+  CPU and GPU (Intern, New Grad).
+- Tier A, the general queries, back (reversing the 2026-10-13
+  entry-level-only rule): the 33 removed then, less Physical
+  Implementation, Place and Route and Custom Layout, with CPU / GPU Engineer
+  for the verification ones; their old depths.
+- Tier `ai_auto` (100, five pages): AI, car and robotics employers with no
+  direct feed, two phrases each, plus domain phrases and AI-chip startups.
+  Tier `jd_text` (38, ten pages): a field with "0-2 years" (the user expects
+  little of it) and tools with an entry level. Both unmeasured.
+- Accelerators: AI / Hardware / ML Accelerator Intern, AI / Hardware
+  Accelerator New Grad, five pages each.
+- Tier order: intern, new grad, early career, A, ai_auto, jd_text -- the
+  measured before the unmeasured.
+
+`rotation_days = 2`: queries take turns by their place in the plan counted
+straight through tier by tier, so the two days hold the same number (one
+apart at most) and half of every tier. A query whose last finished search
+(`detail['finished']`: its end or cap, no budget, clock or provider stop, no
+unreadable record) is two or more budget days old runs whatever its turn; a
+failed or short pass is made up the next day. Kept in the guard ledger's
+`query_searched` by query and search space, rewound by `workflow_state`
+with the cursors when a run's history is not published, never written by a
+`--no-store` run. A run now, a temporary window or country, a manual phrase
+and the sweeps are not rotated. `load_plan` refuses a rotation not shorter
+than the window. The first pass after install searches everything.
+
+The query record: every run appends one line per query to
+`operational/jsearch_query_runs.ndjson` in the data repository (published by
+the daily pass, merged line by line): the run's time, budget day, kind
+(daily, now, backfill, manual), country, window and filter version, and the
+query's tier, status, finished, pages, results, accepted, rejections by
+reason, new to the index, new and accepted, accepted by no other query that
+run (`only_this`) and mean score. A day's manifest keeps only its last run;
+the sweeps had overwritten the 10-14 and 10-15 U.S. passes.
+
+Expected and unmeasured: a rotated day near the 350 budget; if it binds, the
+trial tiers are cut first. Measure from the record before widening or cutting.
+Suite: 1,275 run, 13 skipped, pass.
 
 ## Query yield, a closing-sweep reserve, pruning - 2026-10-16 (claude)
 

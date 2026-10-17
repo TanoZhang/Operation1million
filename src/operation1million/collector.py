@@ -1205,6 +1205,12 @@ def write_csv(path, rows, fields):
             writer.writerow({k: json.dumps(row[k], ensure_ascii=True) if isinstance(row[k], (dict, list)) else row[k] for k in fields})
 
 
+# What the query record keeps of each query's result, beside the run's own facts.
+QUERY_RUN_FIELDS = ('query', 'tier', 'source_id', 'status', 'reason', 'finished', 'pages_cap', 'pages_used',
+                    'resumed_from', 'jobs_raw', 'jobs_accepted', 'rejected', 'rejections', 'malformed',
+                    'new', 'new_accepted', 'only_this', 'jobs_unique', 'score_mean')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--db', type=Path, default=DB)
@@ -1578,10 +1584,13 @@ def main():
             # Listings, by address: a JSearch job_id changes for the same
             # listing, and counting rows called everything new (2026-09-27).
             added, existing = store.count_new_listings(db, rows)
+            added_accepted, _ = store.count_new_listings(db, [row for row in rows if not row.get('decision')])
             with db:
                 store.record_seen(db, rows)
             seen_totals['new_seen'] += added
             seen_totals['existing_seen'] += existing
+            # Per query, for the query record: what was new to the index.
+            return {'new': added, 'new_accepted': added_accepted}
 
         companies = {employer_normalize(s.company_name): s.company_key for s in all_sources}
         client = jsearch.Client(search, settings, request_guard, args.jsearch_timeout)
@@ -1601,6 +1610,20 @@ def main():
                                         for detail in search_stats.get('jsearch_queries', ()) if detail.get('finished'))
         if rotation is not None:
             search_stats['jsearch_rotation'] = rotation
+        if db is not None and search_stats.get('jsearch_queries'):
+            # One line per query per run, never rewritten: a day's manifest
+            # keeps only its last run, and a sweep had overwritten the U.S.
+            # passes of 10-14 and 10-15 (the user, 2026-10-17: keep every
+            # search and what it found, for later analysis).
+            kind = ('backfill' if args.backfill else 'manual' if args.jsearch_query
+                    else 'now' if args.ignore_daily_limit else 'daily')
+            store.append_query_runs([
+                {'at': run_stamp, 'budget_day': request_guard.budget_day().isoformat(), 'kind': kind,
+                 'country': settings['country'], 'date_posted': settings['date_posted'],
+                 'rotation_days': settings['rotation_days'] if rotation else 1,
+                 'filter_version': jsearch.filter_fingerprint(settings.get('filter', {})),
+                 **{key: detail.get(key) for key in QUERY_RUN_FIELDS}}
+                for detail in search_stats['jsearch_queries']])
         # One line that has to add up: everything fetched was either seen for
         # the first time or seen again, and was either accepted or rejected.
         search_stats.update(

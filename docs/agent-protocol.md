@@ -6,15 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
-Scope: User request (2026-10-17): remove Test Engineer I Semiconductor and
-       timing queries, add accelerator queries, two-day query rotation,
-       a jd_text query family.
+Scope: User request (2026-10-17): two-day query rotation, a per-query run
+       record, the plan chosen by measurement (general queries back, STA
+       kept, timing/custom layout/FPGA design dropped), accelerator, AI/car
+       and jd_text trials.
 Files: data/config/jsearch_queries.toml, src/operation1million/{jsearch,
-       jsearch_access,collector,workflow_state}.py, tests/test_jsearch.py,
+       jsearch_access,collector,workflow_state,store}.py, tests/test_jsearch.py,
+       deploy/vps/{daily-pass,data-sync}.sh,
        docs/{jsearch,handoff,agent-protocol}.md
 Base commit: ee0b847
-Status: done -- 1,272 run, 13 skipped, pass. Not installed.
-Next: Install; measure rotation spend and jd_text yield from the manifests.
+Status: done -- 1,275 run, 13 skipped, pass. Not installed.
+Next: Install; measure spend and the trial tiers from jsearch_query_runs.ndjson.
 ```
 
 ```text
