@@ -1,8 +1,31 @@
 # GitHub Actions operations
 
-This is the deployment contract for the enabled private daily workflow.
-The runner is temporary; every authoritative private input must be restored
-before collection and saved after successful checkpoints.
+Two workflows. `tests.yml` is CI. `collect-backup.yml` is the manual backup of
+the daily pass, which runs on the VPS (`docs/vps-deployment.md`); everything
+after the CI section is that backup's contract.
+
+## CI: `tests.yml`
+
+The offline suite runs on every push to `main`, every pull request into it,
+and on demand. It runs on `ubuntu-24.04` with Python 3.12, as the VPS does, in
+the same clean environment as the daily pass (`env -i`: no store, no key). It
+uses no secret and no data, so it is safe in this public repository. Actions
+are pinned to commit SHAs; to bump one, take the new tag's commit from
+`git ls-remote https://github.com/actions/<name> refs/tags/<tag>`.
+
+On Ubuntu the POSIX-only tests run -- flock, process groups, file modes --
+which the Windows workstation skips. Measured on the first run (2026-10-17,
+branch `ci-on-push`): 1,256 run, 1 skipped, about two minutes. The one skip is
+`test_exclusion_alternation.AgainstEveryRowTests`, which needs the private
+index `data/db/job_discovery.sqlite`; it runs only where that index exists.
+The run summary lists every skipped test, so a new skip shows up there.
+
+A public repository's standard runners are not billed, so CI does not draw on
+the minutes counted below. A push still does not deploy; `install.sh` does.
+
+The rest of this document is the backup workflow's contract. The runner is
+temporary; every authoritative private input must be restored before
+collection and saved after successful checkpoints.
 
 ## Repository boundary
 
