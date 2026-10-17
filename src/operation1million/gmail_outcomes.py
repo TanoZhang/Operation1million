@@ -180,6 +180,7 @@ HEDGES = (
     'practice interview', 'interview tips',
     # "If you're selected for an interview" (Microsoft's confirmation, 2026-10-07).
     'if your', 'if you are selected', "if you're", 'are selected', 'be selected', 'is selected',
+    'if you are invited', 'if invited', 'if you are asked', 'if asked', 'are invited to a', 'be invited',
     'should you', 'should your', 'if we ', 'if there', 'if our', 'if you meet', 'if you match',
     'if you qualify', 'if you pass', 'if successful', 'successful candidates', 'if you move',
     'if you advance', 'next steps if', 'qualifications match', 'experience matches',
@@ -316,8 +317,9 @@ def explain(subject, body):
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
     notes = []
-    for raw, line in zip(lines, lowered):
-        found = []
+    end = _body_end(lines)
+    for index, (raw, line) in enumerate(zip(lines, lowered)):
+        found = ['after the sign-off or in a legal footer: cannot decide'] if index >= end else []
         if _PASSED.search(line):
             found.append('invitation: ' + _PASSED.search(line).group(0).strip())
             if _HEDGES.search(_unhedged(line)):
@@ -338,6 +340,28 @@ def explain(subject, body):
     return classify(subject, body), notes
 
 
+# Where the message ends and its boilerplate begins: a sign-off, or a legal
+# notice. SharkNinja's confirmation carries the Illinois AI Video Interview
+# Act notice under its signature -- "we're required to explain this to you
+# ... before your interview" -- and "video interview" there was a Passed
+# (the user, 2026-10-17). What follows a sign-off never invites or declines;
+# it may still say the mail is a confirmation or noise.
+SIGN_OFF = re.compile(r"^(?:thanks|thank you|many thanks|best|all the best|regards|warm regards|kind regards|"
+                      r"best regards|sincerely|cheers|yours(?: sincerely| truly)?|take care)[,!.]?$", re.I)
+FOOTER = _phrases(('do not reply', 'unattended mailbox', 'privacy notice', 'privacy policy', 'unsubscribe',
+                   'confidentiality notice', 'this email was sent', 'this message was sent',
+                   'equal opportunity', 'artificial intelligence', 'ai tools', 'ai-assisted', 'your consent',
+                   'for illinois', 'illinois applicants'))
+
+
+def _body_end(lines):
+    """The index of the first sign-off or footer sentence, or len(lines)."""
+    for index, line in enumerate(lines):
+        if SIGN_OFF.match(line.strip()) or FOOTER.search(' ' + _plain(line) + ' '):
+            return index
+    return len(lines)
+
+
 def classify(subject, body):
     """'passed', 'declined', 'unclear' (look at it), 'unknown' (no rule
     recognises it: look at it) or None (known to be nothing to do).
@@ -350,8 +374,9 @@ def classify(subject, body):
     """
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
-    passed = any(_invites(line) for line in lowered)
-    plain = [line for line in lowered if not _DECLINE_HEDGES.search(line)]
+    spoken = lowered[:_body_end(lines)]
+    passed = any(_invites(line) for line in spoken)
+    plain = [line for line in spoken if not _DECLINE_HEDGES.search(line)]
     hits = set().union(*(_found(_DECLINED, line) for line in plain)) if plain else set()
     patterned = any(pattern.search(line) for line in plain for pattern in DECLINED_PATTERNS)
     declined = patterned or bool(hits - DECLINED_WEAK)
@@ -362,7 +387,7 @@ def classify(subject, body):
     if declined:
         return 'declined'
     mentioned = any(_PASSED_WEAK.search(line) and not _HEDGES.search(line) and not _DESCRIPTIVE.search(line)
-                    for line in lowered)
+                    for line in spoken)
     if any(_CONFIRMATION.search(line) for line in lowered):
         return None
     if mentioned or len(hits) >= 2:

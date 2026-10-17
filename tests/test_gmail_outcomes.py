@@ -647,6 +647,44 @@ class CourtesyAndShortTitleTests(unittest.TestCase):
                                             sender='Careers <sharkninja@myworkday.com>'))
         self.assertEqual(found, [])
 
+    SHARKNINJA = '''Thank you for applying for the Engineering & Technology Co-op Opportunities position at
+SharkNinja. We've received your application and are excited to review it. If your qualifications
+align with the role, we'll be in touch soon!
+
+Thank you for your interest in joining SharkNinja. We look forward to potentially welcoming you to our team!
+
+Thanks,
+
+SharkNinja Talent Access Team
+
+** Please note: Do not reply to this email. This email is sent from an unattended mailbox.
+
+For Illinois Applicants - Use of Artificial Intelligence in Video Interviews
+
+If you are invited to a video interview or asked to submit a video response as part of an assessment,
+SharkNinja may use AI tools to record and transcribe your interview or video responses.
+
+Under the Illinois Artificial Intelligence Video Interview Act, we're required to explain this to you
+and obtain your consent before your interview or video submission takes place.
+
+If you do not consent to the use of AI-assisted tools, please reach out to TAOperations@sharkninja.com
+prior to your interview or submission of any video response for alternative options.'''
+
+    def test_a_confirmation_with_a_legal_notice_about_interviews_is_nothing(self):
+        # The real SharkNinja confirmation (the user, 2026-10-17) read as Passed
+        # on "video interview" in the Illinois AI notice under the signature.
+        self.assertIsNone(gmail.classify('Thank you for applying to SharkNinja', self.SHARKNINJA))
+        verdict, notes = gmail.explain('Thank you for applying to SharkNinja', self.SHARKNINJA)
+        self.assertIsNone(verdict)
+        self.assertTrue(any('legal footer' in found[0] for _, found in notes if any('invitation' in f for f in found)))
+
+    def test_text_after_a_sign_off_decides_nothing_but_text_before_it_does(self):
+        self.assertEqual(gmail.classify('Acme', 'Please schedule your phone screen here: https://calendly.com/x\n\n'
+                                                'Best regards,\nAcme Recruiting'), 'passed')
+        self.assertEqual(gmail.classify('Acme', 'Thanks for your patience.\n\nSincerely,\nAcme\n\n'
+                                                'If you are invited to a video interview, AI tools may transcribe it.'),
+                         'unknown')
+
     def test_explain_names_the_deciding_sentence(self):
         verdict, notes = gmail.explain('Acme', "If you're still interested, book a time here: https://calendly.com/acme")
         self.assertEqual(verdict, 'passed')

@@ -12,9 +12,10 @@ Scope: User request (2026-10-17): Gmail Passed/Declined reads -- a SharkNinja
 Files: src/operation1million/gmail_outcomes.py, tests/test_gmail_outcomes.py,
        docs/{agent-protocol,handoff}.md
 Base commit: 99e2016
-Status: done -- suite 1,262 run, 2 skipped, pass; not committed.
-Next: On the VPS, `python -m operation1million.gmail_outcomes --explain sharkninja`
-      and paste the output if the verdict is still wrong.
+Status: done -- 9000354 and the follow-up (the real email: a confirmation
+        whose legal footer named a video interview); 1,264 run, 2 skipped, pass.
+Next: Install on the VPS; the next Gmail pass re-reads every cached email
+      under the new rules and clears the wrong mark by itself.
 ```
 
 ```text

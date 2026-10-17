@@ -21,7 +21,19 @@ and the pass's reading made inspectable (`gmail_outcomes.py`, tests in
   for each cached email naming it, the verdict, the deciding sentences and
   the application it matched. Run it on the VPS to see the real email.
 
-Suite on 99e2016 plus this: 1,262 run, 2 skipped, pass (Linux). Not committed.
+Suite on 99e2016 plus this: 1,262 run, 2 skipped, pass (Linux). Committed as 9000354.
+
+The user then pasted the SharkNinja email: a confirmation ("We've received
+your application ... If your qualifications align, we'll be in touch") that
+read as Passed, on every version of the rules, because the Illinois AI Video
+Interview Act notice under the signature says "before your interview" and
+"video interview" with no hedge word. Now: nothing after a sign-off
+("Thanks,", "Sincerely,") or a legal footer ("do not reply", "privacy
+notice", "artificial intelligence", "your consent") can decide Passed or
+Declined; it can still say the mail is a confirmation or noise. "If you are
+invited / asked" is a condition. The real email reads as None; the test
+`test_a_confirmation_with_a_legal_notice_about_interviews_is_nothing` holds
+its shape. 1,264 run, 2 skipped, pass.
 
 # Three features that could not run, removed - 2026-10-16 (claude)
 
