@@ -11,7 +11,9 @@ dependency.
 """
 import argparse
 import csv
-from io import BytesIO
+from datetime import datetime, timedelta, timezone
+from io import BytesIO, StringIO
+import json
 import os
 from pathlib import Path
 import re
@@ -260,25 +262,64 @@ def open_entries(state):
             if not group.get('less_related')]
 
 
-def write_csv(path, entries):
-    """Replace the CSV at `path` with these groups. Returns the row count."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+def open_table(entries):
+    """The CSV's rows: OPEN_COLUMNS, the referalble mark last."""
     keep = [index for index, (name, _) in enumerate(COLUMNS) if name in OPEN_COLUMNS]
     company_column = [name for name, _ in COLUMNS].index('Company')
-    table = rows(entries)
-    handle, temporary = tempfile.mkstemp(prefix='.review-queue-', suffix='.csv', dir=path.parent)
+    return [[('' if row[i] is None else row[i]) for i in keep] +
+            ['true' if employers.identity(row[company_column]) in REFERALBLE_COMPANIES else 'false']
+            for row in rows(entries)]
+
+
+def _replace(path, text):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(prefix='.' + path.stem + '-', suffix=path.suffix, dir=path.parent)
     try:
         with os.fdopen(handle, 'w', encoding='utf-8', newline='') as out:
-            writer = csv.writer(out, lineterminator='\n')
-            writer.writerow(OPEN_COLUMNS)
-            writer.writerows([('' if row[i] is None else row[i]) for i in keep] +
-                             ['true' if employers.identity(row[company_column]) in REFERALBLE_COMPANIES else 'false']
-                             for row in table)
+            out.write(text)
         os.replace(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)
+
+
+def _csv_text(table):
+    out = StringIO()
+    writer = csv.writer(out, lineterminator='\n')
+    writer.writerow(OPEN_COLUMNS)
+    writer.writerows(table)
+    return out.getvalue()
+
+
+def write_csv(path, entries):
+    """Replace the CSV at `path` with these groups. Returns the row count."""
+    table = open_table(entries)
+    _replace(path, _csv_text(table))
     return len(table)
+
+
+# Muse asked on 2026-10-16 for each day's new listings on their own: interns
+# close fast, and the whole queue re-read daily mixes in what it has handled.
+# A day is the UTC date of Discovered, the queue's own column, so a file's rows
+# are exactly the review_queue.csv rows with that Discovered date when both are
+# written. Today's and yesterday's files are rewritten each pass: a listing
+# found after the pass (the closing sweep, a link added by hand) joins
+# yesterday's file the next morning, and one decided in the meantime leaves it.
+def write_daily(folder, entries, days):
+    """Write daily-new-<day>.csv and .json for each UTC day. Returns rows per day."""
+    table = open_table(entries)
+    discovered = OPEN_COLUMNS.index('Discovered')
+    counts = {}
+    for day in days:
+        chosen = [row for row in table if row[discovered] == day]
+        name = Path(folder) / f'daily-new-{day}'
+        _replace(name.with_suffix('.csv'), _csv_text(chosen))
+        _replace(name.with_suffix('.json'), json.dumps(
+            {'discovered': day, 'rows': len(chosen),
+             'listings': [dict(zip(OPEN_COLUMNS, row)) for row in chosen]},
+            ensure_ascii=False, indent=1) + '\n')
+        counts[day] = len(chosen)
+    return counts
 
 
 def main():
@@ -288,6 +329,8 @@ def main():
     parser.add_argument('csv', type=Path)
     parser.add_argument('--db', type=Path, default=DB)
     parser.add_argument('--ledger', type=Path, default=None)
+    parser.add_argument('--daily-dir', type=Path, default=None,
+                        help="Also write today's and yesterday's (UTC) daily-new files here")
     args = parser.parse_args()
     ledger = args.ledger or applications.ledger_path()
     state = manual_intake.augment_queue(applications.queue(args.db, ledger), ledger, args.db)
@@ -295,6 +338,11 @@ def main():
     entries = open_entries(state)
     count = write_csv(args.csv, entries)
     print(f'{args.csv}: {len(entries)} open positions, {count} listings', flush=True)
+    if args.daily_dir:
+        today = datetime.now(timezone.utc).date()
+        days = [(today - timedelta(days=back)).isoformat() for back in (1, 0)]
+        for day, rows_written in write_daily(args.daily_dir, entries, days).items():
+            print(f'{args.daily_dir}/daily-new-{day}: {rows_written} listings', flush=True)
 
 
 if __name__ == '__main__':

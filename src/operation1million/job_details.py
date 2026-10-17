@@ -167,8 +167,11 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
     rules = jsearch.load_plan()[0]['filter']
     now = datetime.now(timezone.utc)
     errors = []
+    # Postings with a decision are read whatever their title, and read once:
+    # an applied posting's description need not be refreshed (2026-10-16).
+    decided = getattr(getattr(collector, 'args', None), 'decided_urls', frozenset())
     for row in sorted(collector.jobs, key=lambda r: not bool(ENTRY.search(r['title']))):
-        if not candidate(row, rules):
+        if row['url'] not in decided and not candidate(row, rules):
             continue
         if skip_full and display_description(row['raw'])[1] == 'full':
             continue
@@ -178,7 +181,7 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
             proof = {}
         try:
             checked = datetime.fromisoformat(proof.get('checked_at', ''))
-            fresh = timedelta(0) <= now - checked < REFRESH_AFTER
+            fresh = row['url'] in decided or timedelta(0) <= now - checked < REFRESH_AFTER
         except (ValueError, TypeError):
             fresh = False
         if (fresh and proof.get('status') == 'verified'

@@ -61,6 +61,17 @@ Renesas, Cisco and Amazon. Muse can filter that column to identify positions on
 the Review page's referalble tab. It is a once-a-day picture: anything decided
 or applied since that pass is still listed.
 
+**Each day's new listings** (Muse, 2026-10-16): the same pass writes
+`operational/daily-new/daily-new-<YYYY-MM-DD>.csv` and `.json`, the rows of
+`review_queue.csv` whose Discovered (UTC date) is that day, same columns. The
+JSON holds `discovered`, `rows` and `listings` (one object per row, Fit a
+number). Today's and yesterday's files are rewritten each pass, so a listing
+found after the morning pass (the closing sweep, a link added by hand) joins
+yesterday's file the next morning, and one decided in the meantime leaves it.
+To reconcile, a day file's `rows` equals the queue file's rows with that
+Discovered date when both come from one pass; the manifest's counts do not,
+since they include rejected, low-relevance and decided postings.
+
 A position is one requisition: the provider's own job id, and the URL only where
 a provider publishes no id. The id is scoped the way the store scopes
 `job_identities` -- JSearch ids hold across the provider, a direct source's ids

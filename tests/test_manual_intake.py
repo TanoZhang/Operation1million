@@ -193,6 +193,18 @@ class ImportedPostingTests(unittest.TestCase):
         self.assertEqual(shown['jobs'][0]['matched'], 'title and place')
         self.assertFalse(shown['jobs'][0].get('manual_import'))
 
+    def test_decided_postings_include_the_linked_one_and_not_a_decision_taken_back(self):
+        """The detail pass reads these whatever their title (2026-10-16)."""
+        group = self.applied('Renesas', 'Electrical Engineer', 'Austin, TX', '20032940')
+        real = self.posting('https://jobs.renesas.com/job/electrical-engineer-in-austin-texas-united-states-jid-7004',
+                            'renesas', 'Electrical Engineer', 'Austin, TEXAS, United States', '7004')
+        undone = self.applied('KLA', 'Sr. Electrical Engineer', 'Milpitas, CA', '2641848')
+        applications.append_decision(self.ledger, undone, 'pending')
+        self.posting('https://kla.wd1.myworkdayjobs.com/Search/job/Milpitas-CA/Sr-Electrical-Engineer_2641848',
+                     'kla', 'Sr. Electrical Engineer', 'Milpitas, CA', '2641848')
+        self.assertEqual(intake.decided_urls(self.ledger, self.db), {real, group['jobs'][0]['url']})
+        self.assertEqual(intake.decided_urls(Path(self.temp.name) / 'absent.ndjson', self.db), set())
+
     def test_a_requisition_picks_one_of_several_postings_of_one_title(self):
         group = self.applied('KLA', 'Sr. Electrical Engineer', 'Milpitas, CA', '2641848')
         for number in ('2636363', '2641848', '2641850'):

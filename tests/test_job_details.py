@@ -80,6 +80,39 @@ class DetailTests(unittest.TestCase):
                 patch('operation1million.job_details.enrich', return_value=[]):
             self.assertEqual(c.run(), ('partial', 'Missing continuation'))
 
+    def test_a_decided_posting_is_read_whatever_its_title_and_read_once(self):
+        """Muse applied to titles the detail pass skips; Review showed no text (2026-10-16)."""
+        import sqlite3, tempfile
+        from contextlib import closing
+        response = Mock(json=Mock(return_value=self.workday))
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        source = SimpleNamespace(provider_key='workday', access_url='',
+                                 fields={'tenant': 'example', 'site': 'External', 'workday_host': 'wd1'})
+        row = dict(self.row, title='Senior Staff Product Marketing Manager',
+                   raw={'externalPath': '/job/Example/RTL-Engineer_R0001'})
+        self.assertFalse(job_details.candidate(row, jsearch.load_plan()[0]['filter']))
+        for decided, calls in [(frozenset(), 0), (frozenset({row['url']}), 1)]:
+            with self.subTest(decided=bool(decided)):
+                c = SimpleNamespace(source=source, jobs=[dict(row, raw=dict(row['raw']))],
+                                    fetch=Mock(return_value=response),
+                                    args=SimpleNamespace(decided_urls=decided))
+                self.assertEqual(job_details.enrich(c), [])
+                self.assertEqual(c.fetch.call_count, calls)
+        # Verified a month ago: a decided posting keeps that text, unasked.
+        read = c.jobs[0]['raw']
+        read['detail_evidence']['checked_at'] = '2026-09-01T00:00:00+00:00'
+        with tempfile.TemporaryDirectory() as folder:
+            db = Path(folder) / 'index.sqlite'
+            with closing(sqlite3.connect(db)) as con, con:
+                con.execute('CREATE TABLE jobs(url TEXT, provider_key TEXT, raw TEXT)')
+                con.execute('INSERT INTO jobs VALUES (?, ?, ?)', (row['url'], 'workday', json.dumps(read)))
+            c = SimpleNamespace(source=source, jobs=[dict(row, raw=dict(row['raw']))], fetch=Mock(),
+                                args=SimpleNamespace(decided_urls=frozenset({row['url']})))
+            self.assertEqual(job_details.enrich(c, db), [])
+        c.fetch.assert_not_called()
+        self.assertIn('8 years', c.jobs[0]['raw']['description'])
+
     def test_html_shell_preserves_unknown_inventory(self):
         c = SimpleNamespace(source=SimpleNamespace(provider_key='talentbrew'),
                             jobs=[self.row], fetch=Mock())

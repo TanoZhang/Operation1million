@@ -134,10 +134,33 @@ class OpenQueueCsvTests(unittest.TestCase):
         self.assertEqual([row['referalble'] for row in table],
                          ['true'] * 6 + ['false'])
 
+    def test_a_day_file_holds_the_queue_rows_discovered_that_utc_day(self):
+        """Muse, 2026-10-16: each day's new listings on their own, to reconcile."""
+        later = dict(GROUP['jobs'][0], url='https://x.example/2', first_seen='2026-10-01T02:00:00+00:00')
+        entries = [('pending', GROUP), ('backlog', dict(GROUP, id='g2', company='NVIDIA', jobs=[later]))]
+        folder = self.path.parent / 'daily-new'
+        export.write_csv(self.path, entries)
+        self.assertEqual(export.write_daily(folder, entries, ['2026-09-30', '2026-10-01', '2026-10-02']),
+                         {'2026-09-30': 1, '2026-10-01': 1, '2026-10-02': 0})
+        with self.path.open(encoding='utf-8', newline='') as handle:
+            queue = list(csv.reader(handle))
+        with (folder / 'daily-new-2026-10-01.csv').open(encoding='utf-8', newline='') as handle:
+            day = list(csv.reader(handle))
+        # The same columns and the same row as the queue file's.
+        self.assertEqual(day, [queue[0], queue[2]])
+        record = json.loads((folder / 'daily-new-2026-10-01.json').read_text(encoding='utf-8'))
+        self.assertEqual((record['discovered'], record['rows']), ('2026-10-01', 1))
+        # JSON keeps Fit a number; everything else reads as in the CSV.
+        self.assertEqual(record['listings'][0], dict(zip(queue[0], queue[2]), Fit=62))
+        self.assertEqual(record['listings'][0]['referalble'], 'true')
+        self.assertEqual(json.loads((folder / 'daily-new-2026-10-02.json').read_text(encoding='utf-8'))['rows'], 0)
+
     def test_the_daily_pass_publishes_it(self):
         script = (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
         publish = script.split('publish_state() {')[1].split('\n}\n')[0]
         self.assertIn('python -m operation1million.export operational/review_queue.csv', publish)
+        self.assertIn('--daily-dir operational/daily-new', publish)
+        self.assertIn('git add -f operational/daily-new', publish)
         self.assertLess(publish.index('review_queue.csv'), publish.index('git commit'))
         staged = publish.split('for name in operational/source_access.sqlite', 1)[1].split('; do', 1)[0]
         self.assertIn('operational/review_queue.csv', staged)

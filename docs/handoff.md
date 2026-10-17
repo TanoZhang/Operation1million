@@ -1,3 +1,37 @@
+# Each day's new listings for Muse - 2026-10-16 (claude)
+
+Muse asked for each day's new listings on their own instead of re-reading the
+whole queue (917 rows that day, 212 already handled). The export writes
+`operational/daily-new/daily-new-<UTC day>.csv/.json` beside
+review_queue.csv: that file's rows whose Discovered is the day, same columns
+and referalble; today's and yesterday's are rewritten each pass. On data
+740517f: queue 1,929 rows; 10-12 86, 10-13 735, 10-14 46, 10-15 69, 10-16 91,
+each equal to the queue's rows of that Discovered date. Format in
+docs/application-review.md. Takes effect once installed.
+
+# Applied postings get their descriptions - 2026-10-16 (claude)
+
+The user: many Muse submissions in Review have no JD; fill them. Measured on
+an index rebuilt from data 740517f: 916 of 1,837 Applied entries showed no
+description -- 523 imported `muse.invalid` entries the index cannot match, 222
+imports linked to an index posting that has no text, 106 index postings with
+none, 65 imports whose real link is not in the index (LinkedIn 15, aggregators,
+scattered boards). Muse's history.jsonl holds links, never JD text (11 of the
+523 have a link there by requisition).
+
+Cause of the 222 + 106: the detail pass reads only title-relevant postings
+(`job_details.candidate`), and Muse applied to Senior/Staff and other titles.
+`manual_intake.decided_urls` now gives the collector every posting with a
+standing Applied or Skipped decision (the latest event per group) plus the
+index posting `link_postings` puts in front of an import; the detail pass
+reads those whatever their title, and once verified never re-reads them.
+Dry run on the same data: 2,404 decided URLs (9.6 s), of which the next pass
+reads about 272 open postings for the first time (Workday 216, Eightfold 33,
+Avature 19, Jobs2Web 3, Apple 2) under the usual source pacing. Not covered:
+116 closed postings, 29 on boards without a detail reader (Oracle and
+others), the 523 unmatched imports and the 65 off-index links. Takes effect
+only once installed on the VPS. Full Windows suite 1,236 run, 13 skipped, pass.
+
 # Query yield, closing-sweep reserve, slimming - 2026-10-16 (claude)
 
 The user: not the applications -- how many searches become postings; then

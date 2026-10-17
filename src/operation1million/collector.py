@@ -1439,6 +1439,15 @@ def main():
         print(f'backfill: {left} credits left in the cycle, {days} days to reset, '
               f'spending up to {run_budget}', flush=True)
     args.jsearch_guard = request_guard
+    args.decided_urls = frozenset()
+    if args.store and sources:
+        # Read whatever their title says, so Review can show what was applied for.
+        from .manual_intake import decided_urls
+        try:
+            args.decided_urls = decided_urls(
+                store.LOG / 'operational' / 'applications.ndjson', args.db)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            print(f'WARNING: decided postings not read ({exc}); details follow titles only', flush=True)
     if args.output is None:
         args.output = RUNS / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     args.output.mkdir(parents=True, exist_ok=True)

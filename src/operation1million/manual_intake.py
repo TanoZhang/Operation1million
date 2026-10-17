@@ -505,6 +505,43 @@ def link_postings(state, db):
     return state
 
 
+def decided_urls(ledger, db):
+    """Every posting with an Applied or Skipped decision, as the index holds it.
+
+    The user, 2026-10-16: half of Applied showed no description, because Muse
+    applied to titles the detail pass never reads (Senior, Staff, other
+    functions). The ledger's own links, and the index's posting that
+    `link_postings` puts in front of an imported entry, are read whatever the
+    title says.
+    """
+    ledger = Path(ledger)
+    if not ledger.exists():
+        return frozenset()
+    with applications.locked(ledger):
+        events = applications.read_events(ledger)
+    # The latest event per group: a decision taken back is no decision.
+    final = {event.get('group_id') or event['url']: event for event in events}
+    final = {ident: event for ident, event in final.items() if event['status'] in ('applied', 'skipped')}
+    urls = {event['url'] for event in final.values()}
+    urls |= {job['url'] for event in final.values()
+             for job in (event.get('group') or {}).get('jobs') or () if job.get('url')}
+    path = path_for(ledger)
+    if path.exists():
+        decided = set(final)
+        latest = {}
+        with applications.locked(path):
+            for line in path.read_text(encoding='utf-8').splitlines():
+                if line.strip():
+                    event = json.loads(line)
+                    latest[event['group']['id']] = event['group']
+        state = {'pending': [], 'backlog': [], 'skipped': [],
+                 'applied': [dict(group, jobs=list(group['jobs'])) for ident, group in latest.items()
+                             if ident in decided]}
+        link_postings(state, db)
+        urls |= {job['url'] for group in state['applied'] for job in group['jobs']}
+    return frozenset(urls)
+
+
 def augment_queue(state, ledger, db=None):
     """Explicit imports survive filter changes, DB rebuilds and normal decisions.
 

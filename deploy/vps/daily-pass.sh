@@ -130,9 +130,11 @@ publish_state() {
     echo '         a rebuilt machine would treat old rejections as new.' >&2
   fi
   # The open queue as one CSV, for Muse to read through the GitHub API
-  # (2026-10-06). A convenience like the snapshot above: warn, never abort.
+  # (2026-10-06), and each UTC day's new listings on their own (Muse,
+  # 2026-10-16). A convenience like the snapshot above: warn, never abort.
   if ! python -m operation1million.export operational/review_queue.csv \
-      --db "$CODE/data/db/job_discovery.sqlite" --ledger operational/applications.ndjson; then
+      --db "$CODE/data/db/job_discovery.sqlite" --ledger operational/applications.ndjson \
+      --daily-dir operational/daily-new; then
     echo 'WARNING: operational/review_queue.csv was not refreshed; it is from an earlier pass.' >&2
   fi
   if ! python -m operation1million.company_audit --db "$CODE/data/db/job_discovery.sqlite" \
@@ -146,6 +148,7 @@ publish_state() {
               operational/company_alias_audit.json; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
+  if [ -d operational/daily-new ]; then git add -f operational/daily-new; fi
   if ! git diff --cached --quiet; then
     git commit -m "Checkpoint collection $(date -u +%Y-%m-%d)"
   fi

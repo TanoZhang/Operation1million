@@ -6,6 +6,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-16): fill the JDs missing from Applied entries
+       (mostly Muse submissions) -- the detail pass also reads postings with a
+       decision, whatever their title; and Muse's daily-new files.
+Files: src/operation1million/{collector,job_details,manual_intake,export}.py,
+       deploy/vps/daily-pass.sh,
+       tests/{test_job_details,test_manual_intake,test_review_export}.py,
+       docs/{agent-protocol,handoff,application-review}.md
+Base commit: 1fc276c
+Status: done -- pushed and installed on the VPS (2026-10-16); Windows suite 1,237 run, 13 skipped, pass.
+Next: Check the next pass reads the ~272 applied postings and writes daily-new files.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-16): last cycle's applications and credits; many
        more Japan phrases for the closing sweep; the role photo's titles;
        slim code, tests and docs without changing behavior. Also removed the
