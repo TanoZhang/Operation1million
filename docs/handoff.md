@@ -1,3 +1,40 @@
+# Every Applied entry gets a description; Muse is asked for the rest - 2026-10-16 (claude)
+
+The user: after Muse reports applied, every entry must have its JD; what the
+index cannot give, the user asks Muse for. New `applied_jd`:
+`operational/applied-missing-jd.csv/.json`, rewritten by each pass after the
+detail reads, lists the Applied entries Review would show without one (less
+than 200 readable characters, an excerpt, or a link that now advertises
+another requisition), with the group id. Muse answers in
+`job-applications/applied-jds.jsonl` (`group_id`, `description`; or `url`, or
+`company` + `requisition`), which the pass reads first into
+`operational/applied_descriptions.ndjson` (append-only, backed up and
+union-merged like the other ledgers). A record binds by group id, by one
+link, or by employer and requisition when exactly one Applied entry has
+both; never by title. Review's description endpoint is unchanged except that
+an Applied entry it would show without text gets the supplied one, labelled.
+On data 740517f and the 10-16 index: 932 of 1,837 Applied entries listed
+(916 by the earlier jobs[0] audit; the rest excerpts or replaced links);
+the next pass's detail reads should take about 272 off. Full suite in a clean
+worktree at d2b80e7 plus this change: 1,265 run, 14 skipped, all pass.
+
+Why not every entry (asked the same day), measured on the 932: 488 imports are
+postings the index never held (Muse found them itself; 173 at employers the
+index has never seen), 418 are in the index as a title with no description
+(the detail reads above take about 272 of those), 26 closed without text.
+Only about 36 have a described copy elsewhere in the index that matches by
+requisition or by title and place with a single text; the rest of the
+title-level copies carry differing texts and are not used.
+
+`manual_intake.merge_copies` (the user: when Muse found the right page from
+the queue's job-board listing, use it and merge): a decided import and an open
+listing of the same employer and title join -- the listing leaves the open
+tabs and the CSV, the employer's own page leads. Only with the requisition
+Muse wrote named by the listing, or (none written) places stated on both
+sides that agree, and one listing per entry each way; a looser employer and
+title test found 66 pairs, this one 22 (21 of them Muse's skips), each read
+by hand and the same opening.
+
 # Five bugs from an external review - 2026-10-16 (claude)
 
 The user pasted an outside review of 7c7ff44: five bugs, five cleanups. Each

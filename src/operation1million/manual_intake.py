@@ -551,6 +551,74 @@ def decided_urls(ledger, db):
     return frozenset(urls)
 
 
+def merge_copies(state):
+    """A decided import and the queue's listing of the same opening are one entry.
+
+    The user, 2026-10-16: Muse applied through the employer's own page to
+    postings this queue offered from a job board, and the merge imported each
+    submission as an entry of its own, so the board's listing stayed To review
+    (66 such pairs that day). The listing joins the decided entry, the
+    employer's own page leading, and leaves the open tabs and the CSV given to Muse.
+
+    The same opening means the same employer and title, and either the
+    requisition Muse wrote named by the listing, or (with none written) places
+    stated on both sides that agree -- and one listing for one entry each way. A title shared by two openings merges nothing: showing
+    an entry without text is recoverable; calling another opening applied is not.
+    """
+    def opening(group):
+        jobs = group.get('jobs') or [{}]
+        return (applications.employer_name(group.get('company') or ''),
+                applications._plain(clean_title(group.get('title') or '', jobs[0].get('location') or '')))
+
+    decided = {}
+    for name in ('applied', 'skipped'):
+        for group in state[name]:
+            if group.get('manual_import') and group.get('jobs'):
+                decided.setdefault(opening(group), []).append(group)
+    if not decided:
+        return state
+    taken = {}
+    for name in ('pending', 'backlog'):
+        for listing in state[name]:
+            found = []
+            for group in decided.get(opening(listing), ()):
+                requisitions = {str(job.get('source_job_id') or '').strip() for job in group['jobs']
+                                if job.get('manual_import')} - {''}
+                if requisitions:
+                    # A requisition Muse wrote has to be named by the listing:
+                    # Qualcomm alone lists many a "Hardware Design Engineer".
+                    named = any(_naming(requisition)(job) for job in listing['jobs']
+                                for requisition in requisitions if len(requisition) >= 4)
+                else:
+                    # Without one, both say where, and the places agree.
+                    named = (all(job.get('location') for job in group['jobs'] if job.get('manual_import'))
+                             and all(job.get('location') for job in listing['jobs'])
+                             and applications.places_agree(group['jobs'], listing['jobs']))
+                if named:
+                    found.append(group)
+            if len(found) == 1:
+                taken.setdefault(found[0]['id'], []).append((name, listing, found[0]))
+    for pairs in taken.values():
+        if len(pairs) != 1:
+            continue
+        name, listing, group = pairs[0]
+        state[name] = [item for item in state[name] if item is not listing]
+        held = {job['url'] for job in group['jobs']}
+        copies = [dict(job, matched='same title and place as the application')
+                  for job in listing['jobs'] if job['url'] not in held]
+        # The employer's own page leads: the queue's when it read the
+        # employer's board, else Muse's when Muse left a real address rather
+        # than a muse.invalid stand-in or the words "Open listing".
+        lead = group['jobs'][0]['url']
+        if (any(job.get('provider_key') not in (None, '', 'jsearch', 'manual') for job in copies)
+                or not lead.startswith(('http://', 'https://')) or lead.startswith('https://muse.invalid/')):
+            group['jobs'] = copies + group['jobs']
+        else:
+            group['jobs'] = group['jobs'] + copies
+        group['merged_ids'] = group.get('merged_ids', []) + [listing['id']]
+    return state
+
+
 def augment_queue(state, ledger, db=None):
     """Explicit imports survive filter changes, DB rebuilds and normal decisions.
 
@@ -588,6 +656,7 @@ def augment_queue(state, ledger, db=None):
         from .employers import label_group
         state[status].append(label_group(group))
     link_postings(state, db)
+    merge_copies(state)
     # Employers that cap applications keep only postings worth a slot (2026-10-08).
     from . import application_limits
     application_limits.apply(state, db)

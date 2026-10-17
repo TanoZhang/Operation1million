@@ -26,6 +26,8 @@ LINKS=operational/listing_links.ndjson
 MANUAL=operational/manual_jobs.ndjson
 # Interview / Rejected marks on applied positions (2026-10-05).
 OUTCOMES=operational/application_outcomes.ndjson
+# Descriptions Muse supplied for Applied entries (2026-10-16).
+DESCRIPTIONS=operational/applied_descriptions.ndjson
 
 cd "$DATA"
 
@@ -40,7 +42,7 @@ if ! flock -n 9; then
 fi
 
 files=()
-for name in "$LEDGER" "$LINKS" "$MANUAL" "$OUTCOMES"; do
+for name in "$LEDGER" "$LINKS" "$MANUAL" "$OUTCOMES" "$DESCRIPTIONS"; do
   if [ -f "$name" ]; then files+=("$name"); fi
 done
 if [ "${#files[@]}" -eq 0 ]; then

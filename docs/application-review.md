@@ -61,6 +61,17 @@ employer identities and their confirmed aliases for Tesla, TikTok, ByteDance
 the Review page's referalble tab. It is a once-a-day picture: anything decided
 or applied since that pass is still listed.
 
+**Applied entries without a description** (the user, 2026-10-16): each pass
+writes `operational/applied-missing-jd.csv` and `.json`: Group (id), Company,
+Title, Location, Requisition, Link, Applied. Muse answers by appending lines to
+`job-applications/applied-jds.jsonl`:
+`{"group_id": "<Group>", "description": "<the full JD>"}` (or `url`, or
+`company` + `requisition`, instead of `group_id`). The next pass reads them into
+`operational/applied_descriptions.ndjson`; a line that matches no single
+Applied entry, or holds less than 200 characters, is refused and named in the
+pass log. Review shows a supplied description only where it had none, marked
+"Supplied by Muse after applying".
+
 **Each day's new listings** (Muse, 2026-10-16): the same pass writes
 `operational/daily-new/daily-new-<YYYY-MM-DD>.csv` and `.json`, the rows of
 `review_queue.csv` whose Discovered (UTC date) is that day, same columns. The

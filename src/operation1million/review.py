@@ -11,7 +11,7 @@ import sqlite3
 import threading
 from urllib.parse import urlsplit, parse_qs
 
-from . import (applications, application_limits, export, ranking, jsearch, manual_intake,
+from . import (applications, application_limits, applied_jd, export, ranking, jsearch, manual_intake,
                collection_policy, gmail_outcomes, resume_fit)
 from .queue_snapshot import QueueSnapshot
 from .job_text import display_description, readable_text
@@ -296,6 +296,18 @@ def make_server(db, ledger, port=8765, export_path=None):
                 self.send({'error': str(exc)}, 500)
 
         def job(self, query):
+            """One posting's description; for an Applied entry without one, what Muse supplied."""
+            body = self.description(query)
+            group_id = query.get('id', [''])[0]
+            text = readable_text(str(body.get('description') or '')).strip()
+            kind = 'replaced' if body.get('replaced') else body.get('kind', '')
+            if group_id and applied_jd.lacking(text, kind):
+                supplied = applied_jd.read(Path(ledger)).get(group_id)
+                if supplied:
+                    body = {'description': readable_text(supplied['description']).strip(), 'kind': 'supplied'}
+            return self.send(body)
+
+        def description(self, query):
             """One posting's description, unless the decision shown was about another."""
             url = query.get('url', [''])[0]
             group_id = query.get('id', [''])[0]
@@ -311,7 +323,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                     decided = next((job for job in group['jobs'] if job['url'] == url),
                                    group['jobs'][0] if group['jobs'] else None)
             if decided and decided.get('manual_import'):
-                return self.send({'description': decided.get('manual_description', '')})
+                return {'description': decided.get('manual_description', '')}
             with closing(sqlite3.connect(Path(db).resolve().as_uri() + '?mode=ro', uri=True)) as con:
                 con.row_factory = sqlite3.Row
                 row = con.execute(
@@ -328,7 +340,7 @@ def make_server(db, ledger, port=8765, export_path=None):
                 # of the two happened.
                 if row is not None and decided is not None and (
                         not applications.describes_decision(con, url, dict(row), decided)):
-                    return self.send({'description': '', 'replaced': True})
+                    return {'description': '', 'replaced': True}
             raw = json.loads(row['raw'] or '{}') if row else {}
             description, kind = display_description(raw)
             description = str(description)
@@ -340,7 +352,7 @@ def make_server(db, ledger, port=8765, export_path=None):
             body = {'description': description.strip()}
             if kind in ('excerpt', 'discovery'):
                 body['kind'] = kind
-            return self.send(body)
+            return body
 
         def read_json(self, limit):
             """The request's JSON body, refused past `limit` bytes."""

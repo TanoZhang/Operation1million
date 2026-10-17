@@ -347,6 +347,8 @@ def main():
     parser.add_argument('--ledger', type=Path, default=None)
     parser.add_argument('--daily-dir', type=Path, default=None,
                         help="Also write today's and yesterday's (UTC) daily-new files here")
+    parser.add_argument('--missing-jd-dir', type=Path, default=None,
+                        help='Also write the Applied entries without a description here')
     args = parser.parse_args()
     ledger = args.ledger or applications.ledger_path()
     state = manual_intake.augment_queue(applications.queue(args.db, ledger), ledger, args.db)
@@ -359,6 +361,12 @@ def main():
         days = [(today - timedelta(days=back)).isoformat() for back in (1, 0)]
         for day, rows_written in write_daily(args.daily_dir, entries, days).items():
             print(f'{args.daily_dir}/daily-new-{day}: {rows_written} listings', flush=True)
+    if args.missing_jd_dir:
+        from . import applied_jd
+        lacking = applied_jd.missing(state, args.db, applied_jd.read(ledger))
+        applied_jd.write_missing(args.missing_jd_dir, lacking)
+        print(f'{args.missing_jd_dir}/applied-missing-jd: {len(lacking)} of '
+              f'{len(state["applied"])} Applied entries without a description', flush=True)
 
 
 if __name__ == '__main__':

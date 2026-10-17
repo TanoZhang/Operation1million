@@ -129,12 +129,19 @@ publish_state() {
     echo 'WARNING: the seen-jobs snapshot was not refreshed; it is now stale and' >&2
     echo '         a rebuilt machine would treat old rejections as new.' >&2
   fi
+  # The descriptions Muse supplied for Applied entries the index has none for
+  # (the user, 2026-10-16), read before the list of those still missing.
+  if [ -f job-applications/applied-jds.jsonl ] && ! python -m operation1million.applied_jd \
+      job-applications/applied-jds.jsonl --ledger operational/applications.ndjson; then
+    echo 'WARNING: job-applications/applied-jds.jsonl was not read; supplied descriptions wait for the next pass.' >&2
+  fi
   # The open queue as one CSV, for Muse to read through the GitHub API
-  # (2026-10-06), and each UTC day's new listings on their own (Muse,
-  # 2026-10-16). A convenience like the snapshot above: warn, never abort.
+  # (2026-10-06), each UTC day's new listings on their own (Muse,
+  # 2026-10-16), and the Applied entries still without a description
+  # (applied-missing-jd). A convenience like the snapshot above: warn, never abort.
   if ! python -m operation1million.export operational/review_queue.csv \
       --db "$CODE/data/db/job_discovery.sqlite" --ledger operational/applications.ndjson \
-      --daily-dir operational/daily-new; then
+      --daily-dir operational/daily-new --missing-jd-dir operational; then
     echo 'WARNING: operational/review_queue.csv was not refreshed; it is from an earlier pass.' >&2
   fi
   if ! python -m operation1million.company_audit --db "$CODE/data/db/job_discovery.sqlite" \
@@ -145,7 +152,8 @@ publish_state() {
               operational/applications.ndjson operational/listing_links.ndjson \
               operational/manual_jobs.ndjson operational/application_outcomes.ndjson \
               operational/seen_jobs.ndjson.gz operational/review_queue.csv \
-              operational/company_alias_audit.json; do
+              operational/company_alias_audit.json operational/applied_descriptions.ndjson \
+              operational/applied-missing-jd.csv operational/applied-missing-jd.json; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
   if [ -d operational/daily-new ]; then git add -f operational/daily-new; fi

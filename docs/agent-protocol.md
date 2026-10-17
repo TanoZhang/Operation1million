@@ -6,6 +6,20 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-16): every Applied entry has a JD -- list the
+       ones without for the user to ask Muse, read what Muse supplies; merge
+       a decided import with the queue's listing of the same opening.
+Files: src/operation1million/{applied_jd (new),export,review,manual_intake}.py,
+       review_static/app.js, deploy/vps/{daily-pass,data-sync,backup-applications}.sh,
+       tests/test_applied_jd.py (new), docs/{agent-protocol,handoff,application-review}.md
+Base commit: d2b80e7
+Status: done -- committed from a separate worktree (another session was
+        editing the main checkout); suite 1,265 run, 14 skipped, pass.
+Next: Install; give Muse operational/applied-missing-jd.json after the next pass.
+```
+
+```text
+Owner: claude
 Scope: External review (2026-10-16): run the offline suite in GitHub Actions
        on every push and pull request to main, on Ubuntu. Then (the user,
        2026-10-17, "you decide"): the nightly pass runs the suite only

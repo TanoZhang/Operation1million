@@ -490,7 +490,8 @@ async function renderDetail(group) {
     // A teaser is not the whole description, and the paid listing's text is
     // not the company's own; each says so rather than passing for the full one.
     const note = {excerpt: 'Excerpt only. The full description is on the original listing.\n\n',
-                  discovery: 'From the listing this posting was first found in.\n\n'}[body.kind] ?? '';
+                  discovery: 'From the listing this posting was first found in.\n\n',
+                  supplied: 'Supplied by Muse after applying; the index has no description for this listing.\n\n'}[body.kind] ?? '';
     const text = body.replaced
       ? 'This address now advertises a different requisition, so the description published here is not the one this decision was about.'
       : (body.description ? note + body.description : 'Description unavailable. Open the original listing.');
