@@ -83,6 +83,22 @@ integrated-circuit and power-management design -- at intern, new grad, entry
 level and general. 387 queries, 194 / 193 a rotated day; `validate_budget`
 now checks a day's half against the budget, not the whole plan.
 
+Then, the user: no employer names and no experience ranges. Removed the 82
+company phrases of `ai_auto` (its 18 domain phrases stay), the seven
+"<field> 0-2 years" trials and Hardware Engineer 0-2 years (27 pages, 10
+postings no other query found, mean score of those 24). 297 queries, 148 /
+149 a rotated day. The query record also keeps `pages_new`, never-seen
+postings on each page in turn, to judge later whether a query can stop
+paging once its pages bring nothing new.
+
+Measured the same day, from the seen ledger since 10-04 (27,426 JSearch
+results): `excluded` (7,319) is mostly seniority in the title (senior,
+principal, lead, staff, manager, director), which a phrase cannot avoid
+since queries carry no negative words; the Electrical phrases bring civil and
+power consultancies (Jacobs, WSP, HDR, CMTA; "substation"); 18% of results and
+28% of accepted ones are from companies read directly, which the provider
+cannot exclude (it excludes publishers only).
+
 Expected and unmeasured: a rotated day near the 350 budget; if it binds, the
 trial tiers are cut first. Measure from the record before widening or cutting.
 Suite: 1,275 run, 13 skipped, pass.

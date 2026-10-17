@@ -1208,7 +1208,8 @@ def write_csv(path, rows, fields):
 # What the query record keeps of each query's result, beside the run's own facts.
 QUERY_RUN_FIELDS = ('query', 'tier', 'source_id', 'status', 'reason', 'finished', 'pages_cap', 'pages_used',
                     'resumed_from', 'jobs_raw', 'jobs_accepted', 'rejected', 'rejections', 'malformed',
-                    'new', 'new_accepted', 'only_this', 'only_this_score_sum', 'jobs_unique', 'score_mean')
+                    'new', 'new_accepted', 'pages_new', 'only_this', 'only_this_score_sum', 'jobs_unique',
+                    'score_mean')
 
 
 def main():

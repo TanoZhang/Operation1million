@@ -1399,6 +1399,9 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                        # by no other query this run, why the rest were refused,
                        # and how well what it found scored.
                        'new': 0, 'new_accepted': 0, 'only_this': 0,
+                       # Never-seen postings on each page in turn: how deep a
+                       # query still finds anything, to judge stopping early.
+                       'pages_new': [],
                        'rejections': {}, 'score_mean': None}}
         state[query.key]['scores'] = []
 
@@ -1549,11 +1552,12 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     # Paid results become durable before a resumable cursor can
                     # move past them. A crash after this callback may repeat a
                     # page, but it cannot skip jobs that existed only in memory.
-                    if record_seen is not None and new_seen:
-                        counted = record_seen(new_seen)
-                        if isinstance(counted, dict):
-                            detail['new'] += counted.get('new', 0)
-                            detail['new_accepted'] += counted.get('new_accepted', 0)
+                    counted = record_seen(new_seen) if record_seen is not None and new_seen else None
+                    if isinstance(counted, dict):
+                        detail['new'] += counted.get('new', 0)
+                        detail['new_accepted'] += counted.get('new_accepted', 0)
+                    if record_seen is not None:
+                        detail['pages_new'].append(counted.get('new', 0) if isinstance(counted, dict) else 0)
                     if checkpoint is not None:
                         checkpoint(query, entry['rows'][before_rows:], detail)
                 entry['page'] += 1

@@ -315,7 +315,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 387)
+        self.assertEqual(len(self.plan), 297)
         self.assertEqual(self.settings['monthly_target'], 10000)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
         # day, then 330 from the next cycle on (350 since 2026-10-13).
@@ -338,7 +338,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'ai_auto', 'jd_text', 'A')},
-            {'intern': 940, 'new_grad': 775, 'early_career': 345, 'ai_auto': 500, 'jd_text': 380, 'A': 635})
+            {'intern': 940, 'new_grad': 775, 'early_career': 330, 'ai_auto': 90, 'jd_text': 310, 'A': 635})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -1620,7 +1620,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual({q.tier: q.pages for q in deep},
                          {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 60, 'ai_auto': 20, 'jd_text': 40})
         # These are depth ceilings, not an allocation; the sweep guard bounds spend.
-        self.assertEqual(sum(q.pages for q in deep), 87 * 60 + 69 * 50 + 42 * 40 + 51 * 60 + 100 * 20 + 38 * 40)
+        self.assertEqual(sum(q.pages for q in deep), 87 * 60 + 69 * 50 + 41 * 40 + 51 * 60 + 18 * 20 + 31 * 40)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
@@ -2049,6 +2049,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(sum(by['Silicon Intern']['rejections'].values()), by['Silicon Intern']['rejected'])
         self.assertEqual(by['Silicon Intern']['new'], 2)
         self.assertEqual(by['ASIC Intern']['new'], 0, 'the same posting is new once')
+        self.assertEqual(by['Silicon Intern']['pages_new'], [2])
         if accepted == 2 and by['ASIC Intern']['jobs_accepted'] == 1:
             self.assertEqual((by['Silicon Intern']['only_this'], by['ASIC Intern']['only_this']), (1, 0))
             self.assertIsNotNone(by['Silicon Intern']['score_mean'])
