@@ -252,18 +252,18 @@ publisher came back.
 
 1. Collect configured direct ATS/board sources.
 2. With `--jsearch`, execute the nationwide functional plan.
-3. Execute only configured company fallbacks whose direct source failed with
-   zero records, or whose configuration explicitly sets `mode = "supplement"`.
+
+There is no company-specific paid search: the configured company fallback was
+removed on 2026-10-16 after it had held no entries since Rambus and Ventana.
 
 Functional discovery may find employers outside the curated company catalog.
-It does not add or restore company/source rows. Employer alias checks apply only
-to company-specific fallback queries. The HTTP client performs no business
+It does not add or restore company/source rows. The HTTP client performs no business
 filtering; normalization precedes conservative title filtering.
 
 ## Configuration and budget
 
-`data/config/jsearch_queries.toml` is the executable functional plan. The legacy
-SQLite `search_queries` table is not executed by this collector.
+`data/config/jsearch_queries.toml` is the executable functional plan and the
+only query list.
 
 | Group | Queries |
 | --- | ---: |
@@ -356,7 +356,7 @@ found 41 postings Review never received.
 # Add --jsearch-plan to preview the same command without any API call.
 
 # All configured functional queries over one week, bounded by an explicit budget.
-# Direct sources and company fallbacks are skipped by --jsearch-only.
+# Direct sources are skipped by --jsearch-only.
 .\.venv\Scripts\python.exe -m operation1million.collector --jsearch-only --date-posted week --jsearch-budget 400
 ```
 
@@ -398,7 +398,7 @@ month, so the window is computed from the ledger rather than from a cron date.
 
 `--jsearch-query` replaces the functional catalog for this invocation; its page
 default is 1. `--jsearch-pages` is valid only with that single-query option.
-`--jsearch-only` explicitly skips direct sources and company fallbacks.
+`--jsearch-only` explicitly skips direct sources.
 Without it, the normal direct-first execution order still applies.
 `--no-store` writes the usual private JSONL/CSV and manifest under a timestamped
 `runs/` directory, without changing or sealing daily job history. The shared
@@ -422,7 +422,7 @@ One page is a sample, not proof of complete weekly coverage.
 ```
 
 Without `--jsearch` or a positive `--jsearch-budget`, paid discovery is off.
-A positive budget without `--jsearch` enables configured company fallbacks only.
+A positive budget without `--jsearch` sends no query.
 With `--jsearch`, a lower override deliberately caps that invocation. The fixed
 plan is still validated against its configured daily budget, while the request
 guard stops before the override is exceeded. `--company` limits direct sources,

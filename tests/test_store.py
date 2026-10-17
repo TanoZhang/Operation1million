@@ -47,7 +47,8 @@ class StoreTests(unittest.TestCase):
     def test_verify_cli_fails_on_an_invalid_manifest(self):
         with patch.object(store, 'verify', return_value=[('2026-09-18', 'MISMATCH')]), \
              patch.object(store, 'summary', return_value={}), \
-             patch('sys.argv', ['job-store', '--verify']):
+             patch('sys.argv', ['job-store', '--verify']), \
+             patch('sys.stdout', new_callable=io.StringIO), patch('sys.stderr', new_callable=io.StringIO):
             self.assertEqual(store.main(), 1)
 
     def setUp(self):
@@ -107,17 +108,6 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(
             store.plan(SOURCE, {'ashby:matx': {'last_success_at': None, 'etag': 'W/"x"'}}),
             ('full', None))
-
-    def test_eightfold_is_not_read_as_newest_first(self):
-        """#317, from a captured response: Micron's first page, 2026-10-04.
-
-        The posting dates in the order the search returned them under
-        `"sortBy": "hot"` (job content left out; the order is the evidence).
-        """
-        captured = ['2026-09-24', '2026-09-23', '2026-09-23', '2026-09-04', '2026-09-02',
-                    '2026-08-12', '2026-07-23', '2026-06-22', '2026-10-04', '2026-10-04']
-        self.assertNotEqual(captured, sorted(captured, reverse=True))
-        self.assertNotIn('eightfold', store.MONOTONIC_NEWEST_FIRST)
 
     def test_strategy_follows_what_the_board_supports(self):
         done = {'last_success_at': '2026-09-16T00:00:00+00:00'}
@@ -916,26 +906,6 @@ class EarlyStopTests(unittest.TestCase):
         return {'id': ident, 'name': 'Engineer', 'positionUrl': f'/careers/job/{ident}',
                 'postedTs': ts, 'locations': ['San Diego']}
 
-    def test_eightfold_stops_at_the_watermark_and_keeps_newer_rows(self):
-        source = Source('ef:q', 'company_sources', 'qualcomm', 'Qualcomm', 'eightfold',
-                        'https://careers.qualcomm.com/api/pcsx/search?domain=qualcomm.com', {})
-        # 1789516800 is newer than the watermark; 1600000000 is far older.
-        c = self.collector(source, 'since', '2026-09-01T00:00:00+00:00')
-        c.session.request.side_effect = [
-            self.response({'data': {'count': 40, 'positions': [
-                self.position('1', 1789516800), self.position('2', 1789516800)]}}),
-            self.response({'data': {'count': 40, 'positions': [
-                self.position('3', 1789516800), self.position('4', 1600000000)]}}),
-            self.response({'data': {'count': 40, 'positions': [
-                self.position('5', 1600000000)]}}),
-        ]
-        with patch('operation1million.collector.time.sleep'):
-            status, _ = c.run()
-        self.assertEqual(status, 'complete')
-        # Stopped on the page that crossed the watermark; page 3 was never requested.
-        self.assertEqual(c.session.request.call_count, 2)
-        self.assertEqual([j['source_job_id'] for j in c.jobs], ['1', '2', '3'])
-
     def test_full_strategy_reads_every_page(self):
         source = Source('ef:q', 'company_sources', 'qualcomm', 'Qualcomm', 'eightfold',
                         'https://careers.qualcomm.com/api/pcsx/search?domain=qualcomm.com', {})
@@ -1079,14 +1049,6 @@ class ClosingGuardTests(unittest.TestCase):
 
     def open_count(self):
         return self.db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL').fetchone()[0]
-
-    def test_early_stop_pass_never_closes(self):
-        # 'since' reads only postings newer than the last pass and stops; on a quiet
-        # day that is zero rows, which says nothing about what is still listed.
-        delta = store.record_source(self.db, SOURCE, [], 'complete', 'since', 1)
-        self.assertEqual(delta['closed'], 0)
-        self.assertEqual(self.open_count(), 2)
-
 
     def test_search_results_never_close(self):
         # Paid search returns a slice of one query, not a company's board.
@@ -1530,30 +1492,11 @@ class IncrementalReconciliationTests(unittest.TestCase):
         self.addCleanup(self.db.close)
         self.eightfold = replace(SOURCE, source_id='ef:q', provider_key='eightfold')
 
-    def ago(self, days):
-        return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-
-    def test_an_incremental_pass_reads_back_a_week_and_a_stale_one_reads_everything(self):
-        """A posting can reach the index after its stated date, or be edited under it."""
-        # The mechanism, for a board that is newest first; none is today (#317).
-        monotonic = patch.object(store, 'MONOTONIC_NEWEST_FIRST', {'eightfold'})
-        monotonic.start()
-        self.addCleanup(monotonic.stop)
-        success = self.ago(0)
-        strategy, watermark = store.plan(self.eightfold, {'ef:q': {
-            'last_success_at': success, 'last_full_at': self.ago(1), 'last_status': 'complete'}})
-        self.assertEqual(strategy, 'since')
-        self.assertEqual(datetime.fromisoformat(success) - datetime.fromisoformat(watermark),
-                         timedelta(days=store.RECONCILE_DAYS))
-        self.assertEqual(store.plan(self.eightfold, {'ef:q': {
-            'last_success_at': success, 'last_full_at': self.ago(8),
-            'last_status': 'complete'}})[0], 'full')
-
     def test_only_a_complete_full_pass_is_recorded_as_one(self):
         store.record_source(self.db, self.eightfold, [row('https://x/1')], 'complete', 'full', 1)
         first = self.db.execute("SELECT last_full_at FROM source_state").fetchone()[0]
         self.assertIsNotNone(first)
-        store.record_source(self.db, self.eightfold, [row('https://x/1')], 'complete', 'since', 1)
+        store.record_source(self.db, self.eightfold, [row('https://x/1')], 'complete', 'conditional', 1)
         store.record_source(self.db, self.eightfold, [row('https://x/1')], 'partial', 'full', 1)
         self.assertEqual(self.db.execute("SELECT last_full_at FROM source_state").fetchone()[0],
                          first)

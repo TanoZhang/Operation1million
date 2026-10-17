@@ -16,7 +16,9 @@ class GuardTests(unittest.TestCase):
     def test_existing_utc_history_is_split_at_pacific_reset(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'usage.sqlite'
-            guard = RequestGuard(path, daily_limit=320)
+            # Only to create the ledger's tables; the test reads it through
+            # a guard opened afterwards, as a restart would.
+            RequestGuard(path, daily_limit=320)
             with closing(sqlite3.connect(path)) as db, db:
                 db.execute('DELETE FROM credit_usage')
                 db.execute("INSERT INTO credit_usage VALUES ('2026-09-16', '2026-09-19', 320)")

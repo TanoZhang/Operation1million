@@ -1,6 +1,8 @@
 """The log is a rolling backup, and pruning it must not take anything else."""
 from pathlib import Path
+from contextlib import redirect_stderr
 import gzip
+import io
 import json
 import tempfile
 import unittest
@@ -85,7 +87,7 @@ class PruneTests(unittest.TestCase):
         self.assertIn('index.json', self.names('manifests'))
 
     def test_the_cli_refuses_a_window_of_nothing(self):
-        with self.assertRaises(SystemExit):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             prune.main(['--store', str(self.store), '--keep', '0'])
 
 

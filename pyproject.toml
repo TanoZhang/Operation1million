@@ -30,7 +30,6 @@ research = ["curl-cffi>=0.15.0"]
 [project.scripts]
 job-collect = "operation1million.collector:main_cli"
 job-validate-sources = "operation1million.validate_sources:main"
-job-queries = "operation1million.query_catalog:main"
 job-store = "operation1million.store:main"
 job-review = "operation1million.review:main"
 

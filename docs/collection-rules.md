@@ -131,8 +131,7 @@ fuse; adding the Avature source does not retire its old postings.
 See [JSearch daily discovery](jsearch.md) for the fixed plan, title filtering,
 page-credit accounting, query manifests, and paid transport stop conditions.
 Direct ATS collection runs first. Explicit `--jsearch` then runs nationwide
-functional discovery; configured company fallback runs last. Company fallback
-alone requires reviewed employer aliases; functional discovery has no employer
+functional discovery. Functional discovery has no employer
 blacklist. No paid calls are made by offline tests.
 
 As of 2026-10-11, the functional plan has 188 nationwide queries, with

@@ -492,12 +492,6 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(jsearch.rejection_reason({'title': 'Photonics Engineer'},
                                                   self.settings['filter']), 'excluded')
 
-    def test_company_fallback_requires_exact_employer_alias(self):
-        self.session.get.return_value = self.response([job(), job('2', employer_name='Sample')])
-        rows, stats = self.collect([jsearch.Query('Sample', 1, 'company', 'sample', ('Sample',))])
-        self.assertEqual([r['company_name'] for r in rows], ['Sample'])
-        self.assertEqual(stats['jsearch_jobs_rejected'], 1)
-
     def test_direct_record_remains_authoritative_with_search_enrichment(self):
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
         row = jsearch.normalize_job(job(), self.plan[0], {})
@@ -936,31 +930,6 @@ class DiscoveryTests(unittest.TestCase):
         again = self.collect_into_seen(self.db)
         self.assertEqual(len(again), 1)
         self.assertTrue(again['j1']['decision'])
-
-    def test_an_off_query_employer_does_not_overwrite_a_refusal(self):
-        """The mismatch is about the query; the refusal is about the posting.
-
-        `seen_jobs` keeps the last decision written, and overwriting a hard
-        rejection with `employer_mismatch` made a posting refused on its own
-        terms look merely off-query -- so the review queue stopped hiding it.
-        """
-        recorded = []
-        self.session.get.side_effect = lambda url, **kw: self.response(
-            [job('x', job_title='HR Business Partner, Hardware',
-                 employer_name='Somewhere Else')])
-        query = replace(self.plan[0], aliases=['Analog Devices'])
-        jsearch.collect([query], self.client, self.settings, {},
-                        self.persist, record_seen=recorded.extend)
-        self.assertEqual(recorded[0]['decision'], 'excluded')
-
-    def test_an_off_query_employer_is_still_recorded_where_nothing_else_refused(self):
-        recorded = []
-        self.session.get.side_effect = lambda url, **kw: self.response(
-            [job('x', employer_name='Somewhere Else')])
-        query = replace(self.plan[0], aliases=['Analog Devices'])
-        jsearch.collect([query], self.client, self.settings, {},
-                        self.persist, record_seen=recorded.extend)
-        self.assertEqual(recorded[0]['decision'], 'employer_mismatch')
 
     def test_what_is_recorded_is_light_enough_to_keep_for_everything(self):
         recorded = []
@@ -1611,8 +1580,7 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_internships_are_asked_before_the_wider_synonyms(self):
         """Internships precede every other functional tier."""
-        order = [t for t in jsearch.TIER_ORDER if t != 'company']
-        self.assertEqual(order, ['intern', 'new_grad', 'early_career', 'A'])
+        self.assertEqual(list(jsearch.TIER_ORDER), ['intern', 'new_grad', 'early_career', 'A'])
         self.session.get.return_value = self.response([job()])
         plan = [jsearch.Query('general query', 1, 'A'),
                 jsearch.Query('intern query', 1, 'intern'),
@@ -1933,11 +1901,11 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_backfill_rejects_no_store_before_any_paid_request(self):
         with patch('sys.argv', ['collector', '--backfill', '--no-store']), \
-             self.assertRaises(SystemExit):
+             patch('sys.stderr', new_callable=io.StringIO), self.assertRaises(SystemExit):
             collector.main()
         self.session.get.assert_not_called()
 
-    def test_collector_runs_direct_then_functional_then_configured_company(self):
+    def test_collector_runs_direct_then_functional(self):
         source = Source('direct', 'company_sources', 'sample', 'Sample', 'ashby', '', {})
         direct = Mock(jobs=[], rejected=[], requests=1, etag=None, last_modified=None,
                       listed=None, source=source)
@@ -1948,9 +1916,7 @@ class DiscoveryTests(unittest.TestCase):
             order.append(query)
             return self.response([job(employer_name='Sample')])
         self.session.get.side_effect = search_response
-        discovery = {'company_fallbacks': [{'company_key': 'sample', 'mode': 'supplement',
-                                           'employer_aliases': ['Sample']}]}
-        configs = {'discovery_queries.toml': discovery, 'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        configs = {'sources_search.toml': {'search': {'jsearch': SEARCH}}}
         output = self.root / 'output'
         with patch.object(collector, 'Collector', return_value=direct), \
              patch.object(collector, 'load_sources', return_value=[source]), \
@@ -1964,9 +1930,9 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.argv', ['collector', '--jsearch', '--db', str(self.db_path), '--output', str(output)]), \
              patch('sys.stdout', new_callable=io.StringIO):
             self.assertEqual(collector.main(), 0)
-        self.assertEqual(order, ['direct', self.plan[0].query, 'Sample'])
+        self.assertEqual(order, ['direct', self.plan[0].query])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest['jsearch_queries_completed'], 2)
+        self.assertEqual(manifest['jsearch_queries_completed'], 1)
         self.assertEqual(manifest['jsearch_jobs_unique'], 1)
         self.assertEqual(len(list((store.LOG / 'runs').glob('*.ndjson.gz'))), 1)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 1)

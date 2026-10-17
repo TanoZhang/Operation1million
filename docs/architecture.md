@@ -40,7 +40,6 @@ Current patch status and measurements: newest section of [handoff](handoff.md).
 | `collector.py` | The pass itself: argument parsing, the 35 direct sources, per-source normalization, and the order everything runs in. `main()` is the whole pass. Commits each source as it finishes rather than holding a run in memory. |
 | `collection_policy.py` | How fast a company's board may be asked, and durable cooldowns when one refuses. Reads `Crawl-delay` from robots.txt and never goes below it. |
 | `validate_sources.py` | The source catalog: which company has which board, at which endpoint, and whether a configured route still answers. |
-| `query_catalog.py` | The search-query catalog and its checks. |
 | `job_text.py` | Display titles: strips publisher "Posted ..." suffixes and trailing locations so they do not become part of an identity. |
 
 ### Paid discovery
@@ -192,6 +191,25 @@ reproducer and update its evidence below.
   namesakes in the same named places are one group; experienced ones are not.
 
 ## Structural improvements
+
+### Three features that could not run, removed, 2026-10-16 UTC
+
+From an external review; no path that runs changed.
+- Company fallback search (`discovery_queries.toml` held `company_fallbacks =
+  []`): `jsearch.fallback_plan`, `collector.fallback`, `employer_matches`,
+  the eligible list, `--fallback-queries`, the `company` tier and the
+  `employer_mismatch` check. Readers of an old `employer_mismatch` seen row
+  are kept. `Query.company_key`/`aliases` stay: `key` hashes the first, and
+  `--jsearch-plan` prints both.
+- The legacy `search_queries` catalog: `query_catalog.py`, `job-queries`,
+  migration 001 and its copy in `schema.sql`. `store.migrate` never applied
+  001, so existing indexes keep an unread table; `--bootstrap` builds the
+  same rows without it (checked against `../Operation1million-data`).
+- The newest-first strategy (`MONOTONIC_NEWEST_FIRST`, empty since #317):
+  `store.plan`'s `since` branch, `RECONCILE_DAYS`, Eightfold's watermark
+  stop and `record_source`'s `since` guard. `last_full_at` is still written.
+  Re-adding an incremental board needs that machinery back from `d2b80e7`,
+  and #317 says why a board's sort order must be proven first.
 
 ### Forty, with every output unchanged, 2026-10-02 UTC
 

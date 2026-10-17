@@ -303,28 +303,34 @@ class RequestGuard:
             db.commit()
             self.attempts += 1
             self.credits += credits
-        # The reservation is committed before the request leaves, so a network
-        # error or a crash still shows the credit as spent. Only the outcome is
-        # written afterwards, and failing to write it never refunds anything.
-        try:
-            response = session.get(url, allow_redirects=False, **kwargs)
-        except BaseException as exc:
-            self.settle(event, 'transport:' + type(exc).__name__)
-            raise
-        self.settle(event, f'http:{response.status_code}', response.headers)
-        return response
+            # The reservation is committed before the request leaves, so a
+            # network error or a crash still shows the credit as spent. Only the
+            # outcome is written afterwards, on the same connection (no
+            # transaction is open across the request), and failing to write it
+            # never refunds anything.
+            try:
+                response = session.get(url, allow_redirects=False, **kwargs)
+            except BaseException as exc:
+                self.settle(event, 'transport:' + type(exc).__name__, db=db)
+                raise
+            self.settle(event, f'http:{response.status_code}', response.headers, db=db)
+            return response
 
     # The provider states what a call cost, not what is left, as
     # `X-RapidAPI-Billing: Queries=1; Requests=1`. Recording it is how a charge
     # that differs from the credit we reserved becomes visible at all.
     BILLING_HEADER = 'X-RapidAPI-Billing'
 
-    def settle(self, event, outcome, headers=None):
+    def settle(self, event, outcome, headers=None, db=None):
+        """Record a reserved request's outcome; on `db` when one is open."""
         # requests' header mapping is case-insensitive; a plain dict is not.
         raw = (headers or {}).get(self.BILLING_HEADER,
                                   (headers or {}).get(self.BILLING_HEADER.lower()))
         found = re.search(r'Queries\s*=\s*(\d+)', str(raw or ''))
         charged = int(found.group(1)) if found else None
-        with connect(self.path, timeout=120) as db:
-            db.execute('UPDATE credit_events SET outcome=?, provider_charged=? WHERE id=?',
-                       (outcome, charged, event))
+        if db is None:
+            with connect(self.path, timeout=120) as db:
+                return self.settle(event, outcome, headers, db)
+        db.execute('UPDATE credit_events SET outcome=?, provider_charged=? WHERE id=?',
+                   (outcome, charged, event))
+        db.commit()

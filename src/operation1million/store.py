@@ -13,7 +13,7 @@ import re
 from urllib.parse import urlsplit
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .job_text import TEASERS, FULL_DESCRIPTIONS  # shared with review
@@ -25,23 +25,6 @@ LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass', '0
 SOURCE_MIGRATIONS = ('007_sandisk_avature', '008_amazon_partition', '009_japan_direct_sources',
                      '010_japan_hrmos_jposting')
 
-# Boards whose listing is strictly newest-first, verified by sampling offsets
-# across the whole result set. Only these may stop paginating early; a board
-# that merely trends newest-first would silently drop postings.
-#
-# None, since 2026-10-04 (#317). Eightfold was here, but Micron's search
-# answers `"sortBy": "hot"`: its first page opened with eight promoted
-# postings from June to September and then that day's. The incremental pass
-# stopped at the first older one, so from 2026-09-28 each daily pass read one
-# page, kept two postings, called the board complete -- and, being incremental,
-# never closed anything. Micron, Qualcomm and Lam Research are read in full.
-MONOTONIC_NEWEST_FIRST = set()
-# How far behind its watermark an incremental pass on a newest-first board still
-# reads, and how old its last full pass may be before the next pass is a full
-# one. The overlap catches a posting that reached the index after its stated
-# date, and an edit to one published recently; the full pass catches the rest.
-# The same number for both, so nothing falls between them for longer than this.
-RECONCILE_DAYS = 7
 # Boards that publish <lastmod> per job URL, so unchanged detail pages are skipped.
 LASTMOD_SITEMAP = {'renesas_careers'}
 
@@ -234,17 +217,6 @@ def plan(source, state):
         return 'full', None
     if row.get('etag'):
         return 'conditional', row['etag']
-    if source.provider_key in MONOTONIC_NEWEST_FIRST:
-        # B51: the watermark is when the last pass ran, and a posting's stated
-        # publication date need not be later than that for the posting to be
-        # new to us or changed since. Read back a week, and read everything
-        # when the last full pass is a week old or unknown.
-        last_success = datetime.fromisoformat(row['last_success_at'])
-        last_full = row.get('last_full_at')
-        if not last_full or (datetime.fromisoformat(now()) - datetime.fromisoformat(last_full)
-                             >= timedelta(days=RECONCILE_DAYS)):
-            return 'full', None
-        return 'since', (last_success - timedelta(days=RECONCILE_DAYS)).isoformat()
     if source.provider_key in LASTMOD_SITEMAP:
         return 'lastmod', row['last_success_at']
     return 'full', None
@@ -574,7 +546,7 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
     closure_ratio = 0.0
     effective_status = status
     effective_note = note
-    if status == 'complete' and strategy != 'since' and source.provider_key != 'jsearch':
+    if status == 'complete' and source.provider_key != 'jsearch':
         placeholders = ','.join('?' * len(live)) or "''" 
         closure_candidates = [r[0] for r in db.execute(
             f'''SELECT url FROM jobs WHERE company_key=? AND provider_key=? AND closed_at IS NULL

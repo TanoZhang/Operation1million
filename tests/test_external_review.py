@@ -271,5 +271,34 @@ class ByteDanceReferableTests(unittest.TestCase):
         self.assertEqual([group.get('referalble', False) for group in slim], [True, False])
 
 
+class FourthRoundTests(unittest.TestCase):
+    def test_a_paid_request_opens_the_ledger_once(self):
+        """The lock is held across the request by design; the reservation and
+        the outcome were two more connections to the same ledger."""
+        import sqlite3 as real
+        with tempfile.TemporaryDirectory() as folder:
+            guard = RequestGuard(Path(folder) / 'usage.sqlite', interval=0)
+            session = Mock()
+            session.get.return_value = Mock(status_code=200, headers={'X-RapidAPI-Billing': 'Queries=1'})
+            with patch('operation1million.jsearch_access.sqlite3.connect', wraps=real.connect) as opened:
+                guard.get(session, 'https://example.com')
+            self.assertEqual(opened.call_count, 2)
+            with closing(real.connect(guard.path)) as db:
+                self.assertEqual(db.execute('SELECT outcome, provider_charged FROM credit_events').fetchall(),
+                                 [('http:200', 1)])
+
+    def test_a_failed_request_still_records_its_outcome(self):
+        import requests
+        with tempfile.TemporaryDirectory() as folder:
+            guard = RequestGuard(Path(folder) / 'usage.sqlite', interval=0)
+            session = Mock()
+            session.get.side_effect = requests.Timeout('slow')
+            with self.assertRaises(requests.Timeout):
+                guard.get(session, 'https://example.com')
+            with closing(sqlite3.connect(guard.path)) as db:
+                self.assertEqual(db.execute('SELECT credits, outcome FROM credit_events').fetchall(),
+                                 [(1, 'transport:Timeout')])
+
+
 if __name__ == '__main__':
     unittest.main()

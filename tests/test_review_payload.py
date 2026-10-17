@@ -8,6 +8,8 @@ never reads it back: `do_POST` rebuilds the group from its own `queue()` call.
 That is the property these tests hold in place.
 """
 from pathlib import Path
+from contextlib import redirect_stderr, redirect_stdout
+import io
 import json
 import re
 import unittest
@@ -240,7 +242,8 @@ class QueueCacheTests(unittest.TestCase):
                 if len(calls) == 1:
                     raise OSError('index locked')
                 stop.set()
-        review.keep_warm(Server(), every=0, stop=stop)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            review.keep_warm(Server(), every=0, stop=stop)
         self.assertEqual(len(calls), 2, 'one failed build stopped the warm-up')
 
 

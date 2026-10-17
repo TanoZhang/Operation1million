@@ -33,7 +33,7 @@ class JapanBoardTests(unittest.TestCase):
 
     def collector(self, source, pages):
         args = argparse.Namespace(max_jobs=100, max_pages=10, delay=0, timeout=1,
-                                  jsearch_timeout=1, fallback_queries=1)
+                                  jsearch_timeout=1)
         c = Collector(source, args)
         self.addCleanup(c.session.close)
         asked = []

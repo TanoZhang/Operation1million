@@ -1,3 +1,48 @@
+# Three features that could not run, removed - 2026-10-16 (claude)
+
+On d2b80e7 (pushed, not installed; the VPS runs 7c7ff44), from the external
+review's structural list. Verified dead first: `company_fallbacks = []`, no
+deploy script or doc relied on it or on `--fallback-queries`/`job-queries`;
+`MONOTONIC_NEWEST_FIRST` empty since #317. Removed (detail in
+`docs/architecture.md`, "Three features that could not run"):
+- company fallback search, with `discovery_queries.toml`;
+- the legacy `search_queries` catalog (`query_catalog.py`, `job-queries`,
+  migration 001, its `schema.sql` copy). Existing indexes keep an unread
+  table; `store.migrate` on a copy of the local index passes;
+- the newest-first `since` strategy.
+
+Code and config: 287 lines removed, 13 added. Tests: 13 removed (each tested
+only deleted code), 172 lines out, 14 in; two kept tests were adjusted (the
+direct-then-functional order, and a non-full strategy not counting as a
+full pass). JSearch budgeting is untouched.
+
+`OPERATION1MILLION_STORE=../Operation1million-data job-store --bootstrap`
+into a scratch DB: 327,898 job events, 490 sources, 43,270 seen, 76,816 jobs;
+every table identical to d2b80e7's bootstrap except `search_queries` and the
+`001_search_queries` migration row. Windows suite on the working tree
+(d2b80e7 plus other sessions' uncommitted work): 1,249 run, 13 skipped, pass.
+WSL not run. Not committed.
+
+# Fourth review round: one ledger connection, a quiet suite - 2026-10-16 (claude)
+
+On d2b80e7 (pushed, not installed). From the same reviewer:
+- A paid request opened the credit ledger three times: the lock (held
+  across the request by design), the reservation, and the outcome. The
+  outcome is now written on the reservation's connection, after its commit,
+  so no transaction is open across the request. Red first: 3 connections,
+  now 2 (`tests/test_external_review.py`); a timed-out request still
+  records `transport:Timeout`.
+- The suite's output: no test calls `print`; the noise came from CLIs the
+  tests run (ledger_guard, validate_sources, store --verify, argparse
+  errors, Review cache and warm-up warnings). Each such test now captures
+  stdout/stderr; the run prints only its summary.
+- `test_jsearch_access`: the unused guard only creates the ledger's tables;
+  said so, no assignment.
+- `_employer_voice` and short names ("Meta has 2 years of runway"): reads as
+  the employer's years, the intended direction; left as is.
+
+Windows suite 1,258 run, 13 skipped, all pass. Committed with round four of the review.
+
 # Every Applied entry gets a description; Muse is asked for the rest - 2026-10-16 (claude)
 
 The user: after Muse reports applied, every entry must have its JD; what the

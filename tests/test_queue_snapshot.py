@@ -1,4 +1,6 @@
 """A restart can reuse a queue only when all authoritative inputs still match."""
+from contextlib import redirect_stderr, redirect_stdout
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -58,7 +60,8 @@ class SnapshotTests(unittest.TestCase):
         self.assertIsNone(store.load(store.signature(['ledger', 'db', 'wal', 'date', 'rules', 'manual'], 'links')))
 
     def test_cache_write_failure_does_not_break_queue(self):
-        with patch.object(review.applications, 'queue', return_value=empty()), patch.object(queue_snapshot.tempfile, 'NamedTemporaryFile', side_effect=PermissionError('cache write refused')):
+        with patch.object(review.applications, 'queue', return_value=empty()), patch.object(queue_snapshot.tempfile, 'NamedTemporaryFile', side_effect=PermissionError('cache write refused')), \
+                redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             self.assertEqual(self.server().current_queue(), empty())
 
     def test_saved_decision_and_full_identity_survive_restart(self):

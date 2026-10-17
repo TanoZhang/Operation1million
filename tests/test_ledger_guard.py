@@ -4,6 +4,7 @@ Behind means it has lost charges the provider has already counted, and the
 whole point of the ledger is that it never undercounts.
 """
 from datetime import datetime
+import io
 from pathlib import Path
 import tempfile
 import unittest
@@ -115,22 +116,27 @@ class LedgerGuardTests(unittest.TestCase):
         _, _, ok = ledger_guard.compare(empty, self.ledger('published', 351), self.settings)
         self.assertFalse(ok)
 
+    def quietly(self, argv):
+        """main(argv), with what it prints kept out of the suite's output."""
+        with patch('sys.stdout', new_callable=io.StringIO), patch('sys.stderr', new_callable=io.StringIO):
+            return ledger_guard.main(argv)
+
     def test_the_cli_fails_loudly_and_names_the_repair(self):
         local, published = self.ledger('a', 1), self.ledger('b', 40)
-        self.assertEqual(ledger_guard.main([str(local), str(published)]), 1)
-        self.assertEqual(ledger_guard.main([str(published), str(local)]), 0)
+        self.assertEqual(self.quietly([str(local), str(published)]), 1)
+        self.assertEqual(self.quietly([str(published), str(local)]), 0)
 
     def test_a_missing_ledger_is_refused_rather_than_invented(self):
         missing = self.root / 'absent.sqlite'
         published = self.ledger('published', 351)
-        self.assertEqual(ledger_guard.main([str(missing), str(published)]), 1)
+        self.assertEqual(self.quietly([str(missing), str(published)]), 1)
         self.assertFalse(missing.exists())
-        self.assertEqual(ledger_guard.main([str(published), str(missing)]), 1)
+        self.assertEqual(self.quietly([str(published), str(missing)]), 1)
         self.assertFalse(missing.exists())
 
     def test_the_cli_refuses_the_wrong_number_of_arguments(self):
-        self.assertEqual(ledger_guard.main([]), 64)
-        self.assertEqual(ledger_guard.main(['only-one']), 64)
+        self.assertEqual(self.quietly([]), 64)
+        self.assertEqual(self.quietly(['only-one']), 64)
 
 
 if __name__ == '__main__':

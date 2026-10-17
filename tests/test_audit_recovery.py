@@ -14,7 +14,7 @@ from urllib.request import urlopen
 import unittest
 from unittest.mock import patch
 
-from operation1million import applications, collection_policy, jsearch, query_catalog, review, store, validate_sources
+from operation1million import applications, collection_policy, jsearch, review, store, validate_sources
 from operation1million.validate_sources import Source
 
 
@@ -142,16 +142,6 @@ class AuditRecoveryTests(unittest.TestCase):
                         jsearch.load_plan(path)
         path.write_text('[filter]\nexclude_title_patterns = ["senior"]\n')
         self.assertFalse(jsearch.excluded('RTL Engineer', jsearch.load_plan(path)[0]['filter']))
-
-    def test_query_migration_backups_are_per_database(self):
-        paths = [self.root / 'first.sqlite', self.root / 'second.sqlite']
-        with patch.object(query_catalog, 'ROOT', self.root):
-            for path in paths:
-                with closing(sqlite3.connect(path)) as db:
-                    db.execute('CREATE TABLE companies (name TEXT)')
-                query_catalog.migrate(path)
-                self.assertEqual(len(query_catalog.load_queries(path)), 18)
-        self.assertEqual(len(list((self.root / '.local/backups').glob('*before-search-queries.sqlite'))), 2)
 
     def assert_move(self, reverse):
         earlier = self.stamp - timedelta(days=10)

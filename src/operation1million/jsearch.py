@@ -273,8 +273,7 @@ def _read_plan(path):
 def validate_budget(queries, budget):
     """Every query must be able to reach its first page.
 
-    A deliberately smaller invocation cap is valid, and company fallbacks use
-    credits released by functional queries that stop early. The fixed plan's
+    A deliberately smaller invocation cap is valid. The fixed plan's
     sum is checked separately while loading its configuration.
     """
     if len(queries) > budget:
@@ -282,26 +281,6 @@ def validate_budget(queries, budget):
             f'JSearch plan holds {len(queries)} queries; the daily budget of '
             f'{budget} page credits cannot give each one a first page')
     return len(queries)
-
-
-def fallback_plan(config, sources, max_aliases=1):
-    """Company discovery is an explicit list, separate from functional queries."""
-    by_key = {s.company_key: s for s in sources}
-    queries = []
-    for row in config.get('company_fallbacks', []):
-        if not row.get('enabled', True):
-            continue
-        key = row['company_key']
-        if key not in by_key:
-            raise ValueError(f'Unknown configured fallback company: {key}')
-        source = by_key[key]
-        aliases = tuple(dict.fromkeys(row.get('employer_aliases', []) + [source.company_name]))
-        pages = row.get('pages', 1)
-        if type(pages) is not int or not 1 <= pages <= 20:
-            raise ValueError('Company fallback requires 1..20 pages')
-        for alias in aliases[:max_aliases]:
-            queries.append(Query(alias, pages, 'company', key, aliases))
-    return queries
 
 
 class SearchFailure(Exception):
@@ -1230,7 +1209,7 @@ HARD_REJECTIONS = frozenset({'excluded', 'excluded_employer', 'excluded_publishe
 # was every day: across the two passes that plan ran, 144 page credits were
 # spent, all 144 of them inside tier A, and the eleven internship queries had
 # never once been sent.
-TIER_ORDER = ('intern', 'new_grad', 'early_career', 'A', 'company')
+TIER_ORDER = ('intern', 'new_grad', 'early_career', 'A')
 
 
 def search_space(settings):
@@ -1289,7 +1268,6 @@ def collect(queries, client, settings, companies, persist, backfill=False,
     a query to its own end before starting the next one would instead starve
     the tail of the plan -- the same queries, every day, would never be reached.
     """
-    from .collector import employer_matches
     stats = {'jsearch_queries_planned': len(queries), 'jsearch_queries_completed': 0,
              'jsearch_pages_cap': sum(q.pages for q in queries),
              'jsearch_pages_used': 0, 'jsearch_jobs_raw': 0, 'jsearch_jobs_unique': 0,
@@ -1369,14 +1347,6 @@ def collect(queries, client, settings, companies, persist, backfill=False,
                     'matched_terms': sorted(set(matched)),
                 }
             reason = rejection_reason(row, rules, description=prose, score=confidence)
-            if not reason and query.aliases and not employer_matches(row['company_name'], query.aliases):
-                # Only where the posting had nothing against it already. An
-                # employer mismatch says this query asked the wrong question;
-                # it is not a finding about the job, and the seen record keeps
-                # the last decision written. Overwriting a hard rejection with
-                # it made a posting refused on its own terms look merely
-                # off-query, and the review queue stopped hiding it.
-                reason = 'employer_mismatch'
             # Recorded before the decision, not after it. A rejected posting used
             # to leave nothing but a counter, so the same job was fetched,
             # normalized, scored and rejected again on every pass and nothing

@@ -6,6 +6,24 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-16, external review): remove three features that
+       cannot run -- company fallback search (company_fallbacks = []), the
+       legacy search_queries catalog, and the newest-first incremental
+       strategy (MONOTONIC_NEWEST_FIRST empty since #317). No behavior change.
+Files: src/operation1million/{collector,jsearch,store,query_catalog}.py,
+       data/config/{schema.sql,discovery_queries.toml,migrations/001_search_queries.sql},
+       pyproject.toml, tests/{test_search_queries,test_audit_recovery,
+       test_collect_sql_sources,test_collection_policy,test_jsearch,test_store}.py,
+       docs/{agent-protocol,handoff,architecture,search-queries,jsearch}.md
+Base commit: d2b80e7
+Status: done -- committed with round four of the review (the user, 2026-10-17:
+        merge everything, push, deploy); --bootstrap matches d2b80e7's except
+        the removed table.
+Next: None.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-16): every Applied entry has a JD -- list the
        ones without for the user to ask Muse, read what Muse supplies; merge
        a decided import with the queue's listing of the same opening.
@@ -45,10 +63,12 @@ Files: data/config/migrations/011_jobs_requisition.sql, .github/workflows/collec
        src/operation1million/review_static/{app.js,index.html,style.css},
        tests/{test_external_review,test_review_export,test_manual_intake,
        test_workflow_state,test_apple_details,test_collect_sql_sources}.py,
-       tests/review-company-tab.cjs,
+       tests/review-company-tab.cjs, tests/test_{jsearch_access,ledger_guard,prune,
+       queue_snapshot,review_payload,store,validator_resources,jsearch}.py,
        docs/{agent-protocol,handoff,architecture,application-review}.md
 Base commit: 7c7ff44
-Status: done -- pushed, not installed (the user, 2026-10-16); Windows suite 1,256 run, 13 skipped, pass.
+Status: done -- d2b80e7 pushed, not installed (the user, 2026-10-16); fourth round
+        (jsearch_access, quiet tests) in the working tree; suite 1,258 run, 13 skipped, pass.
 Next: Install on the VPS when the user asks; the "Not done" list
       in the newest handoff.
 ```

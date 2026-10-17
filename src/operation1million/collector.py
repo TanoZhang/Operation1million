@@ -1,4 +1,4 @@
-"""Collect public SQL job sources; report incomplete boards and safe fallbacks."""
+"""Collect public SQL job sources and report incomplete boards."""
 from __future__ import annotations
 
 import argparse
@@ -6,7 +6,6 @@ import codecs
 import csv
 import html
 import json
-import os
 import re
 import sqlite3
 import tempfile
@@ -558,15 +557,6 @@ class Collector:
                 if total == 0:
                     return 'complete', ''
                 return 'partial', 'First page listed no postings and no count was reported'
-            if self.strategy == 'since' and self.watermark and p == 'eightfold':
-                fresh = [i for i in items
-                         if not isinstance(i.get('postedTs'), (int, float))
-                         or datetime.fromtimestamp(i['postedTs'], timezone.utc).isoformat() > self.watermark]
-                self.add(fresh)
-                if len(fresh) < len(items):
-                    return 'complete', ''
-                offset += len(items)
-                continue
             rejected_before = len(self.rejected)
             added = self.add(items)
             offset += len(items)
@@ -1172,52 +1162,6 @@ def employer_normalize(name):
     return identity(name)
 
 
-def employer_matches(name, aliases):
-    return bool(name) and employer_normalize(name) in {employer_normalize(a) for a in aliases}
-
-
-def fallback(source, aliases, args, budget, search):
-    """Compatibility helper for a bounded employer search using the shared client."""
-    if not os.getenv('JSEARCH_API_KEY'):
-        return [], 'missing_credentials', 'Set JSEARCH_API_KEY; JSearch was not called'
-    rows, seen, rejected = [], set(), 0
-    guard = getattr(args, 'jsearch_guard', None) or RequestGuard()
-    names = [n for n in dict.fromkeys(list(aliases) + [source.company_name]) if n]
-    names = names[:args.fallback_queries]
-    plan = jsearch.load_plan()[0]
-    # The same blocked publishers as the daily plan, never requested (2026-09-27).
-    settings = {'country': 'us', 'date_posted': 'today', 'employment_types': ['FULLTIME', 'INTERN'],
-                'exclude_job_publishers': plan.get('exclude_job_publishers', [])}
-    client = jsearch.Client(search, settings, guard, args.jsearch_timeout)
-    try:
-        for text in names:
-            if budget[0] <= 0:
-                return rows, 'partial', 'JSearch per-run request budget exhausted'
-            query = jsearch.Query(text, 1, 'company', source.company_key, tuple(aliases))
-            budget[0] -= 1
-            try:
-                for item in client.fetch(query):
-                    if not isinstance(item, dict) or not employer_matches(item.get('employer_name', ''), aliases + [source.company_name]):
-                        rejected += 1
-                        continue
-                    try:
-                        row = jsearch.normalize_job(item, query, {employer_normalize(source.company_name): source.company_key},
-                                                    plan['filter'])
-                    except (ValueError, TypeError):
-                        continue
-                    identity = row['source_job_id'] or row['url']
-                    if identity not in seen:
-                        seen.add(identity)
-                        rows.append(row)
-            except jsearch.SearchFailure as exc:
-                if exc.stop:
-                    budget[0] = 0
-                return rows, 'partial' if rows else 'failed', str(exc)
-    finally:
-        client.close()
-    return rows, 'query_limited', f'First page of {len(names)} employer-name queries; {rejected} employer mismatches rejected'
-
-
 def summary_block(search, facts, totals):
     """The dozen numbers that say how a pass went, in one place.
 
@@ -1274,9 +1218,8 @@ def main():
     p.add_argument('--delay', type=float, default=1.0, help='Minimum delay; Eightfold uses at least 2.5s and Microsoft 3s')
     p.add_argument('--no-store', dest='store', action='store_false', help='Write run files only; leave the job store untouched')
     p.add_argument('--retries', type=int, default=3, help='Retries for 503, timeouts and dropped connections; 429 pauses the source immediately')
-    p.add_argument('--fallback-queries', type=int, default=1)
     p.add_argument('--jsearch', action='store_true', help='Enable the fixed functional JSearch discovery plan')
-    p.add_argument('--jsearch-only', action='store_true', help='Run functional JSearch only, without direct sources or company fallbacks')
+    p.add_argument('--jsearch-only', action='store_true', help='Run functional JSearch only, without direct sources')
     p.add_argument('--jsearch-query', help='Run one positive phrase instead of the functional catalog')
     p.add_argument('--jsearch-pages', type=int, default=None, help='Pages for --jsearch-query only; default 1, maximum 20')
     p.add_argument('--date-posted', choices=['all', 'today', '3days', 'week', 'month'], help='Temporary JSearch time window; does not edit configuration')
@@ -1298,8 +1241,7 @@ def main():
     args = p.parse_args()
     if args.backfill_us_fallback and (not args.backfill or args.jsearch_query):
         p.error('--backfill-us-fallback requires --backfill and cannot use --jsearch-query')
-    if (min(args.max_pages, args.workers, args.timeout, args.jsearch_timeout,
-            args.fallback_queries) <= 0 or (args.max_jobs is not None and args.max_jobs <= 0)
+    if (min(args.max_pages, args.workers, args.timeout, args.jsearch_timeout) <= 0 or (args.max_jobs is not None and args.max_jobs <= 0)
             or args.jsearch_budget < 0 or args.jsearch_max_seconds < 0
             or args.delay < 0 or args.retries < 0):
         p.error('Caps and timeout must be positive; delay and budget must be nonnegative')
@@ -1369,15 +1311,11 @@ def main():
         if unknown:
             p.error(f'Unknown company keys: {sorted(unknown)}')
         sources = [s for s in sources if s.company_key in args.company]
-    discovery = config('discovery_queries.toml')
-    fallbacks = {r['company_key']: r for r in discovery.get('company_fallbacks', [])}
     search = config('sources_search.toml')['search']['jsearch']
-    company_queries = jsearch.fallback_plan(discovery, all_sources, args.fallback_queries) if enabled and not args.jsearch_only else []
-    company_queries = [q for q in company_queries if q.company_key in {s.company_key for s in sources}]
     # A sweep is a functional pass too, and it is the one that spends what the
     # cycle has left: leaving it out here emptied the plan and made it a no-op.
     functional_queries = functional_queries if args.jsearch or args.jsearch_plan or args.backfill else []
-    planned_queries = functional_queries + company_queries
+    planned_queries = functional_queries
     # The plan is checked against the budget the plan is written for, not
     # against whatever one run was told to spend. A run may be deliberately
     # bounded -- a sweep's share of the cycle, or a capped test -- and that is
@@ -1555,26 +1493,19 @@ def main():
             ordered = []
             for future in as_completed(futures):
                 source, rows, status, reason, count, c = future.result()
-                fs, fr = '', ''
                 jobs.extend(rows)
                 delta = persist(db, source, rows, status, count, c)
                 if delta and delta.get('status') != status:
                     status = delta['status']
                     reason = '; '.join(filter(None, [reason, delta.get('note', '')]))
-                report = {'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': fs, 'next_step': '; '.join(filter(None, [reason if status != 'complete' else '', fr])) or 'None'}
+                report = {'company_key': source.company_key, 'company_name': source.company_name, 'provider_key': source.provider_key, 'jobs': len(rows), 'direct_status': status, 'requests': count, 'failure_reason': reason, 'fallback_status': '', 'next_step': (reason if status != 'complete' else '') or 'None'}
                 # Appended as it finishes so a seal on the way out of a failed
                 # pass describes what was actually stored, and sorted back into
                 # catalog order once the loop is done.
                 reports.append(report)
                 ordered.append((futures[future], report))
             reports[:] = [report for _, report in sorted(ordered, key=lambda pair: pair[0])]
-        # Functional discovery follows direct sources. Only configured employers
-        # qualify for the final fallback phase; no automatic company-wide search.
-        direct_results = {r['company_key']: r for r in reports}
-        eligible = [q for q in company_queries if
-                    fallbacks[q.company_key].get('mode') == 'supplement' or
-                    (direct_results[q.company_key]['direct_status'] == 'failed' and
-                     direct_results[q.company_key]['jobs'] == 0)]
+        # Functional discovery follows direct sources.
         from types import SimpleNamespace
         checkpointed_queries = set()
 
@@ -1601,7 +1532,7 @@ def main():
             reports.append({'company_key': source.company_key, 'company_name': query.query,
                             'provider_key': 'jsearch', 'jobs': len(rows), 'direct_status': detail['status'],
                             'requests': count, 'failure_reason': detail['reason'],
-                            'fallback_status': 'configured' if query.company_key else '',
+                            'fallback_status': '',
                             'next_step': detail['reason'] or 'Query-limited discovery; no closure inference'})
         seen_totals = {'fetched': 0, 'new_seen': 0, 'existing_seen': 0}
 
@@ -1638,14 +1569,12 @@ def main():
             seen_totals['existing_seen'] += existing
 
         companies = {employer_normalize(s.company_name): s.company_key for s in all_sources}
-        for key, entry in fallbacks.items():
-            companies.update({employer_normalize(a): key for a in entry.get('employer_aliases', [])})
         client = jsearch.Client(search, settings, request_guard, args.jsearch_timeout)
         try:
             deadline = (time.monotonic() + args.jsearch_max_seconds
                         if args.jsearch_max_seconds else None)
             discovered, search_stats = jsearch.collect(
-                functional_queries + eligible, client, settings, companies, persist_query,
+                functional_queries, client, settings, companies, persist_query,
                 backfill=args.backfill,
                 checkpoint=checkpoint_query if db is not None else None,
                 deadline=deadline, record_seen=record_seen)

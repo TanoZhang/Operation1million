@@ -13,8 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from unittest.mock import patch, Mock
 from operation1million import collector
-from operation1million.collector import (Collector, Source, employer_matches,
-                                html_items, fallback, config, normalize,
+from operation1million.collector import (Collector, Source,
+                                html_items, normalize,
                                 reported_total, source_lock)
 from operation1million.paths import CONFIG, ROOT
 from operation1million import store
@@ -286,7 +286,7 @@ class CollectionTests(unittest.TestCase):
     def source(self):
         return Source('test', 'company_sources', 'sample', 'Sample Inc.', 'workday', 'https://sample.wd1.myworkdayjobs.com/External', {'tenant':'sample','site':'External','workday_host':'wd1'})
     def args(self):
-        return argparse.Namespace(max_jobs=100,max_pages=10,delay=0,timeout=1,jsearch_timeout=1,fallback_queries=1)
+        return argparse.Namespace(max_jobs=100,max_pages=10,delay=0,timeout=1,jsearch_timeout=1)
 
     def test_sandisk_official_sitemap_reads_a_job_detail(self):
         """Redacted captures: Avature JSON-LD omits the JD and place."""
@@ -554,7 +554,7 @@ class CollectionTests(unittest.TestCase):
         source=Source('ti:1','company_sources','ti','Texas Instruments','ti_careers',
                       'https://careers.ti.com/',{})
         c=Collector(source,argparse.Namespace(max_jobs=100,max_pages=2,delay=0,timeout=1,
-                                              retries=0,jsearch_timeout=1,fallback_queries=1))
+                                              retries=0,jsearch_timeout=1))
         shell=Mock(status_code=200,headers={'content-type':'text/html','ETag':'W/"shell"'},
                    text='<base data-apibaseurl="https://ti.example/api" data-sitenumber="CX_1">')
         page=Mock(status_code=200,headers={'content-type':'application/json','ETag':'W/"api"'},text='')
@@ -671,11 +671,6 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(collector.posted_from_text('09/20/2026'), '2026-09-20')
         self.assertIsNone(collector.posted_from_text('Posted 3 days ago'))
 
-    def test_employer_filter(self):
-        self.assertTrue(employer_matches('Advanced Micro Devices, Inc.',['Advanced Micro Devices']))
-        self.assertTrue(employer_matches('AMD',['AMD']))
-        for name in ['AMD Staffing','Not AMD','AMDocs','','Microsoft Partner']:
-            self.assertFalse(employer_matches(name,['AMD','Microsoft']))
     def test_apple_auxiliary_links(self):
         html='<a href="/en-us/details/123/engineer">Engineer</a><a href="/en-us/details/123/engineer">See full role description</a><a href="/en-us/details/123/engineer/locationPicker">Locations</a>'
         items,_=html_items(html,'https://jobs.apple.com','apple_jobs')
@@ -728,29 +723,6 @@ class CollectionTests(unittest.TestCase):
         # own captured-response tests and needs full normalized records.
         with patch('operation1million.apple.enrich', return_value=[]):
             self.assertEqual(c.run(),('complete',''))
-    def test_missing_key_no_network(self):
-        with patch.dict('os.environ',{},clear=True),patch('requests.Session.get') as get:
-            rows,status,_=fallback(self.source(),['Sample'],self.args(),[30],config('sources_search.toml')['search']['jsearch'])
-            self.assertEqual((rows,status),([],'missing_credentials'));get.assert_not_called()
-
-    def test_jsearch_v2_nested_jobs_and_employer_filter(self):
-        args = self.args()
-        args.jsearch_guard = Mock()
-        response = Mock(status_code=200)
-        job = {'job_id': '123', 'job_title': 'Hardware Engineer', 'employer_name': 'Sample', 'job_apply_link': 'https://example.com/job/123'}
-        response.json.return_value = {'status': 'OK', 'data': {'jobs': [job, dict(job, job_id='456', employer_name='Sample Staffing')], 'cursor': 'next-page'}}
-        args.jsearch_guard.get.return_value = response
-        with patch.dict('os.environ', {'JSEARCH_API_KEY': 'test-placeholder'}):
-            rows, status, reason = fallback(self.source(), ['Sample'], args, [1], config('sources_search.toml')['search']['jsearch'])
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]['source_job_id'], '123')
-        self.assertEqual(status, 'query_limited')
-        self.assertIn('1 employer mismatches', reason)
-        call = args.jsearch_guard.get.call_args
-        self.assertIn('num_pages=1', call.args[1])
-        self.assertIn('query=Sample&', call.args[1])  # employer name, not a role keyword
-        self.assertEqual(call.kwargs['headers'], {'X-API-Key': 'test-placeholder'})
-
     def test_microsoft_lock_does_not_block_other_sources(self):
         microsoft = replace(self.source(), company_key='microsoft')
         another_microsoft = replace(self.source(), source_id='microsoft:second',

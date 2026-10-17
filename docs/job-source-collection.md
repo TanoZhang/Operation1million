@@ -67,10 +67,9 @@ Sitemaps: Renesas, with public detail-page enrichment. A source with
 an extractor can still fail when the remote site blocks access or redirects to
 a product homepage. Such failures are reported rather than counted as zero jobs.
 
-There are no configured company fallbacks after removing Rambus and Ventana
-Micro. Paid search is disabled by default. When explicitly enabled, it can be
-used for nationwide functional discovery and explicitly configured company
-fallbacks. Caps, valid empty boards, and paused sources do not trigger fallback. No challenge solving,
+Paid search is disabled by default. When explicitly enabled, it is used only for
+nationwide functional discovery; a capped, empty or paused board never triggers
+a company search (that fallback was removed on 2026-10-16). No challenge solving,
 browser impersonation, disabled TLS verification, or CAPTCHA bypass is used.
 
 ## Limits and status

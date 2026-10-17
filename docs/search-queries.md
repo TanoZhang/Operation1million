@@ -6,18 +6,15 @@
 page allocations, request defaults, budget, and conservative title filters.
 See [JSearch daily discovery](jsearch.md) for behavior and commands.
 
-`data/config/discovery_queries.toml` contains explicit company fallbacks and
-reviewed employer aliases. These are separate from functional discovery.
 `data/config/sources_search.toml` defines the transport endpoint and header name.
 Credentials stay in the environment or ignored `.env.local`.
 
-## Legacy catalog
+## No other keyword list
 
-The existing SQLite `search_queries` table and `operation1million.query_catalog` helper
-are retained for compatibility with the authored schema and old migrations.
-The current collector does not execute these 18 legacy templates or multiply
-functional queries by company aliases. Editing that table does not change the
-daily JSearch plan. Do not maintain competing executable keyword lists.
+The legacy SQLite `search_queries` catalog (18 templates, `job-queries`,
+migration 001) was removed on 2026-10-16; nothing executed it. A fresh
+`job-store --bootstrap` no longer creates the table, and an existing index
+keeps an unread copy. Do not maintain competing executable keyword lists.
 
 No query configuration stores credentials, pagination progress or run results.
 Per-query outcomes belong in daily manifests; job identities and source state

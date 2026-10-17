@@ -1,4 +1,6 @@
 """Catalog reads release SQLite resources on both success and failure."""
+from contextlib import redirect_stderr, redirect_stdout
+import io
 from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
@@ -29,7 +31,8 @@ class ValidatorReportTests(unittest.TestCase):
 
             with patch.object(validate_sources, 'OUT_CSV', out), \
                  patch.object(validate_sources, 'load_sources', return_value=[fixture]), \
-                 patch.object(validate_sources, 'validate', probe):
+                 patch.object(validate_sources, 'validate', probe), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 self.assertEqual(validate_sources.main(), 0)
             self.assertEqual(probed, [fixture])
             self.assertIn('usable', out.read_text(encoding='utf-8'))
