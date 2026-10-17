@@ -121,10 +121,31 @@ _SCRIPT_EDGE = re.compile('(?<=[A-Za-z0-9])(?=[぀-ヿ一-鿿])'
                           '|(?<=[぀-ヿ一-鿿])(?=[A-Za-z0-9])')
 
 
+# Chip validation said the industry's way. Renesas' Post Silicon Validation
+# Intern -- bench validation plans for new silicon, debugging silicon issues --
+# was refused 29 times for naming no supported duty (2026-10-17): the profile
+# says "chip validation", the posting says "silicon". Only silicon named as the
+# thing validated, brought up or debugged gains the profile's words: a line
+# that merely mentioned custom silicon and testing kept a finance partner and
+# a production controller in a first version. This can keep a posting, never
+# refuse one.
+SILICON_VALIDATION = re.compile(
+    r'\bpost.?silicon\b'
+    r'|\bsilicon\s+(?:validation|bring.?up|debug\w*|characteri[sz]ation|issues?|bugs?)\b'
+    r'|\b(?:validat\w*|debug\w*|bring(?:ing)?.?up|characteri[sz]\w*)\s+(?:\w+\s+){0,4}?silicon\b', re.I)
+
+
+def _silicon_gloss(text):
+    return text + '\nchip validation' if SILICON_VALIDATION.search(text) else text
+
+
 def glossed(text):
-    """Japanese text with its English trade terms added; other text unchanged."""
-    if not text or not re.search('[぀-ヿ一-鿿]', text):
+    """Japanese text with its English trade terms added; other text unchanged,
+    but for chip validation said as silicon validation."""
+    if not text:
         return text
+    if not re.search('[぀-ヿ一-鿿]', text):
+        return _silicon_gloss(text)
     found = [english for japanese, english in GLOSSARY if re.search(japanese, text)]
     # Circuit design is the trade only on a chip: Kioxia's 「製造装置開発」 designs
     # the circuits of fab equipment, and read as custom circuit design.

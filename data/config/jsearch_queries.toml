@@ -349,6 +349,17 @@ exclude_title_patterns = [
   # "Low-Energy" with a hyphen too (2026-09-27).
   '(?<!\blow\s)(?<!\blow-)\benergy\b(?![-\s]?efficien)',
   '\b(?:mechanical|thermal|structural|civil|construction|manufacturing|industrial)\s+engineer\b',
+  # Trades, building codes and faculty posts the Electrical phrases bring in
+  # (2026-10-17): Electrical Helper, Apprentice and Journeyman, an Electrical
+  # Codes Inspector, a Pre-Fab Detailer and a Department Chair were accepted
+  # at a score of 0, their short descriptions kept as publisher excerpts.
+  # Each title settles it; an Electrical Engineering Intern is untouched.
+  # Checked on 76,347 stored October postings: 18 newly refused, all trades,
+  # substations or licensure. Faculty is not refused: the one it would have
+  # taken was "Adjunct Faculty, VLSI / Chip Design".
+  '\belectricians?\b', '\bjourneym[ae]n\b', '\belectrical\s+(?:helpers?|apprentices?)\b',
+  '\b(?:codes?|building|electrical)\s+inspectors?\b', '\bdetailers?\b', '\bsubstations?\b',
+  '\bEIT\b', '\bdepartment\s+chair\b',
 ]
 
 # Titles that may not be taken at their word in either direction: the trade is

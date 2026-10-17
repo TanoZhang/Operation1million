@@ -343,6 +343,20 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
 
+    def test_trades_substations_and_licensure_are_not_the_trade(self):
+        """Accepted at a score of 0 through the Electrical phrases (2026-10-17)."""
+        rules = self.settings['filter']
+        for title in ('Electrical Helper', 'Electrical Apprentice', 'Electrical Journeyman',
+                      'Journeyman Electrician (Construction) - Memphis', 'Electrical Codes Inspector (Hiring Bonus)',
+                      'Electrical Pre-Fab Detailer', 'Entry-Level Substation Design Engineer',
+                      'Substation Physical Design EIT/Designer',
+                      'Department Chair, Electrical & Computer Engineering'):
+            self.assertTrue(jsearch.excluded(title, rules), title)
+        for title in ('Electrical Engineering Intern', 'Electrical Engineer, Compute Architecture',
+                      'Electrical Hardware Engineer I - Graduate', 'Apprentice Hardware Engineer',
+                      'Adjunct Faculty, VLSI / Chip Design', 'Detail Design Engineer'):
+            self.assertFalse(jsearch.excluded(title, rules), title)
+
     def test_every_query_names_an_entry_level(self):
         # The user, 2026-10-13: intern, new grad and early career only, never a
         # phrase without one. The 33 general queries went, with 45 that accepted

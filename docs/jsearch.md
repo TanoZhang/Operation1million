@@ -99,6 +99,31 @@ power consultancies (Jacobs, WSP, HDR, CMTA; "substation"); 18% of results and
 28% of accepted ones are from companies read directly, which the provider
 cannot exclude (it excludes publishers only).
 
+Filter bugs found the same day, checked against every stored October posting
+before and after:
+- Trades, substations and licensure: Electrical Helper, Apprentice and
+  Journeyman, an Electrical Codes Inspector, a Pre-Fab Detailer and a
+  Department Chair were accepted at score 0 (a short description is kept as
+  a publisher's excerpt, a protected decision left alone). Title exclusions
+  for electricians, journeymen, electrical helpers and apprentices, code and
+  building inspectors, detailers, substations, EIT and department chairs:
+  18 of 76,347 stored postings newly refused, all of that kind. Faculty was
+  left out: it would have taken "Adjunct Faculty, VLSI / Chip Design".
+- Silicon validation read as no supported duty: Renesas' Post Silicon
+  Validation Intern (bench validation of new silicon, debugging silicon
+  issues) was refused 29 times; the resume profile says "chip validation".
+  `resume_fit` now adds "chip validation" where silicon is named as the thing
+  validated, brought up or debugged. Of 5,244 stored postings naming silicon,
+  40 change to accepted after every rule -- validation, DFT, post-silicon
+  test and bring-up roles; it never refuses one. A first, line-wide version
+  took 75, a finance partner and a production controller among them.
+- The SoC phrases' history was mostly security operations centres ("SOC
+  Analyst"), accepted by an older filter and refused by today's. The ranking
+  seed now counts only postings the current filter accepts, at today's score:
+  SoC Intern 33 postings no other query found -> 7, SoC New Grad 43 -> 3. Of
+  2,093 stored October JSearch postings, 450 would not be accepted now; run
+  `job-store --rescore` after installing.
+
 Expected and unmeasured: a rotated day near the 350 budget; if it binds, the
 trial tiers are cut first. Measure from the record before widening or cutting.
 Suite: 1,275 run, 13 skipped, pass.

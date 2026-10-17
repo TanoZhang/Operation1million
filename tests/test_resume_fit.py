@@ -23,6 +23,26 @@ def profile():
 
 
 class ResumeFitTests(unittest.TestCase):
+    def test_silicon_validation_is_chip_validation(self):
+        """Renesas' Post Silicon Validation Intern was refused 29 times for
+        naming no supported duty: the posting says silicon, the profile chip
+        (2026-10-17)."""
+        chip = {'version': 1, 'gaps': [], 'families': [
+            {'id': 'chip_functional_validation', 'evidence': 'Chip validation project',
+             'all': [r'\bchip\s+validation\b', r'\b(?:verification|validat\w*|test\w*)\b']}]}
+        jd = ('Key Responsibilities\nHelp develop and run bench validation plans for new silicon products '
+              'such as DDR and memory controllers.\nUse oscilloscopes for electrical characterization.\n'
+              'Help debug silicon issues with design and test engineers.')
+        row = {'title': 'Post Silicon Validation Intern', 'raw': {'job_description': jd}}
+        self.assertEqual(resume_fit.assess(row, chip)['verdict'], 'keep')
+        # Silicon only mentioned beside testing is not the work: a finance or
+        # production role at a chip company stays refused.
+        for jd in ('Annapurna Labs builds custom silicon for AWS. You will partner with finance and test '
+                   'teams on forecasting and budgets.',
+                   'Plan production schedules for our silicon products and track test equipment orders.'):
+            row = {'title': 'Strategic Finance Partner', 'raw': {'job_description': jd}}
+            self.assertEqual(resume_fit.assess(row, chip)['verdict'], 'reject', jd)
+
     def test_exposure_is_not_mandatory_expertise(self):
         row = {'title': 'Control Engineer', 'raw': {'description':
             'Commission PLC PID loops.\nRequired qualifications\nExpert PLC programming and hands-on EtherCAT experience.'}}
