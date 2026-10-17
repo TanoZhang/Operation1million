@@ -35,28 +35,6 @@ def usage(path, settings=None):
     return {'period': balance['period_used'], 'day': balance['day_used']}
 
 
-def credits_recorded(path, settings=None):
-    """Return credits this ledger says were spent in the current period.
-
-    Opening a ledger creates it. That is right for a pass, which needs somewhere
-    to record what it spends, and wrong for a check, which must not manufacture
-    the very thing it is asking about: a missing published ledger would be
-    created empty, compare equal-or-below the local one, and report that all was
-    well. So a check reads only what is already there.
-    """
-    path = Path(path)
-    if not path.is_file():
-        raise FileNotFoundError(f'No credit ledger at {path}')
-    settings = settings or jsearch.load_plan()[0]
-    guard = RequestGuard(path=path,
-                         target_limit=settings['monthly_target'],
-                         cycle_start=settings['cycle_start'],
-                         cycle_days=settings['cycle_days'],
-                         day_zone=settings['budget_timezone'],
-                         day_resets_at=settings['budget_day_resets_at'])
-    return guard.balance()['period_used']
-
-
 def compare(local, published, settings=None):
     """Return (local_used, published_used, ok) for the billing period.
 

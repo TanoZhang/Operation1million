@@ -1,5 +1,39 @@
 # JSearch daily discovery
 
+## Query yield, a closing-sweep reserve, pruning - 2026-10-16 (claude)
+
+Measured from the private run logs, whose JSearch records name every query
+that returned a posting (`raw.discovery_queries`), on the days whose manifest
+is a U.S. 3-day pass (2026-10-03..12 and 10-16; a day's manifest keeps only
+its last run, so the 10-13 month run and the 10-14/15 U.S. passes, overwritten
+by the Japan sweep, are not counted): 2,131 pages found 1,103 new postings that
+no other query returned, 0.52 a page. Intern 1.02 a page counted over the
+whole October log, new grad 0.82, early career 0.74. On 10-16, 145 of 147
+queries reached the provider's last page and one its cap (Hardware Engineer
+0-2 years, 15 pages, 5 run-unique), using 343 of the 350 budget: depth and
+the daily budget do not limit the 3-day pass; the number of phrases does.
+
+At about 343 a day the U.S. plan alone would take the cycle's 10,000 and leave
+the Japan month sweep nothing; that sweep's first full run returned 400
+run-unique postings in 304 pages. `sweep_reserve = 1000`: a scheduled daily
+pass stops 1,000 credits short of the cycle target, and the closing sweep
+spends them -- Japan from three days before reset, then the final-day U.S.
+month fallback. A run now (`--ignore-daily-limit`) is not held to it. With the
+pruning below the plan should spend about 320 a day, so the reserve binds only
+around the cycle's last days; the last three days' U.S. postings are read by
+the next cycle's first 3-day pass.
+
+Removed: 14 queries that in 8 to 11 passes never were the only query to find
+a new posting (none of the 2,428 new JSearch postings since 10-03 was found by
+these alone). Caps 15 -> 5 for three with at most one such posting per ten
+pages. Added: 8 five-page U.S. trials from the user's role photo, only the
+families never asked before (SoC Design/Verification Intern, Emulation
+Intern, SerDes, Signal Integrity and Firmware New Grad were asked and removed
+for no yield), and 65 Japan sweep phrases in the two shapes that found
+postings (field + role + エンジニア, field + 未経験 / 経験浅め / 既卒), none a
+phrase an earlier sweep removed: 141 U.S. queries, 139 Japan phrases.
+Unmeasured until the next passes and the 2026-11-12..14 sweep.
+
 ## Full provider quota - 2026-10-16
 
 The user raised the operating target from 9,600 to the 10,000-credit provider

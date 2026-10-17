@@ -120,19 +120,6 @@ class LedgerGuardTests(unittest.TestCase):
         self.assertEqual(ledger_guard.main([str(local), str(published)]), 1)
         self.assertEqual(ledger_guard.main([str(published), str(local)]), 0)
 
-    def test_a_check_never_creates_the_ledger_it_is_asking_about(self):
-        """Opening a ledger creates it, which is right for a pass and wrong here.
-
-        A published ledger conjured out of nothing reads as zero credits spent,
-        compares at or below whatever the local one says, and reports that all
-        is well -- the guard manufacturing exactly the silence it exists to
-        break.
-        """
-        missing = self.root / 'absent.sqlite'
-        with self.assertRaises(FileNotFoundError):
-            ledger_guard.credits_recorded(missing, self.settings)
-        self.assertFalse(missing.exists(), 'a read-only check wrote to disk')
-
     def test_a_missing_ledger_is_refused_rather_than_invented(self):
         missing = self.root / 'absent.sqlite'
         published = self.ledger('published', 351)

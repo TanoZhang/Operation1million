@@ -1096,27 +1096,6 @@ def finalize_manifest(db, stamp, reports, jsearch_stats=None, extra=None):
     return json.loads(path.read_text(encoding='utf-8')) if path.is_file() else None
 
 
-def refresh_manifest(db, stamp):
-    """Re-checksum a day's file without restating what the day collected.
-
-    `write_manifest` rebuilds a manifest from a pass's reports, so a run that
-    only appends corrections to today's file must not call it: a rescore knows
-    nothing about how many sources completed, and would zero the counts the
-    pass recorded. Where the day has no manifest at all, one is written,
-    because a run file without a manifest fails `verify`.
-    """
-    path = manifest_path(stamp)
-    if not path.is_file():
-        return write_manifest(db, stamp, [])
-    if sealed(stamp):
-        raise FileExistsError('Daily manifest is sealed; that day is over')
-    manifest = json.loads(path.read_text(encoding='utf-8'))
-    digest, records = _file_facts(daily_log(stamp))
-    manifest.update({'records': records, 'sha256': digest})
-    _write_json_atomic(path, manifest)
-    return manifest
-
-
 def verify(stamp=None):
     """Check each day's file against the digest recorded in its manifest."""
     results = []

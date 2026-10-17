@@ -215,14 +215,6 @@ class OrderTests(unittest.TestCase):
 
 
 class SummaryTests(unittest.TestCase):
-    def test_both_early_career_bands_report_as_one_number(self):
-        counts = ranking.summarize([
-            group('RTL Design Intern'), group('Hardware Engineering Intern'),
-            group('RTL Design Engineer'), group('Hardware Engineer'),
-            group('Warehouse Associate')])
-        self.assertEqual(counts, {'intern_ng': 2, 'core_vlsi': 1,
-                                  'related_hardware': 1, 'low_relevance': 1})
-
     def test_a_label_exists_for_every_band(self):
         self.assertEqual(len(ranking.LABELS), 5)
         for title in ('RTL Design Intern', 'RTL Design Engineer', 'Hardware Intern',

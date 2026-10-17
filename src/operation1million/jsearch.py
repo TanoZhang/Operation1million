@@ -110,6 +110,9 @@ def _read_plan(path):
     config.setdefault('daily_budget', config['monthly_target'] // days)
     if type(config['daily_budget']) is not int or not 0 <= config['daily_budget'] <= config['monthly_target']:
         raise ValueError('Invalid daily page-credit budget')
+    config.setdefault('sweep_reserve', 0)
+    if type(config['sweep_reserve']) is not int or not 0 <= config['sweep_reserve'] <= config['monthly_target']:
+        raise ValueError('Invalid sweep_reserve')
     # The plan renews every cycle_days from a fixed date, not on a day of the
     # month, so a period never stretches or shrinks with February.
     config.setdefault('cycle_start', '2026-09-16')
@@ -360,13 +363,14 @@ class Client:
         numbers are local progress counters, never API request parameters.
         """
         items = self.fetch_batch(replace(query, pages=1), first_page=page)
-        token = self.page_cursors.get((query.key, page + 1))
-        repeated = token and any(key == query.key and number <= page and value == token
+        own = query.key
+        token = self.page_cursors.get((own, page + 1))
+        repeated = token and any(key == own and number <= page and value == token
                                  for (key, number), value in self.page_cursors.items())
         if repeated:
-            self.cursor_loops.add(query.key)
+            self.cursor_loops.add(own)
         else:
-            self.cursor_loops.discard(query.key)
+            self.cursor_loops.discard(own)
         return items, not token or bool(repeated)
 
     def fetch(self, query):

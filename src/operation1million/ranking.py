@@ -230,13 +230,6 @@ def _early(title):
 LABELS = ('Intern / New Grad', 'Related · Intern / New Grad', 'Core VLSI',
           'Related Hardware', 'Other')
 
-# What a pass reports, which is coarser than what the queue sorts by: the two
-# early-career bands are one number to a reader, though a core opening still
-# leads an adjacent one inside them.
-SUMMARY = (('intern_ng', (0, 1)), ('core_vlsi', (2,)),
-           ('related_hardware', (3,)), ('low_relevance', (4,)))
-
-
 SECURITY_OPERATIONS = re.compile(r'\bsecurity\s+operations\b|\bSOC\s+analysts?\b|\bcyber\s*security\b', re.I)
 
 
@@ -273,17 +266,6 @@ def early_career(title):
     a floor of experience, and stays with the rest.
     """
     return _early(title or '')
-
-
-def summarize(groups):
-    """Count groups per reported band, for a pass or a queue to print."""
-    counts = dict.fromkeys((name for name, _ in SUMMARY), 0)
-    for group in groups:
-        found = bucket(group.get('title') if isinstance(group, dict) else group)
-        for name, members in SUMMARY:
-            if found in members:
-                counts[name] += 1
-    return counts
 
 
 # Every ISO shape the providers send -- with an offset, without one, with

@@ -231,6 +231,7 @@ class CollectionPolicyTests(unittest.TestCase):
                      patch('operation1million.collector.Collector.run', return_value=(status, '')), \
                      patch('operation1million.collector.fallback') as fallback, patch('builtins.print'):
                     guard.return_value.attempts = 0
+                    guard.return_value.balance.return_value = {'period_remaining': 9000}
                     main()
                     fallback.assert_not_called()
 

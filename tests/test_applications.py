@@ -26,7 +26,7 @@ from unittest.mock import patch
 from operation1million import applications, review
 
 
-class ApplicationsTests(unittest.TestCase):
+class ApplicationsFixture(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -69,6 +69,68 @@ class ApplicationsTests(unittest.TestCase):
                                          'source_job_id': requisition, 'url': ''})
         return next(g for g in self.queue()[bucket] if g['id'] == key)
 
+    def add_paid(self, job_id, location, age=1):
+        title = 'Hardware (CPU, GPU, SoC, Digital Design, DV) Engineering Internship – Summer 2027'
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (f'https://linkedin.test/{job_id}', 'sample', title, location, job_id,
+                        (self.now - timedelta(days=age)).isoformat(), None, 'jsearch', 81, None,
+                        json.dumps({'description': 'RTL SoC DV internship.'}),
+                        (self.now - timedelta(days=age)).isoformat()))
+
+    def paid_groups(self, bucket='pending'):
+        return [g for g in self.queue()[bucket]
+                if any(job['provider_key'] == 'jsearch' for job in g['jobs'])]
+
+    def place(self, url, location, title='RTL Engineer'):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET title=?, location=? WHERE url=?',
+                       (title, location, f'https://example.test/{url}'))
+
+    def seen_table(self, url, decision, requisition='req-b', provider='jsearch',
+                   ago=timedelta(0)):
+        """The rejection record a paid pass leaves behind for a posting it drops."""
+        stamp = (self.now - ago).isoformat()
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("""CREATE TABLE IF NOT EXISTS seen_jobs (
+                provider_key TEXT NOT NULL, source_job_id TEXT NOT NULL, url TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '', employer TEXT NOT NULL DEFAULT '',
+                first_seen TEXT NOT NULL, last_seen TEXT NOT NULL,
+                decision TEXT NOT NULL DEFAULT '', confidence INTEGER,
+                filter_version TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (provider_key, source_job_id))""")
+            db.execute('INSERT OR REPLACE INTO seen_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (provider, requisition, url, 'RTL Engineer', 'Sample Semiconductor',
+                        stamp, stamp, decision, 80, 'v1'))
+            db.execute("UPDATE jobs SET provider_key='jsearch' WHERE url=?", (url,))
+
+    def pending_urls(self):
+        return {job['url'] for status in ('pending', 'backlog')
+                for group in self.queue()[status] for job in group['jobs']}
+
+    def identity(self, url, provider, scope, requisition):
+        """Record the alias the store writes when a board publishes a requisition."""
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('''CREATE TABLE IF NOT EXISTS job_identities(
+                              provider_key TEXT NOT NULL, scope TEXT NOT NULL,
+                              source_job_id TEXT NOT NULL, url TEXT NOT NULL,
+                              PRIMARY KEY(provider_key, scope, source_job_id))''')
+            db.execute('INSERT OR REPLACE INTO job_identities VALUES (?, ?, ?, ?)',
+                       (provider, scope, requisition, url))
+
+    def release_identities(self, url):
+        """What `record_source` does when an address carries a new requisition."""
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('DELETE FROM job_identities WHERE url=?', (url,))
+
+    def old_title_group(self):
+        group = self.group_for('req-a')
+        group['id'] = 'old-company-title-key'
+        group['jobs'].extend(self.group_for('req-b')['jobs'])
+        return group
+
+
+class ApplicationsTests(ApplicationsFixture):
     def test_a_shared_title_is_not_a_shared_decision(self):
         """The bug this replaced: two requisitions answered by one click."""
         pending = self.queue()['pending']
@@ -122,19 +184,6 @@ class ApplicationsTests(unittest.TestCase):
         self.assertEqual(dates['https://example.test/a'], '2026-09-17')
         self.assertIsNone(dates['https://example.test/b'], 'a lower bound is not a date')
 
-    def add_paid(self, job_id, location, age=1):
-        title = 'Hardware (CPU, GPU, SoC, Digital Design, DV) Engineering Internship – Summer 2027'
-        with closing(sqlite3.connect(self.db)) as db, db:
-            db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                       (f'https://linkedin.test/{job_id}', 'sample', title, location, job_id,
-                        (self.now - timedelta(days=age)).isoformat(), None, 'jsearch', 81, None,
-                        json.dumps({'description': 'RTL SoC DV internship.'}),
-                        (self.now - timedelta(days=age)).isoformat()))
-
-    def paid_groups(self, bucket='pending'):
-        return [g for g in self.queue()[bucket]
-                if any(job['provider_key'] == 'jsearch' for job in g['jobs'])]
-
     def test_a_paid_listing_decided_once_does_not_come_back_under_a_new_id(self):
         # Reported 2026-09-24: applied on day one, back the next day, twice.
         self.add_paid('gid-1', 'Santa Clara, California, US', age=2)
@@ -163,11 +212,6 @@ class ApplicationsTests(unittest.TestCase):
         self.add_paid('gid-2', 'Santa Clara, California, US', age=0)
         applications.append_decision(self.ledger, self.paid_groups('applied')[0], 'pending')
         self.assertEqual(len(self.paid_groups()[0]['jobs']), 2)
-
-    def place(self, url, location, title='RTL Engineer'):
-        with closing(sqlite3.connect(self.db)) as db, db:
-            db.execute('UPDATE jobs SET title=?, location=? WHERE url=?',
-                       (title, location, f'https://example.test/{url}'))
 
     def test_an_application_covers_its_namesake_in_the_same_city(self):
         """Asked for on 2026-10-05: an exported list held jobs the company's site
@@ -283,27 +327,6 @@ class ApplicationsTests(unittest.TestCase):
         self.assertIn('req-new', {job['source_job_id']
                                   for group in self.queue()['pending'] for job in group['jobs']})
 
-    def seen_table(self, url, decision, requisition='req-b', provider='jsearch',
-                   ago=timedelta(0)):
-        """The rejection record a paid pass leaves behind for a posting it drops."""
-        stamp = (self.now - ago).isoformat()
-        with closing(sqlite3.connect(self.db)) as db, db:
-            db.execute("""CREATE TABLE IF NOT EXISTS seen_jobs (
-                provider_key TEXT NOT NULL, source_job_id TEXT NOT NULL, url TEXT NOT NULL,
-                title TEXT NOT NULL DEFAULT '', employer TEXT NOT NULL DEFAULT '',
-                first_seen TEXT NOT NULL, last_seen TEXT NOT NULL,
-                decision TEXT NOT NULL DEFAULT '', confidence INTEGER,
-                filter_version TEXT NOT NULL DEFAULT '',
-                PRIMARY KEY (provider_key, source_job_id))""")
-            db.execute('INSERT OR REPLACE INTO seen_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                       (provider, requisition, url, 'RTL Engineer', 'Sample Semiconductor',
-                        stamp, stamp, decision, 80, 'v1'))
-            db.execute("UPDATE jobs SET provider_key='jsearch' WHERE url=?", (url,))
-
-    def pending_urls(self):
-        return {job['url'] for status in ('pending', 'backlog')
-                for group in self.queue()[status] for job in group['jobs']}
-
     def test_a_posting_the_last_pass_rejected_is_not_offered_from_an_older_copy(self):
         """The rejection is on record, and it is newer than the copy on show.
 
@@ -391,21 +414,6 @@ class ApplicationsTests(unittest.TestCase):
         self.assertIn(url, {job['url'] for group in self.queue()['pending']
                             for job in group['jobs']})
 
-    def identity(self, url, provider, scope, requisition):
-        """Record the alias the store writes when a board publishes a requisition."""
-        with closing(sqlite3.connect(self.db)) as db, db:
-            db.execute('''CREATE TABLE IF NOT EXISTS job_identities(
-                              provider_key TEXT NOT NULL, scope TEXT NOT NULL,
-                              source_job_id TEXT NOT NULL, url TEXT NOT NULL,
-                              PRIMARY KEY(provider_key, scope, source_job_id))''')
-            db.execute('INSERT OR REPLACE INTO job_identities VALUES (?, ?, ?, ?)',
-                       (provider, scope, requisition, url))
-
-    def release_identities(self, url):
-        """What `record_source` does when an address carries a new requisition."""
-        with closing(sqlite3.connect(self.db)) as db, db:
-            db.execute('DELETE FROM job_identities WHERE url=?', (url,))
-
     def test_a_replacement_at_a_decided_address_is_not_hidden_by_a_provider_move(self):
         """The decision follows the opening, not the address it was found at.
 
@@ -466,12 +474,6 @@ class ApplicationsTests(unittest.TestCase):
             db.execute("UPDATE jobs SET source_job_id='req-new' WHERE url='https://example.test/a'")
         self.assertEqual(self.group_for('req-new')['jobs'][0]['url'], 'https://example.test/a')
         self.assertEqual(len(self.queue()['skipped']), 1)
-
-    def old_title_group(self):
-        group = self.group_for('req-a')
-        group['id'] = 'old-company-title-key'
-        group['jobs'].extend(self.group_for('req-b')['jobs'])
-        return group
 
     def test_old_multi_requisition_snapshot_splits_before_reopening(self):
         applications.append_decision(self.ledger, self.old_title_group(), 'skipped')
@@ -558,7 +560,7 @@ class ApplicationsTests(unittest.TestCase):
         self.assertEqual(state['applied'][0]['title'], group['title'])
 
 
-class BacklogTests(ApplicationsTests):
+class BacklogTests(ApplicationsFixture):
     """A three-day queue is a working rhythm, not an expiry date."""
 
     def test_an_undecided_job_moves_to_backlog_instead_of_vanishing(self):
@@ -584,7 +586,7 @@ class BacklogTests(ApplicationsTests):
         self.assertEqual(self.queue()['backlog'], [])
 
 
-class HttpTests(ApplicationsTests):
+class HttpTests(ApplicationsFixture):
     def test_description_survives_store_html_deduplication(self):
         from operation1million import store
         text = 'Design RTL and verify hardware.'

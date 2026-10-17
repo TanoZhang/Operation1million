@@ -67,7 +67,7 @@ class OutcomeStoreTests(unittest.TestCase):
         self.assertNotIn('outcome', state['applied'][1])
 
 
-class OutcomeEndpointTests(unittest.TestCase):
+class OutcomeEndpointFixture(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -107,6 +107,8 @@ class OutcomeEndpointTests(unittest.TestCase):
         self.post('/api/decision', {'id': group['id'], 'status': 'applied'}, state['token'])
         return group['id'], state['token']
 
+
+class OutcomeEndpointTests(OutcomeEndpointFixture):
     def test_passed_is_recorded_and_shown_without_touching_the_ledger(self):
         group_id, token = self.applied()
         ledger_before = self.ledger.read_bytes()
@@ -142,7 +144,7 @@ class OutcomeEndpointTests(unittest.TestCase):
         self.assertFalse(applications.outcomes_path(self.ledger).exists())
 
 
-class GmailListEndpointTests(OutcomeEndpointTests):
+class GmailListEndpointTests(OutcomeEndpointFixture):
     def test_the_unsettled_replies_are_served_newest_first(self):
         import os
         from unittest import mock

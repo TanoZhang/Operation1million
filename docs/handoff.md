@@ -1,3 +1,25 @@
+# Query yield, closing-sweep reserve, slimming - 2026-10-16 (claude)
+
+The user: not the applications -- how many searches become postings; then
+better phrases, budget order and depth; widen Japan at the cycle's end; slim
+everything without changing behavior. Measurement and config in
+docs/jsearch.md (2026-10-16): 0.52 new sole-found postings a page; depth and
+the 350 budget do not bind the 3-day pass; `sweep_reserve = 1000` keeps the
+cycle's last credits for the Japan sweep and the final-day U.S. fallback;
+14 redundant U.S. queries removed, 8 photo trials added (141); Japan 139.
+
+Slimming, behavior unchanged: BacklogTests, HttpTests and
+GmailListEndpointTests inherited their parents' tests, so 77 tests ran two
+or three times (now fixtures without tests; 1,311 -> 1,234 run, every test
+name kept). Removed unused `ledger_guard.credits_recorded`,
+`ranking.summarize`, `store.refresh_manifest` and their two test-only checks;
+the 30 September audit reports and repro scripts under docs/ (in Git
+history; their bugs are in architecture.md); 106 finished claims from
+agent-protocol.md (1,398 -> 189 lines, read by both agents at every start).
+`fetch_page` hashed every query key per page while scanning cursors.
+Full offline suite on Windows: 1,234 run, 13 skipped, all pass. Not pushed or
+installed: the user asked for commit and push only.
+
 # JSearch cycle audit, full quota, and Muse marker - 2026-10-16 (codex)
 
 The user's "last month" meant the prior 30-day API billing period, 2026-09-16

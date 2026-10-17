@@ -297,7 +297,7 @@ PY
 )
 if [ "$days_until_reset" -le 3 ]; then
   set +e
-  # 6000 s since 2026-10-13: the Japan sweep asks 139 phrases.
+  # 6000 s since 2026-10-13: the Japan sweep asks 139 phrases (65 of them trials added 2026-10-16).
   job-collect --jsearch-only --backfill --workers 1 --delay 1.0 --jsearch-max-seconds 6000
   sweep_code=$?
   set -e

@@ -313,7 +313,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 147)
+        self.assertEqual(len(self.plan), 141)
         self.assertEqual(self.settings['monthly_target'], 10000)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
         # day, then 330 from the next cycle on (350 since 2026-10-13).
@@ -336,7 +336,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'A')},
-            {'intern': 980, 'new_grad': 725, 'early_career': 245, 'A': 0})
+            {'intern': 865, 'new_grad': 715, 'early_career': 230, 'A': 0})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -594,7 +594,7 @@ class DiscoveryTests(unittest.TestCase):
              patch('sys.stdout', new_callable=io.StringIO) as output:
             self.assertEqual(collector.main(), 0)
         preview = json.loads(output.getvalue())
-        self.assertEqual(preview["queries_planned"], 147)
+        self.assertEqual(preview["queries_planned"], len(self.plan))
         self.assertEqual(preview['max_pages_per_query'], 40)
         self.assertFalse(missing.exists())
         self.assertFalse(store.LOG.exists())
@@ -1485,7 +1485,7 @@ class DiscoveryTests(unittest.TestCase):
         self.session.get.side_effect = lambda url, **kw: self.continuing_response()
         _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
 
-        self.assertEqual(len(plan), 147)
+        self.assertEqual(len(plan), len(self.plan))
         # The budget is never exceeded, whatever the caps add up to.
         self.assertLessEqual(guard.credits, settings['daily_budget'])
         self.assertEqual(stats['jsearch_pages_used'], guard.credits)
@@ -1541,7 +1541,7 @@ class DiscoveryTests(unittest.TestCase):
         # rebuilds from and what the commit step refuses to publish without.
         self.assertEqual(store.verify(), [(STAMP[:10], 'ok')])
         manifest = json.loads(store.manifest_path(STAMP).read_text())
-        self.assertEqual(manifest["jsearch_queries_planned"], 147)
+        self.assertEqual(manifest["jsearch_queries_planned"], len(self.plan))
         self.assertLessEqual(manifest['jsearch_pages_used'], self.settings['daily_budget'])
         self.assertEqual(manifest['jsearch_failures'], 0)
         # Paid results reached the store, and every one of them carries a score.
@@ -1625,14 +1625,16 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_small_budgets_go_to_internships_first(self):
         settings, plan = jsearch.load_plan()
+        interns = sum(q.pages for q in plan if q.tier == 'intern')
         for cap, expected in [(24, {'intern': 24}),
-                              (1019, {'intern': 980, 'new_grad': 39})]:
+                              (interns + 39, {'intern': interns, 'new_grad': 39})]:
             with self.subTest(cap=cap):
                 guard = RequestGuard(self.root / f'priority-{cap}.sqlite', daily_limit=cap)
                 guard.interval = 0
                 client = jsearch.Client(SEARCH, settings, guard, session=self.session)
                 self.session.get.side_effect = lambda url, **kw: self.continuing_response()
-                _, stats = jsearch.collect(plan, client, settings, {}, self.persist)
+                # Spending order is the subject; storing a thousand pages is not.
+                _, stats = jsearch.collect(plan, client, settings, {}, lambda *args: None)
                 spent = {}
                 for query in stats['jsearch_queries']:
                     if query['pages_used']:
@@ -1647,7 +1649,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual({q.tier: q.pages for q in deep},
                          {'intern': 60, 'new_grad': 50, 'early_career': 40})
         # These are depth ceilings, not an allocation; the sweep guard bounds spend.
-        self.assertEqual(sum(q.pages for q in deep), 76 * 60 + 51 * 50 + 20 * 40)
+        self.assertEqual(sum(q.pages for q in deep), 70 * 60 + 52 * 50 + 19 * 40)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
@@ -1677,6 +1679,48 @@ class DiscoveryTests(unittest.TestCase):
             collector.main()
         # The whole plan is present; the guard bounds this invocation to five.
         self.assertLessEqual(self.guard.credits, 5)
+
+    def test_a_scheduled_pass_leaves_the_sweep_reserve(self):
+        """The cycle's last credits go to the closing sweep (2026-10-16).
+
+        The U.S. 3-day plan ends on its own near 343 pages a day, enough to take
+        the whole quota and leave the Japan sweep nothing. A run now is the
+        user's order and is not held to the reserve.
+        """
+        configs = {'discovery_queries.toml': {},
+                   'sources_search.toml': {'search': {'jsearch': SEARCH}}}
+        settings = dict(self.settings, sweep_reserve=self.guard.target_limit - 3)
+        self.session.get.side_effect = lambda url, **kw: self.continuing_response()
+        # The guard is patched in, so the run limit its constructor would take
+        # is set here: none for a scheduled pass, five for the run now.
+        for extra, limit, spent in [([], None, 3),
+                                    (['--ignore-daily-limit', '--jsearch-budget', '5'], 5, 8)]:
+            with self.subTest(extra=extra), (
+                patch.object(collector, 'load_sources', return_value=[])), (
+                patch.object(collector, 'config', side_effect=configs.__getitem__)), (
+                patch.object(collector, 'RequestGuard', return_value=self.guard)), (
+                patch.object(collector, 'load_credentials')), (
+                patch.object(jsearch, 'load_plan', return_value=(settings, self.plan))), (
+                patch.object(jsearch.requests, 'Session', return_value=self.session)), (
+                patch.object(store, 'now', return_value=STAMP)), (
+                patch('sys.argv', ['collector', '--jsearch-only', '--db', str(self.db_path),
+                                   '--output', str(self.root / 'reserve'), *extra])), (
+                patch('sys.stdout', new_callable=io.StringIO)):
+                self.guard.run_limit = limit
+                self.guard.credits = 0
+                collector.main()
+                self.assertEqual(self.guard.balance()['period_used'], spent)
+
+    def test_a_reserve_outside_the_target_is_refused(self):
+        from operation1million.paths import CONFIG
+        text = (CONFIG / 'jsearch_queries.toml').read_text(encoding='utf-8')
+        path = self.root / 'plan.toml'
+        for bad in ('-1', '10001', '"1000"'):
+            with self.subTest(bad=bad):
+                path.write_text(text.replace('sweep_reserve = 1000', f'sweep_reserve = {bad}'),
+                                encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    jsearch.load_plan(path)
 
     def test_spending_the_budget_is_not_a_failed_run(self):
         """A sweep exists to spend the budget, so doing it must not go red.

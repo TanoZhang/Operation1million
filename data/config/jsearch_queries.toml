@@ -13,6 +13,15 @@ daily_budget = 350
 # back on 2026-10-13 is a run now (--ignore-daily-limit --jsearch-budget
 # 2000), not a change to this budget.
 cycle_daily_budget = { "2026-09-16" = 570 }
+# Credits a scheduled daily pass leaves for the closing sweep (the user,
+# 2026-10-16: spend the whole quota, Japan widened at the cycle's end). The
+# U.S. 3-day plan ends on its own near 343 pages a day, so 30 passes would
+# take the whole 10,000 and leave the Japan sweep nothing, as the measured
+# Japan month sweep (304 pages, 400 run-unique) out-yields a 3-day page (0.52
+# postings no other query found). The last three days' U.S. postings are
+# still read by the next cycle's first 3-day pass. A run now
+# (--ignore-daily-limit) is not held to it.
+sweep_reserve = 1000
 # The plan renews every 30 days from this date, not on a day of the month.
 cycle_start = "2026-09-16"
 cycle_days = 30
@@ -677,11 +686,6 @@ tier = "intern"
 pages = 15
 
 [[query]]
-query = "RTL Intern"
-tier = "intern"
-pages = 15
-
-[[query]]
 query = "FPGA Intern"
 tier = "intern"
 pages = 15
@@ -728,7 +732,7 @@ pages = 15
 [[query]]
 query = "Electrical Engineering Co-op"
 tier = "intern"
-pages = 15
+pages = 5
 
 [[query]]
 query = "Computer Engineering Co-op"
@@ -757,11 +761,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "IC Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Logic Design Intern"
 tier = "intern"
 pages = 10
@@ -776,19 +775,9 @@ query = "Validation Co-op"
 tier = "intern"
 pages = 20
 
-[[query]]
-query = "FPGA Co-op"
-tier = "intern"
-pages = 10
-
 # Nationwide VLSI breadth trials, 2026-10-05: ten pages per query (raised at the user's request).
 [[query]]
 query = "VLSI Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "RTL Design Intern"
 tier = "intern"
 pages = 10
 
@@ -823,16 +812,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "Physical Implementation Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Static Timing Analysis Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Timing Engineer Intern"
 tier = "intern"
 pages = 20
@@ -854,16 +833,6 @@ pages = 10
 
 [[query]]
 query = "GPU Verification Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "IP Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "IP Verification Intern"
 tier = "intern"
 pages = 10
 
@@ -909,26 +878,6 @@ pages = 10
 
 [[query]]
 query = "Silicon Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "ASIC Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "ASIC Verification Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "FPGA Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Physical Design Co-op"
 tier = "intern"
 pages = 10
 
@@ -1134,11 +1083,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "ASIC Graduate Engineer"
-tier = "new_grad"
-pages = 10
-
-[[query]]
 query = "FPGA Graduate Engineer"
 tier = "new_grad"
 pages = 10
@@ -1170,11 +1114,6 @@ pages = 15
 
 [[query]]
 query = "FPGA Entry Level"
-tier = "early_career"
-pages = 15
-
-[[query]]
-query = "Digital Design Entry Level"
 tier = "early_career"
 pages = 15
 
@@ -1266,7 +1205,7 @@ pages = 10
 [[query]]
 query = "Verification Intern 2027"
 tier = "intern"
-pages = 15
+pages = 5
 
 [[query]]
 query = "DFT Engineering Intern"
@@ -1276,7 +1215,7 @@ pages = 10
 [[query]]
 query = "Hardware Design Engineer I"
 tier = "new_grad"
-pages = 15
+pages = 5
 
 [[query]]
 query = "Hardware Validation Engineer I"
@@ -1412,6 +1351,61 @@ pages = 10
 query = "Campus Hire ASIC"
 tier = "early_career"
 pages = 10
+
+# Trials from the user's 2026-10-16 role photo, five pages each: only the
+# families no earlier plan asked. SoC Design/Verification Intern, Emulation
+# Intern, SerDes, Signal Integrity, Chiplet, Place and Route and Firmware New
+# Grad were asked before and removed for accepting nothing in 30 days.
+# Removed the same day, measured over the 2026-10-03..16 run logs (2,428 new
+# JSearch postings): 14 queries that were never the only query to find a new
+# posting in 8 to 11 passes, so no posting would have been missed without
+# them -- ASIC Design/Verification Co-op, ASIC Graduate Engineer, Digital
+# Design Entry Level, FPGA Co-op, FPGA Design Co-op, IC Design Intern, IP
+# Design Intern, IP Verification Intern, Physical Design Co-op, Physical
+# Implementation Intern, RTL Design Intern, RTL Intern, Static Timing Analysis
+# Intern. DFT Design Intern stays: it alone found a Marvell posting. Caps 15 ->
+# 5 where at most one such posting came per ten pages: Electrical Engineering
+# Co-op (39 pages, 2), Verification Intern 2027 (12, 1), Hardware Design
+# Engineer I (10, 1).
+[[query]]
+query = "CPU Microarchitecture Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "GPU Architecture Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Performance Modeling Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "CAD Engineering Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "SoC Integration Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Physical Design Verification Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Emulation New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "CAD Engineer New Grad"
+tier = "new_grad"
+pages = 5
 
 # Japan sweep phrases, chosen by measurement (2026-10-11): one paid page
 # per phrase in Japan, a month back, over 60 phrases. A bare trade word
@@ -1785,3 +1779,310 @@ pages = 150
 query = "デジタル設計 エンジニア"
 tier = "A"
 pages = 150
+
+# Trials from the user's 2026-10-16 role photo (SoC/CPU/GPU validation,
+# architecture, CAD, packaging, firmware, emulation...), in the two shapes the
+# 2026-10-13 sweeps found postings with: a field with a role and エンジニア, or a
+# field with 未経験 (also 経験浅め / 既卒). None repeats a phrase an earlier sweep
+# removed. Japan ran out of phrases with 1,382 credits unspent in the 2026-09-16
+# cycle; credits left at the end of a cycle expire, so an empty phrase costs
+# one page that would otherwise go unused. Unmeasured: keep what accepts.
+
+[[sweep_query]]
+query = "システムLSI 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "システムLSI 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC 評価 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC 統合 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "シリコン 評価 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ポストシリコン 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "実機評価 エンジニア LSI"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "フォーマル検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "エミュレーション 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "CPU 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "GPU 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "プロセッサ 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "CPU 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "GPU 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "CPU アーキテクチャ エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC アーキテクチャ 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "性能解析 エンジニア 半導体"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "性能モデリング エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "AI アクセラレータ 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "AI チップ 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 パッケージ 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ESD 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 CAD エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "LSI CAD エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ベースバンド LSI 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "DSP 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ハードウェア 検証 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "デジタル ハードウェア 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "半導体 デバイス 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "イメージセンサー 評価 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "車載 半導体 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "マイコン 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "メモリ 評価 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ディスプレイ ドライバ 設計 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ファームウェア エンジニア 半導体"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC ファームウェア 開発 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "FPGA 画像処理 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "ATE テスト エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "電子回路 評価 エンジニア"
+tier = "A"
+pages = 150
+
+[[sweep_query]]
+query = "SoC 設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "RTL 設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "論理設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "論理検証 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "機能検証 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ASIC 設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ASIC 検証 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "FPGA 検証 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 評価 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI テスト 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "半導体 評価 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "半導体 テスト 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "システムLSI 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "集積回路 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "CPU 設計 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ハードウェア 検証 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "電子回路 評価 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "マイコン 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "DFT 未経験"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "ファームウェア 未経験 半導体"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "回路設計 経験浅め"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 経験浅め"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "FPGA 経験浅め"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "回路設計 既卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "LSI 設計 既卒"
+tier = "new_grad"
+
+[[sweep_query]]
+query = "システムLSI 新卒"
+tier = "new_grad"

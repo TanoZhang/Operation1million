@@ -1417,6 +1417,15 @@ def main():
                                  day_resets_at=settings['budget_day_resets_at'],
                                  ignore_daily_limit=args.backfill or args.ignore_daily_limit,
                                  run_limit=run_budget if enabled else None)
+    if enabled and not args.backfill and not args.ignore_daily_limit and settings['sweep_reserve']:
+        # The cycle's last credits belong to the closing sweep (Japan, then the
+        # final-day U.S. month fallback), so a scheduled pass stops short of
+        # them. A run now is the user's order and is not shrunk by this.
+        spare = max(0, request_guard.balance()['period_remaining'] - settings['sweep_reserve'])
+        if spare < run_budget:
+            run_budget = request_guard.run_limit = spare
+            print(f'sweep reserve: {settings["sweep_reserve"]} credits kept for the closing sweep, '
+                  f'spending up to {spare}', flush=True)
     if args.backfill:
         # Spread what is left over the days that are left, so an early sweep
         # cannot take a remainder a later day may need to recover in. An
