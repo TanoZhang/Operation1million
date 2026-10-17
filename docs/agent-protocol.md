@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: External review (2026-10-16): run the offline suite in GitHub Actions
+       on every push and pull request to main, on Ubuntu.
+Files: .github/workflows/tests.yml, docs/{agent-protocol,github-actions}.md
+Base commit: d2b80e7
+Status: done -- PR #2 green on ubuntu-24.04 (1,256 run, 1 skipped); not merged.
+Next: Run green on the branch; the user decides the merge and whether
+      daily-pass.sh keeps its own test run.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-16): three rounds of an external review --
        bugs, compaction, the "Third-party site" meaning (job-board apply),
        and skip reasons on the Skipped tab.
