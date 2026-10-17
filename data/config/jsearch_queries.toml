@@ -1586,6 +1586,410 @@ query = "EDA Engineer"
 tier = "A"
 pages = 5
 
+# More U.S. phrases (the user, 2026-10-17: "多加多加"), from the 10-04..17
+# measurement, each in its own level's tier and ranked there by the record:
+# - the measured fields at the levels not yet asked (SoC, RTL, DFT,
+#   hardware verification and validation, embedded hardware, VLSI, CPU, GPU,
+#   accelerator; Entry Level and the general "X Engineer");
+# - SoC Intern back (removed 10-13; 33 postings no other query found in its 10
+#   pages, the best of any phrase) and RTL Intern back;
+# - title words of relevant entry-level postings (score 40 or more) that no
+#   query's words covered: firmware 35, embedded 21, HBM 18, product
+#   engineering 15, analog design 13, mixed signal 9, DSP, failure analysis,
+#   design automation; and integrated-circuit, circuit and power-management
+#   design. Firmware New Grad was asked before and found nothing.
+# Phrases measured before at zero stay out (STA, Silicon Validation, VLSI,
+# Analog IC Design and Memory Design Entry Level). Five pages each. Unmeasured.
+[[query]]
+query = "SoC Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "RTL Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "SoC Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "SoC Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "RTL Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "DFT Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Design Verification New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Hardware Verification Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Hardware Verification Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Hardware Validation New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Hardware Validation Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Hardware Validation Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Silicon Validation Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Embedded Hardware New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Embedded Hardware Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Embedded Hardware Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "VLSI Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "CPU Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "GPU Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Accelerator Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Accelerator New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Accelerator Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Accelerator Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Product Engineer Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Product Engineer New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Product Engineer Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Product Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Product Development Engineer Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Product Development Engineer New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Product Development Engineer Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Product Development Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Analog Design Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Analog Design New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Analog Design Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Analog Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Mixed Signal Design Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Mixed Signal Design New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Mixed Signal Design Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Mixed Signal Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Firmware Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Firmware New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Firmware Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Firmware Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Embedded Systems Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Embedded Systems New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Embedded Systems Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Embedded Systems Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "HBM Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "HBM New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "HBM Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "HBM Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "DSP Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "DSP New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "DSP Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "DSP Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Failure Analysis Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Failure Analysis New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Failure Analysis Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Failure Analysis Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Design Automation Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Design Automation New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Design Automation Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Design Automation Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Integrated Circuit Design Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Integrated Circuit Design New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Integrated Circuit Design Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Integrated Circuit Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Circuit Design New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Circuit Design Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Circuit Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Power Management IC Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Power Management IC New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Power Management IC Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Power Management IC Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Semiconductor Product Engineer Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Semiconductor Product Engineer New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Semiconductor Product Engineer Entry Level"
+tier = "early_career"
+pages = 5
+
+[[query]]
+query = "Semiconductor Product Engineer"
+tier = "A"
+pages = 5
+
 # AI, car and robotics companies (tier ai_auto, the user, 2026-10-17): the
 # chip makers are read directly from their own boards and by the title
 # families, so what the two-day rotation frees goes to employers that build

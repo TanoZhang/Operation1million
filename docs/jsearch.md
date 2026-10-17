@@ -73,6 +73,16 @@ rotation turns come from the plan order, not the ranking. Best measured:
 SoC Intern, Static Timing Analysis Engineer, SoC New Grad, RTL Engineer,
 Silicon New Grad, Silicon Intern, FPGA Intern.
 
+More U.S. phrases the same day (the user: "多加多加"), 78 at five pages
+unless noted: the measured fields at levels not yet asked, SoC Intern (10
+pages; removed 10-13, yet the best phrase measured) and RTL Intern back, and
+the title words of relevant entry-level postings (score 40 or more) no
+query covered -- firmware, embedded, HBM, product engineering, analog and
+mixed-signal design, DSP, failure analysis, design automation,
+integrated-circuit and power-management design -- at intern, new grad, entry
+level and general. 387 queries, 194 / 193 a rotated day; `validate_budget`
+now checks a day's half against the budget, not the whole plan.
+
 Expected and unmeasured: a rotated day near the 350 budget; if it binds, the
 trial tiers are cut first. Measure from the record before widening or cutting.
 Suite: 1,275 run, 13 skipped, pass.

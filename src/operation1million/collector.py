@@ -1326,7 +1326,7 @@ def main():
     # against whatever one run was told to spend. A run may be deliberately
     # bounded -- a sweep's share of the cycle, or a capped test -- and that is
     # not a misconfigured plan; the guard stops such a run at its own limit.
-    jsearch.validate_budget(planned_queries, settings['daily_budget'])
+    jsearch.validate_budget(planned_queries, settings['daily_budget'], settings['rotation_days'])
     if args.jsearch_plan:
         # Caps state the maximum; early-stop conditions decide actual use.
         print(json.dumps({'queries': [q.__dict__ for q in planned_queries],

@@ -225,7 +225,7 @@ def _read_plan(path):
         raise ValueError('Duplicate sweep query configuration')
     config['sweep_queries'] = tuple(sweep)
     for budget in (config['daily_budget'], *config['cycle_daily_budget'].values()):
-        validate_budget(queries, budget)
+        validate_budget(queries, budget, config['rotation_days'])
     # Caps may sum past the daily budget. Many queries reach their final cursor far
     # below theirs, so caps held to the budget left about half of it unspent; the
     # guard stops a day at its budget, and tier order decides who is left out.
@@ -329,17 +329,20 @@ def rank_queries(queries, history):
     return [query for _, query in sorted(enumerate(queries), key=key)]
 
 
-def validate_budget(queries, budget):
-    """Every query must be able to reach its first page.
+def validate_budget(queries, budget, rotation_days=1):
+    """Every query due on a day must be able to reach its first page.
 
-    A deliberately smaller invocation cap is valid. The fixed plan's
-    sum is checked separately while loading its configuration.
+    With the two-day rotation a day asks half the plan, so it is that half
+    the budget has to hold (2026-10-17). A deliberately smaller invocation
+    cap is valid. The fixed plan's sum is checked separately while loading
+    its configuration.
     """
-    if len(queries) > budget:
+    daily = math.ceil(len(queries) / max(1, rotation_days))
+    if daily > budget:
         raise ValueError(
-            f'JSearch plan holds {len(queries)} queries; the daily budget of '
+            f'JSearch plan holds {len(queries)} queries, {daily} a day; the daily budget of '
             f'{budget} page credits cannot give each one a first page')
-    return len(queries)
+    return daily
 
 
 class SearchFailure(Exception):

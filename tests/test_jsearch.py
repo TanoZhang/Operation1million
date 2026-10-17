@@ -315,7 +315,7 @@ class DiscoveryTests(unittest.TestCase):
 
 
     def test_fixed_catalog_and_budget_math(self):
-        self.assertEqual(len(self.plan), 309)
+        self.assertEqual(len(self.plan), 387)
         self.assertEqual(self.settings['monthly_target'], 10000)
         # 2026-10-09: what was left of the 2026-09-16 cycle at about 4,000/7 a
         # day, then 330 from the next cycle on (350 since 2026-10-13).
@@ -338,7 +338,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(
             {tier: sum(q.pages for q in self.plan if q.tier == tier)
              for tier in ('intern', 'new_grad', 'early_career', 'ai_auto', 'jd_text', 'A')},
-            {'intern': 850, 'new_grad': 685, 'early_career': 230, 'ai_auto': 500, 'jd_text': 380, 'A': 530})
+            {'intern': 940, 'new_grad': 775, 'early_career': 345, 'ai_auto': 500, 'jd_text': 380, 'A': 635})
         self.assertTrue(all(q.pages <= self.settings['max_pages_per_query'] for q in self.plan))
         self.assertEqual(self.settings['date_posted'], '3days')
         self.assertEqual(self.settings['max_pages_per_query'], 40)
@@ -1620,7 +1620,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual({q.tier: q.pages for q in deep},
                          {'intern': 60, 'new_grad': 50, 'early_career': 40, 'A': 60, 'ai_auto': 20, 'jd_text': 40})
         # These are depth ceilings, not an allocation; the sweep guard bounds spend.
-        self.assertEqual(sum(q.pages for q in deep), 71 * 60 + 51 * 50 + 19 * 40 + 30 * 60 + 100 * 20 + 38 * 40)
+        self.assertEqual(sum(q.pages for q in deep), 87 * 60 + 69 * 50 + 42 * 40 + 51 * 60 + 100 * 20 + 38 * 40)
 
     def test_a_bounded_run_is_not_a_misconfigured_plan(self):
         """A deliberately small budget must not be read as a broken catalog.
@@ -1630,7 +1630,7 @@ class DiscoveryTests(unittest.TestCase):
         a capped test, and equally a sweep whose share of the cycle is small,
         looked like a plan holding more queries than it had credits.
         """
-        jsearch.validate_budget(self.plan, self.settings['daily_budget'])
+        jsearch.validate_budget(self.plan, self.settings['daily_budget'], self.settings['rotation_days'])
         configs = {'discovery_queries.toml': {},
                    'sources_search.toml': {'search': {'jsearch': SEARCH}}}
         self.session.get.return_value = self.response([job()])
