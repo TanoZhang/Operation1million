@@ -304,6 +304,31 @@ def due_queries(queries, last_searched, day, rotation_days):
     return due, resting
 
 
+# Pages a query's measured value is shrunk by: a phrase that found two good
+# postings on its one page is not yet worth more than one with fifty on fifty.
+RANK_PRIOR_PAGES = 5
+
+
+def query_value(pages, only_this_score_sum):
+    """Postings no other query found, per page, each counted by its score
+    out of 100: quantity and quality in one number (the user, 2026-10-17)."""
+    return only_this_score_sum / 100 / (pages + RANK_PRIOR_PAGES)
+
+
+def rank_queries(queries, history):
+    """The order to ask them in: within each tier, measured phrases by value,
+    best first, then the unmeasured in plan order. `history` maps a phrase to
+    its summed pages and only_this_score_sum. Tiers keep their own order, in
+    `collect`. Rotation turns are taken from the plan order, not from this."""
+    def key(item):
+        index, query = item
+        seen = history.get(query.query) or {}
+        if seen.get('pages', 0) <= 0:
+            return (1, 0, index)
+        return (0, -query_value(seen['pages'], seen.get('only_this_score_sum', 0)), index)
+    return [query for _, query in sorted(enumerate(queries), key=key)]
+
+
 def validate_budget(queries, budget):
     """Every query must be able to reach its first page.
 
@@ -1322,6 +1347,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
     unique = set()
     # Which queries accepted each posting this run, by address.
     found_by = {}
+    found_score = {}
     all_rows = []
     stop = False
     # Why the rotation ended, for the queries it never reached. Three unrelated
@@ -1432,6 +1458,7 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             stats['jsearch_confidence'].append(confidence)
             entry['scores'].append(confidence)
             found_by.setdefault(row['url'], set()).add(query.key)
+            found_score[row['url']] = max(found_score.get(row['url'], 0), confidence)
             rows.append(row)
 
     original_order = {query.key: index for index, query in enumerate(queries)}
@@ -1581,7 +1608,11 @@ def collect(queries, client, settings, companies, persist, backfill=False,
             detail['reason'] = (f'Not reached: {stop_reason}' if stop_reason
                                 else 'Not reached before the run ended')
         detail['jobs_accepted'] = len(rows)
-        detail['only_this'] = sum(1 for keys in found_by.values() if keys == {query.key})
+        alone = [url for url, keys in found_by.items() if keys == {query.key}]
+        detail['only_this'] = len(alone)
+        # The quality of what only this query found, for ranking: summed so
+        # runs add up (rank_queries divides by pages).
+        detail['only_this_score_sum'] = sum(found_score[url] for url in alone)
         if entry['scores']:
             detail['score_mean'] = round(sum(entry['scores']) / len(entry['scores']), 1)
         # Searched to its end or its cap, nothing lost on the way: what the

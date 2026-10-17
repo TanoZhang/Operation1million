@@ -1937,7 +1937,7 @@ class DiscoveryTests(unittest.TestCase):
         today = [start]
         with patch.object(self.guard, 'budget_day', side_effect=lambda: today[0]):
             # Nothing recorded yet: the first pass searches everything.
-            self.assertEqual(self.daily(), plan)
+            self.assertEqual(sorted(self.daily()), sorted(plan))
             today[0] = start + timedelta(days=1)
             first = self.daily()
             today[0] = start + timedelta(days=2)
@@ -1978,8 +1978,8 @@ class DiscoveryTests(unittest.TestCase):
         with patch.object(self.guard, 'budget_day', return_value=date(2026, 10, 18)):
             self.daily()
         with patch.object(self.guard, 'budget_day', return_value=date(2026, 10, 19)):
-            self.assertEqual(self.daily(extra=['--ignore-daily-limit']), plan)
-            self.assertEqual(self.daily(extra=['--date-posted', 'week']), plan)
+            self.assertEqual(sorted(self.daily(extra=['--ignore-daily-limit'])), sorted(plan))
+            self.assertEqual(sorted(self.daily(extra=['--date-posted', 'week'])), sorted(plan))
             self.assertEqual(self.daily(extra=['--jsearch-query', 'ASIC Intern']), ['ASIC Intern'])
         # A --no-store run keeps nothing, so it counts as no search.
         guard = RequestGuard(self.root / 'nostore.sqlite', daily_limit=350)
@@ -1987,7 +1987,7 @@ class DiscoveryTests(unittest.TestCase):
         with patch.object(guard, 'budget_day', return_value=date(2026, 10, 18)):
             self.daily(extra=['--no-store'])
         with patch.object(guard, 'budget_day', return_value=date(2026, 10, 19)):
-            self.assertEqual(self.daily(), plan)
+            self.assertEqual(sorted(self.daily()), sorted(plan))
 
     def test_rotation_must_stay_inside_the_window(self):
         text = (CONFIG / 'jsearch_queries.toml').read_text(encoding='utf-8')
@@ -2069,6 +2069,48 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual([r['query'] for r in written], asked)
         self.assertEqual({r['kind'] for r in written}, {'daily'})
         self.assertEqual({(r['date_posted'], r['budget_day']) for r in written}, {('3days', '2026-10-18')})
+
+    def test_useful_queries_are_asked_first_within_their_tier(self):
+        """The user, 2026-10-17: what found the most good postings no other
+        query found, per page, goes first; the unmeasured after it."""
+        plan = [jsearch.Query('Weak Intern', 5, 'intern'), jsearch.Query('New Intern', 5, 'intern'),
+                jsearch.Query('Strong Intern', 5, 'intern'), jsearch.Query('Strong Engineer', 5, 'A')]
+        history = {'Weak Intern': {'pages': 40, 'only_this_score_sum': 200},
+                   'Strong Intern': {'pages': 20, 'only_this_score_sum': 1500},
+                   'Strong Engineer': {'pages': 10, 'only_this_score_sum': 2000}}
+        ranked = [q.query for q in jsearch.rank_queries(plan, history)]
+        self.assertEqual([q for q in ranked if q.endswith('Intern')], ['Strong Intern', 'Weak Intern', 'New Intern'])
+        # A lucky single page does not outrank a long record.
+        self.assertGreater(jsearch.query_value(40, 2000), jsearch.query_value(1, 90))
+        # Tiers keep their order in collect, whatever the values.
+        self.session.get.return_value = self.response([job()])
+        jsearch.collect(jsearch.rank_queries(plan, history), self.client, self.settings, {}, self.persist)
+        asked = [parse_qs(urlsplit(c.args[0]).query)['query'][0] for c in self.session.get.call_args_list]
+        self.assertEqual(asked[-1], 'Strong Engineer')
+
+    def test_the_ranking_reads_the_record_and_the_seed(self):
+        store.append_query_runs([
+            {'at': '2026-10-20T11:40:00+00:00', 'kind': 'daily', 'country': 'us', 'date_posted': '3days',
+             'query': 'Silicon Intern', 'pages_used': 4, 'only_this_score_sum': 300},
+            {'at': '2026-10-20T11:40:00+00:00', 'kind': 'backfill', 'country': 'jp', 'date_posted': 'month',
+             'query': 'Silicon Intern', 'pages_used': 50, 'only_this_score_sum': 0},
+            {'at': '2026-09-01T11:40:00+00:00', 'kind': 'daily', 'country': 'us', 'date_posted': '3days',
+             'query': 'ASIC Intern', 'pages_used': 9, 'only_this_score_sum': 900}], root=self.root)
+        seed = {'queries': {'Silicon Intern': {'pages': 6, 'only_this_score_sum': 100}}}
+        history = store.query_history('2026-10-01', 'us', '3days', root=self.root, seed=seed)
+        self.assertEqual(history, {'Silicon Intern': {'pages': 10, 'only_this_score_sum': 400}})
+        seed = json.loads((CONFIG / 'jsearch_query_seed.json').read_text(encoding='utf-8'))
+        self.assertGreater(len(seed['queries']), 100)
+
+    def test_a_daily_pass_asks_in_ranked_order(self):
+        with patch.object(self.guard, 'budget_day', return_value=date(2026, 10, 18)):
+            asked = self.daily()
+        settings, plan = jsearch.load_plan()
+        seed = json.loads((CONFIG / 'jsearch_query_seed.json').read_text(encoding='utf-8'))['queries']
+        interns = [q for q in asked if q in {p.query for p in plan if p.tier == 'intern'}]
+        values = [jsearch.query_value(seed[q]['pages'], seed[q]['only_this_score_sum'])
+                  for q in interns if q in seed and seed[q]['pages']]
+        self.assertEqual(values, sorted(values, reverse=True))
 
     def test_an_unpublished_run_forgets_what_it_searched(self):
         from operation1million import workflow_state

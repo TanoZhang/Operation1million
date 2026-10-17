@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing, nullcontext
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
@@ -1208,7 +1208,7 @@ def write_csv(path, rows, fields):
 # What the query record keeps of each query's result, beside the run's own facts.
 QUERY_RUN_FIELDS = ('query', 'tier', 'source_id', 'status', 'reason', 'finished', 'pages_cap', 'pages_used',
                     'resumed_from', 'jobs_raw', 'jobs_accepted', 'rejected', 'rejections', 'malformed',
-                    'new', 'new_accepted', 'only_this', 'jobs_unique', 'score_mean')
+                    'new', 'new_accepted', 'only_this', 'only_this_score_sum', 'jobs_unique', 'score_mean')
 
 
 def main():
@@ -1394,6 +1394,15 @@ def main():
         rotation = {'days': settings['rotation_days'], 'due': len(functional_queries),
                     'resting': [q.query for q in resting]}
         print(f'rotation: {len(functional_queries)} queries due today, {len(resting)} resting', flush=True)
+    if enabled and functional_queries and not args.jsearch_query and not args.backfill:
+        # Useful first (the user, 2026-10-17): within each tier, the phrases
+        # that found the most good postings no other phrase found, per page,
+        # over the last four weeks of the query record and what was measured
+        # before it. When the budget runs short, the weakest are what is left out.
+        seed = json.loads((CONFIG / 'jsearch_query_seed.json').read_text(encoding='utf-8'))
+        since = (datetime.now(timezone.utc) - timedelta(days=28)).isoformat()
+        functional_queries = jsearch.rank_queries(functional_queries, store.query_history(
+            since, settings['country'], settings['date_posted'], seed=seed))
     args.jsearch_guard = request_guard
     args.decided_urls = frozenset()
     if args.store and sources:

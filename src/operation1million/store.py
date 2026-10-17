@@ -88,6 +88,31 @@ def append_query_runs(records, root=None):
     return len(lines)
 
 
+def query_history(since, country, date_posted, root=None, seed=None):
+    """Summed pages and only_this_score_sum per phrase, from the query record
+    since `since` (an ISO time) for this country and window, scheduled and
+    run-now passes only, plus `seed`: what was measured before the record."""
+    totals = {}
+    for phrase, counts in ((seed or {}).get('queries') or {}).items():
+        totals[phrase] = {'pages': counts.get('pages', 0),
+                          'only_this_score_sum': counts.get('only_this_score_sum', 0)}
+    path = (Path(root) if root is not None else LOG) / QUERY_RUNS
+    if path.exists():
+        with path.open(encoding='utf-8') as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if (record.get('kind') not in ('daily', 'now') or record.get('at', '') < since
+                        or record.get('country') != country or record.get('date_posted') != date_posted):
+                    continue
+                total = totals.setdefault(record.get('query'), {'pages': 0, 'only_this_score_sum': 0})
+                total['pages'] += record.get('pages_used') or 0
+                total['only_this_score_sum'] += record.get('only_this_score_sum') or 0
+    return totals
+
+
 def export_seen(db, root=None):
     """Write the whole seen table to the data repository, for a machine that dies.
 

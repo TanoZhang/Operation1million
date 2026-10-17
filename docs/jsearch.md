@@ -62,6 +62,17 @@ reason, new to the index, new and accepted, accepted by no other query that
 run (`only_this`) and mean score. A day's manifest keeps only its last run;
 the sweeps had overwritten the 10-14 and 10-15 U.S. passes.
 
+Useful first: within each tier a pass asks the phrases by value -- postings
+no other query found, each counted by its filter score out of 100, per page,
+with five pages added to every phrase's pages so one lucky page does not
+outrank a long record (`jsearch.query_value`). Summed from the query record's
+last 28 days of scheduled and run-now passes plus `data/config/
+jsearch_query_seed.json` (10-04..10-17, from the run logs and manifests);
+unmeasured phrases follow the measured in plan order. Tier order is kept;
+rotation turns come from the plan order, not the ranking. Best measured:
+SoC Intern, Static Timing Analysis Engineer, SoC New Grad, RTL Engineer,
+Silicon New Grad, Silicon Intern, FPGA Intern.
+
 Expected and unmeasured: a rotated day near the 350 budget; if it binds, the
 trial tiers are cut first. Measure from the record before widening or cutting.
 Suite: 1,275 run, 13 skipped, pass.
