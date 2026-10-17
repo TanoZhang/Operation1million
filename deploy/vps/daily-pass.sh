@@ -246,13 +246,19 @@ fi
 cp "$CODE/.local/jsearch_usage.sqlite" "$CODE/.local/jsearch_usage.before.sqlite"
 cd "$CODE"
 
-echo '== Offline regression tests =='
+# Only a preflight runs the suite. GitHub Actions runs it on every push to main
+# on this Ubuntu and Python (tests.yml), and deploy-vps.bat before each install,
+# so the scheduled pass would only repeat it -- a failure never stopped the pass
+# anyway. A preflight still does, to catch this machine drifting under the code.
 # A failing test stopped the whole pass on 2026-10-03, free boards included.
 # In a clean environment: with OPERATION1MILLION_STORE exported the tests read
 # the production resume profile, and 65 of them failed on 2026-10-09 for that
 # alone. Nor should a test see the production store or the paid key.
-env -i HOME="$HOME" PATH="$PATH" LANG=C.UTF-8 PYTHONUNBUFFERED=1 \
-  python -m unittest discover -s tests || note_problem 'the offline tests did not all pass'
+if [ "$PREFLIGHT" -eq 1 ]; then
+  echo '== Offline regression tests =='
+  env -i HOME="$HOME" PATH="$PATH" LANG=C.UTF-8 PYTHONUNBUFFERED=1 \
+    python -m unittest discover -s tests || note_problem 'the offline tests did not all pass'
+fi
 echo '== Database =='
 inputs=$(database_inputs)
 if [ ! -f "$CODE/data/db/job_discovery.sqlite" ] || [ ! -f "$READY" ] || [ "$(cat "$READY")" != "$inputs" ]; then

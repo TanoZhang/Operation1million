@@ -110,6 +110,11 @@ Both checkouts advance only by fast-forward. Local source edits or divergent
 history stop installation instead of being discarded. Installation and daily
 collection use the same lock, so an update cannot replace running collector code.
 
+The scheduled pass does not run the offline suite: GitHub Actions runs it on
+every push to main (`tests.yml`, same Ubuntu and Python) and `deploy-vps.bat`
+runs it before installing. `daily-pass.sh --preflight` still runs it, and fails
+on a failing test, so run a preflight after a system update.
+
 ## Reaching the review queue
 
 The review server binds to the loopback interface and has no authentication of

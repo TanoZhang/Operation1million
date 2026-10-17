@@ -85,7 +85,7 @@ not consume these profiles. See [private records](private-application-records.md
 
 | File | Owns |
 | --- | --- |
-| `deploy/vps/daily-pass.sh` | The production pass: lock, preflight, tests, index, collect, publish, prune, push, heartbeat. |
+| `deploy/vps/daily-pass.sh` | The production pass: lock, checks, index, collect, publish, prune, push, heartbeat. The offline suite runs only under `--preflight`; CI runs it on every push. |
 | `deploy/vps/install.sh` | Deploying a code change to the VPS. **A push to GitHub does not deploy.** |
 | `deploy/vps/operation1million-collect.timer` | The schedule. Its `OnCalendar` and `budget_day_resets_at` in the TOML must say the same thing. |
 | `deploy/vps/backup-applications.sh` | Pushes the decision ledger every fifteen minutes, because it is the one file nothing regenerates. |

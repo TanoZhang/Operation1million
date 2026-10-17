@@ -22,6 +22,9 @@ The run summary lists every skipped test, so a new skip shows up there.
 
 A public repository's standard runners are not billed, so CI does not draw on
 the minutes counted below. A push still does not deploy; `install.sh` does.
+Because CI covers every push, the nightly `daily-pass.sh` no longer runs the
+suite; only `daily-pass.sh --preflight` does, to catch the VPS drifting under
+unchanged code (2026-10-17).
 
 The rest of this document is the backup workflow's contract. The runner is
 temporary; every authoritative private input must be restored before

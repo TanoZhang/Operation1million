@@ -351,6 +351,11 @@ class DailyPassKeepsGoingTests(unittest.TestCase):
     def test_a_failing_suite_is_reported_and_the_pass_carries_on(self):
         self.assertIn("python -m unittest discover -s tests || note_problem", self.script())
 
+    def test_only_a_preflight_runs_the_suite(self):
+        # CI runs it on every push (2026-10-17); the nightly pass need not.
+        before = self.script().split("echo '== Offline regression tests =='")[0]
+        self.assertTrue(before.rstrip().endswith('if [ "$PREFLIGHT" -eq 1 ]; then'))
+
     def test_paid_search_is_never_switched_off(self):
         script = self.script()
         body = script.split('collect_started=1')[1].split('collect_code=$?')[0]
@@ -366,7 +371,8 @@ class DailyPassKeepsGoingTests(unittest.TestCase):
     def test_a_pass_with_a_problem_says_so_and_a_preflight_still_fails(self):
         script = self.script()
         self.assertIn('exit 2', script.split('run_clean=1')[1].split('# EXIT publishes')[0])
-        preflight = script.split('if [ "$PREFLIGHT" -eq 1 ]; then')[1].split('\nfi\n')[0]
+        # The last preflight block, the one that stops before collecting.
+        preflight = script.split('if [ "$PREFLIGHT" -eq 1 ]; then')[-1].split('\nfi\n')[0]
         self.assertIn('if [ "$problems" -eq 1 ]', preflight)
 
 

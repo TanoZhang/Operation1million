@@ -7,12 +7,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ```text
 Owner: claude
 Scope: External review (2026-10-16): run the offline suite in GitHub Actions
-       on every push and pull request to main, on Ubuntu.
-Files: .github/workflows/tests.yml, docs/{agent-protocol,github-actions}.md
+       on every push and pull request to main, on Ubuntu. Then (the user,
+       2026-10-17, "you decide"): the nightly pass runs the suite only
+       under --preflight.
+Files: .github/workflows/tests.yml, deploy/vps/daily-pass.sh,
+       tests/test_prelaunch_fixes.py,
+       docs/{agent-protocol,architecture,github-actions,vps-deployment}.md
 Base commit: d2b80e7
-Status: done -- PR #2 green on ubuntu-24.04 (1,256 run, 1 skipped); not merged.
-Next: Run green on the branch; the user decides the merge and whether
-      daily-pass.sh keeps its own test run.
+Status: done -- CI merged (PR #2, ubuntu-24.04: 1,256 run, 1 skipped);
+        nightly change pushed, not installed.
+Next: Install on the VPS when the user asks; run a preflight after it.
 ```
 
 ```text
