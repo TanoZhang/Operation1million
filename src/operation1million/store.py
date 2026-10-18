@@ -1312,6 +1312,31 @@ def finish_run(db, run_id, companies, seen, new, closed, requests, note=''):
         (now(), companies, seen, new, closed, requests, note, run_id))
 
 
+def retire_unseen(db, company_key, provider_key, before, write=False, stamp=None):
+    """Close a source's open postings it has not listed since `before`. Returns their URLs.
+
+    Run by hand, never by a pass: the closure fuse stays as it is. It exists
+    for the day a board reads empty or short, and it cannot tell that day from
+    one where postings really left -- so once a board's stale postings pass a
+    quarter of its open inventory, it blocks every later pass for good. Seen
+    2026-10-18: SanDisk's SmartRecruiters board, empty since SanDisk moved to
+    Avature (308 open, last listed 09-25; the API reports totalFound 0), and
+    Microsoft (4,494 open against the 2,379 its search reports and each pass
+    reads). The caller checks the provider's own total first; without `write`
+    nothing changes.
+    """
+    found = [url for (url,) in db.execute(
+        'SELECT url FROM jobs WHERE company_key=? AND provider_key=? AND closed_at IS NULL '
+        'AND julianday(last_seen) < julianday(?) ORDER BY url', (company_key, provider_key, before))]
+    if write and found:
+        stamp = stamp or now()
+        for chunk in chunks(found):
+            db.execute('UPDATE jobs SET closed_at=? WHERE url IN (%s)' % ','.join('?' * len(chunk)),
+                       [stamp, *chunk])
+        append_log(db, [], found, stamp)
+    return found
+
+
 def main():
     """Inspect the store, or rebuild it from the committed log."""
     import argparse
@@ -1336,7 +1361,22 @@ def main():
                         help='Check each day file against its manifest digest')
     parser.add_argument('--export', action='store_true',
                         help='Write every held posting to the log (one-off backfill)')
+    parser.add_argument('--retire-unseen', metavar='COMPANY/PROVIDER',
+                        help='List (with --write, close) open postings of one source not listed since --before')
+    parser.add_argument('--before', metavar='DATE', help='With --retire-unseen: last listed before this date')
+    parser.add_argument('--write', action='store_true', help='With --retire-unseen: close them')
     args = parser.parse_args()
+    if args.retire_unseen:
+        company_key, _, provider_key = args.retire_unseen.partition('/')
+        if not (company_key and provider_key and args.before):
+            parser.error('--retire-unseen takes COMPANY/PROVIDER and needs --before DATE')
+        with closing(connect(args.db)) as db, db:
+            found = retire_unseen(db, company_key, provider_key, args.before, args.write)
+            open_now = db.execute('SELECT COUNT(*) FROM jobs WHERE company_key=? AND provider_key=? '
+                                  'AND closed_at IS NULL', (company_key, provider_key)).fetchone()[0]
+        print(f"{'closed' if args.write else 'would close'} {len(found)} {company_key}/{provider_key} "
+              f"postings last listed before {args.before}; {open_now} open now")
+        return
     if args.migrate:
         migrate(args.db)
     if args.bootstrap:

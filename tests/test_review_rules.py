@@ -499,6 +499,37 @@ class QueueRulesTests(unittest.TestCase):
                         # Neither a stale high nor low score decides JD evidence.
                         self.assertEqual(bool(self.queue()['pending']), kept)
 
+    def test_an_unrelated_title_with_no_description_is_not_offered(self):
+        """The user, 2026-10-18: Cisco's Consulting Engineer postings came with
+        no description and a title naming no chip work; they were offered."""
+        long_jd = ('Support enterprise customers deploying network security products. '
+                   'Design firewall policies, troubleshoot VPN tunnels and lead workshops. ' * 3)
+        for title, raw, low_relevance, offered in (
+                ('Security Consulting Engineer', {}, None, False),
+                ('Security Consulting Engineer', {'description': 'Short teaser.'}, None, False),
+                # With a description to judge, it stays on Low relevance.
+                ('Security Consulting Engineer', {'description': long_jd}, True, True),
+                # A title that names chip work needs no description to be offered.
+                ('RTL Design Engineer', {}, False, True)):
+            with self.subTest(title=title, raw=raw):
+                with closing(sqlite3.connect(self.db)) as db, db:
+                    db.execute('UPDATE jobs SET title=?, provider_key=?, raw=?, relevance=?',
+                               (title, 'phenom', json.dumps(raw), 0 if 'Consulting' in title else 62))
+                shown = self.queue()['pending']
+                self.assertEqual(bool(shown), offered)
+                if shown:
+                    self.assertEqual(shown[0]['less_related'], low_relevance)
+
+    def test_a_decision_on_such_a_posting_is_still_shown(self):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute('UPDATE jobs SET title=?, provider_key=?, raw=?, relevance=0',
+                       ('Consulting Engineer', 'phenom', json.dumps({'description': 'x' * 300})))
+        group = self.queue()['pending'][0]
+        applications.append_decision(self.ledger, group, 'applied')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET raw='{}'")
+        self.assertEqual(len(self.queue()['applied']), 1)
+
     def test_software_gate_preserves_recorded_application(self):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute('UPDATE jobs SET title=?, raw=?', ('Software Engineer', json.dumps({
@@ -595,8 +626,11 @@ class QueueRulesTests(unittest.TestCase):
                                        ('SDC, Synthesis and STA Engineer', 69, False),
                                        ('RTL Design Engineer', 0, False)):
             with self.subTest(title=title):
+                # With a description: since 2026-10-18 a last-band title with
+                # none to read is not offered at all.
                 with closing(sqlite3.connect(self.db)) as db, db:
-                    db.execute('UPDATE jobs SET title=?, relevance=?', (title, relevance))
+                    db.execute('UPDATE jobs SET title=?, relevance=?, raw=?',
+                               (title, relevance, json.dumps({'description': 'Plan inventory. ' * 20})))
                 self.assertIs(self.queue()['pending'][0]['less_related'], less)
 
     def test_early_career_is_marked_by_the_words_in_the_title(self):

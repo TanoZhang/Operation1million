@@ -1,3 +1,36 @@
+# Rotation merged; unrelated no-JD titles out; stale sources; Qualcomm slower - 2026-10-18 (claude)
+
+The user: merge the rotation branch, preview Gmail, keep unrelated titles
+with no description out (Cisco Security Consulting Engineer), fix the closure
+fuse, TSMC and Qualcomm, and see whether the logs can shrink.
+
+- claude-jsearch-rotation-record-filters fast-forwarded into main (f1cef5a).
+- Gmail preview on the VPS (2,419 emails, 1,837 applied): nothing would be
+  marked or unstarred; 16 stars, one wrong -- Ralliant's ATS "We invite you
+  to complete and submit your job application" read as Passed. Reminders to
+  finish an application are now hedges.
+- Queue: a last-band title under the score threshold with no readable
+  description on any listing (under 200 characters, unless the text itself
+  scores past the threshold) is not offered; decisions are untouched. Old vs
+  new code on the 10-16 index: 3,488 groups removed, all from Low relevance
+  (4,060 -> 572), none from any other tab.
+- Closure fuse: unchanged. It blocks every pass for good once a source's
+  stale postings pass 25%: SanDisk's SmartRecruiters board (totalFound 0 since
+  SanDisk moved to Avature; 308 open, last listed 09-25) and Microsoft (4,494
+  open, its search reports 2,379, each pass reads about 2,400). New
+  `job-store --retire-unseen COMPANY/PROVIDER --before DATE [--write]`
+  closes, by hand, a source's open postings not listed since DATE, into the
+  log; a posting listed again reopens as before.
+- TSMC: careers.tsmc.com answers every request, robots.txt included and from
+  a residential address too, with a Cloudflare managed challenge (403 since
+  10-13). Not bypassed; TSMC comes through JSearch only.
+- Qualcomm: 429 on the first request the day after each complete pass. Six
+  seconds between requests (was 2.5) and at most 100 new detail reads a pass,
+  decided postings first.
+- Logs: the 50-62 MB days (10-12/13/14/17) are the 14-day window carrying
+  still-open postings forward in full; on 10-17 Amazon's 22,115 (213 MB of
+  306 MB uncompressed), first written together on 10-03. Not changed yet.
+
 # JSearch: two-day rotation, query record, plan by measurement - 2026-10-17 (claude)
 
 See the newest section of `docs/jsearch.md`. Gmail fix ee0b847 installed on the VPS the same day.

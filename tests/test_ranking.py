@@ -262,7 +262,7 @@ class QueueOrderTests(unittest.TestCase):
         # score and a date that all point the other way.
         self.assertEqual(titles[0], 'RTL Design Intern')
         self.assertLess(titles.index('RTL Design Engineer'), titles.index('Hardware Engineer'))
-        self.assertLess(titles.index('Program Coordinator'), titles.index('RF Engineer'))
+        self.assertLess(titles.index('Hardware Engineer'), titles.index('Program Coordinator'))
 
     def test_every_group_carries_its_band_and_evidence_mark(self):
         for group in self.queue():
@@ -272,10 +272,13 @@ class QueueOrderTests(unittest.TestCase):
         self.assertTrue(flagged['RFIC Digital Verification Engineer'])
         self.assertFalse(flagged['RTL Design Engineer'])
 
-    def test_missing_description_does_not_hide_an_evidence_title(self):
-        """A zero score with no prose is missing data, not negative evidence."""
+    def test_an_evidence_title_with_no_description_is_not_offered(self):
+        """Until 2026-10-18 a zero score with no prose was missing data and the
+        posting was offered. The user: "title不能判定然后jd没有就不要放" -- a title
+        that cannot decide with no description to decide it is not offered. A
+        title naming chip work still needs none."""
         titles = [g['title'] for g in self.queue()]
-        self.assertIn('RF Engineer', titles)
+        self.assertNotIn('RF Engineer', titles)
         self.assertIn('RFIC Digital Verification Engineer', titles)
 
     def test_supplied_off_domain_prose_still_filters_an_evidence_title(self):

@@ -6,6 +6,21 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-18): merge the rotation branch; Gmail preview;
+       unrelated titles with no JD not offered; closure fuse, TSMC, Qualcomm;
+       log size.
+Files: src/operation1million/{applications,collection_policy,gmail_outcomes,
+       job_details,store}.py, tests/{test_review_rules,test_ranking,
+       test_gmail_outcomes,test_job_details,test_store}.py,
+       docs/{agent-protocol,handoff,collection-rules}.md
+Base commit: f1cef5a
+Status: done -- suite 1,288 run, 13 skipped, pass; pushed and installed.
+Next: Retire the stale SanDisk SmartRecruiters and Microsoft postings on the
+      VPS (dry run first); the user decides on log slimming.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-17): two-day query rotation, a per-query run
        record, the plan chosen by measurement (general queries back, STA
        kept, timing/custom layout/FPGA design dropped), accelerator, AI/car

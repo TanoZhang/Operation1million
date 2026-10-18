@@ -15,6 +15,9 @@ from .job_text import clean_title
 from .store import chunks
 from . import jsearch, location, ranking
 
+# Fewer readable characters than this is no description to judge a title by.
+READABLE_JD = 200
+
 
 def ledger_path():
     return Path(os.environ.get('OPERATION1MILLION_STORE', DATA / 'store')) / 'operational/applications.ndjson'
@@ -831,6 +834,13 @@ def queue(db_path=DB, path=None, now=None):
                         continue
                 # The employer too: its own years are not the applicant's.
                 filter_row = {'title': job['title'], 'company_name': job.get('company'), 'raw': raw}
+                # Read before raw is gone: a last-band title with nothing to
+                # read is not offered at all (below).
+                if ranking.bucket(job['title']) == 4:
+                    text = jsearch.description_text(filter_row).strip()
+                    # A short one counts when it says chip work itself.
+                    job['readable_jd'] = bool(text) and (
+                        len(text) >= READABLE_JD or jsearch.relevance(filter_row, rules)[0] >= minimum)
                 fit_assessment = resume_fit.lazy_assessment(filter_row, rules)
                 # Generic software titles now reach this point too. Refuse
                 # missing/off-domain JD before parsing experience across that
@@ -992,6 +1002,14 @@ def queue(db_path=DB, path=None, now=None):
         # and order (the user, 2026-10-11): every listing there, none in the U.S.
         group['asia'] = bool(group['jobs']) and all(
             location.in_asia_tab(job.get('location')) for job in group['jobs'])
+    # The user, 2026-10-18: "title不能判定然后jd没有就不要放" -- Cisco's
+    # Consulting Engineer postings came with no description at all and a title
+    # that names no chip work. Low relevance keeps what has a description to
+    # judge; a last-band title with none on any listing is not offered.
+    for name in ('pending', 'backlog'):
+        result[name] = [group for group in result[name]
+                        if not (group['less_related']
+                                and not any(job.get('readable_jd', True) for job in group['jobs']))]
     for key, event in group_states.items():
         if event['status'] != 'pending':
             group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))

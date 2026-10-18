@@ -191,6 +191,12 @@ HEDGES = (
     'continue to apply', 'continue applying', 'continue to explore', 'continue exploring',
     'reapply', 're-apply', 'apply again', 'invite you to apply', 'invite you to explore',
     'invite you to visit', 'invite you to keep', 'invite you to stay',
+    # A reminder to finish an application already started is not a step
+    # past it: "We invite you to complete and submit your job application"
+    # (Ralliant's ATS, 2026-10-17) was Passed and starred.
+    'complete and submit', 'submit your application', 'submit your job application',
+    'complete your application', 'complete your job application', 'finish your application',
+    'finish applying', 'unfinished application', 'incomplete application',
     ' might ', 'whether', 'in the event', 'will be in touch',
     'will contact', 'will reach out', 'be contacted', 'reach out to you', 'get back to you',
     'selected candidates', 'qualified candidates', 'candidates who', 'applicants who',

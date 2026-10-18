@@ -125,6 +125,13 @@ numbered postings, bind each detail to its sitemap URL, and read the visible
 title, location and description because its JSON-LD omits the last two.
 The former SmartRecruiters inventory remains separate and behind the closure
 fuse; adding the Avature source does not retire its old postings.
+Retiring them is done by hand, never by a pass: `job-store --retire-unseen
+sandisk/smartrecruiters --before DATE` lists what was not listed since DATE
+and `--write` closes it (2026-10-18; check the provider's own total first).
+
+TSMC's careers site answers every request with a Cloudflare managed challenge
+(since 2026-10-13, from the VPS and from a residential address alike). It is
+not bypassed; TSMC postings come through JSearch.
 
 ## JSearch usage
 

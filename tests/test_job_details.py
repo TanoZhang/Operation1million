@@ -159,3 +159,27 @@ class DetailTests(unittest.TestCase):
             with self.subTest(provider=provider):
                 self.assertTrue(job_details.read(c, row)['description'])
                 self.assertTrue(c.fetch.call_args.args[0].endswith(suffix))
+
+
+class ThrottledHostTests(unittest.TestCase):
+    """Qualcomm answered 429 the day after each complete pass (2026-10-18)."""
+
+    def test_a_throttling_host_reads_a_share_of_new_details_decided_first(self):
+        rows = [{'title': f'RTL Design Engineer {i}', 'url': f'https://qualcomm.example/job/{i}',
+                 'source_job_id': str(i), 'raw': {}} for i in range(5)]
+        source = SimpleNamespace(provider_key='talentbrew', company_key='qualcomm')
+        c = SimpleNamespace(source=source, jobs=rows, fetch=Mock(side_effect=ValueError('not read')),
+                            args=SimpleNamespace(decided_urls=frozenset({rows[4]['url']})))
+        with patch.dict(job_details.DETAIL_READS_PER_PASS, {'qualcomm': 2}):
+            job_details.enrich(c)
+        read = [call.args[0] for call in c.fetch.call_args_list]
+        self.assertEqual(len(read), 2)
+        self.assertEqual(read[0], rows[4]['url'])
+
+    def test_the_slower_pace_holds_for_qualcomm(self):
+        from operation1million import collection_policy
+        source = SimpleNamespace(company_key='qualcomm', provider_key='eightfold', access_url='https://x.example/')
+        with patch.object(collection_policy, 'robots_delay', return_value=None):
+            self.assertEqual(collection_policy.request_interval(source, 1.0), 6.0)
+            self.assertEqual(collection_policy.request_interval(
+                SimpleNamespace(company_key='amd', provider_key='eightfold', access_url=''), 1.0), 2.5)

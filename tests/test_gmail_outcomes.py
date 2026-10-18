@@ -685,6 +685,16 @@ prior to your interview or submission of any video response for alternative opti
                                                 'If you are invited to a video interview, AI tools may transcribe it.'),
                          'unknown')
 
+    def test_a_reminder_to_finish_an_application_is_not_an_invitation(self):
+        """Ralliant's ATS, 2026-10-17: "We invite you to complete and submit
+        your job application" was Passed and would have been starred."""
+        body = ('Continue to apply for the job Hardware Engineer. We invite you to complete and submit '
+                'your job application. We thank you for your interest in joining our company.')
+        self.assertNotEqual(gmail.classify('Continue to apply for the job Hardware Engineer', body), 'passed')
+        # An assessment to complete is still one.
+        self.assertEqual(gmail.classify('Next steps', 'We invite you to complete the online assessment by Friday.'),
+                         'passed')
+
     def test_explain_names_the_deciding_sentence(self):
         verdict, notes = gmail.explain('Acme', "If you're still interested, book a time here: https://calendly.com/acme")
         self.assertEqual(verdict, 'passed')

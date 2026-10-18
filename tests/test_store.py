@@ -632,6 +632,40 @@ class LogRoundTripTests(unittest.TestCase):
         self.assertEqual(counts, {'jobs': 4, 'events': 1, 'sources': 1, 'seen': 0})
         self.assertEqual(self.snapshot(fresh), expected)
 
+    def test_retiring_a_stale_source_by_hand_closes_only_the_unlisted_and_replays(self):
+        """2026-10-18: SanDisk's empty SmartRecruiters board and Microsoft's
+        stale half tripped the fuse every pass, for good. The fuse stays; a
+        hand-run retirement closes what the board stopped listing."""
+        db = store.connect(self.db_path)
+        self.addCleanup(db.close)
+        baseline = [row(f'https://x/{i}') for i in range(1, 9)]
+        first = store.record_source(db, SOURCE, baseline, 'complete', 'full', 1,
+                                    stamp='2026-09-16T00:00:00+00:00')
+        store.append_log(db, first['new_urls'], first['closed_urls'], first['stamp'], allow_sealed=True)
+        # The board stops listing five; the fuse blocks every later pass.
+        later = store.record_source(db, SOURCE, baseline[:3], 'complete', 'full', 1,
+                                    stamp='2026-10-18T00:00:00+00:00')
+        self.assertTrue(later['closure_fused'])
+        # A look first changes nothing.
+        self.assertEqual(len(store.retire_unseen(db, 'matx', SOURCE.provider_key, '2026-10-01')), 5)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL').fetchone()[0], 8)
+        closed = store.retire_unseen(db, 'matx', SOURCE.provider_key, '2026-10-01', write=True,
+                                     stamp='2026-10-18T05:00:00+00:00')
+        self.assertEqual(closed, sorted(f'https://x/{i}' for i in range(4, 9)))
+        store.export_state(db)
+        store.write_manifest(db, '2026-10-18T05:00:00+00:00', [])
+        db.commit()
+        expected = self.snapshot(self.db_path)
+        self.assertEqual(sum(1 for r in expected if r[-1] is None), 3)
+        # The next pass closes normally again: nothing stale is left to trip it.
+        self.assertFalse(store.record_source(db, SOURCE, baseline[:3], 'complete', 'full', 1)['closure_fused'])
+        fresh = Path(self.dir.name) / 'fresh.sqlite'
+        with closing(sqlite3.connect(fresh)) as blank:
+            blank.execute('CREATE TABLE companies (company_key TEXT PRIMARY KEY, name TEXT)')
+            blank.execute("INSERT INTO companies VALUES ('matx', 'MatX')")
+        store.rebuild(fresh)
+        self.assertEqual(self.snapshot(fresh), expected)
+
     def test_log_keeps_the_whole_posting_and_drops_only_noise(self):
         db = store.connect(self.db_path)
         self.addCleanup(db.close)

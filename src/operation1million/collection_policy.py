@@ -137,10 +137,14 @@ def robots_delay(url, timeout=15):
     return delay
 
 
+# Hosts that refused a day's pace. Qualcomm answered the first request of a
+# pass with 429 the day after each complete pass (10-14, 10-15, 10-18; 557
+# requests on 10-16 at 2.5 s), and once repeated a page instead (10-17).
+SLOWER = {'microsoft': 3.0, 'qualcomm': 6.0}
+
+
 def request_interval(source, requested):
-    minimum = 3.0 if source.company_key == 'microsoft' else (
-        2.5 if source.provider_key == 'eightfold' else 1.0
-    )
+    minimum = SLOWER.get(source.company_key) or (2.5 if source.provider_key == 'eightfold' else 1.0)
     # A declared Crawl-delay is the host's own stated limit; never go below it.
     return max(minimum, requested, robots_delay(source.access_url) or 0.0)
 

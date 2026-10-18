@@ -17,6 +17,8 @@ from .job_text import readable_text
 PAGE_PROVIDERS = {'talentbrew', 'phenom', 'avature', 'jobs2web'}
 PROVIDERS = PAGE_PROVIDERS | {'workday', 'smartrecruiters', 'eightfold'}
 REFRESH_AFTER = timedelta(days=7)
+# New detail reads one pass may make at a host that throttles (2026-10-18).
+DETAIL_READS_PER_PASS = {'qualcomm': 100}
 
 
 def same_url(left, right):
@@ -169,7 +171,10 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
     # Postings with a decision are read whatever their title, and read once:
     # an applied posting's description need not be refreshed (2026-10-16).
     decided = getattr(getattr(collector, 'args', None), 'decided_urls', frozenset())
-    for row in sorted(collector.jobs, key=lambda r: not bool(ENTRY.search(r['title']))):
+    # A host that throttles a day's reading gets a share of its new details
+    # per pass; the rest wait in the seven-day cache's queue for the next.
+    budget = DETAIL_READS_PER_PASS.get(getattr(getattr(collector, 'source', None), 'company_key', ''))
+    for row in sorted(collector.jobs, key=lambda r: (r['url'] not in decided, not bool(ENTRY.search(r['title'])))):
         if row['url'] not in decided and not candidate(row, rules):
             continue
         if skip_full and display_description(row['raw'])[1] == 'full':
@@ -191,6 +196,10 @@ def enrich_inventory(collector, db_path, *, reader, provider, metadata, fields, 
             row['raw'].update({key: old.get(key, '') for key in fields})
             row['raw'][metadata] = proof
             continue
+        if budget is not None:
+            if budget <= 0:
+                continue
+            budget -= 1
         row['raw'][metadata] = {'status': 'unverified'}
         try:
             found = reader(collector, row)
