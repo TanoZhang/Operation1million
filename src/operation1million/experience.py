@@ -91,6 +91,14 @@ HANDS_ON = re.compile(
     r'shipping|performing|creating|doing)\b)', re.I)
 HANDS_ON_MAX_YEARS = 15
 LEADING_SUBJECT = re.compile(r'^\s+(?:in|of|with|working|doing|across|on|as)\b', re.I)
+# The candidate described with the years, outside any heading: "A seasoned
+# ASIC Physical Design Engineer with 5+ years at advanced nodes" (Tenstorrent,
+# under "Who You Are", accepted on 2026-10-17), "you have 3+ years in UVM".
+# A team or company with years ("an experienced team with 20 years of
+# history") is not the candidate.
+CANDIDATE_YEARS = re.compile(
+    r'(?:\b(?:seasoned|experienced|veteran|accomplished|proven)\s+(?!(?:team|company|group|organi[sz]ation)\b)'
+    r'[^.;:]{0,80}\bwith|\byou\s+(?:have|bring|possess)|\byou\'ve\s+got)\s+(?:over\s+|at\s+least\s+)?$', re.I)
 # A duration that has to pass, not one that has to have passed. Under a
 # required heading a bare number of years is read as a requirement, and "ship
 # two tape-outs within three years" is a deadline the job sets, not experience
@@ -660,7 +668,7 @@ def evaluate(title, description, employer=None):
                 if not (EXPERIENCE.search(clause) or REQUIRED.search(clause)
                         or DEGREE.search(before) or DEGREE_AFTER.match(after)
                         or standalone or under_heading or leading
-                        or hands_on):
+                        or hands_on or CANDIDATE_YEARS.search(before)):
                     continue
                 degrees = list(DEGREE.finditer(before))
                 following = DEGREE_AFTER.match(after)

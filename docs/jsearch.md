@@ -124,6 +124,18 @@ before and after:
   2,093 stored October JSearch postings, 450 would not be accepted now; run
   `job-store --rescore` after installing.
 
+A 98-posting audit (50 accepted, 48 refused, stratified by reason, read by
+hand against their JDs) found the refusals right and one more accepted
+wrongly: Tenstorrent's "A seasoned ASIC Physical Design Engineer with 5+
+years at advanced nodes", under "Who You Are", named no experience word and
+sat under no requirement heading. `experience.CANDIDATE_YEARS` reads years
+stated about the candidate ("seasoned / experienced / proven ... with N
+years", "you have / bring N years"), not a team's or company's. Of 39,090
+stored postings with such wording, 3 decisions change, all that posting.
+Left as designed: a short description is kept whatever its title (Cisco's
+Security Consulting Engineer, whose JD is Workday metadata, scored 0 and
+passed) -- a protected decision the user has to change.
+
 Expected and unmeasured: a rotated day near the 350 budget; if it binds, the
 trial tiers are cut first. Measure from the record before widening or cutting.
 Suite: 1,275 run, 13 skipped, pass.

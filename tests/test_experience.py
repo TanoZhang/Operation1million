@@ -488,3 +488,20 @@ class SectionHeadingTests(unittest.TestCase):
                 self.assertEqual(evaluate('RTL Design Engineer', text)['hard_pass_reason'], '')
         found = evaluate('RTL Design Engineer', 'Preferred:\nPython\nMinimum qualifications:\n3 years of RTL design.')
         self.assertEqual(found['hard_pass_reason'], 'required_experience_over_2_years')
+
+
+class CandidateDescribedWithYearsTests(unittest.TestCase):
+    """Tenstorrent's "A seasoned ASIC Physical Design Engineer with 5+ years at
+    advanced nodes", under "Who You Are", was accepted (2026-10-17): no word
+    for experience, no requirement heading, years not leading the line."""
+
+    def test_the_candidate_with_years_is_a_requirement(self):
+        for text, years in (('Who You Are\n• A seasoned ASIC Physical Design Engineer with 5+ years at advanced nodes', 5),
+                            ('You have 3+ years in UVM testbenches.', 3),
+                            ('A proven leader with 10+ years building chips.', 10)):
+            self.assertEqual(evaluate('Physical Design Engineer', text, '')['required_experience_years'], years, text)
+
+    def test_a_team_or_company_with_years_is_not_the_candidate(self):
+        for text in ('Our team has 30 years of innovation.', 'An experienced team with 20 years of history.',
+                     'You will gain 2 years of rotations.'):
+            self.assertIsNone(evaluate('Physical Design Engineer', text, '')['required_experience_years'], text)
