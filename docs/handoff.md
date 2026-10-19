@@ -1,3 +1,13 @@
+# Keywords by what passes the filters - 2026-10-19 (claude)
+
+The user: judge a keyword by how many of its results pass the filters, seen
+before or not. From every day manifest (a day keeps only its last run, so
+10-13's U.S. month run and 10-14/15's daily passes are missing): the U.S.
+plan passed 0.88 results a page; intern phrases lead (Hardware Engineer Intern
+2.88, Design Verification Intern 2.75). Of the 17 with three or more runs and
+nothing passing, the user renamed five and removed eleven (listed in
+jsearch_queries.toml); Computer Architecture Intern stays. 297 -> 286 queries.
+
 # Review by password alone, notes under /notes/, fail2ban - 2026-10-19 (claude)
 
 The user: Review with a password only, the WebDAV address on the same name

@@ -681,6 +681,14 @@ role_title_terms = [
   'エンジニア', '設計', '開発', '検証', '評価', 'インターン', '新卒',
 ]
 
+# 2026-10-19, the user, on the measured record (each had three or more runs
+# and no result passing the filters): renamed STA Intern, ASIC Co-op, CAD New
+# Grad, CAD Intern and Test Intern Semiconductor (shorter forms); removed
+# DFT Design, CPU Microarchitecture, GPU Architecture, Semiconductor
+# Engineering and Validation Engineer Intern (their short forms are asked
+# already), Performance Modeling Intern / New Grad, University Hire Hardware
+# Engineer, Characterization Intern, Hardware Engineer Rotational Program and
+# PDK New Grad.
 [[query]]
 query = "Silicon Intern"
 tier = "intern"
@@ -819,11 +827,6 @@ pages = 10
 
 [[query]]
 query = "Design for Test Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "DFT Design Intern"
 tier = "intern"
 pages = 10
 
@@ -1089,11 +1092,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "PDK New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
 query = "Design Verification Entry Level"
 tier = "early_career"
 pages = 25
@@ -1184,11 +1182,6 @@ tier = "new_grad"
 pages = 15
 
 [[query]]
-query = "Validation Engineer Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Verification Intern 2027"
 tier = "intern"
 pages = 5
@@ -1274,27 +1267,17 @@ tier = "early_career"
 pages = 10
 
 [[query]]
-query = "Semiconductor Engineering Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Characterization Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Digital Circuit Design Intern"
 tier = "intern"
 pages = 10
 
 [[query]]
-query = "Test Engineering Intern Semiconductor"
+query = "Test Intern Semiconductor"
 tier = "intern"
 pages = 10
 
 [[query]]
-query = "ASIC Engineering Co-op"
+query = "ASIC Co-op"
 tier = "intern"
 pages = 10
 
@@ -1304,27 +1287,12 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "Performance Modeling New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
 query = "Associate Hardware Engineer"
 tier = "new_grad"
 pages = 10
 
 [[query]]
 query = "Entry Level Electrical Engineer Semiconductor"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "Hardware Engineer Rotational Program"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "University Hire Hardware Engineer"
 tier = "early_career"
 pages = 10
 
@@ -1349,22 +1317,7 @@ pages = 10
 # Co-op (39 pages, 2), Verification Intern 2027 (12, 1), Hardware Design
 # Engineer I (10, 1).
 [[query]]
-query = "CPU Microarchitecture Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "GPU Architecture Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "Performance Modeling Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "CAD Engineering Intern"
+query = "CAD Intern"
 tier = "intern"
 pages = 5
 
@@ -1384,7 +1337,7 @@ tier = "new_grad"
 pages = 5
 
 [[query]]
-query = "CAD Engineer New Grad"
+query = "CAD New Grad"
 tier = "new_grad"
 pages = 5
 
@@ -1425,7 +1378,7 @@ pages = 5
 # Implementation (0) go; CPU and GPU stay without their "Verification"
 # suffix (CPU Verification 0.4).
 [[query]]
-query = "Static Timing Analysis Intern"
+query = "STA Intern"
 tier = "intern"
 pages = 10
 
