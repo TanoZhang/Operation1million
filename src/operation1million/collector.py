@@ -1464,7 +1464,8 @@ def main():
             delta = store.touch_source(db, source, strategy, count, stamp=run_stamp, **kwargs)
         else:
             delta = store.record_source(db, source, rows, status, strategy, count,
-                                        stamp=run_stamp, listed=getattr(c, 'listed', None), **kwargs)
+                                        stamp=run_stamp, listed=getattr(c, 'listed', None),
+                                        keep_prose=getattr(args, 'decided_urls', frozenset()), **kwargs)
         try:
             store.append_log(db, delta['new_urls'] + delta.get('changed_urls', []),
                              delta['closed_urls'], run_stamp, seen_urls=delta.get('seen_urls', []),

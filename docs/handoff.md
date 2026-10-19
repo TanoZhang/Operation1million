@@ -1,3 +1,22 @@
+# Day logs under 50 MB - 2026-10-18 (claude)
+
+The user: keep a day's log under 50 MB by dropping what is useless, not by
+collecting less. Two changes in the store, both at write time:
+- Twelve fields nothing reads, repeated on every Amazon posting, join
+  `DROP_FIELDS` (`locations`, `team`, `job_path`, search labels, ...).
+- A posting whose title is refused outright (the queue's own test: excluded,
+  or soft-blocked and neither an evidence title nor an analog chip role)
+  keeps no description fields; a posting with an Applied or Skipped decision
+  (`decided_urls`) keeps its text. On 10-17 such postings were 29,279 of
+  40,217 records. If a rule later admits such a title, its text returns when
+  the board's next read differs, or through the detail pass.
+Re-packed with the store's code: 10-12 50.3 -> 16.2 MB, 10-13 61.0 -> 23.2,
+10-14 51.8 -> 16.2, 10-17 55.7 -> 18.3. The first pass after install rewrites
+each posting once in its slimmer form (about 25-30 MB expected that day).
+Kept: description_short beside a full description (B58: only an identical
+teaser is a duplicate) and descriptionHtml beside plain text (headings).
+Suite 1,289 run, 13 skipped, all pass.
+
 # Rotation merged; unrelated no-JD titles out; stale sources; Qualcomm slower - 2026-10-18 (claude)
 
 The user: merge the rotation branch, preview Gmail, keep unrelated titles

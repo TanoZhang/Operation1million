@@ -15,8 +15,8 @@ Files: src/operation1million/{applications,collection_policy,gmail_outcomes,
        docs/{agent-protocol,handoff,collection-rules}.md
 Base commit: f1cef5a
 Status: done -- suite 1,288 run, 13 skipped, pass; pushed and installed.
-Next: Retire the stale SanDisk SmartRecruiters and Microsoft postings on the
-      VPS (dry run first); the user decides on log slimming.
+Next: None -- stale postings retired on the VPS (308 SanDisk, 1,936
+      Microsoft); day logs slimmed (handoff, "Day logs under 50 MB").
 ```
 
 ```text

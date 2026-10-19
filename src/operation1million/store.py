@@ -309,6 +309,36 @@ def calculate_score(title, raw):
     return jsearch.relevance({'title': title or '', 'raw': raw}, filter_rules())[0]
 
 
+# A posting whose title is refused outright is never offered, whatever its
+# description says, so its description is not kept: on 2026-10-17 such
+# postings were 29,279 of 40,217 records and two thirds of the day's log
+# (55.7 -> 17.9 MB with the fields above). A posting with a decision keeps
+# its text (`keep_prose`), for Review's Applied tab. A title that needs its
+# description to be judged keeps it too.
+_REFUSED = {}
+
+
+def _refused_title(title):
+    from . import jsearch
+    rules = filter_rules()
+    key = (id(rules), title or '')
+    if key not in _REFUSED:
+        if len(_REFUSED) > 100000:
+            _REFUSED.clear()
+        title = title or ''
+        _REFUSED[key] = bool(jsearch.excluded(title, rules) or (
+            not jsearch.needs_evidence(title, rules) and jsearch.title_blocked(title, rules)
+            and not jsearch.ANALOG_CHIP_ROLE.search(title)))
+    return _REFUSED[key]
+
+
+def without_prose(raw):
+    from . import jsearch
+    if not isinstance(raw, dict):
+        return raw
+    return {k: v for k, v in raw.items() if k not in jsearch.SOFTWARE_JD_FIELDS}
+
+
 MAX_CLOSURE_FRACTION = 0.25
 
 
@@ -339,7 +369,7 @@ def replaces_requisition(previous, incoming):
 
 
 def record_source(db, source, rows, status, strategy, requests, etag=None,
-                  last_modified=None, note='', stamp=None, listed=None):
+                  last_modified=None, note='', stamp=None, listed=None, keep_prose=frozenset()):
     """Upsert one source's rows and close postings it no longer lists.
 
     `listed` is every URL the board still advertises, which differs from `rows`
@@ -490,6 +520,8 @@ def record_source(db, source, rows, status, strategy, requests, etag=None,
         if current and not taken_over:
             raw = merge_raw(json.loads(current['raw'] or 'null'), raw)
         raw = slim(raw)
+        if row['url'] not in keep_prose and _refused_title(row['title']):
+            raw = without_prose(raw)
         posted_relative = lastmod = None
         if isinstance(raw, dict):
             # normalize() emits only FIELDS, so these live on the original record.
@@ -708,6 +740,12 @@ DROP_FIELDS = {
     # is rewritten into the log in full, description and all -- 9,993 rows and
     # about 92 MB per pass, for a string the absolute posted_at already says.
     'updated_time',
+    # Fields nothing reads, repeated on every Amazon posting (2026-10-18, the
+    # user: keep a day's log under 50 MB). `locations` and `job_path` are read
+    # by normalize() before a record is stored; the record keeps the result.
+    'locations', 'team', 'job_path', 'url_next_step', 'multi_location_array',
+    'optional_search_labels', 'primary_search_label', 'normalized_location',
+    'job_family', 'source_system', 'job_schedule_type', 'offices',
 }
 # The score is a pure function of the title, the raw record and the term list,
 # and it is computed once on write. Carrying it in the log keeps a rebuild as

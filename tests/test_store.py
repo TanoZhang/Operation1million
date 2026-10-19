@@ -68,6 +68,35 @@ class StoreTests(unittest.TestCase):
         self.addCleanup(db.close)
         return db
 
+    def test_the_log_keeps_no_prose_a_refused_title_can_never_use(self):
+        """The user, 2026-10-18: keep a day's log under 50 MB. On 10-17 postings
+        whose title is refused outright were two thirds of it."""
+        db = self.open_db()
+        prose = {'description': 'Pick, pack and ship customer orders. ' * 30,
+                 'preferred_qualifications': 'Forklift certification.', 'team': {'id': 7},
+                 'locations': ['{"city": "Seattle"}'],
+                 'job_category': 'Fulfillment'}
+        rows = [dict(row('https://x/warehouse', title='Registered Nurse'), raw=dict(prose)),
+                dict(row('https://x/applied', title='Registered Nurse'), raw=dict(prose)),
+                dict(row('https://x/rf', title='RF Engineer'), raw=dict(prose)),
+                dict(row('https://x/rtl', title='RTL Design Engineer'), raw=dict(prose))]
+        store.record_source(db, SOURCE, rows, 'complete', 'full', 1, keep_prose={'https://x/applied'})
+        raw = {url: json.loads(r) for url, r in db.execute('SELECT url, raw FROM jobs')}
+        for url in raw:
+            # Never read by anything; the short copy of a whole description neither.
+            self.assertFalse({'team', 'locations'} & set(raw[url]), url)
+            self.assertEqual(raw[url]['job_category'], 'Fulfillment')
+        self.assertNotIn('description', raw['https://x/warehouse'])
+        self.assertNotIn('preferred_qualifications', raw['https://x/warehouse'])
+        # A decision keeps its text; so does a title its text has to decide,
+        # and a title naming chip work.
+        for url in ('https://x/applied', 'https://x/rf', 'https://x/rtl'):
+            self.assertIn('Pick, pack', raw[url]['description'], url)
+        # Read again unchanged, nothing is rewritten into the log.
+        delta = store.record_source(db, SOURCE, [dict(r, raw=dict(prose)) for r in rows], 'complete', 'full', 1,
+                                    keep_prose={'https://x/applied'})
+        self.assertEqual(delta['changed_urls'], [])
+
     def test_the_whole_ranking_is_printed_when_no_limit_is_given(self):
         """`--ranked 0` means every open posting, and printed none of them.
 
@@ -315,8 +344,9 @@ class StoreTests(unittest.TestCase):
         before = posting('https://jobs.renesas.com/job/-in-tokyo-japan-jid-6866',
                          'RTL Engineer', 'Tokyo', 'Original text', '6866')
         store.record_source(db, source, [before], 'complete', 'full', 1)
-        after = posting('https://jobs.renesas.com/job/senior-rtl-engineer-in-osaka-japan-jid-6866',
-                        'Senior RTL Engineer', 'Osaka', 'Rewritten text', '6866')
+        # Not a senior title: a refused title keeps no description (2026-10-18).
+        after = posting('https://jobs.renesas.com/job/rtl-design-engineer-in-osaka-japan-jid-6866',
+                        'RTL Design Engineer', 'Osaka', 'Rewritten text', '6866')
         delta = store.record_source(db, source, [after], 'complete', 'full', 1,
                                     listed={after['url']})
 
@@ -325,7 +355,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(delta['closure_candidates'], 0)
         held = db.execute('SELECT url, title, location, raw FROM jobs').fetchall()
         self.assertEqual(len(held), 1)
-        self.assertEqual(held[0]['title'], 'Senior RTL Engineer')
+        self.assertEqual(held[0]['title'], 'RTL Design Engineer')
         self.assertEqual(held[0]['location'], 'Osaka')
         self.assertEqual(json.loads(held[0]['raw'])['description'], 'Rewritten text')
 
@@ -649,11 +679,11 @@ class LogRoundTripTests(unittest.TestCase):
         # A look first changes nothing.
         self.assertEqual(len(store.retire_unseen(db, 'matx', SOURCE.provider_key, '2026-10-01')), 5)
         self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs WHERE closed_at IS NULL').fetchone()[0], 8)
-        closed = store.retire_unseen(db, 'matx', SOURCE.provider_key, '2026-10-01', write=True,
-                                     stamp='2026-10-18T05:00:00+00:00')
+        stamp = store.now()
+        closed = store.retire_unseen(db, 'matx', SOURCE.provider_key, '2026-10-01', write=True, stamp=stamp)
         self.assertEqual(closed, sorted(f'https://x/{i}' for i in range(4, 9)))
         store.export_state(db)
-        store.write_manifest(db, '2026-10-18T05:00:00+00:00', [])
+        store.write_manifest(db, stamp, [])
         db.commit()
         expected = self.snapshot(self.db_path)
         self.assertEqual(sum(1 for r in expected if r[-1] is None), 3)
