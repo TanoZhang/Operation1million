@@ -1,0 +1,23 @@
+# Ban an address that keeps guessing (the user, 2026-10-19): ten failures in
+# ten minutes, an hour's ban. Your own address is banned too after ten typos.
+[DEFAULT]
+findtime = 10m
+bantime = 1h
+maxretry = 10
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled = true
+maxretry = 5
+
+[op1m-review]
+enabled = true
+backend = systemd
+filter = op1m-review
+port = http,https
+
+[op1m-webdav]
+enabled = true
+filter = op1m-webdav
+logpath = /var/log/caddy/access.log
+port = http,https

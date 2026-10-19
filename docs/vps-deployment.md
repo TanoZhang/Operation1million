@@ -306,20 +306,28 @@ outcomes for a fortnight:
     sudo -u operation1million /opt/operation1million/venv/bin/job-store 2>/dev/null
     journalctl -u operation1million-collect.service --since '14 days ago' | grep -i 'paused\|403\|429'
 
-## Obsidian notes over WebDAV (2026-10-19)
+## One address: Review, the notes, fail2ban (2026-10-19)
 
-At the user's request the VPS also keeps an Obsidian vault for the Remotely
-Save plugin. `rclone serve webdav` serves `/srv/obsidian-notes/vault` on
-127.0.0.1:8780 as the `obsidian-notes` system user
-(`operation1million-notes.service`); Caddy serves it at
-https://notes-40-160-142-175.sslip.io with HTTPS and its own login
-(`/etc/caddy/notes-users`). It shares nothing with the job search but the
-proxy. Set or change the login, which also installs and starts it:
+https://40-160-142-175.sslip.io opens Review after one password, no username
+(`review_login.py`: Caddy asks `/__auth`; the page at `/__login` sets a signed
+cookie for thirty days). The record, an scrypt hash and the cookie key, is
+`/etc/operation1million/review-login.json`. Set or change it yourself:
+
+    ssh -t -i ~/.ssh/op1m_vps ubuntu@<vps> sudo bash /opt/operation1million/code/deploy/vps/review-password.sh
+
+The SSH tunnel reaches port 8765 directly and is not asked.
+
+https://40-160-142-175.sslip.io/notes/ is Obsidian's WebDAV folder for Remotely
+Save, with its own username and password (WebDAV has no other kind).
+`rclone serve webdav` serves `/srv/obsidian-notes/vault` on 127.0.0.1:8780 as
+the `obsidian-notes` user. Run after the Review password:
 
     ssh -t -i ~/.ssh/op1m_vps ubuntu@<vps> sudo bash /opt/operation1million/code/deploy/vps/notes-password.sh
 
-The site file goes into /etc/caddy/sites/ only after its login exists, and the
-Caddyfile imports that folder by pattern, so Review never waits on it.
-In Obsidian: Remotely Save, remote service WebDAV, the address above, the same
-username and password. The vault is not in either repository and not in
-backup-from-vps.sh; each device keeps a full copy.
+In Remotely Save: WebDAV, that address, that login, auto sync every minute and
+sync on save. The vault is in neither repository nor backup-from-vps.sh; each
+device keeps a full copy.
+
+fail2ban (install.sh): ten failures in ten minutes ban the address for an hour
+-- SSH (five), Review's password page (journal lines "review login refused
+for"), and /notes/ logins (401s in /var/log/caddy/access.log).

@@ -1,3 +1,12 @@
+# Review by password alone, notes under /notes/, fail2ban - 2026-10-19 (claude)
+
+The user: Review with a password only, the WebDAV address on the same name
+but the page only Review, and fail2ban for guessers. Replaces the separate
+notes name of 3f3bb07 before it was ever set up. Details in
+docs/vps-deployment.md ("One address"). Both logins wait for the user to run
+review-password.sh, then notes-password.sh; until then Caddy keeps serving
+the old username-and-password site.
+
 # Obsidian notes over WebDAV on the VPS - 2026-10-19 (claude)
 
 The user: sync Obsidian through the VPS with Remotely Save, reusing Caddy and

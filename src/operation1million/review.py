@@ -9,9 +9,10 @@ import secrets
 import requests
 import sqlite3
 import threading
+import time
 from urllib.parse import urlsplit, parse_qs
 
-from . import (applications, application_limits, applied_jd, export, ranking, jsearch, manual_intake,
+from . import (applications, application_limits, applied_jd, export, ranking, jsearch, manual_intake, review_login,
                collection_policy, gmail_outcomes, resume_fit)
 from .queue_snapshot import QueueSnapshot
 from .job_text import display_description, readable_text
@@ -279,6 +280,13 @@ def make_server(db, ledger, port=8765, export_path=None):
                 return self.send({'error': 'Local access only'}, 403)
             route = urlsplit(self.path)
             try:
+                # Asked by Caddy before it passes anything on (2026-10-19).
+                if route.path == '/__auth':
+                    if review_login.signed_in(self.headers.get('Cookie'), review_login.read()):
+                        return self.send(b'', 204, mime='text/plain')
+                    return self.redirect('/__login')
+                if route.path == '/__login':
+                    return self.send(review_login.page('failed' in route.query), mime='text/html')
                 if route.path == '/api/queue':
                     if cached['state'] is None and building.locked():
                         return self.send({'error': 'Preparing the job queue'}, 503)
@@ -361,7 +369,39 @@ def make_server(db, ledger, port=8765, export_path=None):
                 raise ValueError('Invalid request size')
             return json.loads(self.rfile.read(size))
 
+        def redirect(self, location, cookie=None):
+            self.send_response(303 if self.command == 'POST' else 302)
+            self.send_header('Location', location)
+            if cookie:
+                self.send_header('Set-Cookie', cookie)
+            self.send_header('Content-Length', '0')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+
+        def client_ip(self):
+            """The browser's address: Caddy's X-Forwarded-For when it came through Caddy."""
+            forwarded = self.headers.get('X-Forwarded-For', '')
+            if forwarded and self.client_address[0] in ('127.0.0.1', '::1'):
+                return forwarded.split(',')[0].strip()
+            return self.client_address[0]
+
+        def login(self):
+            size = int(self.headers.get('Content-Length', 0) or 0)
+            if not 0 < size <= 1024:
+                return self.send({'error': 'Bad request'}, 400)
+            password = parse_qs(self.rfile.read(size).decode('utf-8', 'replace')).get('password', [''])[0]
+            record = review_login.read()
+            if review_login.check(password, record):
+                return self.redirect('/', f'{review_login.COOKIE}={review_login.session(record)}; '
+                                          f'Max-Age={review_login.LIFETIME}; Path=/; Secure; HttpOnly; SameSite=Lax')
+            # fail2ban counts this line (deploy/vps/fail2ban/op1m-review.conf).
+            print(f'review login refused for {self.client_ip()}', flush=True)
+            time.sleep(1)
+            return self.redirect('/__login?failed')
+
         def do_POST(self):
+            if self.path == '/__login' and local_host(self.headers.get('Host', '')):
+                return self.login()
             routes = {'/api/decision': self.decide, '/api/export': self.export,
                       '/api/export/download': self.export,
                       '/api/link': self.link, '/api/manual': self.manual,

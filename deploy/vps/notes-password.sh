@@ -6,7 +6,7 @@
 #
 # Caddy asks for the password twice and stores only its bcrypt hash. The
 # password never reaches an argument, the shell history or a repository.
-# In Obsidian's Remotely Save: WebDAV, https://notes-40-160-142-175.sslip.io,
+# In Obsidian's Remotely Save: WebDAV, https://40-160-142-175.sslip.io/notes/,
 # the same username and password.
 set -euo pipefail
 if [ "$(id -u)" -ne 0 ]; then
@@ -14,6 +14,11 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# /notes/ lives in Review's site, which review-password.sh installs.
+if [ ! -f /etc/operation1million/review-login.json ]; then
+  echo 'Run review-password.sh first: /notes/ is served from the same site.' >&2
+  exit 1
+fi
 command -v rclone >/dev/null || apt-get install -y rclone
 id obsidian-notes >/dev/null 2>&1 || useradd --system --home-dir /srv/obsidian-notes --shell /usr/sbin/nologin obsidian-notes
 install -d -m 750 -o obsidian-notes -g obsidian-notes /srv/obsidian-notes /srv/obsidian-notes/vault
@@ -28,9 +33,9 @@ mv /etc/caddy/notes-users.new /etc/caddy/notes-users
 install -m 644 "$here/operation1million-notes.service" /etc/systemd/system/operation1million-notes.service
 systemctl daemon-reload
 systemctl enable --now operation1million-notes.service
-install -d -m 755 /etc/caddy/sites
-install -m 644 "$here/notes.caddy" /etc/caddy/sites/notes.caddy
-install -m 644 "$here/Caddyfile" /etc/caddy/Caddyfile
+systemctl restart operation1million-notes.service
+install -d -m 755 /etc/caddy/routes
+install -m 644 "$here/notes-route.caddy" /etc/caddy/routes/notes.caddy
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl reload caddy || systemctl restart caddy
-echo "WebDAV: https://notes-40-160-142-175.sslip.io  user: $user"
+echo "WebDAV for Remotely Save: https://40-160-142-175.sslip.io/notes/  user: $user"

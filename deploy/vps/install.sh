@@ -173,6 +173,31 @@ systemctl enable operation1million-review.service
 systemctl restart operation1million-review.service
 systemctl enable --now operation1million-backup.timer
 systemctl enable --now operation1million-gmail.timer
+# Obsidian's WebDAV folder, once notes-password.sh has set it up (2026-10-19).
+if [ -f /etc/systemd/system/operation1million-notes.service ]; then
+  install -m 644 "$ROOT/code/deploy/vps/operation1million-notes.service" /etc/systemd/system/
+  install -m 644 "$ROOT/code/deploy/vps/notes-route.caddy" /etc/caddy/routes/notes.caddy
+  systemctl daemon-reload
+  systemctl restart operation1million-notes.service
+fi
+
+echo "== fail2ban =="
+# Ten wrong passwords in ten minutes ban the address for an hour: SSH, the
+# Review page and the WebDAV folder (the user, 2026-10-19).
+# shellcheck disable=SC2086
+apt-get $APT_WAIT install -y -qq fail2ban
+install -m 644 "$ROOT/code/deploy/vps/fail2ban/op1m-review.conf" /etc/fail2ban/filter.d/op1m-review.conf
+install -m 644 "$ROOT/code/deploy/vps/fail2ban/op1m-webdav.conf" /etc/fail2ban/filter.d/op1m-webdav.conf
+install -m 644 "$ROOT/code/deploy/vps/fail2ban/op1m.local" /etc/fail2ban/jail.d/op1m.local
+# The WebDAV jail reads Caddy's log, which exists once the new site is served.
+install -d -o caddy -g caddy /var/log/caddy
+[ -f /var/log/caddy/access.log ] || install -m 640 -o caddy -g caddy /dev/null /var/log/caddy/access.log
+if fail2ban-client -t >/dev/null; then
+  systemctl enable fail2ban
+  systemctl restart fail2ban
+else
+  echo 'WARNING: the fail2ban configuration did not test clean; it was not restarted.' >&2
+fi
 
 echo
 # Printed because an update that changed nothing used to look exactly like one

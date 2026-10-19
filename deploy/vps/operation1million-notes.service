@@ -6,7 +6,7 @@ After=network-online.target
 User=obsidian-notes
 Group=obsidian-notes
 # No login of its own: only Caddy, on this machine, reaches it.
-ExecStart=/usr/bin/rclone serve webdav /srv/obsidian-notes/vault --addr 127.0.0.1:8780 --dir-perms 0750 --file-perms 0640
+ExecStart=/usr/bin/rclone serve webdav /srv/obsidian-notes/vault --addr 127.0.0.1:8780 --baseurl /notes --dir-perms 0750 --file-perms 0640
 Restart=on-failure
 NoNewPrivileges=true
 ProtectSystem=strict

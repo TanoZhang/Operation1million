@@ -6,13 +6,16 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
-Scope: User request (2026-10-19): Obsidian notes over WebDAV on the VPS.
-Files: deploy/vps/{Caddyfile,notes.caddy,operation1million-notes.service,
-       notes-password.sh}, tests/test_review_proxy.py,
+Scope: User request (2026-10-19): Obsidian notes over WebDAV on the VPS at
+       /notes/; Review by password alone; fail2ban.
+Files: deploy/vps/{Caddyfile,notes-route.caddy,operation1million-notes.service,
+       notes-password.sh,review-password.sh,install.sh,fail2ban/*},
+       src/operation1million/{review,review_login}.py, tests/test_review_proxy.py,
        docs/{agent-protocol,handoff,vps-deployment}.md
 Base commit: e8424ee
-Status: done in code; live once the user runs notes-password.sh.
-Next: The user sets the login and connects Remotely Save.
+Status: done in code; live once the user runs review-password.sh, then
+        notes-password.sh.
+Next: The user sets both passwords and connects Remotely Save.
 ```
 
 ```text
