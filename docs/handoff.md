@@ -1,3 +1,13 @@
+# Obsidian notes over WebDAV on the VPS - 2026-10-19 (claude)
+
+The user: sync Obsidian through the VPS with Remotely Save, reusing Caddy and
+HTTPS, its own folder and password, the password set by the user. Added
+`deploy/vps/{notes.caddy,operation1million-notes.service,notes-password.sh}`
+and a pattern import in the Caddyfile; details in docs/vps-deployment.md.
+The VPS pass of 10-19 (e8424ee): no closure fuse, Qualcomm complete (2,073),
+Microsoft closed 284 normally, TSMC still behind Cloudflare, log 7.5 MB,
+350 credits, Applied without a description 672.
+
 # Day logs under 50 MB - 2026-10-18 (claude)
 
 The user: keep a day's log under 50 MB by dropping what is useless, not by

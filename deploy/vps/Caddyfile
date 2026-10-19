@@ -22,3 +22,8 @@
 		X-Robots-Tag "noindex, nofollow"
 	}
 }
+
+# Sites that need a login file of their own, installed only once that file
+# exists (notes-password.sh writes both), so Review never stops for a site
+# that is not set up yet. A pattern that matches nothing imports nothing.
+import /etc/caddy/sites/*.caddy

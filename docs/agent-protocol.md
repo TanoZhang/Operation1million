@@ -6,6 +6,17 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-19): Obsidian notes over WebDAV on the VPS.
+Files: deploy/vps/{Caddyfile,notes.caddy,operation1million-notes.service,
+       notes-password.sh}, tests/test_review_proxy.py,
+       docs/{agent-protocol,handoff,vps-deployment}.md
+Base commit: e8424ee
+Status: done in code; live once the user runs notes-password.sh.
+Next: The user sets the login and connects Remotely Save.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-18): merge the rotation branch; Gmail preview;
        unrelated titles with no JD not offered; closure fuse, TSMC, Qualcomm;
        log size.

@@ -305,3 +305,21 @@ outcomes for a fortnight:
 
     sudo -u operation1million /opt/operation1million/venv/bin/job-store 2>/dev/null
     journalctl -u operation1million-collect.service --since '14 days ago' | grep -i 'paused\|403\|429'
+
+## Obsidian notes over WebDAV (2026-10-19)
+
+At the user's request the VPS also keeps an Obsidian vault for the Remotely
+Save plugin. `rclone serve webdav` serves `/srv/obsidian-notes/vault` on
+127.0.0.1:8780 as the `obsidian-notes` system user
+(`operation1million-notes.service`); Caddy serves it at
+https://notes-40-160-142-175.sslip.io with HTTPS and its own login
+(`/etc/caddy/notes-users`). It shares nothing with the job search but the
+proxy. Set or change the login, which also installs and starts it:
+
+    ssh -t -i ~/.ssh/op1m_vps ubuntu@<vps> sudo bash /opt/operation1million/code/deploy/vps/notes-password.sh
+
+The site file goes into /etc/caddy/sites/ only after its login exists, and the
+Caddyfile imports that folder by pattern, so Review never waits on it.
+In Obsidian: Remotely Save, remote service WebDAV, the address above, the same
+username and password. The vault is not in either repository and not in
+backup-from-vps.sh; each device keeps a full copy.
