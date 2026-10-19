@@ -180,6 +180,16 @@ class Fail2banTests(unittest.TestCase):
         for name in ('filter.d/op1m-review.conf', 'filter.d/op1m-webdav.conf', 'jail.d/op1m.local'):
             self.assertIn('/etc/fail2ban/' + name, script)
 
+    def test_caddy_can_always_open_its_access_log(self):
+        """2026-10-19: a root-owned access.log, mode 600, stopped Caddy and Review with it."""
+        for name in ('install.sh', 'review-password.sh', 'notes-password.sh'):
+            script = (ROOT / 'deploy/vps' / name).read_text(encoding='utf-8')
+            self.assertIn('chown caddy:caddy /var/log/caddy/access.log', script, name)
+            if name != 'install.sh':
+                self.assertLess(script.index('chown caddy:caddy /var/log/caddy/access.log'),
+                                script.index('systemctl reload caddy'))
+                self.assertIn('systemctl is-active --quiet caddy', script)
+
 
 if __name__ == '__main__':
     unittest.main()

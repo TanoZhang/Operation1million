@@ -190,8 +190,12 @@ install -m 644 "$ROOT/code/deploy/vps/fail2ban/op1m-review.conf" /etc/fail2ban/f
 install -m 644 "$ROOT/code/deploy/vps/fail2ban/op1m-webdav.conf" /etc/fail2ban/filter.d/op1m-webdav.conf
 install -m 644 "$ROOT/code/deploy/vps/fail2ban/op1m.local" /etc/fail2ban/jail.d/op1m.local
 # The WebDAV jail reads Caddy's log, which exists once the new site is served.
+# Owned by caddy whatever made it: on 2026-10-19 it was root's, mode 600, and
+# Caddy, unable to open it, stopped serving Review.
 install -d -o caddy -g caddy /var/log/caddy
-[ -f /var/log/caddy/access.log ] || install -m 640 -o caddy -g caddy /dev/null /var/log/caddy/access.log
+touch /var/log/caddy/access.log
+chown caddy:caddy /var/log/caddy/access.log
+chmod 640 /var/log/caddy/access.log
 if fail2ban-client -t >/dev/null; then
   systemctl enable fail2ban
   systemctl restart fail2ban

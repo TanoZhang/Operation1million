@@ -36,6 +36,12 @@ systemctl enable --now operation1million-notes.service
 systemctl restart operation1million-notes.service
 install -d -m 755 /etc/caddy/routes
 install -m 644 "$here/notes-route.caddy" /etc/caddy/routes/notes.caddy
+# Caddy opens its access log itself; a root-owned one stopped it (2026-10-19).
+install -d -o caddy -g caddy /var/log/caddy
+touch /var/log/caddy/access.log
+chown caddy:caddy /var/log/caddy/access.log
+chmod 640 /var/log/caddy/access.log
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl reload caddy || systemctl restart caddy
+systemctl is-active --quiet caddy || { echo "Caddy did not start: journalctl -u caddy" >&2; exit 1; }
 echo "WebDAV for Remotely Save: https://40-160-142-175.sslip.io/notes/  user: $user"

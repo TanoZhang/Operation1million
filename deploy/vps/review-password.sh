@@ -18,10 +18,16 @@ PYTHONPATH=/opt/operation1million/code/src /opt/operation1million/venv/bin/pytho
   -m operation1million.review_login --set --owner operation1million
 install -d -m 755 /etc/caddy/routes
 install -m 644 "$here/Caddyfile" /etc/caddy/Caddyfile
+# Caddy opens its access log itself; a root-owned one stopped it (2026-10-19).
+install -d -o caddy -g caddy /var/log/caddy
+touch /var/log/caddy/access.log
+chown caddy:caddy /var/log/caddy/access.log
+chmod 640 /var/log/caddy/access.log
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 # The username-and-password file the site used before 2026-10-19.
 rm -f /etc/caddy/review-users
 systemctl restart operation1million-review.service
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
+systemctl is-active --quiet caddy || { echo "Caddy did not start: journalctl -u caddy" >&2; exit 1; }
 echo "Open https://40-160-142-175.sslip.io and enter the password."
