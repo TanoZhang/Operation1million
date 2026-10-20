@@ -1,3 +1,17 @@
+# Gmail read by hand: meeting links and AMD's wording - 2026-10-19 (claude)
+
+The user asked for every email to be checked. Screened all 2,467 cached
+emails for interview, availability, scheduling, assessment and invitation
+words (1,262), read them by template and one by one: none of the 17 Passed
+is wrong, no invitation was read as a rejection. Missed: two meetings already
+set up (Renesas's call 10-12, GlobalFoundries' "Discussion with HR" 10-19),
+whose Teams block sits below the sign-off and was never read, and 44 AMD
+rejections, "you weren't selected for further consideration" (the
+contraction is not "not selected"). A meeting link anywhere now passes an
+email unless it is a webinar, session, fair or other event; the contractions
+are rejections. Over the cache the old and new rules differ on exactly those
+46 emails.
+
 # Gmail: "if you're still available" is not a condition - 2026-10-19 (claude)
 
 The user: Apple's university recruiter asked whether they were available and

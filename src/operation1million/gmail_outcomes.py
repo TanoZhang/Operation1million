@@ -53,6 +53,9 @@ DECLINED = (
     'pursue other', 'pursuing other', 'decided to pursue', 'go in a different direction',
     'going in a different direction', 'decided to go with', 'decided to move on',
     'not been selected', 'not selected', 'were not selected', 'not chosen',
+    # AMD, about fifty times in October: "Unfortunately, you weren't selected
+    # for further consideration." The contraction is not "not selected".
+    "weren't selected", "wasn't selected", "haven't been selected", "hasn't been selected",
     'not shortlisted', 'not been shortlisted',
     # Keysight, 2026-10-06: "we are sorry to inform you that you do not meet
     # the requirements for this position" went unread.
@@ -373,6 +376,22 @@ FOOTER = _phrases(('do not reply', 'unattended mailbox', 'privacy notice', 'priv
                    'for illinois', 'illinois applicants'))
 
 
+# A meeting already set up is an invitation wherever its link sits: Teams puts
+# its block below the sign-off, which hides it from the reading above.
+# GlobalFoundries' "Discussion with HR" and Renesas's "Electrical Engineer
+# call" (2026-10-12, 10-19) carried nothing else and were unknown. A
+# webinar or an information session sends links too, and is not one.
+MEETING = re.compile(r'microsoft teams meeting|teams\.microsoft\.com/(?:l/meetup-join|meet)/|zoom\.us/j/|'
+                     r'join zoom meeting|meet\.google\.com/[a-z]|webex\.com/(?:meet|join)|\binvite\.ics\b')
+MEETING_NOT = re.compile(r'\b(?:webinar|info(?:rmation)? session|office hours|career fair|hackathon|workshop|'
+                         r'open house|town hall|event)\b')
+
+
+def _meeting(lowered):
+    text = ' '.join(lowered)
+    return bool(MEETING.search(text)) and not MEETING_NOT.search(text)
+
+
 def _body_end(lines):
     """The index of the first sign-off or footer sentence, or len(lines)."""
     for index, line in enumerate(lines):
@@ -394,7 +413,7 @@ def classify(subject, body):
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
     spoken = lowered[:_body_end(lines)]
-    passed = any(_invites(line) for line in spoken)
+    passed = any(_invites(line) for line in spoken) or _meeting(lowered)
     plain = [line for line in spoken if not _DECLINE_HEDGES.search(line)]
     hits = set().union(*(_found(_DECLINED, line) for line in plain)) if plain else set()
     patterned = any(pattern.search(line) for line in plain for pattern in DECLINED_PATTERNS)

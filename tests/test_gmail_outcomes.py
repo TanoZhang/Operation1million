@@ -764,3 +764,30 @@ class StillAvailableTests(unittest.TestCase):
                      "If you are invited to interview, you will receive a scheduling link."):
             with self.subTest(body=body):
                 self.assertNotEqual(gmail.classify('Application received', body), 'passed')
+
+
+class MeetingAndContractionTests(unittest.TestCase):
+    """Read by hand, 2026-10-19: two meeting invitations were unknown and about
+    fifty AMD rejections were nothing."""
+
+    TEAMS = ('Regards,\nShavin\n________________________________________________________________________________\n'
+             'Microsoft Teams meeting\nJoin: https://teams.microsoft.com/meet/294941772776469?p=abc\n'
+             'Meeting ID: 294 941 772 776 469\nPasscode: x')
+
+    def test_a_meeting_link_below_the_sign_off_is_an_invitation(self):
+        self.assertEqual(gmail.classify('GlobalFoundries: Daichi Zhang : Discussion with HR',
+                                        'Hi Daichi,\nShared invite.\n' + self.TEAMS), 'passed')
+        self.assertEqual(gmail.classify('Interview', 'Join Zoom Meeting https://us02web.zoom.us/j/8812345?pwd=x'),
+                         'passed')
+
+    def test_a_webinar_link_is_not(self):
+        self.assertNotEqual(gmail.classify('Join our info session',
+                                           'Register for our campus webinar.\n' + self.TEAMS), 'passed')
+
+    def test_a_rejection_with_a_link_is_for_a_look(self):
+        self.assertEqual(gmail.classify('Update', "Unfortunately, you weren't selected.\n" + self.TEAMS), 'unclear')
+
+    def test_amd_rejection_wording(self):
+        body = ("Dear Daichi, Thank you for your interest in AMD and the Sr. RTL Design Engineer position. "
+                "Unfortunately, you weren't selected for further consideration. We encourage you to apply to other roles.")
+        self.assertEqual(gmail.classify('AMD Application: 2026-91437 - Sr. RTL Design Engineer', body), 'declined')
