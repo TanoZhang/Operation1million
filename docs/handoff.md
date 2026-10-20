@@ -1,3 +1,15 @@
+# Gmail: "if you're still available" is not a condition - 2026-10-19 (claude)
+
+The user: Apple's university recruiter asked whether they were available and
+the check did not flag it. "If you're still available and interested please
+respond ... and we'll schedule an interview" read as unclear: the hedge "if
+you're" covered the invitation, because the courtesy pattern knew only "if
+you're still interested" and needed a comma to end the condition. It now
+knows available / open to / remain interested, and blanks the condition alone
+when no comma closes it. Over all 2,467 cached emails on the VPS the old and
+new rules differ on that one email only (unclear -> passed). The email names
+no position, so it is starred and listed, not marked.
+
 # Keywords by what passes the filters - 2026-10-19 (claude)
 
 The user: judge a keyword by how many of its results pass the filters, seen

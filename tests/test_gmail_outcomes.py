@@ -742,3 +742,25 @@ class KeepApplyingAndStaleStarTests(unittest.TestCase):
             self.assertEqual(result['unstarred'], 1)
             # A star on mail not held is not touched, and an unstarred reply is forgotten.
             self.assertEqual(gmail._load(Path(folder) / 'starred.json', None), ['gone'])
+
+
+class StillAvailableTests(unittest.TestCase):
+    """Apple's university recruiter, 2026-10-19: "If you're still available and
+    interested please respond ... and we'll schedule an interview" was read as
+    a condition on the invitation, so the reply was only unclear and unstarred."""
+
+    def test_still_available_and_interested_is_a_courtesy_not_a_condition(self):
+        body = ("Hi Daichi, Thank you for your interest in Apple. If you're still available and interested "
+                "please respond to this email with the following information and we'll schedule an interview.")
+        self.assertEqual(gmail.classify('Greetings From Apple', body), 'passed')
+        for phrase in ("If you are available", "If you're still available", "If you are still open to it",
+                       "If you remain interested"):
+            with self.subTest(phrase=phrase):
+                self.assertEqual(gmail.classify('Next steps', phrase + ', we would like to schedule an interview.'),
+                                 'passed')
+
+    def test_a_condition_on_being_chosen_still_hedges(self):
+        for body in ("If you're selected for an interview, a recruiter will reach out to schedule a time.",
+                     "If you are invited to interview, you will receive a scheduling link."):
+            with self.subTest(body=body):
+                self.assertNotEqual(gmail.classify('Application received', body), 'passed')

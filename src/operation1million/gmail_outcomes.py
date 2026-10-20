@@ -230,9 +230,15 @@ NEGATION = re.compile(r"\b(?:not|cannot|unable|unfortunately|regret|no longer)\b
 # before the hedges are read, so the "if" that hands out the slot does not
 # hide the slot (2026-10-17).
 COURTESY_CONDITIONS = re.compile(
-    r"\bif (?:you(?:'re| are)?(?: still)? interested|interested|you have any questions|"
+    # "If you're still available and interested please respond ... and we'll
+    # schedule an interview" (Apple's university recruiter, 2026-10-19).
+    r"\bif (?:you(?:'re| are)?(?: still)? (?:interested|available|open to (?:it|this|that|the (?:role|opportunity)))"
+    r"(?: and (?:interested|available))?|you (?:still )?remain (?:interested|available)|interested|you have any questions|"
     r"none of (?:these|those|the)|(?:these|those|the) times?|(?:this|that) (?:time|works|does not work|doesn't work)|"
-    r"you (?:need|prefer|would prefer|cannot|can't|are unable|have trouble|have (?:any )?(?:issues|difficulty)))\b[^.;!?]*?(?:,|\bthen\b|$)"
+    r"you (?:need|prefer|would prefer|cannot|can't|are unable|have trouble|have (?:any )?(?:issues|difficulty)))\b"
+    # To the comma that closes the condition; with none, the condition alone
+    # ("If you're still available and interested please respond ...").
+    r"(?:[^.;!?]*?(?:,|\bthen\b|$))?"
     # "Let us know whether Tuesday works": asking which slot, not whether to offer one.
     r"|\bwhether (?:\w+ ){0,5}?(?:works?|suits?|is convenient|is possible)\b")
 CONFIRMATION = (
