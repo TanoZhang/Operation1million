@@ -108,13 +108,28 @@ def write_missing(folder, groups):
 
 
 def _applied(ledger):
-    """The groups whose latest decision is Applied, by id."""
+    """The groups whose latest decision is Applied, by id.
+
+    Also the ids the missing list asked for that the ledger has no decision
+    under: the list names a group as Review shows it, and a posting regrouped
+    after it was applied to (another listing joined it) is shown under a new
+    id while its decision keeps the old one -- Cisco and Meta, 2026-10-20.
+    """
     with applications.locked(ledger):
         events = applications.read_events(ledger)
     latest = {}
     for event in events:
         latest[event.get('group_id') or event['url']] = event
-    return {ident: event.get('group') or {} for ident, event in latest.items() if event['status'] == 'applied'}
+    applied = {ident: event.get('group') or {} for ident, event in latest.items() if event['status'] == 'applied'}
+    try:
+        asked = json.loads(Path(ledger).with_name('applied-missing-jd.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        asked = {}
+    for row in asked.get('listings') or ():
+        ident = row.get('Group') if isinstance(row, dict) else None
+        if ident and ident not in latest:
+            applied[ident] = {}
+    return applied
 
 
 def match(record, applied):

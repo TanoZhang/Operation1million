@@ -98,6 +98,21 @@ class AppliedDescriptionTests(unittest.TestCase):
         written, _ = self.supply({'url': same_title['jobs'][0]['url'], 'description': JD})
         self.assertEqual(written, 1)
 
+    def test_an_id_the_missing_list_asked_for_binds_though_the_ledger_has_another(self):
+        """A posting regrouped after it was applied to is listed under the id
+        Review shows, while its decision keeps the old one (2026-10-20)."""
+        withdrawn = self.imported('Teradyne', 'Test Intern', 'T-1')
+        applications.append_decision(self.ledger, withdrawn, 'pending')
+        self.ledger.with_name('applied-missing-jd.json').write_text(json.dumps(
+            {'listings': [{'Group': 'regrouped'}, {'Group': withdrawn['id']}]}), encoding='utf-8')
+        written, refused = self.supply({'group_id': 'regrouped', 'description': JD},
+                                       {'group_id': withdrawn['id'], 'description': JD},
+                                       {'group_id': 'never-asked', 'description': JD})
+        self.assertEqual(written, 1)
+        self.assertEqual(set(applied_jd.read(self.ledger)), {'regrouped'})
+        # A decision taken since the list was written still settles it.
+        self.assertEqual([why for _, why in refused], ['no Applied entry has this group id'] * 2)
+
     def test_the_missing_list_is_what_the_page_shows_without_text(self):
         imported = self.imported('Skyworks', 'RFIC Design Intern', 'R-1001')
         skipped = self.imported('Skyworks', 'PCB Intern', 'R-1003', status='skipped')
