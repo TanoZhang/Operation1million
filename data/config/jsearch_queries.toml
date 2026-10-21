@@ -689,6 +689,11 @@ role_title_terms = [
 # already), Performance Modeling Intern / New Grad, University Hire Hardware
 # Engineer, Characterization Intern, Hardware Engineer Rotational Program and
 # PDK New Grad.
+# 2026-10-20, the user ("连1个结果都没回来的就删 然后 只要有原始就不删"): the
+# 81 phrases whose every run (10-07..10-20) returned no posting at all were
+# removed -- most of the ai_auto and jd_text tiers, the accelerator, HBM,
+# failure analysis and tool-name phrases, and the five renamed above. Any
+# phrase that returned a posting stays, whether or not it passed.
 [[query]]
 query = "Silicon Intern"
 tier = "intern"
@@ -836,17 +841,7 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "CPU Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "GPU Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "GPU Intern"
 tier = "intern"
 pages = 10
 
@@ -1018,11 +1013,6 @@ pages = 10
 
 [[query]]
 query = "CPU Design New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "CPU New Grad"
 tier = "new_grad"
 pages = 10
 
@@ -1272,11 +1262,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "Test Intern Semiconductor"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "ASIC Co-op"
 tier = "intern"
 pages = 10
@@ -1317,11 +1302,6 @@ pages = 10
 # Co-op (39 pages, 2), Verification Intern 2027 (12, 1), Hardware Design
 # Engineer I (10, 1).
 [[query]]
-query = "CAD Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
 query = "SoC Integration Intern"
 tier = "intern"
 pages = 5
@@ -1346,42 +1326,12 @@ pages = 5
 # 11 accepted, none that no other query found) and no Test Engineer I
 # Semiconductor (5 pages, 41 results, none accepted). Accelerators asked
 # for the first time, five pages each.
-[[query]]
-query = "AI Accelerator Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "Hardware Accelerator Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "ML Accelerator Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "AI Accelerator New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Hardware Accelerator New Grad"
-tier = "new_grad"
-pages = 5
-
 # The user, 2026-10-17, on the 10-04..17 measurement (postings no other query
 # found, per ten pages): Static Timing Analysis is back (3.8, mean score 67;
 # "Timing Engineer" was the weak one at 0.8); Custom Layout (1.5), FPGA Design
 # (0.5, FPGA asks it already), Place and Route (0.5) and Physical
 # Implementation (0) go; CPU and GPU stay without their "Verification"
 # suffix (CPU Verification 0.4).
-[[query]]
-query = "STA Intern"
-tier = "intern"
-pages = 10
-
 [[query]]
 query = "Static Timing Analysis New Grad"
 tier = "new_grad"
@@ -1506,22 +1456,12 @@ tier = "A"
 pages = 10
 
 [[query]]
-query = "Chiplet Engineer"
-tier = "A"
-pages = 5
-
-[[query]]
 query = "Advanced Packaging Engineer"
 tier = "A"
 pages = 5
 
 [[query]]
 query = "SerDes Engineer"
-tier = "A"
-pages = 5
-
-[[query]]
-query = "PDK Engineer"
 tier = "A"
 pages = 5
 
@@ -1570,33 +1510,13 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "SoC Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
 query = "SoC Engineer"
 tier = "A"
 pages = 5
 
 [[query]]
-query = "RTL Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
-query = "DFT Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
 query = "Design Verification New Grad"
 tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Hardware Verification Entry Level"
-tier = "early_career"
 pages = 5
 
 [[query]]
@@ -1647,31 +1567,6 @@ pages = 5
 [[query]]
 query = "CPU Entry Level"
 tier = "early_career"
-pages = 5
-
-[[query]]
-query = "GPU Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
-query = "Accelerator Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "Accelerator New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Accelerator Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
-query = "Accelerator Engineer"
-tier = "A"
 pages = 5
 
 [[query]]
@@ -1735,11 +1630,6 @@ tier = "A"
 pages = 5
 
 [[query]]
-query = "Mixed Signal Design Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
 query = "Mixed Signal Design New Grad"
 tier = "new_grad"
 pages = 5
@@ -1795,21 +1685,6 @@ tier = "A"
 pages = 5
 
 [[query]]
-query = "HBM Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "HBM New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "HBM Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
 query = "HBM Engineer"
 tier = "A"
 pages = 5
@@ -1835,33 +1710,8 @@ tier = "A"
 pages = 5
 
 [[query]]
-query = "Failure Analysis Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "Failure Analysis New Grad"
-tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Failure Analysis Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
 query = "Failure Analysis Engineer"
 tier = "A"
-pages = 5
-
-[[query]]
-query = "Design Automation Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
-query = "Design Automation New Grad"
-tier = "new_grad"
 pages = 5
 
 [[query]]
@@ -1875,18 +1725,8 @@ tier = "A"
 pages = 5
 
 [[query]]
-query = "Integrated Circuit Design Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
 query = "Integrated Circuit Design New Grad"
 tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Integrated Circuit Design Entry Level"
-tier = "early_career"
 pages = 5
 
 [[query]]
@@ -1900,18 +1740,8 @@ tier = "new_grad"
 pages = 5
 
 [[query]]
-query = "Circuit Design Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
 query = "Circuit Design Engineer"
 tier = "A"
-pages = 5
-
-[[query]]
-query = "Power Management IC Intern"
-tier = "intern"
 pages = 5
 
 [[query]]
@@ -1920,28 +1750,13 @@ tier = "new_grad"
 pages = 5
 
 [[query]]
-query = "Power Management IC Entry Level"
-tier = "early_career"
-pages = 5
-
-[[query]]
 query = "Power Management IC Engineer"
 tier = "A"
 pages = 5
 
 [[query]]
-query = "Semiconductor Product Engineer Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
 query = "Semiconductor Product Engineer New Grad"
 tier = "new_grad"
-pages = 5
-
-[[query]]
-query = "Semiconductor Product Engineer Entry Level"
-tier = "early_career"
 pages = 5
 
 [[query]]
@@ -1956,36 +1771,6 @@ pages = 5
 # user: no specific companies). Five pages each, every phrase with an entry
 # level. Unmeasured.
 [[query]]
-query = "Autonomous Vehicle Hardware Intern"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "Autonomous Driving Hardware New Grad"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "ADAS Hardware Intern"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "Automotive Silicon New Grad"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "EV Hardware Engineering Intern"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "Robotics Hardware Intern"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
 query = "Robotics Hardware Engineer New Grad"
 tier = "ai_auto"
 pages = 5
@@ -1997,27 +1782,7 @@ pages = 5
 
 # More domain phrases, the same trial.
 [[query]]
-query = "Data Center Hardware Intern"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
 query = "Data Center Hardware New Grad"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "AI Server Hardware Intern"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "Vehicle Compute Hardware New Grad"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "Lidar Hardware Intern"
 tier = "ai_auto"
 pages = 5
 
@@ -2026,184 +1791,19 @@ query = "Humanoid Robot Hardware Intern"
 tier = "ai_auto"
 pages = 5
 
-[[query]]
-query = "Autonomous Vehicle Hardware New Grad"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "ADAS Hardware New Grad"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "EV Hardware Engineering New Grad"
-tier = "ai_auto"
-pages = 5
-
-[[query]]
-query = "Robotics Hardware Co-op"
-tier = "ai_auto"
-pages = 5
-
 # A tool with an entry level (tier jd_text, 2026-10-17; kept by the user as
 # one more trial): these words are almost only in chip descriptions, where
 # "Electrical Engineer New Grad" returned 239 results and 5 accepted. Never
 # asked in the U.S.; the Japanese tool phrases (SystemVerilog 検証, UVM 検証
 # エンジニア, Verilog 設計) found nothing in Japan's sweep. Unmeasured.
-[[query]]
-query = "SystemVerilog Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "SystemVerilog UVM New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Verilog Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Verilog New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Cadence Virtuoso New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Tapeout New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Silicon Bring-up New Grad"
-tier = "jd_text"
-pages = 10
-
 # More tools, the same trial (2026-10-17).
-[[query]]
-query = "SystemVerilog New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "SystemVerilog Co-op"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "UVM Intern"
-tier = "jd_text"
-pages = 10
-
 [[query]]
 query = "UVM New Grad"
 tier = "jd_text"
 pages = 10
 
 [[query]]
-query = "Verilog Co-op"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Cadence Virtuoso Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Innovus Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Innovus New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Calibre Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Spectre Simulation Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
 query = "HSPICE New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Vivado Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Vivado New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Quartus Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Chisel Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "JasperGold New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Synopsys VCS New Grad"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Xcelium Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Tapeout Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Silicon Bring-up Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Cocotb Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "SystemC Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "High-Level Synthesis Intern"
-tier = "jd_text"
-pages = 10
-
-[[query]]
-query = "Verilog Simulation New Grad"
 tier = "jd_text"
 pages = 10
 
