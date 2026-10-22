@@ -117,7 +117,9 @@ function renderGmail() {
 }
 const statusBadge = group => OUTCOME_LABELS[group.outcome]
   ? `<div class="status-badge status-${group.outcome}">${OUTCOME_LABELS[group.outcome].toUpperCase()}${group.outcome_by === 'gmail' ? ' <span>from Gmail</span>' : ''}</div>` : '';
-const topBadge = group => tab === 'applied'
+// Rejected is Applied's declined positions on a tab of their own (the user, 2026-10-21).
+const appliedView = () => tab === 'applied' || tab === 'rejected';
+const topBadge = group => appliedView()
   ? `${statusBadge(group)}<span class="applied-date">${escapeText(appliedDate(group))}</span>`
   : `${tab === 'skipped' ? skipReason(group) : ''}${chips(group)}`;
 // Why it was skipped, on its row (the user, 2026-10-16): "expired", "no
@@ -344,9 +346,11 @@ function filtered() {
                 ['backlog', state.backlog.filter(group => asiaRelated(group) && !group.early_career)],
                 ['less', open.filter(group => group.asia && group.less_related && !selectedCompany(group))]];
   } else if (tab === 'applied') {
-    sections = ['passed', 'declined', 'waiting']
+    sections = ['passed', 'waiting']
       .filter(name => !outcomeFilter || name === outcomeFilter)
       .map(name => [name, state.applied.filter(group => outcomeOf(group) === name)]);
+  } else if (tab === 'rejected') {
+    sections = [['declined', state.applied.filter(group => outcomeOf(group) === 'declined')]];
   } else {
     sections = [[null, state[tab]]];
   }
@@ -374,6 +378,10 @@ function render() {
   $('#remaining').textContent = open.length + asiaOpen.length + companyOpen.filter(group => !group.less_related).length;
   $('#applied').textContent = state.applied.length;
   $('#skipped').textContent = state.skipped.length;
+  $('#rejected-count').textContent = state.applied.filter(group => outcomeOf(group) === 'declined').length;
+  // Passed our filters, closed before anyone applied (the user, 2026-10-21).
+  $('#missed').textContent = state.missed_closed ?? '—';
+  $('#missed').parentElement.title = state.missed_since ? `Closed on the employer's site since ${state.missed_since}` : '';
   $('#pending-count').textContent = open.filter(experienced).length;
   $('#early-count').textContent = open.filter(early).length;
   $('#backlog-count').textContent = state.backlog.filter(experienced).length;
@@ -417,7 +425,7 @@ function render() {
     }
     const button = document.createElement('button');
     button.className = 'job' + (group.id === selected ? ' selected' : '')
-      + (tab === 'applied' && OUTCOME_LABELS[group.outcome] ? ` outcome-${group.outcome}` : '');
+      + (appliedView() && OUTCOME_LABELS[group.outcome] ? ` outcome-${group.outcome}` : '');
     button.setAttribute('aria-pressed', group.id === selected);
     const locations = [...new Set(group.jobs.map(job => job.location).filter(Boolean))];
     button.innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><div class="job-title">${escapeText(group.title)}</div><span class="score">${Math.round(group.confidence)}</span><div class="job-meta">${escapeText(locations.length > 1 ? `${locations.length} locations` : locations[0] || 'Location not listed')} &middot; ${listings(group.jobs.length)}</div>`;
@@ -460,7 +468,7 @@ async function renderDetail(group) {
     return;
   }
   const first = group.jobs[0];
-  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${tab === 'applied' ? 'applied-date' : ''}">${tab === 'applied' ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less', 'asia', 'companies'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : (tab === 'applied' ? `<button id="outcome-passed" class="${group.outcome === 'passed' ? 'primary' : ''}">Passed</button><button id="outcome-declined" class="${group.outcome === 'declined' ? 'primary' : ''}">Declined</button>${group.outcome ? '<button id="outcome-clear">Clear outcome</button>' : ''}` : '') + '<button id="reopen">Move to review</button>'}</div>${group.application_limit ? `<p class="limit">${escapeText(group.application_limit)}</p>` : ''}${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
+  $('#detail').innerHTML = `<div>${topBadge(group)}</div><div class="company">${escapeText(group.company)}</div><h2>${escapeText(group.title)}</h2><div class="detail-meta"><span>Fit ${Math.round(group.confidence)}</span><span>Discovered ${date(first.first_seen)}</span>${group.at ? `<span class="${appliedView() ? 'applied-date' : ''}">${appliedView() ? 'Applied' : 'Skipped'} ${asDate(group.at).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</span>` : ''}</div><div class="actions">${['pending', 'early', 'backlog', 'less', 'asia', 'companies'].includes(tab) ? '<button class="primary" id="mark-applied">Mark applied</button><button id="skip">Skip</button>' : (appliedView() ? `<button id="outcome-passed" class="${group.outcome === 'passed' ? 'primary' : ''}">Passed</button><button id="outcome-declined" class="${group.outcome === 'declined' ? 'primary' : ''}">Declined</button>${group.outcome ? '<button id="outcome-clear">Clear outcome</button>' : ''}` : '') + '<button id="reopen">Move to review</button>'}</div>${group.application_limit ? `<p class="limit">${escapeText(group.application_limit)}</p>` : ''}${group.reason ? `<p style="margin-top:18px">${escapeText(group.reason)}</p>` : ''}<div class="locations"><h3 class="section-title">LOCATIONS &amp; LISTINGS</h3>${group.jobs.map(job => listingRow(job, group.title)).join('')}</div><h3 class="section-title description-head">DESCRIPTION</h3><div id="description" class="description">Loading description...</div>`;
   const posted = document.createElement('span');
   posted.textContent = postedLabel(first);
   posted.className = postedToday(first) ? 'posted-today' : '';

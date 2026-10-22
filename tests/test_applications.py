@@ -580,6 +580,28 @@ class BacklogTests(ApplicationsFixture):
                       for g in self.queue()[bucket] for job in g['jobs']}
         self.assertNotIn('req-d', everywhere)
 
+    def test_a_closed_job_nobody_decided_is_counted_as_missed(self):
+        """The user, 2026-10-21: how many passed the filters and closed before
+        anyone applied -- not what was decided, not a filtered title, not a
+        paid listing (never closed, only no longer found)."""
+        state = self.queue()
+        self.assertEqual(state['missed_closed'], 1)
+        self.assertEqual(state['missed_since'], 'closed'[:10])
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("INSERT INTO jobs SELECT replace(url, '/d', '/e'), company_key, 'Senior RTL Engineer',"
+                       " location, 'req-e', first_seen, posted_at, provider_key, relevance, closed_at, raw,"
+                       " last_seen FROM jobs WHERE source_job_id='req-d'")
+            db.execute("INSERT INTO jobs SELECT replace(url, '/d', '/f'), company_key, 'Paid Engineer',"
+                       " location, 'req-f', first_seen, posted_at, 'jsearch', relevance, closed_at, raw,"
+                       " last_seen FROM jobs WHERE source_job_id='req-d'")
+        self.assertEqual(self.queue()['missed_closed'], 1)
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET closed_at=NULL WHERE source_job_id='req-d'")
+        applications.append_decision(self.ledger, self.group_for('req-d'), 'skipped')
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET closed_at='closed' WHERE source_job_id='req-d'")
+        self.assertEqual(self.queue()['missed_closed'], 0)
+
     def test_the_backlog_obeys_the_same_exclusions_as_the_queue(self):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute("UPDATE jobs SET title='Senior RTL Engineer' WHERE source_job_id='req-c'")

@@ -667,6 +667,7 @@ def queue(db_path=DB, path=None, now=None):
         return max(candidates, key=lambda event: event['replay_order'], default=None)
     uri = Path(db_path).resolve().as_uri() + '?mode=ro'
     groups, backlog, legacy_history = {}, {}, []
+    missed, missed_since = {}, None
     rules = jsearch.load_plan()[0]['filter']
     from . import resume_fit
     rules = dict(rules, _resume_fit_profile=resume_fit.load(resume_fit.profile_path(path)))
@@ -927,6 +928,15 @@ def queue(db_path=DB, path=None, now=None):
         collect_into(backlog, db.execute(
             select + ''' WHERE j.closed_at IS NULL AND julianday(j.first_seen) < julianday(?)
                          ORDER BY confidence DESC, j.first_seen DESC, j.url''', (since,)))
+        # The user, 2026-10-21: how many we missed -- postings our filters let
+        # through that closed before anyone applied or skipped them. Only an
+        # employer's own board says a posting closed; a paid listing is never
+        # closed, only no longer found.
+        collect_into(missed, db.execute(
+            select + ''' WHERE j.closed_at IS NOT NULL AND j.provider_key != 'jsearch'
+                         ORDER BY confidence DESC, j.first_seen DESC, j.url'''))
+        missed_since = db.execute("SELECT MIN(closed_at) FROM jobs WHERE closed_at IS NOT NULL "
+                                  "AND provider_key != 'jsearch'").fetchone()[0]
         # A requisition can acquire another location after the recent window.
         # Keep the entire decision group in recent when any listing is recent;
         # otherwise POST would snapshot only whichever tab it searched first.
@@ -1010,6 +1020,14 @@ def queue(db_path=DB, path=None, now=None):
         result[name] = [group for group in result[name]
                         if not (group['less_related']
                                 and not any(job.get('readable_jd', True) for job in group['jobs']))]
+    # Closed and never decided, under the same rules as the open queue. A
+    # requisition still open under another listing is not missed.
+    lost = undecided({key: group for key, group in missed.items()
+                      if key not in groups and key not in backlog})
+    result['missed_closed'] = sum(1 for group in lost if not (
+        ranking.bucket(group.get('title')) == 4 and group['confidence'] < minimum
+        and not any(job.get('readable_jd', True) for job in group['jobs'])))
+    result['missed_since'] = (missed_since or '')[:10]
     for key, event in group_states.items():
         if event['status'] != 'pending':
             group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))
