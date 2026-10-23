@@ -608,6 +608,34 @@ class BacklogTests(ApplicationsFixture):
         self.assertEqual(self.queue()['backlog'], [])
 
 
+class JapanEmployerTests(ApplicationsFixture):
+    """The user, 2026-10-23: no time on third-tier companies in Japan."""
+
+    def employ(self, ident, employer, description):
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("UPDATE jobs SET location='東京都 港区', company_key=?, raw=? WHERE url=?",
+                       (employer, json.dumps({'description': description}),
+                        f'https://example.test/{ident}'))
+            db.execute('INSERT OR IGNORE INTO companies VALUES (?, ?)', (employer, employer))
+
+    def test_japan_listings_by_employer_and_pay(self):
+        rtl = 'RTL design and verification of SoC blocks in SystemVerilog. '
+        self.employ('a', 'ソニーセミコンダクタソリューションズ株式会社', rtl + '年収 300万円〜450万円')
+        self.employ('a2', 'ソニーセミコンダクタソリューションズ株式会社', rtl)
+        self.employ('b', '株式会社テクノプロ', rtl)
+        self.employ('c', '株式会社サンプル設計', rtl + '月給 22万円')
+        state = self.queue()
+        groups = {job['url'].rsplit('/', 1)[1]: group
+                  for name in ('pending', 'backlog') for group in state[name] for job in group['jobs']}
+        self.assertIn('a', groups, 'a big company stays whatever it pays')
+        self.assertFalse(groups['a']['japan_other'])
+        self.assertNotIn('b', groups, 'a staffing firm is never offered')
+        self.assertTrue(groups['c']['japan_other'])
+        # Not on the big list and all its yearly pay low: not offered.
+        self.employ('c', '株式会社サンプル設計', rtl + '年収 300万円〜450万円')
+        self.assertNotIn('https://example.test/c', self.pending_urls())
+
+
 class HttpTests(ApplicationsFixture):
     def test_description_survives_store_html_deduplication(self):
         from operation1million import store

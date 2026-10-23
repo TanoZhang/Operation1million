@@ -298,7 +298,7 @@ function sorted(groups) {
 let sectionOf = new Map();
 const SECTION_NAMES = {recent: 'New in the last 72 hours', backlog: 'Backlog', early: 'Early career',
                        less: 'Low relevance', passed: 'Passed', declined: 'Declined',
-                       waiting: 'Waiting for a reply'};
+                       waiting: 'Waiting for a reply', japan_other: 'Japan · other companies'};
 // Asked for on 2026-10-05: the Applied tab in three sections, Passed first,
 // and a menu to show one of them.
 let outcomeFilter = '';
@@ -320,7 +320,9 @@ const home = group => !group.asia && !selectedCompany(group);
 const related = group => !group.less_related && home(group);
 const early = group => related(group) && group.early_career;
 const experienced = group => related(group) && !group.early_career;
-const asiaRelated = group => group.asia && !group.less_related && !selectedCompany(group);
+// Japan's employers on neither the big-company nor the staffing list, in a
+// section of their own at the end of the tab (the user, 2026-10-23).
+const asiaRelated = group => group.asia && !group.less_related && !selectedCompany(group) && !group.japan_other;
 function filtered() {
   const text = $('#search').value.trim().toLowerCase();
   const match = group => `${group.company} ${group.title}`.toLowerCase().includes(text);
@@ -344,7 +346,8 @@ function filtered() {
     sections = [['early', open.filter(group => asiaRelated(group) && group.early_career)],
                 ['recent', state.pending.filter(group => asiaRelated(group) && !group.early_career)],
                 ['backlog', state.backlog.filter(group => asiaRelated(group) && !group.early_career)],
-                ['less', open.filter(group => group.asia && group.less_related && !selectedCompany(group))]];
+                ['less', open.filter(group => group.asia && group.less_related && !selectedCompany(group) && !group.japan_other)],
+                ['japan_other', open.filter(group => group.asia && group.japan_other && !selectedCompany(group))]];
   } else if (tab === 'applied') {
     sections = ['passed', 'waiting']
       .filter(name => !outcomeFilter || name === outcomeFilter)

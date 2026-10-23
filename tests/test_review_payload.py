@@ -154,7 +154,7 @@ class ClientSourceContractTests(unittest.TestCase):
         # (2026-10-11), and still no less related ones.
         self.assertIn("$('#remaining').textContent = open.length + asiaOpen.length + companyOpen.filter(group => !group.less_related).length;", render,
                       'Remaining still counts less related postings')
-        self.assertIn('const asiaRelated = group => group.asia && !group.less_related && !selectedCompany(group);', script)
+        self.assertIn('const asiaRelated = group => group.asia && !group.less_related && !selectedCompany(group) && !group.japan_other;', script)
         self.assertIn('const open = [...state.pending, ...state.backlog].filter(related);', script)
         self.assertIn('data-tab="less"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('less_related', review.GROUP_FIELDS)
@@ -184,7 +184,10 @@ class ClientSourceContractTests(unittest.TestCase):
         self.assertIn('const related = group => !group.less_related && home(group);', script,
                       'the U.S. tabs still list postings abroad')
         self.assertIn("} else if (tab === 'asia') {", body)
-        self.assertIn("['less', open.filter(group => group.asia && group.less_related && !selectedCompany(group))]", body)
+        self.assertIn("['less', open.filter(group => group.asia && group.less_related && !selectedCompany(group) && !group.japan_other)]", body)
+        # Japan's other companies at the end of the tab, and nowhere else (2026-10-23).
+        self.assertIn("['japan_other', open.filter(group => group.asia && group.japan_other && !selectedCompany(group))]", body)
+        self.assertIn('japan_other', review.GROUP_FIELDS)
         self.assertIn('data-tab="asia"', (ROOT / 'src/operation1million/review_static/index.html').read_text(encoding='utf-8'))
         self.assertIn('asia', review.GROUP_FIELDS)
 

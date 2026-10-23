@@ -1,0 +1,70 @@
+# Japan employers (the user, 2026-10-23): no time on third-tier companies.
+#
+# A listing located in Japan is judged by its employer's name, compared after
+# NFKC normalisation and case folding, as a substring:
+#   staffing -- never offered: dispatch, SES and engineer-staffing firms,
+#               recruiting agencies, and posts that hide the employer;
+#   big      -- offered as usual, whatever the pay;
+#   anything else is offered in its own section, "Japan · other companies",
+#   and is dropped only when its whole stated yearly pay is under the floor.
+# A monthly figure alone never drops a listing: bonuses are not in it.
+#
+# Staffing is asked first, so "アルプス技研" is staffing although
+# "アルプスアルパイン" is big. Keep each name long enough to name one company.
+
+min_yearly_pay_man_yen = 500
+
+big = [
+  # Chips, memory and foundries.
+  'sony', 'ソニー', 'kioxia', 'キオクシア', 'renesas', 'ルネサス', 'toshiba', '東芝',
+  'rohm', 'ローム株式会社', 'socionext', 'ソシオネクスト', 'rapidus', 'micron', 'マイクロン',
+  'sandisk', 'サンディスク', 'western digital', 'ウエスタンデジタル', 'tsmc', 'global unichip', 'jasm',
+  'samsung', 'サムスン', 'sk hynix', 'changxin', 'エイブリック', 'ablic', 'ザインエレクトロニクス',
+  'thine electronics', 'ヌヴォトン', 'nuvoton', 'メルコセミコンダクタ', 'ミネベアミツミ', 'minebeamitsumi',
+  'ディジタルメディアプロフェッショナル', 'edgecortix', 'preferred networks',
+  # Equipment, test and materials.
+  'advantest', 'アドバンテスト', '東京エレクトロン', 'tokyo electron', 'screen', 'ディスコ', 'disco corporation',
+  'レーザーテック', 'lasertec', 'ulvac', 'アルバック', '国際電気', 'kokusai electric', '日立ハイテク',
+  '日本マイクロニクス', 'kyec', 'イビデン', 'ibiden', '新光電気', '信越', 'sumco', 'jsr',
+  # Electronics, devices, cars and industrial makers.
+  '日立', 'hitachi', '三菱電機', 'mitsubishi electric', '富士通', 'fujitsu', '日本電気', 'nec',
+  'パナソニック', 'panasonic', 'シャープ', 'sharp', 'キヤノン', 'canon', 'ニコン', 'nikon',
+  'リコー', 'ricoh', 'エプソン', 'epson', '京セラ', 'kyocera', '村田製作所', 'murata', 'tdk',
+  'アルプスアルパイン', 'ニデック', 'nidec', 'オムロン株式会社', 'omron corporation',
+  'デンソー', 'denso', 'トヨタ', 'toyota', '本田技研', '本田技術研究所', 'honda', '日産', 'nissan',
+  'astemo', 'アイシン', 'aisin', 'マツダ', 'スバル', 'ヤマハ', 'yamaha', '任天堂', 'nintendo',
+  'コニカミノルタ', 'konica minolta', '安川電機', 'yaskawa', 'ファナック', 'fanuc', 'キーエンス', 'keyence',
+  '島津製作所', '堀場', 'horiba', '浜松ホトニクス', 'ダイキン', 'daikin', 'ワコム', 'wacom',
+  'オーディオテクニカ', 'セコム', 'toppan', '大日本印刷', '富士電機', 'マクニカ', 'macnica',
+  'i-pro', 'pentax', 'hoya', 'ハイデンハイン', 'アークエッジ', 'ntt', 'kddi株式会社', 'ソフトバンク株式会社',
+  # Foreign chip and tech companies' Japanese arms.
+  'cisco', 'intel', 'amd', 'nvidia', 'qualcomm', 'apple', 'google', 'microsoft', 'amazon', 'meta',
+  'arm株式会社', 'arm limited', 'synopsys', 'cadence', 'siemens', 'keysight', 'analog devices', 'テキサス・インスツルメンツ',
+  'texas instruments', 'infineon', 'nxp', 'stmicro', 'onsemi', 'microchip', 'mediatek', '華為', 'huawei',
+  'advanced micro devices', 'applied materials', 'kla', 'lam research', 'taiwan semiconductor',
+  'globalfoundries', 'broadcom', 'marvell', 'teradyne', 'altera', 'arm, inc', 'arm ltd',
+  'tenstorrent', 'sambanova', 'openai', 'anthropic', 'xai',
+]
+
+staffing = [
+  # Engineer staffing, dispatch and SES firms.
+  'テクノプロ', 'メイテック', 'brexa', 'アウトソーシングテクノロジー', 'スタッフサービス', 'パーソル',
+  'akkodis', 'アルプス技研', 'トップエンジニアリング', 'セントラルエンジニアリング', 'ブライザ',
+  'アプローズ', 'シーディア', 'seedea', 'd4cテクノロジー', 'マイナビedge', 'light brothers',
+  '株式会社ヒップ', 'd-design', 'オープンアップ', 'ジッテ', '日総工産', 'シーデックス', 'フェローシップ',
+  'hrプロビジョン', 'フォーラムエンジニアリング', '日研トータルソーシング', 'トーテックアメニティ',
+  'アルトナー', 'アソウ・アルファ', 'アルテンジャパン', 'alten', 'ウイルテック', 'サンスタッフ',
+  'オムロンエキスパートエンジニアリング', 'upbuild', 'ワールドインテック', 'ui.s', 'ニッソーネット',
+  # Recruiting agencies and job boards posting in an employer's place.
+  'ギークリー', 'ジーエスパートナーズ', 'doda', 'it求人ナビ', 'linkard', 'リクルートエージェント',
+  'jacリクルートメント', 'パソナ', 'workport', 'ワークポート',
+  # The employer withheld.
+  '社名非公開', '非公開', 'confidential', '大手', '日系信託銀行',
+]
+
+# A name that is not a company's: a place ("東京都 府中市"), a slogan
+# ("…総合エンジニア企業"), a bracketed pitch. Regular expressions.
+anonymous_patterns = ['^\S{2,4}[都道府県]\s', '企業$', 'サポート$', '^【']
+
+# A description that says the job is dispatch work. Regular expressions.
+staffing_text = ['無期雇用派遣', '一般派遣', '特定派遣', '派遣社員として', '客先常駐']

@@ -13,7 +13,7 @@ import uuid
 from .paths import DB, DATA
 from .job_text import clean_title
 from .store import chunks
-from . import jsearch, location, ranking
+from . import japan_employers, jsearch, location, ranking
 
 # Fewer readable characters than this is no description to judge a title by.
 READABLE_JD = 200
@@ -737,6 +737,7 @@ def queue(db_path=DB, path=None, now=None):
         # A paid listing's signature -> the group its first copy opened.
         paid_groups = {}
         minimum = rules.get('min_confidence', 25)
+        japan_rules = japan_employers.rules()
 
         def verdict(title):
             """(refused outright, must be justified by its description)."""
@@ -866,6 +867,18 @@ def queue(db_path=DB, path=None, now=None):
                 # China and Taiwan are wanted too (the user, 2026-10-08).
                 if location.outside_allowed(job['location']):
                     continue
+                # Japan (the user, 2026-10-23): no staffing firm, agency or
+                # hidden employer; a company on neither list has its own
+                # section, and leaves when all the yearly pay it states is low.
+                if location.in_japan(job['location']):
+                    text = jsearch.description_text(filter_row)
+                    kind = japan_employers.classify(job.get('company'), text, japan_rules)
+                    if kind == japan_employers.STAFFING:
+                        continue
+                    if kind == japan_employers.OTHER:
+                        if japan_employers.low_pay(text, japan_rules):
+                            continue
+                        job['japan_other'] = True
                 job['experience_filter'] = experience
                 # A paid listing's link is wherever Google Jobs found the
                 # posting, and for every open JSearch posting measured on
@@ -1012,6 +1025,7 @@ def queue(db_path=DB, path=None, now=None):
         # and order (the user, 2026-10-11): every listing there, none in the U.S.
         group['asia'] = bool(group['jobs']) and all(
             location.in_asia_tab(job.get('location')) for job in group['jobs'])
+        group['japan_other'] = bool(group['jobs']) and all(job.get('japan_other') for job in group['jobs'])
     # The user, 2026-10-18: "title不能判定然后jd没有就不要放" -- Cisco's
     # Consulting Engineer postings came with no description at all and a title
     # that names no chip work. Low relevance keeps what has a description to

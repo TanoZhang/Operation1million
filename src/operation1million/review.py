@@ -35,7 +35,7 @@ from .paths import DB
 # it here; leaving it out shows as undefined rather than as stale data.
 GROUP_FIELDS = ('id', 'company', 'title', 'confidence', 'at', 'reason',
                 'bucket', 'flagged', 'internship_experience', 'less_related',
-                'early_career', 'asia', 'outcome', 'outcome_at', 'outcome_by',
+                'early_career', 'asia', 'japan_other', 'outcome', 'outcome_at', 'outcome_by',
                 # A capped employer's slots (2026-10-08).
                 'application_limit',
                 # Set by `slim` itself, only on a referable employer's group.
