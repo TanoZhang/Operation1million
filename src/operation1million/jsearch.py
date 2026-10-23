@@ -8,6 +8,7 @@ import unicodedata
 import math
 from datetime import date, datetime, timezone
 import os
+from pathlib import Path
 import re
 import time
 import threading
@@ -20,7 +21,7 @@ try:
 except ImportError:
     import tomli as tomllib
 
-from .paths import CONFIG
+from .paths import CONFIG, DATA
 from .collection_policy import retry_after_seconds
 from .jsearch_access import AccountPaused, QuotaExhausted
 from .job_text import clean_title
@@ -81,10 +82,32 @@ def load_plan(path=CONFIG / 'jsearch_queries.toml', today=None):
         # Query objects are frozen; the enclosing list and all configuration
         # containers belong to the caller, never to another load_plan call.
         config = deepcopy(config)
+    # Read per call, like the budget below: the list grows between passes.
+    config['filter']['exclude_employer_patterns'] = (
+        config['filter'].get('exclude_employer_patterns', []) + military_employer_patterns())
     # Resolved per call, not cached: a cached plan outlives the cycle it was read in.
     start = cycle_start_for(config, today)
     config['daily_budget'] = config['cycle_daily_budget'].get(start, config['daily_budget'])
     return config, list(queries)
+
+
+def military_employer_patterns(path=None):
+    """The defence employers Muse lists in the private store, as employer patterns.
+
+    The user, 2026-10-23: the military hard-filter list
+    (`job-applications/military-companies-hardfilter.txt`, one name a line,
+    kept by Muse from the postings skipped as military) is a hard filter here
+    too, so those employers never reach Review. Absent, it filters nothing.
+    """
+    if path is None:
+        path = (Path(os.environ.get('OPERATION1MILLION_STORE') or DATA / 'store')
+                / 'job-applications/military-companies-hardfilter.txt')
+    try:
+        lines = Path(path).read_text(encoding='utf-8').splitlines()
+    except (OSError, UnicodeDecodeError):
+        return []
+    names = [line.strip() for line in lines if line.strip() and not line.lstrip().startswith('#')]
+    return [r'\b' + r'\s+'.join(map(re.escape, name.split())) + r'(?!\w)' for name in names]
 
 
 def cycle_start_for(config, today=None):

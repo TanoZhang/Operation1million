@@ -2276,3 +2276,25 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(asked, [('first intern', '1'), ('second intern', '1'),
                                  ('first intern', '2'), ('second intern', '2'),
                                  ('only new grad', '1'), ('only new grad', '2')])
+
+
+class MilitaryListTests(unittest.TestCase):
+    """The user, 2026-10-23: Muse's military list is a hard employer filter."""
+
+    def test_the_stores_military_list_excludes_its_employers(self):
+        with tempfile.TemporaryDirectory() as root:
+            listed = Path(root) / 'job-applications/military-companies-hardfilter.txt'
+            listed.parent.mkdir()
+            listed.write_text('SpaceX\n\nLeonardo  DRS\n# a note\nInversion\n', encoding='utf-8')
+            with patch.dict(os.environ, {'OPERATION1MILLION_STORE': root}):
+                rules = jsearch.load_plan()[0]['filter']
+            excluded = lambda name: jsearch.employer_excluded({'company_name': name}, rules)
+            self.assertTrue(excluded('Space Exploration Technologies Corp. (SpaceX)'))
+            self.assertTrue(excluded('Leonardo DRS, Inc.'))
+            self.assertTrue(excluded('Inversion Space'))
+            self.assertFalse(excluded('Inversions Ltd'))
+            self.assertFalse(excluded('NVIDIA'))
+            # No list, no extra filter.
+            with patch.dict(os.environ, {'OPERATION1MILLION_STORE': str(Path(root) / 'none')}):
+                self.assertFalse(jsearch.employer_excluded(
+                    {'company_name': 'SpaceX'}, jsearch.load_plan()[0]['filter']))

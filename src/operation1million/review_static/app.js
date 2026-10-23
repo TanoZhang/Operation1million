@@ -379,6 +379,15 @@ function render() {
   $('#applied').textContent = state.applied.length;
   $('#skipped').textContent = state.skipped.length;
   $('#rejected-count').textContent = state.applied.filter(group => outcomeOf(group) === 'declined').length;
+  // Heard back: any answer, passed or declined, of everything applied; pass
+  // rate: passed of those answers (the user, 2026-10-23).
+  const passed = state.applied.filter(group => outcomeOf(group) === 'passed').length;
+  const answered = passed + state.applied.filter(group => outcomeOf(group) === 'declined').length;
+  const percent = (part, whole) => whole ? `${(100 * part / whole).toFixed(1)}%` : '—';
+  $('#heard').textContent = percent(answered, state.applied.length);
+  $('#heard').parentElement.title = `${answered} of ${state.applied.length} applications answered`;
+  $('#pass-rate').textContent = percent(passed, answered);
+  $('#pass-rate').parentElement.title = `${passed} passed of ${answered} answered`;
   // Passed our filters, closed before anyone applied (the user, 2026-10-21).
   $('#missed').textContent = state.missed_closed ?? '—';
   $('#missed').parentElement.title = state.missed_since ? `Closed on the employer's site since ${state.missed_since}` : '';
