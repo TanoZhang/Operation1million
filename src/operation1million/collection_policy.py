@@ -36,14 +36,26 @@ class RobotsThrottled(Exception):
 USER_AGENT = 'JobSourceCollector/1.0'
 
 
+CHALLENGE_TERMS = ('human verification', 'verify you are human', 'access denied',
+                   'captcha challenge', "you don't have permission to access",
+                   'enable javascript and cookies')
+CHALLENGE_IDS = ('challenge-form', 'cf-challenge-running')
+
+
 def html_challenge(text):
     """Return explicit challenge evidence, ignoring scripts and CDN branding."""
     from bs4 import BeautifulSoup
+    if not isinstance(text, BeautifulSoup):
+        # What the visible text or an element id can say, the markup says too:
+        # a page naming none of them is not parsed. Every HTML response was,
+        # and then parsed again by its reader -- 0.2 s for Honda's 4.6 MB
+        # board, against 0.005 s for this (2026-10-23).
+        lowered = str(text or '').lower()
+        if not any(term in lowered for term in CHALLENGE_TERMS + CHALLENGE_IDS):
+            return None
     soup = text if isinstance(text, BeautifulSoup) else BeautifulSoup(text, 'html.parser')
     visible = soup.get_text(' ', strip=True).lower()
-    for term in ('human verification', 'verify you are human', 'access denied',
-                 'captcha challenge', "you don't have permission to access",
-                 'enable javascript and cookies'):
+    for term in CHALLENGE_TERMS:
         if term in visible:
             return f'block/challenge signal: {term}'
     if soup.select_one('#challenge-form, #cf-challenge-running'):
@@ -212,12 +224,17 @@ class SourcePolicy:
     def pause(self, reason, seconds):
         retry_at = time.time() + seconds
         with closing(self.connect()) as con, con:
+            # The reason is the one whose pause stands. A 429's fifteen minutes
+            # inside a 403's day kept the day and wrote "rate limit" over
+            # "access refused; review before retrying" (2026-10-23).
             con.execute('''INSERT INTO source_pauses VALUES (?, ?, ?)
                 ON CONFLICT(company_key) DO UPDATE SET
-                    retry_at=MAX(source_pauses.retry_at, excluded.retry_at),
-                    reason=excluded.reason''', (self.company_key, retry_at, reason))
-            retry_at = con.execute('SELECT retry_at FROM source_pauses WHERE company_key=?',
-                                   (self.company_key,)).fetchone()[0]
+                    reason=CASE WHEN excluded.retry_at >= source_pauses.retry_at
+                                THEN excluded.reason ELSE source_pauses.reason END,
+                    retry_at=MAX(source_pauses.retry_at, excluded.retry_at)''',
+                        (self.company_key, retry_at, reason))
+            retry_at, reason = con.execute('SELECT retry_at, reason FROM source_pauses WHERE company_key=?',
+                                           (self.company_key,)).fetchone()
         raise self._stop(reason, retry_at)
 
     def _stop(self, reason, retry_at):

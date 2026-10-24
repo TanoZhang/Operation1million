@@ -1048,9 +1048,16 @@ def us_person_required(text, rules):
     # of "If the role requires U.S. citizenship, candidates must be U.S.
     # citizens" was " citizenship, candidates ", its condition lost
     # (2026-09-27). The same text with those points blanked, same offsets.
+    patterns = rules.get('us_person_required_patterns', [])
+    # Most postings name no citizenship at all: one pass over the text answers
+    # for every pattern before each is walked match by match. 26 passes a
+    # posting were 14 of a queue build's 155 profiled seconds (2026-10-23).
+    combined = any_of(patterns)
+    if combined is None or not combined.search(text):
+        return required_citizenship_bullet(text)
     plain = ABBREVIATION.sub(lambda found: found.group().replace('.', ' '), text)
     optional_spans = None
-    for pattern in rules.get('us_person_required_patterns', []):
+    for pattern in patterns:
         for match in re.finditer(pattern, text, re.I):
             # The sentence the match stands in, up to it. A requirement stated
             # conditionally is not this posting's requirement: "ITAR projects,

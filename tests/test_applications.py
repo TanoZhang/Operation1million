@@ -236,6 +236,42 @@ class ApplicationsTests(ApplicationsFixture):
                 self.assertEqual([g['title'] for g in self.queue()['pending']], [])
                 applications.append_decision(self.ledger, self.queue()['applied'][0], 'pending')
 
+    def test_an_application_covers_a_namesake_in_any_of_its_places(self):
+        """2026-10-23: Qualcomm's posting named five places in one field, and only
+        the first was compared, so a job board's copy in Tempe -- one of the five
+        -- came back to be applied for again. 65 such copies were on the backlog."""
+        self.place('a', 'San Diego, California, United States of America; '
+                        'Tempe, Arizona, United States of America')
+        self.place('a2', 'San Diego, California, United States of America')
+        self.place('b', 'Tempe, Arizona, US')
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
+        self.assertEqual([g['title'] for g in self.queue()['pending']], [])
+
+    def test_an_application_covers_a_namesake_without_the_employers_name_in_front(self):
+        """2026-10-23: NVIDIA's board printed "NVIDIA 2027 Internships: Hardware
+        Verification", its copies "2027 Internships: Hardware Verification", and
+        an application through the first left two copies offered."""
+        self.place('a', 'Austin', title='Sample Semiconductor 2027 Internships: Hardware Verification')
+        self.place('a2', 'Austin', title='Sample Semiconductor 2027 Internships: Hardware Verification')
+        self.place('b', 'Austin', title='2027 Internships: Hardware Verification')
+        applications.append_decision(self.ledger, self.group_for('req-a'), 'applied')
+        self.assertEqual([g['title'] for g in self.queue()['pending']], [])
+        # The name in front only: a title naming the company elsewhere is its own.
+        self.assertEqual(applications.title_key('NVIDIA', 'GPU Engineer, NVIDIA Research'),
+                         'gpu engineer nvidia research')
+
+    def test_places_that_name_their_city_partly_or_not_at_all(self):
+        agree = lambda one, other: applications.places_agree([{'location': one}], [{'location': other}])
+        # LinkedIn's "(+1 other)" names one of several; "Anywhere" names none.
+        self.assertTrue(agree('Austin, TX  (+1 other)', 'Sunnyvale, California, US'))
+        self.assertTrue(agree('Anywhere', 'Mountain View (HQ) or Remote'))
+        # GlobalFoundries' Workday puts the country first.
+        self.assertTrue(agree('USA - Texas - Richardson', 'Richardson, Texas, US'))
+        self.assertFalse(agree('USA - Texas - Richardson', 'Richardson, Illinois, US'))
+        # Two named cities that differ are still two openings.
+        self.assertFalse(agree('Longmont, Colorado, US', 'San Jose, California'))
+        self.assertFalse(agree('San Diego, CA; Tempe, AZ', 'Boise, Idaho, US'))
+
     def test_an_application_covers_a_namesake_group_with_one_listing_naming_no_city(self):
         # Marvell, 2026-10-05: "5 Locations" on Workday and a LinkedIn copy
         # placed in New York, after an application made in Santa Clara.

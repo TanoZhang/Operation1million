@@ -1,4 +1,5 @@
 """Conservative, deterministic required-experience gate; no inferred equivalency."""
+from functools import lru_cache
 import html
 import re
 import unicodedata
@@ -504,6 +505,17 @@ def japanese_as_english(text):
         return 'Required qualifications'
     text = re.sub(r'(?m)^[ \t【■●◆\[]*[^\n]{0,30}(?:(?:応募資格|要件|資格|スキル|条件)[^\n]{0,4}(?:必須|歓迎|尚可)'
                   r'|(?:必須|歓迎|尚可)[^\n]{0,4}(?:要件|資格|スキル|条件|経験))[^\n]{0,4}$', heading, text)
+    # A Japanese sentence ends at 「。」 and a list item starts at 「・」. A
+    # board that prints a posting on one line -- an HRMOS list excerpt
+    # (2026-10-23) -- was one sentence from start to end, so the 「あれば尚可」
+    # closing it made ABLIC's 「法人営業経験3年以上」 read as preferred too.
+    text = re.sub(r'。', '。\n', text)
+    text = re.sub(r'[ \t　]+・', '\n・', text)
+    # 「3年以上が望ましい」 and 「5年以上程度が望ましい」 are desirable, not required.
+    # Only where it qualifies the years: Canon's one-line 「必要な経験 …３年以上
+    # あると望ましい経験…」 requires them, and 推奨 names a recommended tool
+    # (「3年以上, 推奨DB PostgreSQL」) or labels another list (「推奨：」).
+    text = re.sub(r'(\d{1,2})\s*年以上(?:程度)?(?:が|は)?望ましい', r' \1+ years preferred ', text)
     text = re.sub(r'(\d{1,2})\s*年以上', r' \1+ years ', text)
     text = re.sub('(?:実務|業務|職務)?経験', ' experience ', text)
     text = re.sub('必須', ' required ', text)
@@ -518,13 +530,19 @@ def _employer_voice(text, employer):
     after the employer's own name, so "Requirements:" and a bullet "Has 5+
     years" still ask for the years."""
     from .employers import display
-    names = {name for name in (' '.join(str(employer or '').split()), display(employer))
-             if len(name) >= 3}
+    names = frozenset(name for name in (' '.join(str(employer or '').split()), display(employer))
+                      if len(name) >= 3)
     if not names:
         return text
+    return _employer_voice_pattern(names).sub('We have ', text)
+
+
+@lru_cache(maxsize=8192)
+def _employer_voice_pattern(names):
+    """Compiled once per employer: built per call, a queue build compiled one
+    for each of its 21,208 postings (2026-10-23)."""
     pattern = '|'.join(re.escape(name) for name in sorted(names, key=len, reverse=True))
-    return re.sub(r'\b(?:%s)(?:\s*:|\s+(?:has|have|brings|boasts))\s+' % pattern,
-                  'We have ', text, flags=re.I)
+    return re.compile(r'\b(?:%s)(?:\s*:|\s+(?:has|have|brings|boasts))\s+' % pattern, re.I)
 
 
 def evaluate(title, description, employer=None):

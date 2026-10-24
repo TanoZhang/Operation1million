@@ -160,7 +160,9 @@ def _location_candidates(location):
     return candidates
 
 
-@lru_cache(maxsize=2048)
+# Sized past the places the store holds (5,369 on 2026-10-23). At 2,048 a
+# queue build compiled 9,134 sets, each place over again on every pass.
+@lru_cache(maxsize=16384)
 def _location_patterns(location):
     """Bounded immutable patterns shared by titles at the same normalized place."""
     patterns = []

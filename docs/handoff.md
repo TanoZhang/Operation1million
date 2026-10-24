@@ -1,3 +1,49 @@
+# Japan's own readers, JSearch U.S., ten bugs - 2026-10-23 (claude)
+
+The user: Japan as wide as it goes; how JSearch is doing in the U.S.; ten bugs
+fixed, ten optimizations, unneeded tests removed.
+- Migration `013_japan_own_readers`: 25 sources on five new readers in
+  `collector.py` -- jposting's HTML lists (Mitsubishi Electric, NEC,
+  MinebeaMitsumi, Mazda, Murata, JSR, ULVAC, IBIDEN), sonar/snar.jp (Honda,
+  Denso, Toyota, Alps Alpine, Nuvoton, NTT R&D, Ricoh), axol mid-career lists
+  (KDDI, Nikon, Keyence x2, Shinko, ROHM, Shimadzu), ZOOKEEP through its shared
+  sitemap (Sony SSS, Sony Group) and Rapidus's WordPress REST list. No-store:
+  all 25 complete, 2,973 postings, 1,935 past the filters. sonar has no page
+  per posting: its identity is the board's address and the title.
+- JSearch U.S., from the run records 10-19..10-23: 1,172 pages, 167 new
+  postings accepted (0.14 a page). The budget is not what stops it: 592 of 824
+  runs ended on page one, the provider out of results in the 3-day window,
+  and 10-20..10-23 spent 182-247 of 350. 136 applications came only through
+  it. 29 phrases that never returned a posting went (the 10-20 rule), and
+  Japan's sweep no longer asks Workport and other all-agency publishers.
+- Bugs, each with a test failing on d788fb8: Amazon's printed date stored as
+  posted_at; 株式会社 splitting an employer; one-line Japanese postings read as
+  one sentence; 「N年以上が望ましい」 read as required; a multi-place location
+  compared by its first place, "(+1 other)" and "Anywhere" as named places and
+  Workday's "USA - Texas - Richardson" unparsed (together 21 copies of applied,
+  skipped or listed jobs left the backlog); a shorter pause renaming the one
+  that stands; a title led by its employer's name never matching its copies;
+  Japanese entry-level titles not early career.
+- Faster, measured: a queue build 107 s -> 97-103 s (citizenship pre-check,
+  place-pattern cache sized to the store, employer pattern compiled once); the
+  challenge check no longer parses every HTML response.
+- Exact-count pins (176 queries, 96 companies, tier page sums) replaced by the
+  invariants beside them. CLAUDE.md: the WSL distro is gone; CI runs the
+  POSIX tests.
+- Then (the user, "日本 继续expand"): migration `014_japan_more_boards`, ten
+  sources -- Astemo and HOYA on HRMOS, Omron's public axol board, Ebara and
+  Hitachi Systems on jposting's HTML list, ArkEdge Space and Nintendo Systems
+  on a new HERP reader, and Tokyo Electron's own Workday, Monolithic Power
+  Systems and Lumentum (32 Japan postings) on Workday. No-store: all ten
+  complete, 1,206 postings. Ebara, MPS and Lumentum joined the big list;
+  「応募意思不問」 and 「オンラインセミナー」 are not openings.
+- Probed and left: KOKUSAI ELECTRIC, Daikin, Yamaha, Docomo, Micronics and
+  Hitachi High-Tech have HRMOS pages that list nothing; Nissan, Yamaha Motor,
+  SoftBank, Daikin, Docomo and Ebara's snar boards are new-graduate or event
+  pages; Omron's and Hitachi High-Tech's sites refuse curl.
+Not done: the closed-postings pass of a queue build (13,872 rows each time,
+and growing) is not cached. Suite 1,342 run, 13 skipped, pass. Not committed.
+
 # Japan's big employers read directly - 2026-10-23 (claude)
 
 The user: read Japan's big companies from their own boards, not JSearch's

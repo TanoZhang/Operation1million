@@ -32,6 +32,15 @@ class AllCompanyTests(unittest.TestCase):
   reversed_state={k:list(reversed(v)) for k,v in reversed(list(original.items()))}
   self.assertEqual(e.label_queue(reversed_state),state)
 
+ def test_japanese_legal_designators_are_a_suffix_like_inc(self):
+  """2026-10-23: 「株式会社 アドバンテスト」 and 「株式会社アドバンテスト」 were two
+  employers in Review; an unregistered firm split the same way."""
+  self.assertEqual(len({e.identity(n) for n in ('株式会社 アドバンテスト','株式会社アドバンテスト','Advantest')}),1)
+  self.assertEqual(len({e.identity(n) for n in ('シキノハイテック','株式会社シキノハイテック','㈱シキノハイテック',
+                                                '（株）シキノハイテック','シキノハイテック株式会社')}),1)
+  # Two firms are still two.
+  self.assertNotEqual(e.identity('株式会社シキノハイテック'),e.identity('株式会社シキノ'))
+
  def test_unconfirmed_names_and_distinct_businesses_stay_separate(self):
   self.assertNotEqual(e.identity('Intel Staffing Services'),e.identity('Intel'))
   self.assertNotEqual(e.identity('Instagram'),e.identity('Meta'))

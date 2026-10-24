@@ -679,19 +679,24 @@ class CollectionTests(unittest.TestCase):
         con=sqlite3.connect(':memory:');sql=(CONFIG/'schema.sql').read_text(encoding='utf-8')
         con.executescript(sql);con.executescript(sql)
         keys={r[0] for r in con.execute('select company_key from companies')}
-        # Three Japan boards added 2026-10-11: EdgeCortix, Preferred Networks
-        # and TSMC (back for its Yokohama design centre).
-        # And Toshiba (HRMOS), Kioxia and Sony Semiconductor Manufacturing
-        # (jposting) the same day.
-        # And Japan's big employers on 2026-10-23: sixteen HRMOS boards, Hitachi
-        # and Subaru on jposting, Infineon, Analog Devices and Microchip.
-        self.assertEqual(len(keys),72)
+        # Every company is read from somewhere; a count pinned here failed on
+        # every catalog change and caught nothing else (2026-10-23).
+        self.assertEqual(con.execute('select company_key from companies where company_key not in '
+                                     '(select company_key from company_sources union '
+                                     'select company_key from company_direct_sources)').fetchall(), [])
         self.assertEqual(dict(con.execute('select company_key, provider_key from company_sources where company_key in '
-                                          "('advantest','tokyo_electron','hitachi','subaru','infineon',"
-                                          "'analog_devices','microchip')")),
-                         {'advantest': 'hrmos', 'tokyo_electron': 'hrmos', 'hitachi': 'jposting',
-                          'subaru': 'jposting', 'infineon': 'eightfold', 'analog_devices': 'workday',
-                          'microchip': 'workday'})
+                                          "('mitsubishi_electric','honda','kddi','sony_semiconductor_solutions','rapidus',"
+                                          "'omron','arkedge_space','lumentum')")),
+                         {'mitsubishi_electric': 'jposting', 'honda': 'sonar', 'kddi': 'axol',
+                          'sony_semiconductor_solutions': 'zookeep', 'rapidus': 'wordpress',
+                          'omron': 'axol', 'arkedge_space': 'herp', 'lumentum': 'workday'})
+        # Tokyo Electron is read twice: HRMOS in Japan, its own Workday abroad.
+        self.assertEqual(set(con.execute('select company_key, provider_key from company_sources where company_key in '
+                                         "('advantest','tokyo_electron','hitachi','subaru','infineon',"
+                                         "'analog_devices','microchip')")),
+                         {('advantest', 'hrmos'), ('tokyo_electron', 'hrmos'), ('tokyo_electron', 'workday'),
+                          ('hitachi', 'jposting'), ('subaru', 'jposting'), ('infineon', 'eightfold'),
+                          ('analog_devices', 'workday'), ('microchip', 'workday')})
         self.assertEqual(dict(con.execute('select company_key, provider_key from company_sources where company_key in '
                                           "('toshiba','kioxia','sony_semiconductor_manufacturing')")),
                          {'toshiba': 'hrmos', 'kioxia': 'jposting', 'sony_semiconductor_manufacturing': 'jposting'})
@@ -725,6 +730,17 @@ class CollectionTests(unittest.TestCase):
         row=normalize(replace(self.source(),provider_key='amazon_jobs'),{'id':'uuid','id_icims':'123','title':'Engineer','job_path':'/en/jobs/123/engineer'})
         self.assertEqual(row['url'],'https://www.amazon.jobs/en/jobs/123/engineer')
         self.assertEqual(row['source_job_id'],'123')
+    def test_amazon_posted_date_is_stored_as_the_day(self):
+        """2026-10-23: stored as printed, "August 17, 2026" sorted after every
+        ISO date in `--ranked` and exported as "August 17,"."""
+        row=normalize(replace(self.source(),provider_key='amazon_jobs'),
+                      {'id_icims':'123','title':'Engineer','job_path':'/en/jobs/123/engineer',
+                       'posted_date':'August 17, 2026'})
+        self.assertEqual(row['posted_at'],'2026-08-17')
+        self.assertEqual(row['raw']['posted_date'],'August 17, 2026')
+        row=normalize(replace(self.source(),provider_key='amazon_jobs'),
+                      {'id_icims':'124','title':'Engineer','job_path':'/en/jobs/124/engineer','posted_date':'soon'})
+        self.assertIsNone(row['posted_at'])
     def test_empty_terminal_page(self):
         c=Collector(replace(self.source(),provider_key='apple_jobs'),self.args())
         c.jobs=[{'title':'Existing job'}]

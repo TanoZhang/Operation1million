@@ -42,3 +42,18 @@ Japan boards, captured 2026-10-11 UTC (originals ignored in `.local/jp-capture/`
 | `hrmos_detail_redacted.html` | `https://hrmos.co/pages/toshiba/jobs/300000016` | JSON-LD JobPosting with HTML `description`, `datePosted` and `jobLocation[].address`; its `title` adds "／ <company>" after the `h1` |
 | `jposting_list_redacted.json` | `https://jscudp.jcareers.com/kioxia/u/jobs.phtml?job_list=1&job_items[]=location&job_items[]=description` (Referer: the board page) | HAL JSON: `_embedded.job_category.<key>._embedded.job.<key>` with `id`, `name`, multi-line `location`, `description` |
 | `jposting_detail_redacted.html` | `https://kioxia.jposting.net/u/job.phtml?job_code=719` | EUC-JP page whose 「応募資格」 holds 【必須要件】 and 【歓迎要件】, absent from the list |
+
+Japan boards needing a reader of their own, captured 2026-10-23 UTC with
+`JobSourceCollector/1.0` (originals ignored in `.local/jp-capture-1023/`).
+Titles, codes, places and descriptions are synthetic; the markup is the
+boards' own.
+
+| Redacted fixture | Captured public request | Preserved observation |
+| --- | --- | --- |
+| `jposting_html_list_redacted.html` | `…/pgmitsubishielectric/u/job.phtml`, `jobs.nec-careers.com/u/job.phtml`, `…/pgjsr/u/job.phtml`, `joblist.recruit.murata.com/job.phtml` | EUC-JP; four row shapes: `li` with `.jobName` link holding `span.new` and a sibling `.jobArea`; a link wrapping `.jobName` and `.jobArea`; a table row whose second cell is the place; a `dl` whose link starts with `<span>NEW</span>`; a code linked twice |
+| `jposting_html_detail_redacted.html` | A `job.phtml?job_code=` page of the same boards | EUC-JP (Mitsubishi Electric, Murata and JSR declare `CP51932`); 職務内容 and 勤務地, no 応募資格 |
+| `sonar_list_redacted.html` | `honda-career.snar.jp/index.aspx`, `denso-recruitment.snar.jp/index.aspx?id=…` | One ASP.NET page; rows `div#rpt_GroupItem_customBg_N` with an `h3.tit` postback link, a `p` summary ending "［more］", a `dl.guidelines` of `dt` labels and nested `dd` values, `ul.tag`; an information `h3.tit` outside the rows; `#hdn_JBRow` the stated count (524 and 278 then) |
+| `axol_list_redacted.html`, `axol_detail_redacted.html`, `axol_empty_redacted.html` | `job.axol.jp/hy/c/rohm/job/list` and a `/job/detail/<id>` page; `axol.jp/zw/c/shimadzu/job/list` | Links to `/job/detail/<id>`; `.job__offer__detail__item` title/text pairs; the address in a `locJusho` attribute; an empty board's 「現在、募集中の職種はありません」 |
+| `zookeep_sitemap_redacted.xml`, `zookeep_job_redacted.html` | `app.zookeep.com/sitemap-career_site_job_postings.xml` and a `/career/sonysemiconductorsolutions/…` page | One sitemap for every client; a server-rendered JobPosting JSON-LD with `jobLocation.address` and `datePosted`, no `main` |
+| `wordpress_list_redacted.json`, `wordpress_terms_redacted.json`, `wordpress_page_redacted.html` | `www.rapidus.inc/recruit/wp-json/wp/v2/career?_fields=…` and `/wp/v2/work_location_cat` | `title.rendered` with HTML entities, a `work_location_cat` id list (2 東京, 3 北海道, 43 海外); `X-WP-Total` 267 then |
+| `herp_list_redacted.html`, `herp_job_redacted.html` | `herp.careers/v1/arkedgespace` and a `/v1/arkedgespace/<id>` page | Posting cards `a.requisition-list-card__header-anchor` holding an `h2` title, beside `requisition-groups` links; a card repeated across groups; JobPosting JSON-LD whose `jobLocation.address` is a string with no country |

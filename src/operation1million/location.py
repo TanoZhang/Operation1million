@@ -360,7 +360,7 @@ def in_japan(location):
 
 
 def in_asia_tab(location):
-    """Japan, China with Hong Kong and Macau, or Taiwan, and nowhere in the U.S.
+    """Japan, or China with Hong Kong and Macau, and nowhere in the U.S.
 
     The user (2026-10-11): those postings are kept, on a Review tab of their
     own with the same filters and ordering, instead of mixed into the U.S.
@@ -375,10 +375,10 @@ def in_asia_tab(location):
 
 
 def outside_allowed(location):
-    """Placed abroad, and in none of the U.S., Japan, China or Taiwan.
+    """Placed abroad, and in none of the U.S., Japan or China.
 
-    Asked for on 2026-10-08; before it, everything abroad left the queue
-    (`outside_us`, 2026-09-22). One allowed place keeps a posting, as one U.S.
+    Asked for on 2026-10-08, with Taiwan until 2026-10-11 ("不要台湾"); before
+    it, everything abroad left the queue (`outside_us`, 2026-09-22). One allowed place keeps a posting, as one U.S.
     place does, and a place this cannot read is kept.
     """
     if not outside_us(location):

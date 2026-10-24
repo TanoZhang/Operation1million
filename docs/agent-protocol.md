@@ -6,6 +6,22 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-23): Japan coverage as wide as it goes (readers
+       for jposting HTML lists, sonar, axol, ZOOKEEP, HERP, Rapidus); JSearch
+       U.S. results reviewed and tuned; ten bugs found and fixed, ten
+       optimizations, unneeded tests removed.
+Files: src/operation1million/*, data/config/*, tests/*, CLAUDE.md,
+       docs/{agent-protocol,handoff,collection-rules,architecture}.md
+Base commit: d788fb8
+Status: done -- migrations 013 and 014 (35 Japan sources); suite 1,342 run,
+        13 skipped, pass. Committed locally on main, not pushed or installed
+        (the U.S. JSearch work pushes it with its own).
+Next: The user's call on the end-of-cycle sweep country and on old
+      JSearch-only postings.
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-23): Japan's big employers read directly -- 16
        HRMOS boards, Hitachi and Subaru on jposting, Infineon (Eightfold), ADI
        and Microchip (Workday); a large no-store collection, debugging what

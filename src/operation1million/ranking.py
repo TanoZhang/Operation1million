@@ -162,8 +162,14 @@ CORE_CJK = re.compile('(?<![A-Za-z])(?:ASIC|RTL|FPGA|LSI|DFT)(?![A-Za-z])'
                       '|デジタル回路|論理設計|論理合成|機能検証|物理設計')
 
 # New graduates, second-year graduates (第二新卒), interns and a graduating
-# class (「2027年卒」) in Japanese titles.
-EARLY_CAREER_CJK = re.compile('新卒|インターン|\\d{2,4}年卒')
+# class (「2027年卒」) in Japanese titles. And the entry level, as "Entry Level"
+# and "Junior" are in English (2026-10-23): 「未経験歓迎」, 「未経験可」,
+# 「経験不問」, 「ポテンシャル採用」. Not 「業界未経験歓迎」 or 「職種未経験」, new to
+# the industry or the function but experienced otherwise, and not
+# 「ポテンシャル〜リーダー候補」, a range up to a lead.
+EARLY_CAREER_CJK = re.compile('新卒|インターン|\\d{2,4}年卒'
+                              '|(?<!業界)(?<!職種)未経験(?:者)?(?:歓迎|可|OK|応募可)|経験不問'
+                              '|ポテンシャル(?:採用|歓迎)')
 
 
 # Openings an application without a degree in hand can actually reach.

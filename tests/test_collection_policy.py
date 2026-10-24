@@ -111,6 +111,27 @@ class CollectionPolicyTests(unittest.TestCase):
             restarted.session.request.assert_not_called()
             interval.assert_not_called()
 
+    def test_a_shorter_pause_does_not_rename_the_one_that_stands(self):
+        """2026-10-23: a 429 inside a 403's day kept the day and wrote "rate
+        limit" over "access refused; review before retrying"."""
+        source = Source('example', 'company_sources', 'example', 'Example', 'workday',
+                        'https://example.test/', {})
+        refused = SourcePolicy(source, 0, self.args.source_state)
+        with self.assertRaises(Exception):
+            refused.pause('HTTP 403 access refused; review before retrying', 86400)
+        throttled = SourcePolicy(source, 0, self.args.source_state)
+        with self.assertRaises(Exception) as stopped:
+            throttled.pause('HTTP 429 rate limit; source stopped for this run', 900)
+        self.assertIn('HTTP 403 access refused', str(stopped.exception))
+        with closing(sqlite3.connect(self.args.source_state)) as db:
+            self.assertEqual(db.execute('SELECT reason FROM source_pauses').fetchone()[0],
+                             'HTTP 403 access refused; review before retrying')
+        # A longer pause still takes over, reason and all.
+        longer = SourcePolicy(source, 0, self.args.source_state)
+        with self.assertRaises(Exception) as stopped:
+            longer.pause('Human verification/challenge; review before retrying', 2 * 86400)
+        self.assertIn('Human verification', str(stopped.exception))
+
     def test_validator_respects_the_same_persisted_pause(self):
         c = self.collector()
         c.session.request.return_value = self.response(429)

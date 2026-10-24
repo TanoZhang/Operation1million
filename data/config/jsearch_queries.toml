@@ -75,6 +75,14 @@ exclude_job_publishers = [
   # The names JSearch actually reports, read from stored paid listings on
   # 2026-10-03; how it matches a name (case, exact or contains) is undocumented.
   "JobMESH", "JobMesh.io", "Virginia Commons Apartments",
+  # Japan's sweep (2026-10-23, measured on the 440 Japan listings it stored on
+  # 2026-10-13): publishers whose listings were staffing, dispatch, freelance or
+  # agency posts the Japan rule never offers -- Workport 90 of 115 (6 from a
+  # big employer, now read directly), テッククロス 10 of 10, レバテックフリーランス
+  # 9 of 9 -- and the smaller ones that were all such.
+  "Workport.co.jp", "ワークポート", "テッククロス 機電", "レバテックフリーランス",
+  "レバテッククリエイター", "フリーランスHub", "Freelance Hub", "リクナビ派遣",
+  "OwnedMaker", "コトラ", "Q-Mate.jp", "パーソルエクセルHRパートナーズ",
 ]
 
 # Priority: intern/co-op -> new_grad -> early_career -> General (A).
@@ -313,6 +321,8 @@ exclude_title_patterns = [
   # and TOPPAN's 「…※こちらは求人ではございません」.
   'キャリア登録', 'ジョブ・?リターン', 'ウェルカムバック', 'カムバック採用', 'アルムナイ',
   'リファラル採用', '説明会', '採用イベント', '求人では(?:ございません|ありません)',
+  # Seminars that ask no application (Omron's and Denso's, 2026-10-23).
+  '応募意思不問', 'オンラインセミナー',
   # An MBA programme is open to MBA students, as a PhD one is to PhD
   # students: "MBA Internships" was on the Early career tab (2026-10-01).
   '\bMBA\b',
@@ -694,6 +704,19 @@ role_title_terms = [
 # already), Performance Modeling Intern / New Grad, University Hire Hardware
 # Engineer, Characterization Intern, Hardware Engineer Rotational Program and
 # PDK New Grad.
+# 2026-10-23, the same rule as 2026-10-20 (the user: "连1个结果都没回来的就删 然后
+# 只要有原始就不删"): 29 phrases whose every finished run from 10-19 to 10-23 (three
+# or four each, jsearch_query_runs.ndjson) returned no posting at all were
+# removed: ASIC Co-op, ASIC Intern Summer 2027, Analog IC Design Co-op, Analog
+# IC Design Intern, Analog Layout Co-op, CPU Design Intern, DFT Intern,
+# Digital Circuit Design Intern, Digital IC Design Intern, Emulation New Grad,
+# FPGA Graduate Engineer, FPGA Verification Intern, Formal Verification Entry
+# Level, GPU Design Intern, Hardware Verification Intern, IP Verification New
+# Grad, Logic Design Intern, Masters Hardware Engineering Intern, Memory
+# Controller Engineer, Memory Design Intern, Memory Design New Grad, Mixed
+# Signal IC Design Intern, Post Silicon Validation Intern, Post-Silicon
+# Intern, RTL Intern, SRAM Design Engineer, SoC Integration Intern, SoC
+# Intern, Static Timing Analysis New Grad.
 # 2026-10-20, the user ("连1个结果都没回来的就删 然后 只要有原始就不删"): the
 # 81 phrases whose every run (10-07..10-20) returned no posting at all were
 # removed -- most of the ai_auto and jd_text tiers, the accelerator, HBM,
@@ -733,11 +756,6 @@ pages = 15
 query = "Physical Design Intern"
 tier = "intern"
 pages = 10
-
-[[query]]
-query = "DFT Intern"
-tier = "intern"
-pages = 5
 
 # Added 2026-10-03 at the user's request, on trial.
 [[query]]
@@ -780,11 +798,6 @@ pages = 15
 
 # Title-synonym trials requested 2026-10-04: ten daily pages each (raised 2026-10-05).
 [[query]]
-query = "Hardware Verification Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "ASIC Design Intern"
 tier = "intern"
 pages = 10
@@ -796,11 +809,6 @@ pages = 10
 
 [[query]]
 query = "Hardware Validation Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Logic Design Intern"
 tier = "intern"
 pages = 10
 
@@ -826,11 +834,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "FPGA Verification Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Formal Verification Intern"
 tier = "intern"
 pages = 10
@@ -841,37 +844,7 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "CPU Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "GPU Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Memory Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Analog IC Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Mixed Signal IC Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Analog Layout Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Post Silicon Validation Intern"
 tier = "intern"
 pages = 10
 
@@ -881,27 +854,12 @@ tier = "intern"
 pages = 20
 
 [[query]]
-query = "Digital IC Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Silicon Design Intern"
 tier = "intern"
 pages = 10
 
 [[query]]
 query = "Hardware Validation Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Analog IC Design Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Analog Layout Co-op"
 tier = "intern"
 pages = 10
 
@@ -1027,16 +985,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "IP Verification New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "Memory Design New Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
 query = "Analog IC Design New Grad"
 tier = "new_grad"
 pages = 10
@@ -1068,11 +1016,6 @@ pages = 20
 
 [[query]]
 query = "Physical Design Engineer I"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "FPGA Graduate Engineer"
 tier = "new_grad"
 pages = 10
 
@@ -1115,11 +1058,6 @@ pages = 15
 
 [[query]]
 query = "ASIC Verification Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "Formal Verification Entry Level"
 tier = "early_career"
 pages = 10
 
@@ -1212,16 +1150,6 @@ tier = "new_grad"
 pages = 15
 
 [[query]]
-query = "Post-Silicon Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "Masters Hardware Engineering Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "RTL Design Engineer I"
 tier = "new_grad"
 pages = 10
@@ -1262,21 +1190,6 @@ tier = "early_career"
 pages = 10
 
 [[query]]
-query = "Digital Circuit Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "ASIC Co-op"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "ASIC Intern Summer 2027"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Associate Hardware Engineer"
 tier = "new_grad"
 pages = 10
@@ -1307,18 +1220,8 @@ pages = 10
 # Co-op (39 pages, 2), Verification Intern 2027 (12, 1), Hardware Design
 # Engineer I (10, 1).
 [[query]]
-query = "SoC Integration Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
 query = "Physical Design Verification Intern"
 tier = "intern"
-pages = 5
-
-[[query]]
-query = "Emulation New Grad"
-tier = "new_grad"
 pages = 5
 
 [[query]]
@@ -1337,11 +1240,6 @@ pages = 5
 # (0.5, FPGA asks it already), Place and Route (0.5) and Physical
 # Implementation (0) go; CPU and GPU stay without their "Verification"
 # suffix (CPU Verification 0.4).
-[[query]]
-query = "Static Timing Analysis New Grad"
-tier = "new_grad"
-pages = 10
-
 # The general queries are back (the user, 2026-10-17), reversing the
 # entry-level-only rule of 2026-10-13: without a level word they found the
 # most postings no other query did, 4.3 per ten pages against intern's 3.9,
@@ -1436,11 +1334,6 @@ tier = "A"
 pages = 10
 
 [[query]]
-query = "SRAM Design Engineer"
-tier = "A"
-pages = 10
-
-[[query]]
 query = "Analog IC Design Engineer"
 tier = "A"
 pages = 10
@@ -1467,11 +1360,6 @@ pages = 5
 
 [[query]]
 query = "SerDes Engineer"
-tier = "A"
-pages = 5
-
-[[query]]
-query = "Memory Controller Engineer"
 tier = "A"
 pages = 5
 
@@ -1504,16 +1392,6 @@ pages = 5
 #   design. Firmware New Grad was asked before and found nothing.
 # Phrases measured before at zero stay out (STA, Silicon Validation, VLSI,
 # Analog IC Design and Memory Design Entry Level). Five pages each. Unmeasured.
-[[query]]
-query = "SoC Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "RTL Intern"
-tier = "intern"
-pages = 10
-
 [[query]]
 query = "SoC Engineer"
 tier = "A"

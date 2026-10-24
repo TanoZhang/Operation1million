@@ -17,7 +17,7 @@ from contextlib import closing, nullcontext
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
 from bs4 import BeautifulSoup
@@ -214,7 +214,11 @@ def normalize(source, item):
     elif p == 'amazon_jobs':
         ident = item.get('id_icims') or ident
         url = urljoin('https://www.amazon.jobs', item.get('job_path') or url) if item.get('job_path') or url else None
-        posted = item.get('posted_date')
+        # Amazon prints the day, "August 17, 2026". Stored as printed, every
+        # one of its 22,176 open postings sorted as newest in `--ranked` ("A"
+        # after "2") and exported as "August 17," (2026-10-23). The day, then;
+        # the printed form stays in raw.
+        posted = posted_from_text(item.get('posted_date'))
     # The title is checked after cleaning, because cleaning is what can empty
     # it: a title of whitespace passed the check, was emptied by `clean`, and
     # raised in SQLite at commit -- outside the per-item boundary, taking every
@@ -272,6 +276,79 @@ def hrmos_place(tags):
         if found:
             return found.group(0)
     return ''
+
+
+# The marks a jposting list prints beside a title: "NEW", "NEW !", a closing "#".
+JPOSTING_MARKS = re.compile(r'^\s*NEW\s+|\s*(?:NEW\s*!?|!|#)\s*$')
+# Where a posting page's own text begins: its duties, else its requirements.
+# Mitsubishi Electric, Murata and JSR print no 「応募資格」 (2026-10-23).
+POSTING_START = re.compile(r'職務内容|仕事内容|業務内容|応募資格')
+
+
+def jposting_title(link):
+    """A jposting list link's title, without the board's NEW marks."""
+    named = link.select_one('.jobName')
+    node = BeautifulSoup(str(named or link), 'html.parser')
+    for mark in node.select('span'):
+        if mark.get_text(strip=True).upper().startswith('NEW'):
+            mark.decompose()
+    area = node.select_one('.jobArea')
+    if area:
+        area.decompose()
+    title = node.get_text(' ', strip=True)
+    for _ in range(2):
+        title = JPOSTING_MARKS.sub('', title)
+    return title.strip()
+
+
+def jposting_place(link, code):
+    """The place a jposting list prints beside a link, or ''.
+
+    Each board lays its row out its own way: a `.jobArea` beside or inside the
+    link (Mitsubishi Electric, NEC), a second table cell (JSR), or nothing
+    (MinebeaMitsumi, Mazda, Murata).
+    """
+    table_row = link.find_parent('tr')
+    if table_row is not None:
+        cells = table_row.find_all('td', recursive=False)
+        if len(cells) > 1 and link not in cells[-1].descendants:
+            return cells[-1].get_text(' ', strip=True)
+        return ''
+    row = link
+    while (row.parent is not None and row.parent.name not in {'body', 'html', '[document]'}
+           and set(re.findall(r'job_code=(\d+)', str(row.parent))) == {code}):
+        row = row.parent
+    area = row.select_one('.jobArea')
+    return area.get_text(' ', strip=True) if area else ''
+
+
+def posting_section(text, heading, limit=80):
+    """The first line printed under a heading in a posting page's text."""
+    found = re.search(heading + r'[ \t]*\n+([^\n]{1,%d})' % limit, text)
+    return found.group(1).strip() if found else ''
+
+
+def sonar_rows(soup):
+    """The postings a sonar ATS board (snar.jp) prints, each as a dict.
+
+    The whole board is one ASP.NET page. A posting's links are postbacks, so
+    nothing in the row names it but its title; its fields are a `dl` of
+    `dt` labels each followed by `dd` values, nested oddly by the page.
+    """
+    for block in soup.select('div[id^="rpt_GroupItem_customBg_"]'):
+        heading = block.select_one('h3.tit')
+        title = heading.get_text(' ', strip=True) if heading else ''
+        summary = block.select_one('p')
+        text = summary.get_text('\n', strip=True) if summary else ''
+        text = re.sub(r'\s*［more］\s*$', '', text)
+        fields, label = {}, None
+        for node in block.select('dl.guidelines dt, dl.guidelines dd'):
+            if node.name == 'dt':
+                label = node.get_text(strip=True)
+            elif label and not node.select('dd') and 'non-displayPc' not in (node.get('class') or []):
+                fields.setdefault(label, []).append(node.get_text(' ', strip=True))
+        tags = [tag.get_text(' ', strip=True) for tag in block.select('ul.tag li')]
+        yield {'title': title, 'summary': text, 'fields': fields, 'tags': tags}
 
 
 def jsonld(soup):
@@ -474,8 +551,7 @@ class Collector:
         r.raise_for_status()
         declared_encoding(r)
         if 'json' not in r.headers.get('content-type', '') and 'xml' not in r.headers.get('content-type', ''):
-            soup = BeautifulSoup(r.text, 'html.parser')
-            if html_challenge(soup):
+            if html_challenge(r.text):
                 r.close()
                 self.policy.pause('Human verification/challenge; review before retrying', 86400)
         return r
@@ -846,6 +922,8 @@ class Collector:
         self.validator = False
         rules = jsearch.load_plan()[0]['filter']
         fields = self.source.fields
+        if fields.get('list') == 'html':
+            return self.collect_jposting_html(rules)
         self.session.headers['Referer'] = fields['board']
         data = self.fetch(query_url(self.source.access_url, job_list=1) +
                           '&job_items[]=location&job_items[]=description').json()
@@ -886,6 +964,268 @@ class Collector:
                         errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
                 items.append(item)
         self.add(items)
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
+    def posting_page(self, url, encoding=None):
+        """A posting page's text, decoded as its source says when it says."""
+        page = self.fetch(url)
+        if encoding:
+            # Some jposting boards declare CP51932, which Python cannot decode,
+            # and requests then reads the EUC-JP body as UTF-8 mojibake.
+            return BeautifulSoup(page.content.decode(encoding, 'replace'), 'html.parser')
+        return BeautifulSoup(page.text, 'html.parser')
+
+    def collect_jposting_html(self, rules):
+        """A jposting board with only an HTML list: its links, then pages.
+
+        Mitsubishi Electric, NEC, MinebeaMitsumi, Mazda, Murata, JSR, ULVAC and
+        IBIDEN (2026-10-23) publish no HAL JSON list -- `jobs.phtml?job_list=1`
+        answers 403 or 404 -- only one page linking every `job_code`. Pages of
+        titles worth it are read for the whole posting and its 勤務地.
+        """
+        from .job_details import candidate
+        fields = self.source.fields
+        encoding = fields.get('encoding', 'euc-jp')
+        soup = self.posting_page(self.source.access_url, encoding)
+        country = fields.get('country', 'Japan')
+        items, errors, codes = [], [], set()
+        for link in soup.select('a[href*="job_code="]'):
+            code = re.search(r'job_code=(\d+)', link['href'])
+            if not code or code.group(1) in codes:
+                continue
+            code = code.group(1)
+            codes.add(code)
+            title = jposting_title(link)
+            if not title:
+                self.rejected.append({'reason': 'jposting link has no title', 'raw': str(link)[:500]})
+                continue
+            place = jposting_place(link, code)
+            item = {'id': code, 'title': title, 'url': fields['detail'] + code,
+                    'location': ', '.join(filter(None, (place[:60], country)))}
+            if candidate({'title': title}, rules):
+                try:
+                    text = self.posting_page(item['url'], encoding).get_text('\n', strip=True)
+                    start = POSTING_START.search(text)
+                    if not start:
+                        raise ValueError('jposting page has no duties or requirements')
+                    item['description'] = text[start.start():]
+                    place = posting_section(text, '勤務地', 60)
+                    if place:
+                        item['location'] = f'{place}, {country}'
+                except (requests.RequestException, ValueError) as exc:
+                    errors.append(f"{code}: {type(exc).__name__}: {exc}")
+            items.append(item)
+        if not items:
+            return 'partial', 'jposting list linked no postings'
+        self.add(items)
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
+    def collect_sonar(self):
+        """A sonar ATS board (snar.jp): one page printing every posting.
+
+        Added for Honda, Denso, Toyota, Alps Alpine, Nuvoton, NTT R&D and Ricoh
+        on 2026-10-23. Each posting's link is an ASP.NET postback, so no page
+        of its own can be named or read; the row's summary, fields and tags
+        are what there is. Its identity is the board's address and its title.
+        The page states its own count (`hdn_JBRow`), and a pass that printed
+        fewer rows is partial.
+        """
+        self.etag = self.last_modified = None
+        self.validator = False
+        soup = BeautifulSoup(self.fetch(self.source.access_url).text, 'html.parser')
+        stated = soup.select_one('#hdn_JBRow')
+        stated = int(stated['value']) if stated and str(stated.get('value', '')).isdigit() else None
+        country = self.source.fields.get('country', 'Japan')
+        board = self.source.access_url
+        items, titles = [], {}
+        for row in sonar_rows(soup):
+            if not row['title']:
+                self.rejected.append({'reason': 'sonar row has no title', 'raw': row})
+                continue
+            titles[row['title']] = titles.get(row['title'], 0) + 1
+            fragment = row['title'] + (f"~{titles[row['title']]}" if titles[row['title']] > 1 else '')
+            places = [re.sub(r'\s*＞\s*', '', place) for place in row['fields'].get('勤務地', [])]
+            description = '\n'.join(filter(None, (
+                row['summary'],
+                *(f'{label}: {"、".join(values)}' for label, values in row['fields'].items()),
+                ('タグ: ' + '、'.join(row['tags'])) if row['tags'] else '')))
+            items.append({'title': row['title'], 'url': f"{board}#{quote(fragment)}",
+                          'location': ', '.join(filter(None, ('; '.join(places[:3]), country))),
+                          'description': description, 'fields': row['fields'], 'tags': row['tags']})
+        if not items:
+            return 'partial', 'sonar board printed no postings'
+        self.add(items)
+        if stated is not None and len(items) + len(self.rejected) != stated:
+            return 'partial', f'sonar board printed {len(items)} of {stated} postings it states'
+        return 'complete', ''
+
+    def collect_axol(self):
+        """An axol mid-career list: its links, then the pages of likely titles.
+
+        Added for KDDI, Nikon, Keyence, Shinko Electric and ROHM on 2026-10-23.
+        `…/job/list` links every posting as `/job/detail/<id>`; the page holds
+        labelled items (職務内容, 応募資格, 勤務地) and the address in an attribute.
+        """
+        from .job_details import candidate
+        self.etag = self.last_modified = None
+        self.validator = False
+        rules = jsearch.load_plan()[0]['filter']
+        country = self.source.fields.get('country', 'Japan')
+        r = self.fetch(self.source.access_url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        items, errors = {}, []
+        for link in soup.select('a[href*="/job/detail/"]'):
+            url = urljoin(r.url, link['href'])
+            title = link.get_text(' ', strip=True)
+            if url in items or not title:
+                continue
+            item = {'id': url.rstrip('/').rsplit('/', 1)[-1], 'title': title, 'url': url,
+                    'location': country}
+            if candidate({'title': title}, rules):
+                try:
+                    page = self.posting_page(url)
+                    sections = {}
+                    # Two templates: `job__offer__detail__*` (ROHM, KDDI) and
+                    # Keyence's public board's `info__*` (2026-10-23).
+                    for entry in page.select('.job__offer__detail__item, li.info__item'):
+                        label = entry.select_one('.job__offer__detail__title, .info__title')
+                        value = entry.select_one('.job__offer__detail__text, .info__text')
+                        if label and value:
+                            sections[label.get_text(strip=True)] = value.get_text('\n', strip=True)
+                    if not sections:
+                        raise ValueError('axol page has no labelled items')
+                    item['description'] = '\n\n'.join(f'{k}\n{v}' for k, v in sections.items())
+                    addresses = [span.get('locjusho') or span.get('locJusho')
+                                 for span in page.select('[locjusho], [locJusho]')]
+                    places = [a.split()[0] for a in addresses if a and a.split()]
+                    if not places and sections.get('勤務地'):
+                        places = [sections['勤務地'].split('\n')[0][:60]]
+                    if places:
+                        item['location'] = ', '.join(('; '.join(dict.fromkeys(places)), country))
+                except (requests.RequestException, ValueError) as exc:
+                    errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
+            items[url] = item
+        if not items:
+            if '現在、募集中の職種はありません' in soup.get_text():
+                return 'complete', ''
+            return 'partial', 'axol list linked no postings'
+        self.add(list(items.values()))
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
+    def collect_herp(self):
+        """A HERP careers page: every posting card, then the pages of likely titles.
+
+        Added for ArkEdge Space and Nintendo Systems on 2026-10-23.
+        `herp.careers/v1/<slug>` prints every posting as a card linking
+        `/v1/<slug>/<id>` beside links to its groups; a posting's page carries
+        JobPosting JSON-LD whose address names no country.
+        """
+        from .job_details import candidate
+        self.etag = self.last_modified = None
+        self.validator = False
+        rules = jsearch.load_plan()[0]['filter']
+        country = self.source.fields.get('country', 'Japan')
+        r = self.fetch(self.source.access_url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        base = urlsplit(self.source.access_url).path.rstrip('/') + '/'
+        items, errors = {}, []
+        for link in soup.select('a.requisition-list-card__header-anchor[href]'):
+            url = urljoin(r.url, link['href'])
+            path = urlsplit(url).path
+            title = link.get_text(' ', strip=True)
+            if not path.startswith(base) or 'requisition-groups' in path or url in items or not title:
+                continue
+            item = {'id': path.rstrip('/').rsplit('/', 1)[-1], 'title': title, 'url': url,
+                    'location': country}
+            if candidate({'title': title}, rules):
+                try:
+                    posting = next(jsonld(self.posting_page(url)))
+                    item['description'] = posting.get('description') or ''
+                    item['datePosted'] = posting.get('datePosted')
+                    place = location_text(posting.get('jobLocation'))[:80]
+                    if place:
+                        item['location'] = (place if country.casefold() in place.casefold()
+                                            else f'{place}, {country}')
+                except (requests.RequestException, StopIteration, ValueError, AttributeError) as exc:
+                    errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
+            items[url] = item
+        if not items:
+            return 'partial', 'HERP page listed no postings'
+        self.add(list(items.values()))
+        if errors:
+            return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+        return 'complete', ''
+
+    def collect_wordpress(self):
+        """A WordPress careers site's REST list, then the pages of likely titles.
+
+        Added for Rapidus on 2026-10-23: `/wp-json/wp/v2/career` lists every
+        posting (title, link, dates, place taxonomy) a hundred at a time, and
+        states its count in `X-WP-Total`. The REST `content` is empty; the
+        posting is the page.
+        """
+        from .job_details import candidate
+        self.etag = self.last_modified = None
+        self.validator = False
+        rules = jsearch.load_plan()[0]['filter']
+        fields = self.source.fields
+        country = fields.get('country', 'Japan')
+        taxonomy = fields.get('place_taxonomy')
+        names = {}
+        if taxonomy:
+            api = self.source.access_url.split('/wp/v2/')[0] + f'/wp/v2/{taxonomy}'
+            terms = self.fetch(query_url(api, per_page=100, _fields='id,name')).json()
+            names = {term['id']: html.unescape(term['name']) for term in terms
+                     if isinstance(term, dict) and 'id' in term}
+        abroad = set(fields.get('abroad', []))
+        items, errors, stated, page = [], [], None, 1
+        while page <= self.args.max_pages:
+            r = self.fetch(query_url(self.source.access_url, per_page=100, page=page,
+                                     _fields=f"id,link,title,date,modified{',' + taxonomy if taxonomy else ''}"))
+            posts = r.json()
+            if not isinstance(posts, list):
+                raise ValueError('Unexpected WordPress REST list')
+            if r.headers.get('X-WP-Total', '').isdigit():
+                stated = int(r.headers['X-WP-Total'])
+            for post in posts:
+                if not isinstance(post, dict) or not present(post.get('link')):
+                    self.rejected.append({'reason': 'WordPress post has no link', 'raw': post})
+                    continue
+                title = clean(html.unescape(str((post.get('title') or {}).get('rendered') or '')))
+                places = [names.get(term, '') for term in post.get(taxonomy) or []] if taxonomy else []
+                home = [place for place in places if place and place not in abroad]
+                item = {'id': str(post.get('id')), 'title': title, 'url': post['link'],
+                        'datePosted': post.get('date'), 'modified': post.get('modified'),
+                        'location': ', '.join(('; '.join(home), country)) if home else
+                                    ('' if places else country)}
+                if title and candidate({'title': title}, rules):
+                    try:
+                        text = self.posting_page(post['link']).get_text('\n', strip=True)
+                        start = POSTING_START.search(text)
+                        if not start:
+                            raise ValueError('posting page has no duties or requirements')
+                        item['description'] = text[start.start():]
+                        place = posting_section(text, '勤務地', 60)
+                        if place and not item['location']:
+                            item['location'] = place
+                    except (requests.RequestException, ValueError) as exc:
+                        errors.append(f"{item['id']}: {type(exc).__name__}: {exc}")
+                items.append(item)
+            pages = r.headers.get('X-WP-TotalPages', '')
+            if not posts or not pages.isdigit() or page >= int(pages):
+                break
+            page += 1
+        else:
+            return 'partial', 'Page cap reached; increase --max-pages'
+        self.add(items)
+        if stated is not None and len(items) + len(self.rejected) < stated:
+            return 'partial', f'WordPress listed {len(items)} of {stated} postings it states'
         if errors:
             return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
         return 'complete', ''
@@ -957,6 +1297,14 @@ class Collector:
                     mod = child.text
             if loc:
                 urls.append((loc, mod))
+        prefix = self.source.fields.get('sitemap_prefix')
+        if prefix:
+            # One sitemap for every company on the platform: ZOOKEEP lists all
+            # its clients' postings together (2026-10-23), so a company's are
+            # those under its own career path.
+            urls = [(u, m) for u, m in urls if u.startswith(prefix)]
+            if not urls:
+                return 'partial', 'Sitemap listed no posting under the company path'
         job_path = self.source.fields.get('sitemap_job_path')
         if job_path:
             # An Avature portal includes account, alert and application pages
@@ -1049,10 +1397,17 @@ class Collector:
                     body = soup.select_one('main, article, [role=main]') or soup.body or soup
                     items = [{'title': h.get_text(' ', strip=True), 'url': url,
                               'description': body.get_text('\n', strip=True)}]
+                country = self.source.fields.get('country')
                 for item in items:
                     item.setdefault('url', url)
                     if lastmod:
                         item.setdefault('lastmod', lastmod)
+                    # A place the posting names without its country -- Sony
+                    # Group's 「汐留（港区）」 on ZOOKEEP (2026-10-23) -- is read in
+                    # the country its source is in, where that is known.
+                    place = location_text(item.get('location') or item.get('jobLocation'))
+                    if country and country.casefold() not in place.casefold():
+                        item['location'] = ', '.join(filter(None, (place, country)))
                     # The requisition this address carries, where the provider
                     # publishes one in it. This path never asked, so a Renesas
                     # posting that was retitled or moved read as one withdrawal
@@ -1137,6 +1492,14 @@ class Collector:
                 return self.collect_hrmos()
             if self.source.provider_key == 'jposting':
                 return self.collect_jposting()
+            if self.source.provider_key == 'sonar':
+                return self.collect_sonar()
+            if self.source.provider_key == 'axol':
+                return self.collect_axol()
+            if self.source.provider_key == 'wordpress':
+                return self.collect_wordpress()
+            if self.source.provider_key == 'herp':
+                return self.collect_herp()
             if self.source.provider_key == 'ti_careers':
                 r = self.fetch(self.source.access_url)
                 base = BeautifulSoup(r.text, 'html.parser').select_one('base[data-apibaseurl]')
@@ -1154,7 +1517,8 @@ class Collector:
             if self.source.provider_key in JSON_PROVIDERS:
                 status, detail = self.collect_json()
             elif (self.source.provider_key in {'akeana_careers', 'renesas_careers'}
-                  or getattr(self.source, 'fields', {}).get('sitemap_job_path')):
+                  or getattr(self.source, 'fields', {}).get('sitemap_job_path')
+                  or getattr(self.source, 'fields', {}).get('sitemap_prefix')):
                 status, detail = self.collect_sitemap()
             else:
                 status, detail = self.collect_html()

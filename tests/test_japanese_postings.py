@@ -38,7 +38,9 @@ class JapaneseTitleTests(unittest.TestCase):
         for title in ('キャリア登録', 'ウェルカムバック制度', 'ジョブ・リターン', '【宮城】カムバック採用（アルムナイ）',
                       '★★★リファラル採用（社員紹介）について★★★',
                       '【若手エンジニア向け】キヤノンのキャリア＆ライフ～気軽に参加！会社説明会～',
-                      '採用活動における個人情報の取り扱いに関する通知 ※こちらは求人ではございません'):
+                      '採用活動における個人情報の取り扱いに関する通知 ※こちらは求人ではございません',
+                      '【11月5日】オムロン制御機器事業　応募意思不問オンラインセミナー（検査システム事業本部）',
+                      '【毎月開催×オンライン】応募意思不問：デンソー会社紹介セミナー'):
             with self.subTest(title=title):
                 self.assertEqual(self.reason(title), 'excluded')
         # An open position is a real application, and an event company's job is a job.
@@ -66,6 +68,21 @@ class JapaneseTitleTests(unittest.TestCase):
 
 
 class JapaneseRankingTests(unittest.TestCase):
+    def test_the_entry_level_in_japanese_is_early_career_as_in_english(self):
+        """2026-10-23: "Entry Level" and "Junior" were early career and their
+        Japanese -- 未経験可, 経験不問, ポテンシャル採用 -- were not, so 53 open
+        titles saying so sat with the experienced openings."""
+        for title in ('FPGA設計（未経験可）', '【未経験可】パッケージングエンジニア', '回路設計 経験不問',
+                      '車体部品の構造設計開発担当※ポテンシャル採用', '【業界未経験・ポテンシャル歓迎】SE'):
+            with self.subTest(title=title):
+                self.assertTrue(ranking.early_career(title))
+        # New to the industry or the function is experienced otherwise; a range
+        # up to a lead is not an entry level.
+        for title in ('【神戸／業界未経験歓迎】システムエンジニア', '職種未経験歓迎 FPGA',
+                      '【神戸／ポテンシャル〜メンバークラス】企画', 'デジタル回路設計エンジニア'):
+            with self.subTest(title=title):
+                self.assertFalse(ranking.early_career(title))
+
     def test_new_graduate_design_is_the_first_band(self):
         for title in ('LSI設計エンジニア（新卒）', '2027年卒 デジタル回路設計'):
             with self.subTest(title=title):
@@ -183,6 +200,23 @@ class JapaneseExperienceTests(unittest.TestCase):
         self.assertIsNone(self.years('【歓迎】FPGA開発経験3年以上'))
         self.assertIsNone(self.years('新卒採用。経験不問'))
         self.assertIsNone(self.years('Verilogの使用経験'))
+
+    def test_a_posting_printed_on_one_line_is_read_sentence_by_sentence(self):
+        """ABLIC's HRMOS list excerpt (2026-10-23): the closing 「あれば尚可」 made
+        the whole line preferred, and 「法人営業経験3年以上」 read as no requirement."""
+        self.assertEqual(self.years(
+            '業務内容 ・提案営業活動。 経験・必要スキル ・法人営業経験3年以上（電子部品・半導体業界尚可）。 '
+            '・提案書作成能力。 など 語学力の有無 あれば尚可'), 3)
+        # Canon's: what is required, then what is desirable, on one line.
+        self.assertEqual(self.years('必要な経験/スキル 電気設備管理・保全業務の実務経験３年以上 '
+                                    'あると望ましい経験/スキル 電気主任技術者'), 3)
+        # A recommended database is not a preference for the years.
+        self.assertEqual(self.years('【必須】\n・データベース設計に関する実務経験(3年以上, 推奨DB PostgreSQL)'), 3)
+
+    def test_desirable_years_and_a_products_history_are_not_requirements(self):
+        self.assertIsNone(self.years('・ソフトウェアテストの実務経験（3年以上が望ましい）'))
+        self.assertIsNone(self.years('マーケティング経験がある（5年以上程度が望ましいが、必須条件ではない）'))
+        self.assertIsNone(self.years('GVIFはソニー独自規格です。20年以上の歴史がある製品です。'))
 
     def test_english_text_is_untouched(self):
         self.assertEqual(experience.japanese_as_english('5+ years of RTL experience'),

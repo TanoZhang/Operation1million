@@ -143,7 +143,41 @@ VALUES
     ('subaru', 'Subaru'),
     ('infineon', 'Infineon Technologies'),
     ('analog_devices', 'Analog Devices'),
-    ('microchip', 'Microchip Technology')
+    ('microchip', 'Microchip Technology'),
+    -- And those needing a reader of their own (2026-10-23).
+    ('mitsubishi_electric', 'Mitsubishi Electric'),
+    ('nec', 'NEC'),
+    ('minebeamitsumi', 'MinebeaMitsumi'),
+    ('mazda', 'Mazda'),
+    ('murata', 'Murata Manufacturing'),
+    ('jsr', 'JSR'),
+    ('ulvac', 'ULVAC'),
+    ('ibiden', 'IBIDEN'),
+    ('honda', 'Honda'),
+    ('denso', 'Denso'),
+    ('toyota', 'Toyota'),
+    ('alps_alpine', 'Alps Alpine'),
+    ('nuvoton', 'Nuvoton Technology Japan'),
+    ('ntt', 'NTT'),
+    ('ricoh', 'Ricoh'),
+    ('kddi', 'KDDI'),
+    ('nikon', 'Nikon'),
+    ('keyence', 'Keyence'),
+    ('shinko_electric', 'Shinko Electric Industries'),
+    ('rohm', 'ROHM'),
+    ('shimadzu', 'Shimadzu'),
+    ('sony_semiconductor_solutions', 'Sony Semiconductor Solutions'),
+    ('sony_group', 'Sony Group'),
+    ('rapidus', 'Rapidus'),
+    ('astemo', 'Astemo'),
+    ('hoya', 'HOYA'),
+    ('omron', 'Omron Corporation'),
+    ('ebara', 'Ebara'),
+    ('hitachi_systems', 'Hitachi Systems'),
+    ('arkedge_space', 'ArkEdge Space'),
+    ('nintendo_systems', 'Nintendo Systems'),
+    ('monolithic_power', 'Monolithic Power Systems'),
+    ('lumentum', 'Lumentum')
 ON CONFLICT(company_key) DO UPDATE SET
     name = excluded.name;
 
@@ -849,6 +883,356 @@ INSERT INTO company_sources (
     'External',
     'https://microchiphr.wd5.myworkdayjobs.com/External',
     '{"tenant":"microchiphr","workday_host":"wd5","site":"External"}',
+    1,
+    'verified'
+),
+(
+    'jposting:pgmitsubishielectric',
+    'mitsubishi_electric',
+    'jposting',
+    'pgmitsubishielectric',
+    'https://progres02.jposting.net/pgmitsubishielectric/u/job.phtml',
+    '{"list":"html","detail":"https://progres02.jposting.net/pgmitsubishielectric/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:nec-careers',
+    'nec',
+    'jposting',
+    'nec-careers',
+    'https://jobs.nec-careers.com/u/job.phtml',
+    '{"list":"html","detail":"https://jobs.nec-careers.com/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:minebea',
+    'minebeamitsumi',
+    'jposting',
+    'minebea',
+    'https://js01.jposting.net/minebea/u/job.phtml',
+    '{"list":"html","detail":"https://js01.jposting.net/minebea/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:mazda',
+    'mazda',
+    'jposting',
+    'mazda',
+    'https://js03.jposting.net/mazda/u/job.phtml',
+    '{"list":"html","detail":"https://js03.jposting.net/mazda/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:murata',
+    'murata',
+    'jposting',
+    'murata',
+    'https://joblist.recruit.murata.com/job.phtml',
+    '{"list":"html","detail":"https://joblist.recruit.murata.com/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:pgjsr',
+    'jsr',
+    'jposting',
+    'pgjsr',
+    'https://progres12.jposting.net/pgjsr/u/job.phtml',
+    '{"list":"html","detail":"https://progres12.jposting.net/pgjsr/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:ulvac',
+    'ulvac',
+    'jposting',
+    'ulvac',
+    'https://js02.jposting.net/ulvac/u/career10/job.phtml',
+    '{"list":"html","detail":"https://js02.jposting.net/ulvac/u/career10/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:ibiden-saiyo',
+    'ibiden',
+    'jposting',
+    'ibiden-saiyo',
+    'https://js01.jposting.net/ibiden-saiyo/u/job.phtml',
+    '{"list":"html","detail":"https://js01.jposting.net/ibiden-saiyo/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'sonar:honda-career',
+    'honda',
+    'sonar',
+    'honda-career',
+    'https://honda-career.snar.jp/index.aspx',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'sonar:denso-recruitment',
+    'denso',
+    'sonar',
+    'denso-recruitment',
+    'https://denso-recruitment.snar.jp/index.aspx?id=9dboN7cGhc4',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'sonar:toyota-career',
+    'toyota',
+    'sonar',
+    'toyota-career',
+    'https://toyota-career.snar.jp/index.aspx',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'sonar:alps-recruit',
+    'alps_alpine',
+    'sonar',
+    'alps-recruit',
+    'https://alps-recruit.snar.jp/index.aspx',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'sonar:nuvoton-recruit',
+    'nuvoton',
+    'sonar',
+    'nuvoton-recruit',
+    'https://nuvoton-recruit.snar.jp/index.aspx',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'sonar:ntt-rd',
+    'ntt',
+    'sonar',
+    'ntt-rd',
+    'https://ntt-rd.snar.jp/index.aspx',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'sonar:ricoh-recruit',
+    'ricoh',
+    'sonar',
+    'ricoh-recruit',
+    'https://ricoh-recruit.snar.jp/index.aspx',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:kddi',
+    'kddi',
+    'axol',
+    'kddi',
+    'https://job.axol.jp/hy/c/kddi/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:nikon',
+    'nikon',
+    'axol',
+    'nikon',
+    'https://job.axol.jp/qd/c/nikon/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:keyence',
+    'keyence',
+    'axol',
+    'keyence',
+    'https://axol.jp/zw/c/keyence/public/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:keyencesoft',
+    'keyence',
+    'axol',
+    'keyencesoft',
+    'https://job.axol.jp/jn/c/keyencesoft/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:shinko',
+    'shinko_electric',
+    'axol',
+    'shinko',
+    'https://axol.jp/zw/c/shinko/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:rohm',
+    'rohm',
+    'axol',
+    'rohm',
+    'https://job.axol.jp/hy/c/rohm/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:shimadzu',
+    'shimadzu',
+    'axol',
+    'shimadzu',
+    'https://axol.jp/zw/c/shimadzu/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'zookeep:sonysemiconductorsolutions',
+    'sony_semiconductor_solutions',
+    'zookeep',
+    'sonysemiconductorsolutions',
+    'https://app.zookeep.com/sitemap-career_site_job_postings.xml',
+    '{"sitemap_prefix":"https://app.zookeep.com/career/sonysemiconductorsolutions/","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'zookeep:sonygroupcorp',
+    'sony_group',
+    'zookeep',
+    'sonygroupcorp',
+    'https://app.zookeep.com/sitemap-career_site_job_postings.xml',
+    '{"sitemap_prefix":"https://app.zookeep.com/career/sonygroupcorp/","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'wordpress:rapidus',
+    'rapidus',
+    'wordpress',
+    'rapidus',
+    'https://www.rapidus.inc/recruit/wp-json/wp/v2/career',
+    '{"place_taxonomy":"work_location_cat","abroad":["海外"],"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'hrmos:astemo',
+    'astemo',
+    'hrmos',
+    'astemo',
+    'https://hrmos.co/pages/astemo/jobs',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'hrmos:hoya',
+    'hoya',
+    'hrmos',
+    'hoya',
+    'https://hrmos.co/pages/hoya/jobs',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'axol:omron',
+    'omron',
+    'axol',
+    'omron',
+    'https://job.axol.jp/qd/c/omron/public/job/list',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:ebara',
+    'ebara',
+    'jposting',
+    'ebara',
+    'https://ebara.jposting.net/u/jobs/job.phtml',
+    '{"list":"html","detail":"https://ebara.jposting.net/u/jobs/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'jposting:hitachi-systems',
+    'hitachi_systems',
+    'jposting',
+    'hitachi-systems',
+    'https://js03.jposting.net/hitachi-systems/u/job.phtml',
+    '{"list":"html","detail":"https://js03.jposting.net/hitachi-systems/u/job.phtml?job_code=","encoding":"euc-jp","country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'herp:arkedgespace',
+    'arkedge_space',
+    'herp',
+    'arkedgespace',
+    'https://herp.careers/v1/arkedgespace',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'herp:nscareer',
+    'nintendo_systems',
+    'herp',
+    'nscareer',
+    'https://herp.careers/v1/nscareer',
+    '{"country":"Japan"}',
+    1,
+    'verified'
+),
+(
+    'workday:tel:TEL-Careers',
+    'tokyo_electron',
+    'workday',
+    'TEL-Careers',
+    'https://tel.wd3.myworkdayjobs.com/TEL-Careers',
+    '{"tenant":"tel","workday_host":"wd3","site":"TEL-Careers"}',
+    1,
+    'verified'
+),
+(
+    'workday:monolithicpower:MPS_Careers',
+    'monolithic_power',
+    'workday',
+    'MPS_Careers',
+    'https://monolithicpower.wd12.myworkdayjobs.com/MPS_Careers',
+    '{"tenant":"monolithicpower","workday_host":"wd12","site":"MPS_Careers"}',
+    1,
+    'verified'
+),
+(
+    'workday:lumentum:LITE',
+    'lumentum',
+    'workday',
+    'LITE',
+    'https://lumentum.wd5.myworkdayjobs.com/LITE',
+    '{"tenant":"lumentum","workday_host":"wd5","site":"LITE"}',
     1,
     'verified'
 )

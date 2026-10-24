@@ -8,21 +8,18 @@ There is no `python` on PATH. Use the checkout's virtualenv:
 
     PYTHONPATH=src .venv/Scripts/python.exe -m unittest discover -s tests
 
-The suite is offline and takes about a minute. Run all of it before pushing.
-Tests that need `data/db/job_discovery.sqlite` skip when it is missing; say so
-when a result depends on real rows.
-
-Nothing needs to skip. On this machine (set up 2026-09-27):
+The suite is offline and takes about three minutes. Run all of it before
+pushing. Tests that need `data/db/job_discovery.sqlite` skip when it is
+missing; say so when a result depends on real rows.
 
 - The index: the private data repo is cloned at
   `../Operation1million-data`; build it with
   `OPERATION1MILLION_STORE=../Operation1million-data PYTHONPATH=src .venv/Scripts/python.exe -m operation1million.store --bootstrap`.
-- The POSIX-only tests (flock, process groups, file modes) run in a WSL1
-  distro, `Op1mTest`, with a non-root `tester` user and its own `.venv` in
-  `~/op1m`. WSL2 cannot start here (virtualization is off in firmware). Pull,
-  link the index and run:
-
-      wsl -d Op1mTest -u tester -- bash -c "cd ~/op1m && git pull -q && ln -sf /mnt/c/Users/Tano/Documents/Operation1million/data/db/job_discovery.sqlite data/db/job_discovery.sqlite && PYTHONPATH=src .venv/bin/python -m unittest discover -s tests"
+- The 13 POSIX-only tests (flock, process groups, file modes) skip on Windows.
+  GitHub Actions (`.github/workflows/tests.yml`, Ubuntu) runs the whole suite
+  on every push, those included; read its result before calling a push
+  verified. The WSL distro that used to run them, `Op1mTest`, is gone
+  (2026-10-23), and virtualization is on in firmware now.
 
 ## Reporting
 

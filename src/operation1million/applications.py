@@ -210,9 +210,20 @@ def employer_name(value):
     return identity(value)
 
 
-VAGUE_PLACES = {'', 'us', 'usa', 'united states', 'united states of america', 'remote'}
+VAGUE_PLACES = {'', 'us', 'usa', 'united states', 'united states of america', 'remote', 'anywhere'}
 # Workday's summary of a posting in several places, "3 Locations".
 MANY_PLACES = re.compile(r'^\d+ locations$')
+# LinkedIn's "Austin, TX (+1 other)": the city named is one of several, and
+# the others are not said.
+MORE_PLACES = re.compile(r'\(\s*\+\s*\d+\s+others?\s*\)', re.I)
+# One field naming several places: Qualcomm's "San Diego, California, United
+# States of America; Austin, Texas, ...; Tempe, Arizona, ...".
+PLACE_SEPARATOR = re.compile(r'\s*[;|•]\s*|\s+/\s+')
+
+
+def _places(place):
+    """Each place one listing's location names."""
+    return [part for part in PLACE_SEPARATOR.split(str(place or '')) if part.strip()] or ['']
 
 
 def _city(place):
@@ -222,6 +233,10 @@ def _city(place):
 def _place_key(place):
     """Named city and state; keep homonymous cities in different states apart."""
     text = re.sub(r'\s*\(HQ\)|\s+or\s+Remote\b', '', str(place or ''), flags=re.I)
+    # GlobalFoundries' Workday: "USA - Texas - Richardson", country first.
+    dashed = re.match(r'\s*(?:USA|US|United States)\s+-\s+([^-,]+?)\s+-\s+([^-,]+?)\s*$', text, re.I)
+    if dashed:
+        text = f'{dashed.group(2)}, {dashed.group(1)}'
     parts = [_plain(part) for part in text.split(',')]
     if len(parts) >= 3 and parts[0] in {'us', 'usa', 'united states'}:
         parts = [parts[-1], *parts[1:-1]]
@@ -240,6 +255,7 @@ def _vague(place):
     country = ' '.join(word for word in plain.split() if word != 'remote')
     return (city in VAGUE_PLACES or country in VAGUE_PLACES
             or bool(MANY_PLACES.match(plain)) or 'various' in plain.split()
+            or bool(MORE_PLACES.search(str(place or '')))
             # "Alabama, US" but not "New York": a state named alone may be its city.
             or city in location.US_STATES and plain != city
             and plain[len(city):].strip() in VAGUE_PLACES)
@@ -249,18 +265,33 @@ def places_agree(jobs, others):
     """Whether two sets of listings can be in one place: a listing names no city, or they share one."""
     if any(_vague(job.get('location')) for job in (*jobs, *others)):
         return True
-
-    for job in jobs:
-        city, state = _place_key(job.get('location'))
-        for other in others:
-            other_city, other_state = _place_key(other.get('location'))
+    # Every place each listing names, not only its first: a copy in Tempe of an
+    # application whose posting listed San Diego and Tempe was offered again
+    # as another job (2026-10-23, 65 such copies on the backlog).
+    mine = [_place_key(place) for job in jobs for place in _places(job.get('location'))]
+    theirs = [_place_key(place) for other in others for place in _places(other.get('location'))]
+    for city, state in mine:
+        for other_city, other_state in theirs:
             if city == other_city and (not state or not other_state or state == other_state):
                 return True
     return False
 
 
+def title_key(company, title):
+    """A title's words for matching listings of one job, without the employer's
+    own name in front: NVIDIA's board prints "NVIDIA 2027 Internships: Hardware
+    Verification", its copies "2027 Internships: Hardware Verification", and an
+    application through the first left the second offered (2026-10-23)."""
+    from .employers import display
+    plain = _plain(title)
+    for name in sorted({employer_name(company), _plain(display(company))}, key=len, reverse=True):
+        if name and plain.startswith(name + ' '):
+            return plain[len(name) + 1:]
+    return plain
+
+
 def namesake(group):
-    return employer_name(group.get('company')), _plain(group.get('title'))
+    return employer_name(group.get('company')), title_key(group.get('company'), group.get('title'))
 
 
 def application_index(groups):
@@ -314,7 +345,7 @@ def unify_copies(recent, backlog, decided):
         for key, group in table.items():
             for job in group['jobs']:
                 if job.get('provider_key') != 'jsearch':
-                    direct.setdefault((employer_name(job.get('company')), _plain(job['title'])),
+                    direct.setdefault((employer_name(job.get('company')), title_key(job.get('company'), job['title'])),
                                       {})[key] = group
 
     def where(key):
@@ -324,7 +355,7 @@ def unify_copies(recent, backlog, decided):
         if any(job.get('provider_key') != 'jsearch' for job in group['jobs']):
             return None
         job = group['jobs'][0]
-        found = direct.get((employer_name(job.get('company')), _plain(job['title'])), {})
+        found = direct.get((employer_name(job.get('company')), title_key(job.get('company'), job['title'])), {})
         cities = {_place_key(item.get('location')) for item in group['jobs']
                   if not _vague(item.get('location'))}
 
@@ -371,7 +402,7 @@ def unify_copies(recent, backlog, decided):
             if key not in table or any(job.get('provider_key') != 'jsearch' for job in group['jobs']):
                 continue
             job = group['jobs'][0]
-            into = paid.setdefault((employer_name(job.get('company')), _plain(job['title']),
+            into = paid.setdefault((employer_name(job.get('company')), title_key(job.get('company'), job['title']),
                                     _place_key(job.get('location'))), key)
             if into != key:
                 fold(key, into)
@@ -381,7 +412,7 @@ def unify_copies(recent, backlog, decided):
     for table in tables:
         for key, group in table.items():
             job = group['jobs'][0]
-            titled.setdefault((employer_name(job.get('company')), _plain(job['title'])), []).append(key)
+            titled.setdefault((employer_name(job.get('company')), title_key(job.get('company'), job['title'])), []).append(key)
     for keys in titled.values():
         if len(keys) != 2:
             continue
@@ -863,8 +894,9 @@ def queue(db_path=DB, path=None, now=None):
                     continue
                 # Located only abroad, at the user's request on 2026-09-22. Per
                 # listing, so a requisition also offered in Austin keeps its
-                # Austin listing; a location this cannot place is kept. Japan,
-                # China and Taiwan are wanted too (the user, 2026-10-08).
+                # Austin listing; a location this cannot place is kept. Japan
+                # and China are wanted too (the user, 2026-10-08; Taiwan no
+                # longer, 2026-10-11).
                 if location.outside_allowed(job['location']):
                     continue
                 # Japan (the user, 2026-10-23): no staffing firm, agency or

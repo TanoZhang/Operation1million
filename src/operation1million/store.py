@@ -23,7 +23,8 @@ MIGRATION = CONFIG / 'migrations/002_job_store.sql'
 # Applied after it, each once, as `catalog_migrations` records.
 LATER_MIGRATIONS = ('004_relevance', '005_seen_jobs', '006_source_full_pass', '011_jobs_requisition')
 SOURCE_MIGRATIONS = ('007_sandisk_avature', '008_amazon_partition', '009_japan_direct_sources',
-                     '010_japan_hrmos_jposting', '012_japan_more_direct')
+                     '010_japan_hrmos_jposting', '012_japan_more_direct',
+                     '013_japan_own_readers', '014_japan_more_boards')
 
 # Boards that publish <lastmod> per job URL, so unchanged detail pages are skipped.
 LASTMOD_SITEMAP = {'renesas_careers'}
