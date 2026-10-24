@@ -255,6 +255,25 @@ def talentio_pages(props):
             yield from talentio_pages(value)
 
 
+# A place on an HRMOS list tag: a prefecture with its first municipality, or a
+# region. Each board orders its tags its own way -- Toshiba's place is second,
+# Advantest's second tag is "技術系" and its place the address last, Tokyo
+# Electron's second the group company (2026-10-23) -- so the tag is found by
+# what it says, not where it stands.
+HRMOS_PLACE = re.compile(
+    r'(?:北海道|東京都|(?:京都|大阪)府|[^\s　、,（(）)：:・]{2,3}県)(?:[^\s　、,（(）)：:・0-9０-９]{1,6}?[市区町村郡])?'
+    r'|首都圏|関東|関西|近畿|東海|北陸|東北|九州|四国|全国')
+
+
+def hrmos_place(tags):
+    """The first place an HRMOS posting's tags name, or '' when none does."""
+    for tag in tags:
+        found = HRMOS_PLACE.search(tag)
+        if found:
+            return found.group(0)
+    return ''
+
+
 def jsonld(soup):
     def walk(data):
         if isinstance(data, list):
@@ -786,7 +805,7 @@ class Collector:
                     'id': link['href'].rstrip('/').rsplit('/', 1)[-1], 'url': link['href'],
                     'title': heading.get_text(' ', strip=True),
                     'description': body.get_text(' ', strip=True) if body else '',
-                    'location': ', '.join([*tags[1:2], country]), 'tags': tags}
+                    'location': ', '.join(filter(None, (hrmos_place(tags), country))), 'tags': tags}
             if not found:
                 break
         else:

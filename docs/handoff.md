@@ -1,3 +1,24 @@
+# Japan's big employers read directly - 2026-10-23 (claude)
+
+The user: read Japan's big companies from their own boards, not JSearch's
+agency posts. Migration `012_japan_more_direct` adds 21 sources on readers
+that already existed: sixteen HRMOS boards (Advantest, Tokyo Electron, Canon,
+Kyocera, TDK, Epson, Panasonic, Sharp, Horiba, Nidec, Macnica, ABLIC, Konica
+Minolta, Aisin, TOPPAN, Fuji Electric), Hitachi and Subaru on jposting's JSON
+list, Infineon (Eightfold), Analog Devices and Microchip (Workday).
+Advantest, Infineon and Analog Devices leave the 2026-09-16 removal list.
+A no-store pass read all 21 complete, 5,043 postings, no source errors; 907
+pass the title and description filters.
+What the pass showed, fixed:
+- HRMOS took the second list tag as the place. That is Toshiba's order only:
+  elsewhere it read 技術系, DX・ITシステム or the group company. The place is
+  now the first tag naming a prefecture or region; a second pass printed none.
+- Board entries that are not openings passed the filter: キャリア登録,
+  alumni and referral notices, 説明会 and events, TOPPAN's 「こちらは求人では
+  ございません」. They are excluded titles now.
+Not done: the boards that need a new reader (jposting HTML lists, sonar,
+axol, ZOOKEEP, Rapidus) -- survey in `.local/japan-sources.md`. Not installed.
+
 # Gmail read by hand: meeting links and AMD's wording - 2026-10-19 (claude)
 
 The user asked for every email to be checked. Screened all 2,467 cached

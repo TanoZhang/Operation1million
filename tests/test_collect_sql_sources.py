@@ -683,7 +683,15 @@ class CollectionTests(unittest.TestCase):
         # and TSMC (back for its Yokohama design centre).
         # And Toshiba (HRMOS), Kioxia and Sony Semiconductor Manufacturing
         # (jposting) the same day.
-        self.assertEqual(len(keys),51)
+        # And Japan's big employers on 2026-10-23: sixteen HRMOS boards, Hitachi
+        # and Subaru on jposting, Infineon, Analog Devices and Microchip.
+        self.assertEqual(len(keys),72)
+        self.assertEqual(dict(con.execute('select company_key, provider_key from company_sources where company_key in '
+                                          "('advantest','tokyo_electron','hitachi','subaru','infineon',"
+                                          "'analog_devices','microchip')")),
+                         {'advantest': 'hrmos', 'tokyo_electron': 'hrmos', 'hitachi': 'jposting',
+                          'subaru': 'jposting', 'infineon': 'eightfold', 'analog_devices': 'workday',
+                          'microchip': 'workday'})
         self.assertEqual(dict(con.execute('select company_key, provider_key from company_sources where company_key in '
                                           "('toshiba','kioxia','sony_semiconductor_manufacturing')")),
                          {'toshiba': 'hrmos', 'kioxia': 'jposting', 'sony_semiconductor_manufacturing': 'jposting'})
@@ -698,11 +706,13 @@ class CollectionTests(unittest.TestCase):
                                  'openai': 'ashby', 'd_matrix': 'ashby', 'quadric': 'ashby',
                                  'kla': 'workday', 'applied_materials': 'workday',
                                  'globalfoundries': 'workday', 'lam_research': 'eightfold'})
+        # Advantest, Infineon and Analog Devices left on 2026-09-16 and came back
+        # for their Japan boards on 2026-10-23.
         self.assertFalse(keys & {
             'ampere_computing', 'bytedance', 'mediatek', 'meta', 'tesla',
-            'advantest', 'maxlinear', 'omnivision', 'infineon', 'achronix',
+            'maxlinear', 'omnivision', 'achronix',
             'nexperia', 'nokia', 'semtech', 'onsemi', 'akeana',
-            'microchip_technology', 'psiquantum', 'analog_devices', 'celestica',
+            'microchip_technology', 'psiquantum', 'celestica',
             'rambus', 'ventana_micro',
         })
         self.assertEqual(con.execute('pragma foreign_key_check').fetchall(),[])

@@ -308,6 +308,11 @@ exclude_title_patterns = [
   'エキスパート', '(?<![微未])経験者(?!\s*(?:歓迎|も\s*可|OK|尚可))', 'キャリア採用', '中途(?:採用)?',
   # Functions that are not the trade: sales, HR, accounting, legal.
   '営業', '人事', '経理', '法務',
+  # Not openings at all, from the Japan boards read directly (2026-10-23): a
+  # talent-pool sign-up, alumni and referral programmes, briefings and events,
+  # and TOPPAN's 「…※こちらは求人ではございません」.
+  'キャリア登録', 'ジョブ・?リターン', 'ウェルカムバック', 'カムバック採用', 'アルムナイ',
+  'リファラル採用', '説明会', '採用イベント', '求人では(?:ございません|ありません)',
   # An MBA programme is open to MBA students, as a PhD one is to PhD
   # students: "MBA Internships" was on the Early career tab (2026-10-01).
   '\bMBA\b',

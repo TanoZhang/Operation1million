@@ -32,10 +32,10 @@ big = [
   'リコー', 'ricoh', 'エプソン', 'epson', '京セラ', 'kyocera', '村田製作所', 'murata', 'tdk',
   'アルプスアルパイン', 'ニデック', 'nidec', 'オムロン株式会社', 'omron corporation',
   'デンソー', 'denso', 'トヨタ', 'toyota', '本田技研', '本田技術研究所', 'honda', '日産', 'nissan',
-  'astemo', 'アイシン', 'aisin', 'マツダ', 'スバル', 'ヤマハ', 'yamaha', '任天堂', 'nintendo',
+  'astemo', 'アイシン', 'aisin', 'マツダ', 'mazda', 'スバル', 'subaru', 'ヤマハ', 'yamaha', '任天堂', 'nintendo',
   'コニカミノルタ', 'konica minolta', '安川電機', 'yaskawa', 'ファナック', 'fanuc', 'キーエンス', 'keyence',
   '島津製作所', '堀場', 'horiba', '浜松ホトニクス', 'ダイキン', 'daikin', 'ワコム', 'wacom',
-  'オーディオテクニカ', 'セコム', 'toppan', '大日本印刷', '富士電機', 'マクニカ', 'macnica',
+  'オーディオテクニカ', 'セコム', 'toppan', '大日本印刷', '富士電機', 'fuji electric', 'マクニカ', 'macnica',
   'i-pro', 'pentax', 'hoya', 'ハイデンハイン', 'アークエッジ', 'ntt', 'kddi株式会社', 'ソフトバンク株式会社',
   # Foreign chip and tech companies' Japanese arms.
   'cisco', 'intel', 'amd', 'nvidia', 'qualcomm', 'apple', 'google', 'microsoft', 'amazon', 'meta',

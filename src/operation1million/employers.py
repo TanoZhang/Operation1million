@@ -48,6 +48,21 @@ GROUPS = (
     ('Toshiba', ('株式会社東芝', 'Toshiba Electronic Devices & Storage', '東芝デバイス＆ストレージ')),
     ('Kioxia', ('キオクシア', 'KIOXIA Corporation')),
     ('Sony Semiconductor Manufacturing', ('ソニーセミコンダクタマニュファクチャリング',)),
+    # Japan's big employers read directly (2026-10-23).
+    ('Advantest', ('株式会社アドバンテスト', 'アドバンテスト', 'Advantest Corporation')),
+    ('Tokyo Electron', ('東京エレクトロン株式会社', '東京エレクトロン', 'Tokyo Electron Limited')),
+    ('Canon', ('キヤノン株式会社', 'キヤノン', 'Canon Inc.')),
+    ('Kyocera', ('京セラ株式会社', '京セラ')), ('TDK', ('TDK株式会社',)),
+    ('Seiko Epson', ('セイコーエプソン株式会社', 'セイコーエプソン')),
+    ('Panasonic', ('パナソニック株式会社', 'パナソニック')),
+    ('Sharp', ('シャープ株式会社', 'シャープ')),
+    ('Horiba', ('株式会社堀場製作所', '堀場製作所')), ('Nidec', ('ニデック株式会社', 'ニデック')),
+    ('Macnica', ('株式会社マクニカ', 'マクニカ')), ('ABLIC', ('エイブリック株式会社', 'エイブリック')),
+    ('Konica Minolta', ('コニカミノルタ株式会社', 'コニカミノルタ')), ('Aisin', ('株式会社アイシン', 'アイシン')),
+    ('TOPPAN', ('TOPPAN株式会社',)), ('Fuji Electric', ('富士電機株式会社', '富士電機')),
+    ('Hitachi', ('株式会社日立製作所', '日立製作所')), ('Subaru', ('株式会社SUBARU',)),
+    ('Infineon Technologies', ('Infineon',)), ('Analog Devices', ()),
+    ('Microchip Technology', ('Microchip',)),
 )
 
 

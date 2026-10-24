@@ -33,6 +33,20 @@ class JapaneseTitleTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(self.reason(title), 'excluded')
 
+    def test_board_entries_that_are_not_openings_are_refused(self):
+        """Read from HRMOS boards on 2026-10-23; each passed the filter before."""
+        for title in ('キャリア登録', 'ウェルカムバック制度', 'ジョブ・リターン', '【宮城】カムバック採用（アルムナイ）',
+                      '★★★リファラル採用（社員紹介）について★★★',
+                      '【若手エンジニア向け】キヤノンのキャリア＆ライフ～気軽に参加！会社説明会～',
+                      '採用活動における個人情報の取り扱いに関する通知 ※こちらは求人ではございません'):
+            with self.subTest(title=title):
+                self.assertEqual(self.reason(title), 'excluded')
+        # An open position is a real application, and an event company's job is a job.
+        for title in ('IT・通信・AIエンジニア向けオープンポジション（応募職種に迷う方）',
+                      '【2407】大型イベント事業の企画運営ディレクター'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
+
     def test_experience_welcome_is_not_mid_career_hiring(self):
         """2026-10-13: 経験者歓迎 welcomes experience; it does not require it."""
         for title in ('LSIエンジニア/年間休日120日以上/経験者歓迎/設計・開発エンジニア(半導体)',

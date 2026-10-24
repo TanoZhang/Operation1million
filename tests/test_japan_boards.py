@@ -96,6 +96,21 @@ class JapanBoardTests(unittest.TestCase):
         self.assertNotIn('https://hrmos.co/pages/example/jobs/000600001', asked)
         self.assertEqual(jobs['000600001']['location'], '首都圏, Japan')
 
+    def test_hrmos_place_is_the_tag_that_names_one(self):
+        """Tag lists as each board printed them on 2026-10-23: the second tag
+        was taken as the place, and read 技術系, DX・ITシステム or a company."""
+        from operation1million.collector import hrmos_place
+        for tags, place in (
+                (['技術職', '首都圏', '正社員'], '首都圏'),
+                (['ソフトウェア開発', '技術系', '正社員', '群馬県邑楽郡明和町大輪336-1'], '群馬県邑楽郡'),
+                (['愛知県（刈谷市）', 'DX・ITシステム', '正社員', '愛知県刈谷市朝日町2丁目1番地'], '愛知県'),
+                (['障がい者採用', '東京エレクトロン株式会社', '正社員', '東京都港区赤坂赤坂Ｂｉｚタワー 他(1)'], '東京都港区'),
+                (['生産企画本部', '品質保証', '正社員', '広丘事業所 (長野県：塩尻市)'], '長野県'),
+                (['【技術系】AI技術', '全国（複数拠点）', '研究開発本部', '正社員'], '全国'),
+                (['ソフトウェア開発', '技術系', '正社員', ''], '')):
+            with self.subTest(tags=tags):
+                self.assertEqual(hrmos_place(tags), place)
+
     def test_jposting_lists_from_json_and_reads_requirements_from_the_page(self):
         source = Source('jposting:example', 'company_sources', 'kioxia', 'Kioxia', 'jposting',
                         'https://api.example.com/example/u/jobs.phtml',

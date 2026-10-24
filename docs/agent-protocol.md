@@ -6,6 +6,24 @@ work belongs in the newest handoff, the architecture bug log, and Git history.
 ## Active claims
 ```text
 Owner: claude
+Scope: User request (2026-10-23): Japan's big employers read directly -- 16
+       HRMOS boards, Hitachi and Subaru on jposting, Infineon (Eightfold), ADI
+       and Microchip (Workday); a large no-store collection, debugging what
+       fails.
+Files: data/config/migrations/012_japan_more_direct.sql,
+       data/config/{schema.sql,japan_employers.toml,jsearch_queries.toml},
+       src/operation1million/{store,collector,employers}.py,
+       tests/{test_collect_sql_sources,test_japan_boards,test_japanese_postings}.py,
+       docs/{agent-protocol,handoff}.md
+Base commit: f9571e0
+Status: done -- no-store 21/21 complete; suite 1,316 run, 13 skipped, pass;
+        pushed, not installed (the user, 2026-10-23: no VPS).
+Next: Install when the user says; then the readers the survey names
+      (jposting HTML lists, sonar, axol, ZOOKEEP, Rapidus).
+```
+
+```text
+Owner: claude
 Scope: User request (2026-10-19): Obsidian notes over WebDAV on the VPS at
        /notes/; Review by password alone; fail2ban.
 Files: deploy/vps/{Caddyfile,notes-route.caddy,operation1million-notes.service,
