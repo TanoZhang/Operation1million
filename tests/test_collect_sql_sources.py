@@ -346,6 +346,44 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(job['location'], 'Japan-Yokohama')
         self.assertEqual(job['source_job_id'], '13457')
 
+    def test_a_few_unreadable_postings_do_not_leave_the_board_unread(self):
+        """2026-10-24: one SanDisk posting whose heading and JSON-LD disagreed
+        kept its board partial for twelve days, and a partial board closes
+        nothing. Closing reads every advertised URL, so a handful of unreadable
+        postings is noted; only a broad failure leaves the board unread."""
+        fixtures = Path(__file__).parent / 'fixtures'
+        sitemap = (fixtures / 'sandisk_sitemap_redacted.xml').read_bytes()
+        detail = (fixtures / 'sandisk_detail_redacted.html').read_bytes()
+        source = Source('avature:avature.sandisk.com', 'company_sources',
+                        'sandisk', 'SanDisk', 'avature',
+                        'https://avature.sandisk.com/Careers/sitemap.xml',
+                        {'sitemap_job_path': '/Careers/JobDetail/'})
+
+        def run(broken):
+            args = self.args()
+            args.max_jobs = args.max_pages = 1000
+            c = Collector(source, args)
+            postings = []
+
+            def fetch(url, *unused):
+                if url == source.access_url:
+                    return SimpleNamespace(content=sitemap, text=sitemap.decode('utf-8'), url=url)
+                postings.append(url)
+                # A withdrawn posting sends its reader to the search page.
+                moved = len(postings) <= broken
+                return SimpleNamespace(content=detail, text=detail.decode('utf-8'),
+                                       url=source.access_url if moved else url)
+            c.fetch = fetch
+            return c, c.run()
+
+        c, (status, reason) = run(broken=1)
+        self.assertEqual(status, 'complete')
+        self.assertIn('1 detail failures', reason)
+        self.assertEqual(len(c.jobs), len(c.listed) - 1)
+        c, (status, reason) = run(broken=len(c.listed) // 10)
+        self.assertEqual(status, 'partial')
+        self.assertIn('Detail collection stopped', reason)
+
     def test_sandisk_page_cap_cannot_claim_sitemap_complete(self):
         sitemap = (Path(__file__).parent / 'fixtures/sandisk_sitemap_redacted.xml').read_bytes()
         source = Source('avature:avature.sandisk.com', 'company_sources',

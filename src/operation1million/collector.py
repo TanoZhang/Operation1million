@@ -1419,15 +1419,20 @@ class Collector:
                 self.add(items)
             except (requests.RequestException, ValueError) as exc:
                 errors.append(f'{url}: {type(exc).__name__}: {exc}')
-                if len(errors) >= 3:
-                    return 'partial', f'Detail collection stopped after 3 failures; {errors[0]}'
-        if errors:
+                if len(errors) > detail_tolerance(advertised):
+                    return 'partial', f'Detail collection stopped after {len(errors)} failures; {errors[0]}'
+        # Closing reads `listed`, every URL the sitemap advertised, so a posting
+        # whose page could not be read is not retired; only a broad failure
+        # leaves the board unread.
+        if errors and len(errors) > detail_tolerance(advertised):
             return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
         if len(urls) > detail_limit:
             return 'partial', ('Page cap reached; increase --max-pages' if job_path
                                and detail_limit < self.max_jobs
                                else 'Job cap reached; increase --max-jobs')
-        return 'complete', (f'{skipped} already stored, not refetched' if skipped else '')
+        notes = [f'{skipped} already stored, not refetched' if skipped else '',
+                 f'{len(errors)} detail failures; first: {errors[0]}' if errors else '']
+        return 'complete', '; '.join(filter(None, notes))
 
     def run(self):
         """The collector's verdict, with the cap allowed to overrule it.
@@ -1529,8 +1534,16 @@ class Collector:
                     from .job_details import enrich
                 db_path = getattr(self.args, 'db', None) if getattr(self.args, 'store', False) else None
                 errors = enrich(self, db_path)
+                # Enrichment reads descriptions for postings the board already
+                # listed in full; a failed read leaves one description unknown,
+                # never the board unread (Synopsys, 2026-10-24: one withdrawn
+                # posting of 667 kept the board partial for eight days, and a
+                # partial board closes nothing).
                 if errors:
-                    return 'partial', f'{len(errors)} detail failures; first: {errors[0]}'
+                    failures = f'{len(errors)} detail failures; first: {errors[0]}'
+                    if len(errors) > detail_tolerance(len(self.jobs)):
+                        return 'partial', failures
+                    detail = '; '.join(filter(None, (detail, failures)))
             return status, detail
         except SourcePaused as exc:
             return 'paused', str(exc)
@@ -1538,6 +1551,12 @@ class Collector:
             return ('partial' if self.jobs else 'failed'), f'{type(exc).__name__}: {exc}'
         finally:
             self.session.close()
+
+
+def detail_tolerance(postings):
+    """Detail reads that may fail before a board counts as unread: two, or one
+    posting in fifty -- a withdrawn or retitled posting, not a broken board."""
+    return max(2, postings // 50)
 
 
 def employer_normalize(name):

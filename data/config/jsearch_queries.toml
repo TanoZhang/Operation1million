@@ -1697,6 +1697,365 @@ query = "HSPICE New Grad"
 tier = "jd_text"
 pages = 10
 
+# 2026-10-25, the user: "先扩大jsearch搜索词" -- the 29 phrases removed on
+# 2026-10-24 returned postings (the user's rule is to drop only a phrase that
+# never returned one), so they are back; and more U.S. entry-level phrases
+# in the shapes that pass most often (Intern / New College Grad / I / Associate / Junior).
+[[query]]
+query = "DFT Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Hardware Verification Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Logic Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "FPGA Verification Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "CPU Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "GPU Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Memory Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Analog IC Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Mixed Signal IC Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Post Silicon Validation Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Digital IC Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Analog IC Design Co-op"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Analog Layout Co-op"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "IP Verification New Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Memory Design New Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "FPGA Graduate Engineer"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Formal Verification Entry Level"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Post-Silicon Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Masters Hardware Engineering Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Digital Circuit Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "ASIC Co-op"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "ASIC Intern Summer 2027"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "SoC Integration Intern"
+tier = "intern"
+pages = 5
+
+[[query]]
+query = "Emulation New Grad"
+tier = "new_grad"
+pages = 5
+
+[[query]]
+query = "Static Timing Analysis New Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "SRAM Design Engineer"
+tier = "A"
+pages = 10
+
+[[query]]
+query = "Memory Controller Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "SoC Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "RTL Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Hardware Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "RTL Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "SoC Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Chip Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "ASIC Physical Design Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Silicon Engineering Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Hardware Intern 2027"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Design Verification Intern 2027"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Physical Design Intern 2027"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "FPGA Engineering Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Firmware Engineering Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Embedded Firmware Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Hardware Systems Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Silicon Validation Engineering Intern"
+tier = "intern"
+pages = 10
+
+[[query]]
+query = "Hardware Engineer New College Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "ASIC Engineer New College Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Design Verification Engineer New College Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Physical Design Engineer New College Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Silicon Design Engineer New Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Hardware Design Engineer New Grad"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "FPGA Engineer I"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Firmware Engineer I"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Silicon Validation Engineer I"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Digital Design Engineer I"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Associate ASIC Engineer"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Associate Design Verification Engineer"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Associate Silicon Engineer"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Associate FPGA Engineer"
+tier = "new_grad"
+pages = 10
+
+[[query]]
+query = "Junior FPGA Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Junior ASIC Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Junior Physical Design Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Junior Verification Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Junior Firmware Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Early Career Hardware Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Early Career Silicon Engineer"
+tier = "early_career"
+pages = 10
+
+[[query]]
+query = "Hardware Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "ASIC Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "RTL Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "SoC Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Silicon Design Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Emulation Engineer"
+tier = "A"
+pages = 5
+
+[[query]]
+query = "Chip Design Engineer"
+tier = "A"
+pages = 5
+
 # Japan sweep phrases, chosen by measurement (2026-10-11): one paid page
 # per phrase in Japan, a month back, over 60 phrases. A bare trade word
 # (デジタル回路設計, 論理設計, ASIC, RTL設計) and every English phrase returned
