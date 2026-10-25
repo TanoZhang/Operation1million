@@ -66,6 +66,8 @@ note_problem() {
   echo "WARNING: $1 -- the pass carries on, paid search included." >&2
 }
 sweep_code=0
+# The fewest credits the final day must have left before Japan is asked at all.
+JAPAN_SWEEP_MIN=1000
 READY=$CODE/.local/database-ready
 
 database_inputs() {
@@ -304,27 +306,33 @@ elif [ "$collect_code" -ne 0 ]; then
   exit "$collect_code"
 fi
 
-read -r days_until_reset sweep_period < <(python - <<'PY'
+read -r days_until_reset sweep_period day_left < <(python - <<'PY'
 from operation1million import jsearch
 from operation1million.jsearch_access import RequestGuard
 settings, _ = jsearch.load_plan()
-guard = RequestGuard(target_limit=settings['monthly_target'],
-                     cycle_start=settings['cycle_start'], cycle_days=settings['cycle_days'])
-print(guard.days_until_reset(), guard.period()[0])
+guard = RequestGuard(limit=settings['monthly_quota'], target_limit=settings['monthly_target'],
+                     daily_limit=settings['daily_budget'],
+                     cycle_start=settings['cycle_start'], cycle_days=settings['cycle_days'],
+                     day_zone=settings['budget_timezone'], day_resets_at=settings['budget_day_resets_at'])
+print(guard.days_until_reset(), guard.period()[0], guard.balance()['day_remaining'] or 0)
 PY
 )
-if [ "$days_until_reset" -le 3 ]; then
+# Depth for the U.S. (the user, 2026-10-24: "jsearch美国的 大量改进 我要大量深度").
+# The 3-day plan runs out of results after a page or two and left about 165 of
+# its 350 daily credits unspent; those go to the month-wide sweep of the same
+# U.S. queries at their sweep depth. Its pages resume across the cycle, so each
+# day reads further down the month instead of buying page one again.
+if [ "$day_left" -gt 0 ]; then
   set +e
-  # 6000 s since 2026-10-13: the Japan sweep asks 139 phrases (65 of them trials added 2026-10-16).
-  job-collect --jsearch-only --backfill --workers 1 --delay 1.0 --jsearch-max-seconds 6000
+  job-collect --jsearch-only --backfill --backfill-us-fallback --jsearch-budget "$day_left"     --workers 1 --delay 1.0 --jsearch-max-seconds 6000
   sweep_code=$?
   set -e
 fi
 if [ "$sweep_code" -ne 0 ]; then exit "$sweep_code"; fi
 if [ "$days_until_reset" -le 1 ]; then
-  # The measured Japan plan reached its provider end before the previous cycle
-  # ran out of credits. Give Japan first use; on the final UTC date only, use
-  # the existing U.S. entry-level plan for any remaining credits.
+  # Credits do not carry into the next cycle. Japan is asked only when the
+  # final day still has plenty left (the user, 2026-10-24: "日本的jsearch取消
+  # 除非月底有很多额度"); whatever it leaves goes to the U.S. sweep.
   read -r fallback_period fallback_left < <(python - <<'PY'
 from operation1million import jsearch
 from operation1million.jsearch_access import RequestGuard
@@ -334,9 +342,15 @@ guard = RequestGuard(target_limit=settings['monthly_target'],
 print(guard.period()[0], guard.balance()['period_remaining'])
 PY
 )
+  if [ "$fallback_period" = "$sweep_period" ] && [ "$fallback_left" -ge "$JAPAN_SWEEP_MIN" ]; then
+    set +e
+    job-collect --jsearch-only --backfill --workers 1 --delay 1.0 --jsearch-max-seconds 6000
+    sweep_code=$?
+    set -e
+    if [ "$sweep_code" -ne 0 ]; then exit "$sweep_code"; fi
+  fi
   if [ "$fallback_period" = "$sweep_period" ] && [ "$fallback_left" -gt 0 ]; then
-    job-collect --jsearch-only --backfill --backfill-us-fallback \
-      --workers 1 --delay 1.0 --jsearch-max-seconds 6000
+    job-collect --jsearch-only --backfill --backfill-us-fallback       --workers 1 --delay 1.0 --jsearch-max-seconds 6000
   fi
 fi
 run_clean=1

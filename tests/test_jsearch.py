@@ -1698,7 +1698,7 @@ class DiscoveryTests(unittest.TestCase):
         path = self.root / 'plan.toml'
         for bad in ('-1', '10001', '"1000"'):
             with self.subTest(bad=bad):
-                path.write_text(text.replace('sweep_reserve = 1000', f'sweep_reserve = {bad}'),
+                path.write_text(text.replace('sweep_reserve = 0', f'sweep_reserve = {bad}'),
                                 encoding='utf-8')
                 with self.assertRaises(ValueError):
                     jsearch.load_plan(path)

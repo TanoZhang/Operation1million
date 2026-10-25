@@ -21,7 +21,14 @@ cycle_daily_budget = { "2026-09-16" = 570 }
 # postings no other query found). The last three days' U.S. postings are
 # still read by the next cycle's first 3-day pass. A run now
 # (--ignore-daily-limit) is not held to it.
-sweep_reserve = 1000
+#
+# 2026-10-24, the user: "日本的jsearch取消 除非月底有很多额度" -- no credits are
+# held back for Japan any more. Its own boards now bring the big employers,
+# and 254 of the 440 Japan listings JSearch held were staffing firms the Japan
+# rule drops. Each day's unspent budget goes to the U.S. month sweep instead
+# (deploy/vps/daily-pass.sh); Japan is asked only with what the final day has
+# left over.
+sweep_reserve = 0
 # The plan renews every 30 days from this date, not on a day of the month.
 cycle_start = "2026-09-16"
 cycle_days = 30
@@ -154,7 +161,7 @@ exclude_employer_patterns = [
   # "L3 Harris" and "L-3" too (2026-09-27).
   '\bL-?3\s*Harris\b', '\bLeidos\b', '\bAnduril\b',
   # RTX's own businesses, named without RTX (2026-09-27).
-  '\bCollins\s+Aerospace\b', '\bPratt\s+(?:&|and)\s+Whitney\b',
+  '\bCollins\s+Aerospace\b', '\bPratt\s*(?:&|and)?\s*Whitney\b',
   '\bBoeing\b', '\bCACI\b', '\bAmentum\b', '\bPeraton\b',
   # Queued on 2026-10-02 (#293): defence electronics, defence IT, directed
   # energy, autonomous naval vessels, defence consulting.

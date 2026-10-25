@@ -338,15 +338,22 @@ class DailyPassKeepsGoingTests(unittest.TestCase):
     def script(self):
         return (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8')
 
-    def test_us_fallback_waits_for_japan_and_the_final_billing_day(self):
+    def test_the_us_sweep_takes_each_days_leftover_and_japan_only_a_big_final_one(self):
+        """The user, 2026-10-24: depth for the U.S. every day; Japan only when
+        the cycle's last day still has plenty left, and then before the
+        final U.S. fallback."""
         script = self.script()
+        daily = script.index('--backfill-us-fallback --jsearch-budget "$day_left"')
+        final = script.index('if [ "$days_until_reset" -le 1 ]; then')
         japan = script.index('job-collect --jsearch-only --backfill --workers 1')
-        fallback = script.index('job-collect --jsearch-only --backfill --backfill-us-fallback')
+        fallback = script.rindex('job-collect --jsearch-only --backfill --backfill-us-fallback')
+        self.assertLess(daily, final)
+        self.assertLess(final, japan)
         self.assertLess(japan, fallback)
-        before_fallback = script[japan:fallback]
-        self.assertIn('if [ "$days_until_reset" -le 1 ]; then', before_fallback)
-        self.assertIn('"$fallback_period" = "$sweep_period"', before_fallback)
-        self.assertIn('"$fallback_left" -gt 0', before_fallback)
+        before_japan = script[final:japan]
+        self.assertIn('"$fallback_left" -ge "$JAPAN_SWEEP_MIN"', before_japan)
+        self.assertIn('JAPAN_SWEEP_MIN=1000', script)
+        self.assertIn('"$fallback_left" -gt 0', script[japan:fallback])
 
     def test_a_failing_suite_is_reported_and_the_pass_carries_on(self):
         self.assertIn("python -m unittest discover -s tests || note_problem", self.script())
