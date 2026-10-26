@@ -387,6 +387,9 @@ MEETING_NOT = re.compile(r'\b(?:webinar|info(?:rmation)? session|office hours|ca
                          r'open house|town hall|event)\b')
 
 
+CANCELLED = re.compile(r'\s*(?:re:\s*|fw:\s*)*(?:canceled|cancelled)(?: event)?\s*:', re.I)
+
+
 def _meeting(lowered):
     text = ' '.join(lowered)
     return bool(MEETING.search(text)) and not MEETING_NOT.search(text)
@@ -410,6 +413,11 @@ def classify(subject, body):
     Nothing is dropped for want of a rule: only a confirmation or plain
     noise is None.
     """
+    # A cancelled meeting carries the meeting's own invitation and links, and
+    # read as one (GlobalFoundries' "Canceled: ... Discussion with HR",
+    # 2026-10-22). It changes what the user expects, so it is shown.
+    if CANCELLED.match(str(subject or '')):
+        return 'unclear'
     lines = _sentences(str(subject or '') + '\n' + str(body or ''))
     lowered = [' ' + _plain(line) + ' ' for line in lines]
     spoken = lowered[:_body_end(lines)]

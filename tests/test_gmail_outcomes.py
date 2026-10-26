@@ -780,6 +780,16 @@ class MeetingAndContractionTests(unittest.TestCase):
         self.assertEqual(gmail.classify('Interview', 'Join Zoom Meeting https://us02web.zoom.us/j/8812345?pwd=x'),
                          'passed')
 
+    def test_a_cancelled_meeting_is_shown_not_passed(self):
+        """GlobalFoundries cancelled its HR discussion on 2026-10-22."""
+        self.assertEqual(gmail.classify('Canceled: GlobalFoundries: Daichi Zhang : Discussion with HR',
+                                        'Hi,\nBlocking your time for discussion.\n' + self.TEAMS), 'unclear')
+        self.assertEqual(gmail.classify('Cancelled event: Interview', 'Join Zoom Meeting https://zoom.us/j/1'),
+                         'unclear')
+        # Not a cancellation: the word elsewhere in the subject.
+        self.assertEqual(gmail.classify('Interview (the earlier slot was canceled)',
+                                        'Join Zoom Meeting https://us02web.zoom.us/j/8812345?pwd=x'), 'passed')
+
     def test_a_webinar_link_is_not(self):
         self.assertNotEqual(gmail.classify('Join our info session',
                                            'Register for our campus webinar.\n' + self.TEAMS), 'passed')
