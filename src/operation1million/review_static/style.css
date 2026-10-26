@@ -80,3 +80,17 @@ main{max-width:none;padding:16px 20px 12px}
 .limit{margin-top:18px;color:#8a6a1f;font-weight:600}
 .metrics .missed strong {color:#b42318;}
 .metrics .missed span {color:#b42318;}
+/* Phone width (the user, 2026-10-26: the page slid sideways and the
+   locations were cut off). Six figures wrap to two rows, the list tools and
+   a location's links wrap under each other, and nothing is wider than the
+   screen; the tab bar keeps its own sideways scroll. */
+@media(max-width:750px){
+  .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 12px}
+  .metrics div{min-width:0}
+  .list-label{flex-wrap:wrap;gap:8px}
+  .list-tools{flex-wrap:wrap}
+  .location-row{flex-wrap:wrap;align-items:flex-start}
+  .location-row > span{flex:1 1 100%}
+  .listing-links{justify-content:flex-start;flex-shrink:1;min-width:0}
+  main,.workspace,.queue,.detail{max-width:100%;min-width:0}
+}
