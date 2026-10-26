@@ -93,7 +93,12 @@ class BackupTests(unittest.TestCase):
         (backup / 'last-pull').write_text('last good pull', encoding='utf-8')
         driver = root / 'driver.sh'
         driver.write_text(
-            "ssh() { printf '%s\\n' \"$@\" > ssh-args; tar czf - -C fixture data sqlite; }\n"
+            # The data snapshot, and since 2026-10-25 the server's own state.
+            "ssh() { case \"${@: -1}\" in\n"
+            "  *'tar czhf'*) mkdir -p fixture/server/opt/operation1million/code/src\n"
+            "                tar czf - -C fixture/server opt;;\n"
+            "  *) printf '%s\\n' \"$@\" > ssh-args; tar czf - -C fixture data sqlite;;\n"
+            "esac; }\n"
             + ('''mv() {
   if [ "$1" = 'backup/.incoming/data' ]; then return 73; fi
   command mv "$@"
@@ -235,3 +240,5 @@ class BackupTests(unittest.TestCase):
         # Structure is not enough: an unverified copy that rotates twice
         # replaces both intact generations.
         self.assertIn('1 run files verified against their manifests', result.stdout)
+        # The server's own state beside the data copy (2026-10-25).
+        self.assertTrue((backup / 'server/opt/operation1million/code/src').is_dir())
