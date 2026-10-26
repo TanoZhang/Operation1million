@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
-# Pull a disaster-recovery copy of the VPS's data directory to this machine.
+# Pull a disaster-recovery copy of the VPS to this machine, into one folder,
+# ~/vps (the user, 2026-10-25: "弄成1个文件夹叫vps 然后vps的所有内容备份到本地"):
 #
 #   ./deploy/local/backup-from-vps.sh
+#
+#   vps/current, vps/previous  the data directory and a SQLite snapshot, checked
+#   vps/server                 the rest of the machine's state: /opt/operation1million
+#                              (code, Gmail cache, ledger backups, exports), its
+#                              /etc settings and secrets, Caddy, fail2ban, the
+#                              systemd units and the Obsidian notes. Not code/runs,
+#                              the raw output of every pass, which the data
+#                              directory keeps compressed.
 #
 # One direction only: the VPS owns everything -- the scraper, the index, the
 # seen table, the review UI and the application decisions written through it --
@@ -30,7 +39,7 @@ REMOTE=${OPERATION1MILLION_VPS_DATA:-/opt/operation1million/data}
 REMOTE_DB=${OPERATION1MILLION_VPS_DB:-/opt/operation1million/code/data/db/job_discovery.sqlite}
 REMOTE_STATE=${OPERATION1MILLION_VPS_STATE:-/opt/operation1million/code/.local}
 REMOTE_USER=${OPERATION1MILLION_VPS_USER:-operation1million}
-TARGET=${1:-${OPERATION1MILLION_BACKUP_DIR:-$HOME/op1m-backup}}
+TARGET=${1:-${OPERATION1MILLION_BACKUP_DIR:-$HOME/vps}}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 mkdir -p "$TARGET"
@@ -239,6 +248,30 @@ if [ -d "$previous.tmp" ]; then
   mv "$previous.tmp" "$previous"
 fi
 
+echo "== Pulling the server's own state =="
+# The service's files and the system settings that run it. Read as root: the
+# secrets under /etc/operation1million are root's alone. The copy replaces the
+# last one only once it has arrived whole. Links are copied as the files they
+# name (h), because Windows cannot make them; the virtualenv, made of links to
+# the system Python, is left out: install.sh builds it again.
+server_incoming=$TARGET/.server-incoming
+rm -rf "$server_incoming"
+mkdir -p "$server_incoming"
+ssh -i "$KEY" -o BatchMode=yes "$HOST" \
+    "sudo -n bash -c 'cd / && tar czhf - --ignore-failed-read \
+       --exclude=opt/operation1million/code/runs --exclude=opt/operation1million/data \
+       --exclude=opt/operation1million/venv \
+       opt/operation1million etc/operation1million etc/caddy etc/fail2ban/jail.d etc/fail2ban/filter.d \
+       \$(ls -d etc/systemd/system/operation1million* 2>/dev/null) srv/obsidian-notes'" \
+  | tar xzf - -C "$server_incoming"
+if [ ! -d "$server_incoming/opt/operation1million/code/src" ]; then
+  echo "The server copy has no code; the last one was kept." >&2
+  missing=1
+else
+  rm -rf "$TARGET/server"
+  mv "$server_incoming" "$TARGET/server"
+fi
+
 date -u '+%Y-%m-%dT%H:%M:%SZ' > "$TARGET/last-pull"
 echo "== Copy =="
 echo "  at:       $TARGET/current"
@@ -246,6 +279,7 @@ echo "  size:     $(du -sh "$current" | cut -f1)"
 echo "  runs:     $runs files, $manifests manifests"
 echo "  sqlite:   $current/sqlite/job_discovery.sqlite"
 echo "  decisions: $(wc -l < "$current/operational/applications.ndjson" 2>/dev/null || echo 0)"
+echo "  server:   $TARGET/server ($(du -sh "$TARGET/server" 2>/dev/null | cut -f1))"
 echo "  pulled:   $(cat "$TARGET/last-pull")"
 echo
 echo "Fast restore from the copied SQLite snapshot:"

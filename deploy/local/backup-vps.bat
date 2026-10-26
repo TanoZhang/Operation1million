@@ -1,8 +1,9 @@
 @echo off
 rem Double-click: copy the VPS's data to this machine with
 rem backup-from-vps.sh, into the same folder as every earlier backup
-rem (%USERPROFILE%\op1m-backup unless OPERATION1MILLION_BACKUP_DIR says otherwise).
-rem The newest copy lands in current\, the one before it in previous\.
+rem (%USERPROFILE%\vps unless OPERATION1MILLION_BACKUP_DIR says otherwise).
+rem The newest data copy lands in current\, the one before it in previous\;
+rem the server's code, settings and notes in server\.
 setlocal
 cd /d "%~dp0..\.."
 rem Git Bash only: the bash.exe in System32 is WSL, which cannot see this key.
