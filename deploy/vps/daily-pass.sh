@@ -353,6 +353,12 @@ PY
     job-collect --jsearch-only --backfill --backfill-us-fallback       --workers 1 --delay 1.0 --jsearch-max-seconds 6000
   fi
 fi
+# Each pass writes its raw output (jobs.jsonl, jobs.csv, a debug trace) under
+# code/runs/, about 800 MB a day, and nothing reads it again: the data
+# checkout keeps the same run compressed. 157 of them held 21 GB of a 38 GB
+# disk (2026-10-25), so only the last week is kept (about 6 GB).
+find "$CODE/runs" -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} + 2>/dev/null \
+  || note_problem 'old run output under code/runs could not be removed'
 run_clean=1
 if [ "$problems" -eq 1 ]; then
   echo 'WARNING: the pass completed, but a check failed; see the warning above.' >&2
