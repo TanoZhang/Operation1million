@@ -150,11 +150,46 @@ class FilterPolicyTests(unittest.TestCase):
                       'SoC Design Verification Engineer', 'Digital Design Engineer',
                       'Physical Design Engineer', 'Logic Design Engineer',
                       'Pre-Silicon Verification Engineer', 'Hardware Verification Engineer',
-                      'Formal Verification Engineer', 'DFT Engineer', 'VLSI Engineer'):
+                      'Formal Verification Engineer', 'DFT Design Verification Engineer', 'VLSI Engineer'):
             with self.subTest(title=title):
                 self.assertTrue(self.matches_keep(title))
                 with mock.patch.object(jsearch, 'relevance', side_effect=AssertionError('Scoring reached')):
                     self.assertEqual(jsearch.rejection_reason({'title': title}, self.rules), '')
+
+    def test_a_plainly_dft_title_is_refused_and_a_mixed_one_kept(self):
+        """The user, 2026-10-30: digital design first, a DFT-only role skipped."""
+        for title in ('DFT Engineer', 'Design for Test Intern, BS - Summer 2027',
+                      'SOC DFT Intern - Spring 2027', 'Junior DfT Design Engineer - MCU',
+                      'ASIC Design-for-Test Engineer Intern - DFT', 'DFx Engineer',
+                      'DFT & ATPG Engineer - Scan Insertion Specialist', 'MBIST Engineer'):
+            with self.subTest(title=title):
+                self.assertTrue(jsearch.excluded(title, self.rules))
+        for title in ('DFT Design Verification Engineer', 'Physical Design & DFT Intern',
+                      'Digital Design Engineer, DFT', 'DFX RTL Design Engineer',
+                      'CPU DFT Verification Engineer', 'ASIC Design Engineer'):
+            with self.subTest(title=title):
+                self.assertFalse(jsearch.excluded(title, self.rules))
+
+    def test_digital_titles_score_higher_and_circuit_titles_lower(self):
+        """The same description under different titles: RTL, FPGA and DV gain,
+        analog and custom circuit design lose, the rest is unchanged."""
+        raw = {'description': 'Silicon chip team. Verilog, tape-out, SoC integration. ' * 40}
+        score = lambda title: jsearch.relevance({'title': title, 'raw': raw}, self.rules)[0]
+        neutral = score('Silicon Engineer Intern')
+        for title in ('RTL Design Intern', 'FPGA Engineer New Grad', 'Design Verification Intern',
+                      'Mixed-Signal Verification Engineer'):
+            with self.subTest(title=title):
+                self.assertGreater(score(title), neutral)
+        for title in ('Analog IC Design Intern', 'SRAM Silicon Engineer', 'Custom Circuit Design Engineer',
+                      'Analog Layout Intern'):
+            with self.subTest(title=title):
+                self.assertLess(score(title), neutral)
+
+    def test_the_focus_bonus_never_lets_a_posting_in(self):
+        row = {'title': 'Verification Intern', 'raw': {'description': 'Income documents for loan files. ' * 80}}
+        without = jsearch.relevance(row, dict(self.rules, focus_title_bonus=0))[0]
+        self.assertLess(without, self.rules['min_confidence'])
+        self.assertEqual(jsearch.relevance(row, dict(self.rules, focus_title_bonus=100))[0], without)
 
     def test_generic_titles_do_not_bypass_scoring(self):
         for title in ('Silicon Validation Engineer', 'Pre-Silicon Validation Engineer',
@@ -640,7 +675,7 @@ class QueueRulesTests(unittest.TestCase):
                              ('Early Career Hardware Engineer', True),
                              ('Physical Design Engineer (NG)', True),
                              ('NVIDIA 2027 Internships: Hardware ASIC Design', True),
-                             ('SoC & DFT Engineer - Graduate Training Program', True),
+                             ('SoC Design Engineer - Graduate Training Program', True),
                              ('Electrical Engineering Graduate', True),
                              ('Design Verification Engineer', False),
                              ('NG-RAN Firmware Engineer', False)):

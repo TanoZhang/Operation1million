@@ -55,7 +55,7 @@ class HardRejectTests(unittest.TestCase):
 
     def test_the_target_roles_still_pass(self):
         for title in ('RTL Design Engineer', 'Design Verification Engineer',
-                      'DFT Engineer', 'Physical Design Engineer', 'FPGA Engineer'):
+                      'Physical Design & DFT Intern', 'Physical Design Engineer', 'FPGA Engineer'):
             with self.subTest(title=title):
                 self.assertFalse(jsearch.excluded(title, self.rules))
 

@@ -1,3 +1,45 @@
+# Digital first: DFT-only titles refused, analog lowered - 2026-10-30
+
+The user: score digital design first, raise FPGA, RTL and DV, lower analog,
+and skip roles that are plainly DFT.
+- `exclude_title_patterns`: a title naming DFT, DFx, design for test, ATPG or
+  MBIST and none of RTL, FPGA, DV, UVM, verification or digital, logic, ASIC,
+  SoC or physical design is refused. Mixed titles stay. This reverses DFT as
+  a target role (architecture.md's VLSI scope); the six U.S. and three Japan
+  DFT-only phrases went with it (232 U.S. queries, 136 sweep phrases).
+- `relevance`: a title in `focus_title_patterns` (RTL, FPGA, DV, HDLs, the
+  named verifications, digital/logic/ASIC/SoC design) gains
+  `focus_title_bonus` = 20, only when already at `min_confidence`; one in
+  `circuit_title_patterns` (analog, mixed-signal, AMS, SRAM, custom circuit,
+  layout, DRAM/memory design) and no focus word is scaled by
+  `circuit_title_factor` = 0.5. AMS verification counts as DV.
+- Measured on the local index (built 2026-10-23), open postings in the
+  first four bands that pass today: 134 DFT-only refused; 1,489 focus postings
+  +19.8 on average; 383 circuit postings -22.9, 142 of them now under
+  `min_confidence`; the other 3,943 unchanged. The early-career top 100 by
+  score went from 45 focus titles to 100.
+- Stored scores move only after `job-store --rescore` on the VPS.
+
+# JSearch U.S.: nine never-returning phrases removed - 2026-10-30
+
+From `operational/jsearch_query_runs.ndjson`, 10-19..10-30 (3,224 U.S. runs):
+- The 350 daily credits are spent every day since 10-26: the 3-day pass takes
+  160-280, the month backfill the rest. 10-25..10-30, new accepted postings
+  per ten pages: 3-day pass 1.5 (212 in 1,445 pages), backfill 3.7 (240 in
+  655). The backfill reaches only intern and new_grad; A, early_career,
+  ai_auto and jd_text were never reached there.
+- 3-day pass by tier, per ten pages: new_grad 1.95, intern 1.59, A 1.07,
+  early_career 0.58 (8 in 119 runs; 37 runs empty on page one).
+- 77 of 247 phrases never brought a new accepted posting; the top 20 brought
+  306 of 757.
+
+Removed (the user, 2026-10-30), each 8-13 runs without one posting returned:
+DFT Intern, Memory Controller Engineer, Formal Verification Entry Level, SoC
+Design Intern, Early Career Silicon Engineer, and four "... New College Grad"
+(ASIC Engineer, Physical Design Engineer, Hardware Engineer, Design
+Verification Engineer). 238 queries. Phrases that return postings but no new
+accepted one stay, per the user's rule.
+
 # Japan's own readers, JSearch U.S., ten bugs - 2026-10-23 (claude)
 
 The user: Japan as wide as it goes; how JSearch is doing in the U.S.; ten bugs

@@ -26,7 +26,7 @@ class VLSIScopeTests(unittest.TestCase):
     def test_equivalent_vlsi_role_names_pass_the_filter(self):
         # No longer searched (the user's 2026-10-03 query list); still kept by the filter.
         expected = {'Logic Design Intern', 'Formal Verification Intern',
-                    'Design for Test New Grad', 'Physical Implementation New Grad',
+                    'Physical Implementation New Grad',
                     'Static Timing Analysis Entry Level', 'Silicon Validation Entry Level'}
         for title in expected:
             with self.subTest(title=title):

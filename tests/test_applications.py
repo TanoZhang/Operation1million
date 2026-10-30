@@ -446,7 +446,7 @@ class ApplicationsTests(ApplicationsFixture):
         applications.append_decision(self.ledger, found, 'applied')
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute("UPDATE jobs SET provider_key='direct', source_job_id='req-new', "
-                       "title='DFT Engineer' WHERE url=?", (url,))
+                       "title='RTL Design Engineer' WHERE url=?", (url,))
         self.assertIn(url, {job['url'] for group in self.queue()['pending']
                             for job in group['jobs']})
 

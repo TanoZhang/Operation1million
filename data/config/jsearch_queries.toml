@@ -148,6 +148,30 @@ min_description_chars = 1500
 # postings); the same titles without one had medians of 29, 12, 21, 0 and 0.
 title_only_floor = [55, 50, 62, 21, 0]
 
+# Digital front end first (the user, 2026-10-30): a title naming RTL, FPGA,
+# DV or digital design scores
+# `focus_title_bonus` more, but only once it already passes `min_confidence`,
+# so the bonus reorders kept postings and never lets one in. A title naming
+# analog, mixed-signal or custom circuit design, layout or SRAM/DRAM design,
+# and none of the focus words, is scaled by `circuit_title_factor`.
+# Mixed-signal or AMS verification is DV and is not scaled.
+focus_title_bonus = 20
+circuit_title_factor = 0.5
+focus_title_patterns = [
+  '\bRTL\b', '\bFPGA\b', '\bDV\b', '\bUVM\b', '\bSystemVerilog\b', '\bVerilog\b', '\bVHDL\b',
+  '\b(?:design|functional|hardware|asic|soc|ip|digital|pre[-\s]?silicon|cpu|gpu|formal|block|chip|fpga|ams|mixed[-\s]?signal)\s+verification\b',
+  '\bverification\s+(?:engineer|intern|co[-\s]?op)',
+  '\b(?:digital|logic|rtl|asic|soc|fpga)\s+(?:ic\s+)?design(?![-\s]+for[-\s]+test)',
+  '\bdigital\s+(?:ic|logic)\b',
+]
+circuit_title_patterns = [
+  '\banalog\b', '\bmixed[-\s]?signal\b', '\bAMS\b', '\bRFIC\b', '\bSRAM\b', '\bbitcell\b',
+  '\bcustom\s+(?:circuit|layout|design)', '\b(?<!digital\s)circuit\s+design',
+  '\b(?:DRAM|memory|standard[-\s]?cell)\s+(?:circuit\s+)?design', '\btransistor[-\s]level\b',
+  '\bIC\s+layout\b', '\bmask\s+design', '\blayout\s+(?:engineer|intern|designer|co[-\s]?op)',
+  '\b(?:PLL|ADC|DAC|LDO|PMIC|power\s+management)\s+(?:circuit\s+)?design',
+]
+
 # Hard exclusions, checked before anything else. These answer "would I take this
 # job at all", which no amount of relevance can overturn: a defence programme is
 # still a defence programme when the work is verification, and a director is
@@ -382,6 +406,12 @@ exclude_title_patterns = [
   '\belectricians?\b', '\bjourneym[ae]n\b', '\belectrical\s+(?:helpers?|apprentices?)\b',
   '\b(?:codes?|building|electrical)\s+inspectors?\b', '\bdetailers?\b', '\bsubstations?\b',
   '\bEIT\b', '\bdepartment\s+chair\b',
+  # A title that is plainly design-for-test (the user, 2026-10-30: digital
+  # design first, a DFT-only role skipped). A title that also names RTL, FPGA,
+  # DV, verification or digital, logic, ASIC, SoC or physical design is mixed
+  # work and stays: "DFT Design Verification Engineer", "Physical Design & DFT
+  # Intern". DFT in a description is untouched.
+  '^(?!.*\b(?:rtl|fpga|dv|uvm|verification|(?:digital|logic|asic|soc|physical)\s+design(?![-\s]+for[-\s]+test))\b).*\b(?:dft|dfx|design[-\s]+for[-\s]+test(?:ability)?|atpg|mbist)\b',
 ]
 
 # Titles that may not be taken at their word in either direction: the trade is
@@ -846,11 +876,6 @@ tier = "intern"
 pages = 10
 
 [[query]]
-query = "Design for Test Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
 query = "Analog Layout Intern"
 tier = "intern"
 pages = 10
@@ -912,11 +937,6 @@ pages = 15
 query = "Silicon New Grad"
 tier = "new_grad"
 pages = 15
-
-[[query]]
-query = "DFT New Grad"
-tier = "new_grad"
-pages = 5
 
 # Added 2026-10-03 at the user's request, on trial.
 
@@ -1069,11 +1089,6 @@ tier = "early_career"
 pages = 10
 
 [[query]]
-query = "Design for Test Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
 query = "Physical Design Entry Level"
 tier = "early_career"
 pages = 10
@@ -1125,11 +1140,6 @@ pages = 15
 query = "Verification Intern 2027"
 tier = "intern"
 pages = 5
-
-[[query]]
-query = "DFT Engineering Intern"
-tier = "intern"
-pages = 10
 
 [[query]]
 query = "Hardware Design Engineer I"
@@ -1296,17 +1306,7 @@ tier = "A"
 pages = 40
 
 [[query]]
-query = "DFT Engineer"
-tier = "A"
-pages = 40
-
-[[query]]
 query = "Formal Verification Engineer"
-tier = "A"
-pages = 10
-
-[[query]]
-query = "Design for Test Engineer"
 tier = "A"
 pages = 10
 
@@ -1702,11 +1702,6 @@ pages = 10
 # never returned one), so they are back; and more U.S. entry-level phrases
 # in the shapes that pass most often (Intern / New College Grad / I / Associate / Junior).
 [[query]]
-query = "DFT Intern"
-tier = "intern"
-pages = 5
-
-[[query]]
 query = "Hardware Verification Intern"
 tier = "intern"
 pages = 10
@@ -1782,11 +1777,6 @@ tier = "new_grad"
 pages = 10
 
 [[query]]
-query = "Formal Verification Entry Level"
-tier = "early_career"
-pages = 10
-
-[[query]]
 query = "Post-Silicon Intern"
 tier = "intern"
 pages = 10
@@ -1832,11 +1822,6 @@ tier = "A"
 pages = 10
 
 [[query]]
-query = "Memory Controller Engineer"
-tier = "A"
-pages = 5
-
-[[query]]
 query = "SoC Intern"
 tier = "intern"
 pages = 10
@@ -1853,11 +1838,6 @@ pages = 10
 
 [[query]]
 query = "RTL Design Intern"
-tier = "intern"
-pages = 10
-
-[[query]]
-query = "SoC Design Intern"
 tier = "intern"
 pages = 10
 
@@ -1914,26 +1894,6 @@ pages = 10
 [[query]]
 query = "Silicon Validation Engineering Intern"
 tier = "intern"
-pages = 10
-
-[[query]]
-query = "Hardware Engineer New College Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "ASIC Engineer New College Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "Design Verification Engineer New College Grad"
-tier = "new_grad"
-pages = 10
-
-[[query]]
-query = "Physical Design Engineer New College Grad"
-tier = "new_grad"
 pages = 10
 
 [[query]]
@@ -2013,11 +1973,6 @@ pages = 10
 
 [[query]]
 query = "Early Career Hardware Engineer"
-tier = "early_career"
-pages = 10
-
-[[query]]
-query = "Early Career Silicon Engineer"
 tier = "early_career"
 pages = 10
 
@@ -2112,11 +2067,6 @@ pages = 150
 
 [[sweep_query]]
 query = "デジタル回路 設計 エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "DFT 設計 エンジニア"
 tier = "A"
 pages = 150
 
@@ -2341,11 +2291,6 @@ pages = 150
 
 [[sweep_query]]
 query = "半導体 テスト エンジニア"
-tier = "A"
-pages = 150
-
-[[sweep_query]]
-query = "DFT エンジニア"
 tier = "A"
 pages = 150
 
@@ -2702,10 +2647,6 @@ tier = "new_grad"
 
 [[sweep_query]]
 query = "マイコン 未経験"
-tier = "new_grad"
-
-[[sweep_query]]
-query = "DFT 未経験"
 tier = "new_grad"
 
 [[sweep_query]]

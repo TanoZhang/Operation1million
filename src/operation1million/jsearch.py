@@ -274,7 +274,8 @@ def _read_plan(path):
     for group in ('exclude_employer_patterns', 'exclude_title_patterns', 'reject_title_patterns',
                   'function_title_patterns', 'hardware_title_terms', 'role_title_terms',
                   'us_person_required_patterns', 'exclude_publisher_patterns',
-                  'keep_title_patterns', 'evidence_title_patterns', 'strong_terms', 'common_terms'):
+                  'keep_title_patterns', 'evidence_title_patterns', 'strong_terms', 'common_terms',
+                  'focus_title_patterns', 'circuit_title_patterns'):
         expressions = rules.get(group, [])
         if not isinstance(expressions, list) or any(not isinstance(p, str) for p in expressions):
             raise ValueError(f'filter.{group} must be an array of strings')
@@ -297,6 +298,12 @@ def _read_plan(path):
             raise ValueError(f'Filter setting {name} must be an integer of at least {floors[name]}')
     if not 1 <= rules['min_confidence'] <= 100:
         raise ValueError('Filter min_confidence must fall between 1 and 100')
+    bonus = rules.setdefault('focus_title_bonus', 0)
+    if type(bonus) is not int or not 0 <= bonus <= 100:
+        raise ValueError('Filter focus_title_bonus must be an integer from 0 to 100')
+    factor = rules.setdefault('circuit_title_factor', 1)
+    if type(factor) not in (int, float) or not 0 <= factor <= 1:
+        raise ValueError('Filter circuit_title_factor must be a number from 0 to 1')
     return config, queries
 
 
@@ -879,6 +886,15 @@ def relevance(row, rules, description=None):
         band = bucket(title)
         if band < len(floors):
             confidence = max(confidence, floors[band])
+    # Digital front end first (the user, 2026-10-30). The bonus only reorders
+    # postings already kept; the factor lowers analog and custom circuit roles.
+    focus = any_of(rules.get('focus_title_patterns', []))
+    circuit = any_of(rules.get('circuit_title_patterns', []))
+    if focus and focus.search(title):
+        if confidence >= rules.get('min_confidence', 25):
+            confidence = min(100, confidence + rules.get('focus_title_bonus', 0))
+    elif circuit and circuit.search(title):
+        confidence = round(confidence * rules.get('circuit_title_factor', 1))
     return confidence, matched
 
 
