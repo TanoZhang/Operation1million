@@ -10,10 +10,15 @@ export PATH=$ROOT/venv/bin:$PATH
 export PYTHONUNBUFFERED=1
 export OPERATION1MILLION_PYTHON=$ROOT/venv/bin/python
 
-# Manual invocations and installer updates share the service's lock.
+# Manual invocations and installer updates share the service's lock. The pass
+# waits for it: on 2026-11-01 the fifteen-minute ledger backup fired in the same
+# second, held the lock for one, and the day's pass exited without a request. A
+# backup or a Gmail check is over in seconds; a collection or deployment that
+# still holds it after the wait is a real conflict, and the pass stops as before.
+LOCK_WAIT=${OPERATION1MILLION_LOCK_WAIT:-900}
 exec 9>"$ROOT/collection.lock"
-if ! flock -n 9; then
-  echo 'Another collection or deployment is running; no requests sent.' >&2
+if ! flock -w "$LOCK_WAIT" 9; then
+  echo "Another collection or deployment held the lock for ${LOCK_WAIT}s; no requests sent." >&2
   exit 75
 fi
 

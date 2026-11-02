@@ -109,6 +109,10 @@ Bash into the usual backup folder.
 Both checkouts advance only by fast-forward. Local source edits or divergent
 history stop installation instead of being discarded. Installation and daily
 collection use the same lock, so an update cannot replace running collector code.
+The pass waits up to 15 minutes for it (`OPERATION1MILLION_LOCK_WAIT`, seconds)
+and exits 75 only after that: on 2026-11-01 the fifteen-minute ledger backup
+started in the pass's own second, held the lock for one, and the day's pass
+exited at once without a request.
 
 The scheduled pass does not run the offline suite: GitHub Actions runs it on
 every push to main (`tests.yml`, same Ubuntu and Python) and `deploy-vps.bat`

@@ -9,6 +9,7 @@ import re
 import subprocess
 import shutil
 import tempfile
+import time
 import unittest
 
 from operation1million import collector, jsearch
@@ -312,7 +313,41 @@ class BackupWiringTests(unittest.TestCase):
             body = (ROOT / 'deploy/vps' / name).read_text(encoding='utf-8')
             with self.subTest(script=name):
                 self.assertIn('collection.lock', body)
-                self.assertIn('flock -n 9', body)
+                self.assertRegex(body, r'flock -(?:n|w "\$LOCK_WAIT") 9')
+
+    def test_the_pass_waits_for_a_short_holder(self):
+        """2026-11-01: the ledger backup took the lock in the pass's own second
+        and the day's pass exited at once without a request."""
+        self.assertIn('flock -w "$LOCK_WAIT" 9', (ROOT / 'deploy/vps/daily-pass.sh').read_text(encoding='utf-8'))
+
+    @unittest.skipUnless(shutil.which('flock') and shutil.which('bash') and os.name != 'nt',
+                         'flock is POSIX-only')
+    def test_the_pass_proceeds_once_a_short_holder_lets_go_and_stops_on_a_long_one(self):
+        script = ROOT / 'deploy/vps/daily-pass.sh'
+        with tempfile.TemporaryDirectory() as root:
+            lock = Path(root) / 'collection.lock'
+            env = dict(os.environ, OPERATION1MILLION_ROOT=root,
+                       OPERATION1MILLION_ENV_FILE=str(Path(root) / 'missing-env'))
+
+            def run(hold, wait):
+                holder = subprocess.Popen(['flock', str(lock), 'sleep', str(hold)])
+                try:
+                    deadline = time.monotonic() + 5
+                    while subprocess.run(['flock', '-n', str(lock), 'true']).returncode == 0:
+                        if time.monotonic() > deadline:
+                            self.fail('the holder never took the lock')
+                        time.sleep(0.05)
+                    return subprocess.run(['bash', str(script)], capture_output=True, text=True,
+                                          env=dict(env, OPERATION1MILLION_LOCK_WAIT=str(wait)), timeout=60)
+                finally:
+                    holder.wait()
+
+            short = run(hold=1, wait=10)
+            self.assertNotEqual(short.returncode, 75, short.stderr)
+            self.assertNotIn('held the lock', short.stderr)
+            long = run(hold=5, wait=1)
+            self.assertEqual(long.returncode, 75, long.stderr)
+            self.assertIn('held the lock for 1s', long.stderr)
 
 
 class DataRepositorySyncWiringTests(unittest.TestCase):

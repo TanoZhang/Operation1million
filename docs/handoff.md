@@ -1,3 +1,14 @@
+# The daily pass waits for the lock - 2026-11-02
+
+No pass ran on 2026-11-01: at 12:38:20 UTC the ledger backup timer
+(`OnUnitActiveSec=15min`, drifting) and the collect timer started in the same
+second, the backup took `collection.lock`, and `daily-pass.sh`'s `flock -n`
+exited 75 with no request sent. `daily-pass.sh` now waits up to
+`OPERATION1MILLION_LOCK_WAIT` (900 s) and exits 75 only after that. Checked on
+the VPS in a temporary root: a 1 s holder is waited out, a 5 s holder with a
+1 s wait still exits 75. The other lock takers keep `flock -n`: the backup
+skips to its next tick by design, the installer is run by hand.
+
 # Digital first: DFT-only titles refused, analog lowered - 2026-10-30
 
 The user: score digital design first, raise FPGA, RTL and DV, lower analog,
