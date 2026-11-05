@@ -362,3 +362,12 @@ with current operating facts; never rewrite older snapshots into current advice.
 When two agents collide, preserve both tips, compare from their merge base, run
 the deciding tests, and record what resolved the difference. Commit authors do
 not tell the agents apart; the claim's `Owner` line does.
+
+```text
+Owner: codex
+Scope: Add requested Prep navigation link to review header.
+Files: src/operation1million/review_static/index.html, docs/agent-protocol.md
+Base commit: 5b4b733e42cec7cc570e386b46ce6a65a319a085
+Status: done - live HTML link verified
+Next: None.
+```
