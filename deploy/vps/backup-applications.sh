@@ -28,6 +28,8 @@ MANUAL=operational/manual_jobs.ndjson
 OUTCOMES=operational/application_outcomes.ndjson
 # Descriptions Muse supplied for Applied entries (2026-10-16).
 DESCRIPTIONS=operational/applied_descriptions.ndjson
+# Postings that closed before anyone decided, counted once each (2026-11-17).
+MISSED=operational/missed_closed.ndjson
 
 cd "$DATA"
 
@@ -42,7 +44,7 @@ if ! flock -n 9; then
 fi
 
 files=()
-for name in "$LEDGER" "$LINKS" "$MANUAL" "$OUTCOMES" "$DESCRIPTIONS"; do
+for name in "$LEDGER" "$LINKS" "$MANUAL" "$OUTCOMES" "$DESCRIPTIONS" "$MISSED"; do
   if [ -f "$name" ]; then files+=("$name"); fi
 done
 if [ "${#files[@]}" -eq 0 ]; then

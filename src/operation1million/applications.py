@@ -128,6 +128,72 @@ def append_outcome(path, group_id, outcome, by='', message=''):
     return event
 
 
+def missed_path(ledger):
+    """Every posting that passed the filters and closed undecided, written
+    down once (2026-11-17). Beside the ledger and backed up with it: the index
+    cannot rebuild it, because it holds what the rules of each day counted."""
+    return Path(ledger).with_name('missed_closed.ndjson')
+
+
+def record_missed(path, groups, now=None):
+    """Add the groups not yet on record; return (how many are, the earliest date).
+
+    A group is already there under its id or under any of its addresses, so a
+    key that later changes shape, or the same lines merged in from two
+    machines, is not counted twice. Nothing is ever taken out: a posting later
+    filtered, decided or reopened was still missed on the day it was counted.
+    A file that cannot be written leaves the page working on what it holds
+    plus what it sees now.
+    """
+    path = Path(path)
+    stamp = (now or datetime.now(timezone.utc)).isoformat()
+    ids, urls, count, first = set(), set(), 0, ''
+
+    def take(group_id, addresses):
+        nonlocal count
+        if group_id in ids or urls.intersection(addresses):
+            return False
+        ids.add(group_id)
+        urls.update(addresses)
+        count += 1
+        return True
+
+    def replay():
+        nonlocal first
+        for event in read_records(path):
+            if not (isinstance(event.get('id'), str) and isinstance(event.get('urls'), list)):
+                continue
+            if take(event['id'], [url for url in event['urls'] if isinstance(url, str)]):
+                at = event.get('at')
+                if isinstance(at, str) and at and (not first or at < first):
+                    first = at
+
+    def fresh():
+        return [(group, [job['url'] for job in group['jobs']]) for group in groups
+                if group['id'] not in ids
+                and not urls.intersection(job['url'] for job in group['jobs'])]
+
+    replay()
+    if fresh():
+        try:
+            with locked(path):
+                # Again under the lock: another page load may have written them.
+                ids.clear()
+                urls.clear()
+                count, first = 0, ''
+                replay()
+                for group, addresses in fresh():
+                    if take(group['id'], addresses):
+                        _append_line(path, {'id': group['id'], 'company': group.get('company'),
+                                            'title': group.get('title'), 'urls': addresses,
+                                            'at': stamp})
+                        first = first or stamp
+        except OSError:
+            for group, addresses in fresh():
+                take(group['id'], addresses)
+    return count, first
+
+
 def attach_outcomes(state, outcomes):
     """Give each applied position its recorded outcome, in place. Only applied
     ones: a position moved back to review shows none until applied again."""
@@ -1070,10 +1136,15 @@ def queue(db_path=DB, path=None, now=None):
     # requisition still open under another listing is not missed.
     lost = undecided({key: group for key, group in missed.items()
                       if key not in groups and key not in backlog})
-    result['missed_closed'] = sum(1 for group in lost if not (
+    lost = [group for group in lost if not (
         ranking.bucket(group.get('title')) == 4 and group['confidence'] < minimum
-        and not any(job.get('readable_jd', True) for job in group['jobs'])))
-    result['missed_since'] = (missed_since or '')[:10]
+        and not any(job.get('readable_jd', True) for job in group['jobs']))]
+    # A running total, not today's reading (the user, 2026-11-17: "应该是持续
+    # 增加呀"). Recomputed alone it fell whenever a filter tightened or a
+    # decision was entered afterwards; each miss is written down when first
+    # seen and stays counted.
+    result['missed_closed'], first = record_missed(missed_path(path), lost, now)
+    result['missed_since'] = min(filter(None, ((missed_since or '')[:10], first[:10])), default='')
     for key, event in group_states.items():
         if event['status'] != 'pending':
             group = dict(event['group'], at=event['at'], reason=event.get('reason', ''))

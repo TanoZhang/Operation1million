@@ -161,7 +161,7 @@ publish_state() {
               operational/seen_jobs.ndjson.gz operational/review_queue.csv \
               operational/company_alias_audit.json operational/applied_descriptions.ndjson \
               operational/applied-missing-jd.csv operational/applied-missing-jd.json \
-              operational/jsearch_query_runs.ndjson; do
+              operational/jsearch_query_runs.ndjson operational/missed_closed.ndjson; do
     if [ -f "$name" ]; then git add -f "$name"; fi
   done
   if [ -d operational/daily-new ]; then git add -f operational/daily-new; fi

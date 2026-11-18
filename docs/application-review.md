@@ -326,6 +326,16 @@ file is append-only like the company links, and the latest mark for a
 position wins. It is backed up and merged line by line with the ledger.
 Moving a position back to review hides its mark until it is applied again.
 
+### Closed before application
+
+The header count of postings that passed the filters and closed on the
+employer's site with no decision is a running total. Each one is written to
+`operational/missed_closed.ndjson` the first time the queue sees it, and stays
+counted if a filter later rejects it, a decision is entered afterwards, it
+reopens, or the index is rebuilt. The file is append-only, backed up and merged
+line by line with the ledger; a posting is counted once by its group id or any
+of its addresses. A paid listing is never counted, as it is never closed.
+
 ### From Gmail
 
 `operation1million-gmail.timer` runs `python -m operation1million.gmail_outcomes` on the VPS

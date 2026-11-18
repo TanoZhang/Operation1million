@@ -622,7 +622,9 @@ class BacklogTests(ApplicationsFixture):
         paid listing (never closed, only no longer found)."""
         state = self.queue()
         self.assertEqual(state['missed_closed'], 1)
-        self.assertEqual(state['missed_since'], 'closed'[:10])
+        # The earlier of the index's first closure and the first one written
+        # down; the fixture's 'closed' sorts after any date.
+        self.assertEqual(state['missed_since'], self.now.isoformat()[:10])
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute("INSERT INTO jobs SELECT replace(url, '/d', '/e'), company_key, 'Senior RTL Engineer',"
                        " location, 'req-e', first_seen, posted_at, provider_key, relevance, closed_at, raw,"
@@ -631,12 +633,44 @@ class BacklogTests(ApplicationsFixture):
                        " location, 'req-f', first_seen, posted_at, 'jsearch', relevance, closed_at, raw,"
                        " last_seen FROM jobs WHERE source_job_id='req-d'")
         self.assertEqual(self.queue()['missed_closed'], 1)
+
+    def decide_then_close(self):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute("UPDATE jobs SET closed_at=NULL WHERE source_job_id='req-d'")
         applications.append_decision(self.ledger, self.group_for('req-d'), 'skipped')
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute("UPDATE jobs SET closed_at='closed' WHERE source_job_id='req-d'")
+
+    def test_a_job_decided_before_it_closed_was_never_missed(self):
+        self.decide_then_close()
         self.assertEqual(self.queue()['missed_closed'], 0)
+        self.assertFalse(applications.missed_path(self.ledger).exists())
+
+    def test_the_missed_count_never_goes_down(self):
+        """The user, 2026-11-17: it should keep growing. Recomputed each time it
+        fell when a filter tightened or a decision was entered afterwards."""
+        self.assertEqual(self.queue()['missed_closed'], 1)
+        record = applications.missed_path(self.ledger)
+        written = record.read_bytes()
+        self.assertEqual(self.queue()['missed_closed'], 1)
+        self.assertEqual(record.read_bytes(), written, 'counted twice')
+        # Reopened, skipped and closed again: still missed once.
+        self.decide_then_close()
+        self.assertEqual(self.queue()['missed_closed'], 1)
+        # Gone from the index altogether, as after a rebuild.
+        with closing(sqlite3.connect(self.db)) as db, db:
+            db.execute("DELETE FROM jobs WHERE source_job_id='req-d'")
+        self.assertEqual(self.queue()['missed_closed'], 1)
+
+    def test_a_missed_job_is_counted_once_under_a_changed_key_or_a_merged_copy(self):
+        self.queue()
+        record = applications.missed_path(self.ledger)
+        event = json.loads(record.read_text())
+        with record.open('a') as handle:
+            handle.write(json.dumps(event) + '\n')
+            handle.write(json.dumps(dict(event, id='another-shape')) + '\n')
+            handle.write('not json\n')
+        self.assertEqual(self.queue()['missed_closed'], 1)
 
     def test_the_backlog_obeys_the_same_exclusions_as_the_queue(self):
         with closing(sqlite3.connect(self.db)) as db, db:
